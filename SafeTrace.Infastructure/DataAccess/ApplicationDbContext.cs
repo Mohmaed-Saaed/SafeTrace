@@ -1,0 +1,55 @@
+﻿using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
+using SafeTrace.Domain.Entities;
+using SafeTrace.Domain.Enums;
+using System;
+using System.Collections.Generic;
+using System.Reflection.Emit;
+using System.Text;
+
+namespace SafeTrace.Infrastructure.DataAccess
+{
+    public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
+    {
+        public DbSet<ApplicationUser> ApplicationUsers { get; set; }
+        public DbSet<BaseCase> BaseCase { get; set; }
+        public DbSet<LongTermMissingCase> LongTermMissingCases{ get; set; }
+        public DbSet<UrgentCase> UrgentCases { get; set; }
+
+        public DbSet<FoundPersonInfo> FoundPersonInfos { get; set; }
+
+        public DbSet<Complaint> Complaints { get; set; }
+        public DbSet<CasePhoto> CasePhotos { get; set; }
+        public DbSet<Chat> Chats{ get; set; }
+        public DbSet<Message> Messages{ get; set; }
+        public DbSet<Notification> Notifications{ get; set; }
+
+        public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) : base(options)
+        {
+        }
+        protected override void OnModelCreating(ModelBuilder builder)
+        {
+            base.OnModelCreating(builder);
+
+            builder.Entity<BaseCase>()
+    .HasOne(c => c.FoundPersonInfo)
+    .WithOne(f => f.Case)
+    .HasForeignKey<FoundPersonInfo>(f => f.CaseId)
+    .OnDelete(DeleteBehavior.NoAction);
+
+            builder.Entity<BaseCase>()
+                .ToTable("BaseCases");
+
+            builder.Entity<LongTermMissingCase>()
+                .ToTable("LongTermMissingCases");
+
+            builder.Entity<UrgentCase>()
+                .ToTable("UrgentCases");
+
+            builder.Entity<UnknownCase>()
+                .ToTable("UnknownCases");
+        }
+
+    }
+}
