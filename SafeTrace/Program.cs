@@ -1,16 +1,3 @@
-
-using Microsoft.AspNetCore.Identity;
-using Microsoft.EntityFrameworkCore;
-using SafeTrace.Application.Interfaces;
-using SafeTrace.Application.Mapping;
-using SafeTrace.Domain.Entities;
-using SafeTrace.Domain.Interfaces.IReposityory;
-using SafeTrace.Domain.Interfaces.IUnitOfWork;
-using SafeTrace.Infrastructure.DataAccess;
-using SafeTrace.Infrastructure.Persistence;
-using SafeTrace.Infrastructure.Repositories.Repository;
-using SafeTrace.Infrastructure.Repositories.UnitOfWork;
-
 namespace SafeTrace
 {
     public class Program
@@ -32,7 +19,7 @@ namespace SafeTrace
                     .AddDefaultTokenProviders();
 
             //builder.Services.AddScoped<IDBInitializer, DBInitializer>();
-            builder.Services.AddScoped(typeof(IRepository<>), typeof(Repository<>));
+            //builder.Services.AddScoped(typeof(IRepository<>), typeof(Repository<>));
             builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 
             builder.Services.AddAutoMapper(cfg => { cfg.AddProfile<MappingProfile>(); });
@@ -77,8 +64,9 @@ namespace SafeTrace
             //    dbInitializer.Initialize();
             //}
             app.MapControllers();
-            app.MapControllerRoute(name: "areas", pattern: "api/{area:exists}/{controller}/{action=Index}/{id?}");
-
+            app.MapControllerRoute(
+                name: "default",
+                pattern: "api/{controller}/{action=Index}/{id?}");
             app.Run();
         }
     }

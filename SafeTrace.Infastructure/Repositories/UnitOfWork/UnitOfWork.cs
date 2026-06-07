@@ -1,8 +1,10 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
+using SafeTrace.Domain.Interfaces.IRepositories;
 using SafeTrace.Domain.Interfaces.IReposityory;
 using SafeTrace.Domain.Interfaces.IUnitOfWork;
 using SafeTrace.Infrastructure.DataAccess;
+using SafeTrace.Infrastructure.Repositories.Repositories;
 using SafeTrace.Infrastructure.Repositories.Repository;
 using System;
 using System.Collections.Generic;
@@ -16,33 +18,31 @@ namespace SafeTrace.Infrastructure.Repositories.UnitOfWork
 
         private IDbContextTransaction? _transaction;
 
-        private readonly Dictionary<Type, object> _repositories = new();
-        private readonly object _reposLock = new();
+        public IBaseCaseRepository BaseCaseRepository { get; private set; }
+        public ICasePhotoRepository CasePhotoRepository { get; private set; }
+        public IChatRepository ChatRepository { get; private set; }
+        public IComplaintRepository ComplaintRepository { get; private set; }
+        public IFoundPersonInfoRepository FoundPersonInfoRepository { get; private set; }
+        public ILongTermMissingCaseRepository LongTermMissingCaseRepository { get; private set; }
+        public IMessageRepository MessageRepository { get; private set; }
+        public INotificationRepository NotificationRepository { get; private set; }
+        public IUnknownCaseRepository UnknownCaseRepository { get; private set; }
+        public IUrgentCaseRepository UrgentCaseRepository { get; private set; }
 
         public UnitOfWork(ApplicationDbContext context)
         {
             _context = context;
-        }
+            BaseCaseRepository = new BaseCaseRepository(_context);
+            CasePhotoRepository = new CasePhotoRepository(_context);
+            ChatRepository = new ChatRepository(_context);
+            ComplaintRepository = new ComplaintRepository(_context);
+            FoundPersonInfoRepository = new FoundPersonInfoRepository(_context);
+            LongTermMissingCaseRepository = new LongTermMissingCaseRepository(_context);
+            MessageRepository = new MessageRepository(_context);
+            NotificationRepository = new NotificationRepository(_context);
+            UnknownCaseRepository = new UnknownCaseRepository(_context);
+            UrgentCaseRepository = new UrgentCaseRepository(_context);
 
-        public IRepository<T> Repository<T>() where T : class
-        {
-            var type = typeof(T);
-            if (_repositories.TryGetValue(type, out var repo))
-            {
-                return (IRepository<T>)repo!;
-            }
-
-            lock (_reposLock)
-            {
-                if (_repositories.TryGetValue(type, out repo))
-                {
-                    return (IRepository<T>)repo!;
-                }
-
-                var repository = new Repository<T>(_context);
-                _repositories[type] = repository;
-                return repository;
-            }
         }
 
         public async Task<int> SaveAsync()

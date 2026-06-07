@@ -1,7 +1,5 @@
 ﻿using Microsoft.AspNetCore.Identity;
-using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore;
-using SafeTrace.Domain.Entities;
+
 using SafeTrace.Domain.Enums;
 using System;
 using System.Collections.Generic;
