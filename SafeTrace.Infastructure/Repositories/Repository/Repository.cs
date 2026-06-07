@@ -1,4 +1,5 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using SafeTrace.Domain.Common;
 using SafeTrace.Domain.Interfaces.IReposityory;
 using SafeTrace.Infrastructure.DataAccess;
 using System;
@@ -88,20 +89,14 @@ namespace SafeTrace.Infrastructure.Repositories.Repository
             }
         }
         public async Task<IEnumerable<T>> GetAllAsync(Expression<Func<T, bool>>? expression = null, bool tracked = true,
-            Func<IQueryable<T>, IOrderedQueryable<T>>? orderByExpression = null, int take = -1 , params Expression<Func<T, object>>[] includes)
+            Expression<Func<T , object>>? orderBy = null, string orderByDirection = OrderBy.Ascending, int take = -1 , params Expression<Func<T, object>>[] includes)
         {
 
             IQueryable<T> entities = _db;
 
-            // Apply tracking as early as possible
             if (!tracked)
             {
                 entities = entities.AsNoTracking();
-            }
-
-            if (expression is not null)
-            {
-                entities = entities.Where(expression);
             }
 
             if (includes is not null && includes.Length > 0)
@@ -112,14 +107,27 @@ namespace SafeTrace.Infrastructure.Repositories.Repository
                 }
             }
 
-            if (orderByExpression is not null)
+            if (orderBy != null)
             {
-                entities = orderByExpression(entities);
+                if(orderByDirection == "ASC")
+                {
+                    entities = entities.OrderBy(orderBy);
+                }
+                else if(orderByDirection == "DESC")
+                {
+                    entities = entities.OrderByDescending(orderBy);
+                }
             }
+
 
             if (take > -1)
             {
                 entities = entities.Take(take);
+            }
+
+            if (expression is not null)
+            {
+                entities = entities.Where(expression);
             }
 
             return await entities.ToListAsync();

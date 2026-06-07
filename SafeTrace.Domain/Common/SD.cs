@@ -4,7 +4,5 @@ using System.Text;
 
 namespace SafeTrace.Domain.Common
 {
-    internal class SD
-    {
-    }
+    internal class SD { }
 }
