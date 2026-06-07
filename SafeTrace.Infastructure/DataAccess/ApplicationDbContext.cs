@@ -32,23 +32,7 @@ namespace SafeTrace.Infrastructure.DataAccess
         {
             base.OnModelCreating(builder);
 
-            builder.Entity<BaseCase>()
-    .HasOne(c => c.FoundPersonInfo)
-    .WithOne(f => f.Case)
-    .HasForeignKey<FoundPersonInfo>(f => f.CaseId)
-    .OnDelete(DeleteBehavior.NoAction);
-
-            builder.Entity<BaseCase>()
-                .ToTable("BaseCases");
-
-            builder.Entity<LongTermMissingCase>()
-                .ToTable("LongTermMissingCases");
-
-            builder.Entity<UrgentCase>()
-                .ToTable("UrgentCases");
-
-            builder.Entity<UnknownCase>()
-                .ToTable("UnknownCases");
+            builder.ApplyConfigurationsFromAssembly(typeof(ApplicationDbContext).Assembly);
         }
 
     }
