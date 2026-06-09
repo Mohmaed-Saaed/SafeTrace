@@ -1,4 +1,5 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using Azure;
+using Microsoft.EntityFrameworkCore;
 using SafeTrace.Domain.Common;
 using SafeTrace.Domain.Interfaces.IReposityory;
 using SafeTrace.Infrastructure.DataAccess;
@@ -89,45 +90,35 @@ namespace SafeTrace.Infrastructure.Repositories.Repository
             }
         }
         public async Task<IEnumerable<T>> GetAllAsync(Expression<Func<T, bool>>? expression = null, bool tracked = true,
-            Expression<Func<T , object>>? orderBy = null, string orderByDirection = OrderBy.Ascending, int take = -1 , params Expression<Func<T, object>>[] includes)
+            Expression<Func<T , object>>? orderBy = null, string orderByDirection = OrderBy.Ascending, int page = 1 , int pageSize = 10, params Expression<Func<T, object>>[] includes)
         {
 
             IQueryable<T> entities = _db;
 
             if (!tracked)
-            {
                 entities = entities.AsNoTracking();
-            }
 
             if (includes is not null && includes.Length > 0)
             {
                 foreach (var item in includes)
-                {
                     entities = entities.Include(item);
-                }
-            }
-
-            if (orderBy != null)
-            {
-                if(orderByDirection == "ASC")
-                {
-                    entities = entities.OrderBy(orderBy);
-                }
-                else if(orderByDirection == "DESC")
-                {
-                    entities = entities.OrderByDescending(orderBy);
-                }
-            }
-
-
-            if (take > -1)
-            {
-                entities = entities.Take(take);
             }
 
             if (expression is not null)
-            {
                 entities = entities.Where(expression);
+
+            if (orderBy != null)
+            {
+                entities = orderByDirection == OrderBy.Descending
+                    ? entities.OrderByDescending(orderBy)
+                    : entities.OrderBy(orderBy);
+            }
+
+            if (page > 0 && pageSize > 0)
+            {
+                entities = entities
+                    .Skip((page - 1) * pageSize)
+                    .Take(pageSize);
             }
 
             return await entities.ToListAsync();
