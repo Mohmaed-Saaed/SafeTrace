@@ -23,7 +23,7 @@ namespace SafeTrace.Domain.Entities
 
         public CaseStatus Status { get; set; }
 
-        public double LocationLatitude { get; set; }
+        public double LocationLatitude { get; set; } 
         public double LocationLongitude { get; set; }
 
         public string CaseCode { get; set; } = null!;
@@ -32,12 +32,16 @@ namespace SafeTrace.Domain.Entities
 
         public DateTime CreatedAt { get; set; }
 
+        public DateTime LostDate { get; set; }
+
         public string? Description { get; set; }
 
         public CaseType CaseType { get; set; }
+        public int   AgeCategoryId { get; set; }
 
         public FoundPersonInfo? FoundPersonInfo { get; set; }
 
+        public AgeCategory AgeCategory { get; set; } = new AgeCategory();
         public ICollection<CasePhoto> Photos { get; set; } = new List<CasePhoto>();
 
         public ICollection<Chat> Chats { get; set; } = new List<Chat>();

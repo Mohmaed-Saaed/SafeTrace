@@ -29,6 +29,11 @@ namespace SafeTrace.Infrastructure.DataAccess.Configurations
                 .WithOne(ch => ch.Case)
                 .HasForeignKey(ch => ch.CaseId)
                 .OnDelete(DeleteBehavior.Cascade);
+
+            builder.HasOne(c => c.AgeCategory)
+                .WithMany(ac => ac.BaseCases)
+                .HasForeignKey(c => c.AgeCategoryId)
+                .OnDelete(DeleteBehavior.Restrict);
         }
     }
 }
