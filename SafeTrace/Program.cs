@@ -1,3 +1,6 @@
+using SafeTrace.Application.Interfaces.Services;
+using SafeTrace.Infrastructure.Service.Founded;
+
 namespace SafeTrace
 {
     public class Program
@@ -21,6 +24,7 @@ namespace SafeTrace
             //builder.Services.AddScoped<IDBInitializer, DBInitializer>();
             //builder.Services.AddScoped(typeof(IRepository<>), typeof(Repository<>));
             builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
+            builder.Services.AddScoped<IFoundedService, FoundedService>();
 
             builder.Services.AddAutoMapper(cfg => { cfg.AddProfile<MappingProfile>(); });
 
