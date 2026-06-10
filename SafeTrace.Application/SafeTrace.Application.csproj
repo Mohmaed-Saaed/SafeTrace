@@ -14,4 +14,8 @@
     <ProjectReference Include="..\SafeTrace.Domain\SafeTrace.Domain.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="Interfaces\Services\" />
+  </ItemGroup>
+
 </Project>

@@ -1,4 +1,4 @@
-using SafeTrace.Application.Interfaces.Services;
+using SafeTrace.Application.Interfaces;
 using SafeTrace.Infrastructure.Service.Founded;
 
 namespace SafeTrace

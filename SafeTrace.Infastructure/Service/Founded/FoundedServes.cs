@@ -1,7 +1,7 @@
 ﻿using AutoMapper;
 using SafeTrace.Application.DTOs.Founded;
 using SafeTrace.Application.DTOs.Responses;
-using SafeTrace.Application.Interfaces.Services;
+using SafeTrace.Application.Interfaces;
 using SafeTrace.Domain.Common;
 using SafeTrace.Domain.Enums;
 using SafeTrace.Domain.Interfaces.IUnitOfWork;
