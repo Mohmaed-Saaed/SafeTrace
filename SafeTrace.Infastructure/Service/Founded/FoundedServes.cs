@@ -20,26 +20,21 @@ namespace SafeTrace.Infrastructure.Service.Founded
             _unitOfWork = unitOfWork;
             _mapper = mapper;
         }
-        public async Task<ApiResponse<List<DTOFoundedIndexResponse>>> GetAllAsync(string? search, Gender? gender, int page = 1, int pageSize = 10)
+        public async Task<ApiResponse<List<FoundPersonListItemDto>>> GetAllAsync(string? search, Gender? gender, int page = 1, int pageSize = 10)
         {
-
+            search = string.IsNullOrWhiteSpace(search) ? null : search.Trim();
 
             var foundedPersons = await _unitOfWork.FoundPersonInfoRepository.GetAllAsync(
-                    f => string.IsNullOrEmpty(search) || f.Case.FName!.Contains(search)|| f.Case.SName!.Contains(search)
-                    && f.Case.Gender == gender,
-                        false,f => f.Case.CreatedAt, OrderBy.Descending, page, f => f.Case);
+                    f => (string.IsNullOrEmpty(search) || f.Case.FName!.Contains(search)|| f.Case.SName!.Contains(search))
+                        && ( !gender.HasValue || f.Case.Gender == gender), false,f => f.Case.CreatedAt, OrderBy.Descending, 
+                            page, pageSize, f => f.Case , f => f.Case.Photos);
 
-
-            var result = _mapper.Map<List<DTOFoundedIndexResponse>>(foundedPersons);
-
-            var response = new ApiResponse<List<DTOFoundedIndexResponse>>
+            return new ApiResponse<List<FoundPersonListItemDto>>
             {
                 Success = true,
                 Message = "Founded persons retrieved successfully",
-                Data = result
+                Data = _mapper.Map<List<FoundPersonListItemDto>>(foundedPersons)
             };
-            return response;
-
         }
     }
 }

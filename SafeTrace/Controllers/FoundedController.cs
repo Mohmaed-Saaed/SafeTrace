@@ -23,7 +23,6 @@ namespace SafeTrace.API.Controllers
         [HttpGet]
         public async Task<IActionResult> Index(string? search, Gender? gender, int page = 1, int pageSize = 10)
         {
-
             var response = await _foundedService.GetAllAsync(search, gender, page, pageSize);
             return Ok(response);
         }

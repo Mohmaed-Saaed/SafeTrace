@@ -1,4 +1,5 @@
 ﻿using SafeTrace.Application.DTOs.Founded;
+using SafeTrace.Application.Helpers;
 using SafeTrace.Domain.Entities;
 using System;
 using System.Collections.Generic;
@@ -8,24 +9,11 @@ using System.Threading.Tasks;
 
 namespace SafeTrace.Application.Mapping
 {
-    public partial class MappingProfile : Profile
+    public  class MappingProfile : Profile
     {
         public MappingProfile()
         {
-            FoundedProfile();
         }
-        public void FoundedProfile()
-        {
-            CreateMap<FoundPersonInfo, DTOFoundedIndexResponse>()
-                .ForMember(
-                    dest => dest.Name,
-                    opt => opt.MapFrom(src =>
-                        $"{src.Case.FName} {src.Case.SName}")
-                )
-                .ForMember(
-                    dest => dest.Image,
-                    opt => opt.MapFrom(src => src.Case.Photos)
-                );
-        }
+
     }
 }

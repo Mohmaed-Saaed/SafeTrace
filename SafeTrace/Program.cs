@@ -26,7 +26,10 @@ namespace SafeTrace
             builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
             builder.Services.AddScoped<IFoundedService, FoundedService>();
 
-            builder.Services.AddAutoMapper(cfg => { cfg.AddProfile<MappingProfile>(); });
+            builder.Services.AddAutoMapper(cfg =>
+            {
+                cfg.AddProfile<FoundedProfile>();
+            });
 
             builder.Services.AddCors(options =>
             {

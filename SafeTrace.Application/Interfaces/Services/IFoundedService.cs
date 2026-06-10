@@ -10,7 +10,7 @@ namespace SafeTrace.Application.Interfaces.Services
     public interface IFoundedService
     {
             
-        public Task<ApiResponse<List<DTOFoundedIndexResponse>>> GetAllAsync(string? search,Gender? gender,int page = 1,int pageSize = 10);
+        public Task<ApiResponse<List<FoundPersonListItemDto>>> GetAllAsync(string? search,Gender? gender,int page = 1,int pageSize = 10);
 
 
     }
