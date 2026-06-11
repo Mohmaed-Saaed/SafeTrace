@@ -63,7 +63,7 @@ namespace SafeTrace
 
 
             app.UseHttpsRedirection();
-            //app.UseStaticFiles();
+            app.UseStaticFiles();
 
             app.UseAuthorization();
 

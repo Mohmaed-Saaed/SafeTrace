@@ -7,13 +7,10 @@ namespace SafeTrace.Domain.Entities
     public class CasePhoto
     {
         public long Id { get; set; }
-
         public long CaseId { get; set; }
-
         public string ImagePath { get; set; } = null!;
-
+        public bool IsPrimary { get; set; } 
         public DateTime CreatedAt { get; set; }
-
         public BaseCase Case { get; set; } = null!;
     }
 }
