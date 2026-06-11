@@ -1,3 +1,3 @@
 ﻿global using Microsoft.AspNetCore.Identity;
 global using SafeTrace.Domain.Entities;
-global using  SafeTrace.Domain.Interfaces.IReposityory;
+global using  SafeTrace.Domain.Interfaces.IRepository;

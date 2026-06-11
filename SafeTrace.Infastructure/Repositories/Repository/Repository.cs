@@ -1,11 +1,6 @@
-﻿using Microsoft.EntityFrameworkCore;
-using SafeTrace.Domain.Common;
-using SafeTrace.Domain.Interfaces.IReposityory;
+﻿using SafeTrace.Domain.Common;
 using SafeTrace.Infrastructure.DataAccess;
-using System;
-using System.Collections.Generic;
 using System.Linq.Expressions;
-using System.Text;
 
 namespace SafeTrace.Infrastructure.Repositories.Repository
 {
