@@ -1,14 +1,9 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Net;
-using System.Text;
-
-namespace SafeTrace.Application.DTOs.Responses
+﻿namespace SafeTrace.Application.DTOs.Responses
 {
     public class ApiResponse<T>
     {
         public bool Success { get; set; }
-        public string Message { get; set; }
+        public string Message { get; set; } = null!;
         public T? Data { get; set; }
 
         public static ApiResponse<T> Ok(T? data = default, string message = "Success")
