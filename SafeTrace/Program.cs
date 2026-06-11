@@ -50,8 +50,6 @@ namespace SafeTrace
 
             app.UseMiddleware<GlobalExceptionMiddleware>();
 
-            app.UseStaticFiles();
-
             // Configure the HTTP request pipeline.
             if (app.Environment.IsDevelopment())
             {
