@@ -1,11 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-using System.ComponentModel.DataAnnotations;
-
-
-
-namespace SafeTrace.Domain.Entities
+﻿namespace SafeTrace.Domain.Entities
 {
     public class ApplicationUser : IdentityUser
     {
