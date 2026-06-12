@@ -2,6 +2,7 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using SafeTrace.Application.Interfaces.IServices;
+using SafeTrace.Application.Options;
 using SafeTrace.Domain.Interfaces.IUnitOfWork;
 using SafeTrace.Infrastructure.DataAccess;
 using SafeTrace.Infrastructure.Repositories.UnitOfWork;
@@ -20,6 +21,8 @@ namespace SafeTrace.Infrastructure.DependencyInjection
             services.AddScoped<IFileStorageService, FileStorageService>();
             services.AddScoped<IEmailServiceSendGrid, EmailServiceSendGrid>();
             
+            services.Configure<JwtOptions>(configuration.GetSection("JWT"));
+
             services.AddIdentity<ApplicationUser, IdentityRole>()
                 .AddEntityFrameworkStores<ApplicationDbContext>()
                     .AddDefaultTokenProviders();
