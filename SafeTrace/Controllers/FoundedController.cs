@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using SafeTrace.Application.DTOs.Founded;
+using SafeTrace.Application.DTOs.Founded.Request;
 using SafeTrace.Application.DTOs.Responses;
 using SafeTrace.Application.Interfaces;
 using SafeTrace.Domain.Common;
@@ -21,9 +22,9 @@ namespace SafeTrace.API.Controllers
         }
 
         [HttpGet]
-        public async Task<IActionResult> Index(string? search, Gender? gender, int page = 1, int pageSize = 10)
+        public async Task<IActionResult> Index([FromQuery] FoundedHeaderQueryDTO query)
         {
-            var response = await _foundedService.GetAllAsync(search, gender, page, pageSize);
+            var response = await _foundedService.GetAllAsync(query);
             return Ok(response);
         }
 
