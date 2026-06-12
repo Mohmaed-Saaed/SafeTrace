@@ -20,7 +20,7 @@ namespace SafeTrace.Infrastructure.DataAccess.Configurations
                 .WithOne(n => n.User)
                 .HasForeignKey(n => n.UserId)
                 .OnDelete(DeleteBehavior.Cascade);
-
+            
             builder.HasMany(u => u.Complaints)
                 .WithOne(c => c.User)
                 .HasForeignKey(c => c.UserId)

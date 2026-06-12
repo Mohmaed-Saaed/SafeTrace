@@ -27,6 +27,7 @@ namespace SafeTrace
             //builder.Services.AddScoped(typeof(IRepository<>), typeof(Repository<>));
 
             builder.Services.AddInfrastructure(builder.Configuration);
+            builder.Services.AddJwtAuthentication(builder.Configuration);
             builder.Services.AddApplication();
 
             builder.Services.AddCors(options =>

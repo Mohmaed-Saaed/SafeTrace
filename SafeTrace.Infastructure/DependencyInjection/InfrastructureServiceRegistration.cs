@@ -2,7 +2,6 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using SafeTrace.Application.Interfaces.IServices;
-using SafeTrace.Application.Options;
 using SafeTrace.Domain.Interfaces.IUnitOfWork;
 using SafeTrace.Infrastructure.DataAccess;
 using SafeTrace.Infrastructure.Repositories.UnitOfWork;
@@ -16,12 +15,17 @@ namespace SafeTrace.Infrastructure.DependencyInjection
         {
             services.AddDbContext<ApplicationDbContext>(options =>
                 options.UseSqlServer(configuration.GetConnectionString("DefaultConnection")));
-            
+
+            services.AddStackExchangeRedisCache(options =>
+            {
+                options.Configuration = configuration.GetConnectionString("Redis");
+                options.InstanceName = "SafeTrace_";
+            });
+
             services.AddScoped<IUnitOfWork, UnitOfWork>();
             services.AddScoped<IFileStorageService, FileStorageService>();
             services.AddScoped<IEmailServiceSendGrid, EmailServiceSendGrid>();
-            
-            services.Configure<JwtOptions>(configuration.GetSection("JWT"));
+            services.AddScoped<ITokenService,  TokenService>();
 
             services.AddIdentity<ApplicationUser, IdentityRole>()
                 .AddEntityFrameworkStores<ApplicationDbContext>()
