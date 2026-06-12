@@ -1,10 +1,12 @@
 ﻿using AutoMapper;
+using Microsoft.Extensions.Logging;
 using SafeTrace.Application.DTOs.Founded;
 using SafeTrace.Application.DTOs.Responses;
 using SafeTrace.Application.Interfaces;
 using SafeTrace.Domain.Common;
 using SafeTrace.Domain.Enums;
 using SafeTrace.Domain.Interfaces.IUnitOfWork;
+using Serilog.Core;
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -15,10 +17,12 @@ namespace SafeTrace.Infrastructure.Service.Founded
     {
         private readonly IUnitOfWork _unitOfWork;
         private readonly IMapper _mapper;
-        public FoundedService(IUnitOfWork unitOfWork, IMapper mapper)
+        private readonly ILogger<FoundedService> _logger;
+        public FoundedService(IUnitOfWork unitOfWork, IMapper mapper, ILogger<FoundedService> logger)
         {
             _unitOfWork = unitOfWork;
             _mapper = mapper;
+            _logger = logger;
         }
         public async Task<ApiResponse<List<FoundPersonListItemDto>>> GetAllAsync(string? search, Gender? gender, int page = 1, int pageSize = 10)
         {
@@ -29,9 +33,12 @@ namespace SafeTrace.Infrastructure.Service.Founded
                         && ( !gender.HasValue || f.Case.Gender == gender), false,f => f.Case.CreatedAt, OrderBy.Descending, 
                             page, pageSize, f => f.Case , f => f.Case.Photos);
 
+
+
             return new ApiResponse<List<FoundPersonListItemDto>>
             {
                 Success = true,
+                StatusCode = 200,
                 Message = "Founded persons retrieved successfully",
                 Data = _mapper.Map<List<FoundPersonListItemDto>>(foundedPersons)
             };
