@@ -1,8 +1,4 @@
 ﻿using SafeTrace.Domain.Interfaces.IRepositories;
-using SafeTrace.Domain.Interfaces.IReposityory;
-using System;
-using System.Collections.Generic;
-using System.Text;
 
 namespace SafeTrace.Domain.Interfaces.IUnitOfWork
 {

@@ -1,10 +1,7 @@
 ﻿using SafeTrace.Domain.Common;
-using System;
-using System.Collections.Generic;
 using System.Linq.Expressions;
-using System.Text;
 
-namespace SafeTrace.Domain.Interfaces.IReposityory
+namespace SafeTrace.Domain.Interfaces.IRepository
 {
     public interface IRepository<T> where T : class
     {

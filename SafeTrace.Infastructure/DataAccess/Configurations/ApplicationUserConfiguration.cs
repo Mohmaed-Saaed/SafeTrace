@@ -1,6 +1,4 @@
-using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
-using SafeTrace.Domain.Entities;
 
 namespace SafeTrace.Infrastructure.DataAccess.Configurations
 {
