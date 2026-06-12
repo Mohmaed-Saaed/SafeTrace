@@ -27,19 +27,22 @@ namespace SafeTrace.API.Middlewares
             }
             catch (KeyNotFoundException ex)
             {
+                _logger.LogWarning(ex, "Resource not found exception occurred.");
                 await WriteErrorAsync(context, HttpStatusCode.NotFound, ex.Message);
             }
             catch (InvalidOperationException ex)
             {
+                _logger.LogWarning(ex, "Invalid operation / Bad request exception occurred.");
                 await WriteErrorAsync(context, HttpStatusCode.BadRequest, ex.Message);
             }
             catch (UnauthorizedAccessException ex)
             {
+                _logger.LogWarning(ex, "Unauthorized access exception occurred.");
                 await WriteErrorAsync(context, HttpStatusCode.Unauthorized, ex.Message);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Unhandled exception occurred");
+                _logger.LogError(ex, "An unhandled exception occurred in the system.");
 
                 var message = _environment.IsDevelopment()
                     ? ex.InnerException is not null
