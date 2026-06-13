@@ -6,6 +6,7 @@ namespace SafeTrace.Application.DTOs.Founded.Response
 {
     public class FoundPersonListItemDto
     {
+        public long CaseId { get; set; }
         public string Name { get; set; } = null!;
         public string Age { get; set; } = null!;
         public string Image { get; set; } = null!;

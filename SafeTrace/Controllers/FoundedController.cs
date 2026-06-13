@@ -26,7 +26,7 @@ namespace SafeTrace.API.Controllers
         {
             var response = await _foundedService.GetAllAsync(query);
             return Ok(response);
-        }
+            }
 
     }
 }

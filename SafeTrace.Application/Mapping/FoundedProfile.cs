@@ -21,7 +21,8 @@ src.Case.SName
 )))
 .ForMember(
 dest => dest.Image, opt => opt.MapFrom(src => src.Case.Photos.Where(p => p.IsPrimary).Select(p => p.ImagePath).FirstOrDefault()))
-.ForMember(dest => dest.Age, opt => opt.MapFrom(src => src.Case.AgeCategory.Name));
+.ForMember(dest => dest.Age, opt => opt.MapFrom(src => src.Case.AgeCategory.Name))
+.ForMember(dest => dest.CaseId, opt => opt.MapFrom(src => src.Case.Id));
         }
     }
 }
