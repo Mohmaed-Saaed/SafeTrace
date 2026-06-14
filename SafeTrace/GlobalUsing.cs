@@ -1,6 +1,5 @@
 ﻿global using SafeTrace.Application.Mapping;
 global using SafeTrace.Domain.Entities;
-global using SafeTrace.Domain.Interfaces.IReposityory;
 global using SafeTrace.Domain.Interfaces.IUnitOfWork;
 global using SafeTrace.Infrastructure.DataAccess;
 global using SafeTrace.Infrastructure.Repositories.Repository;

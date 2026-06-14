@@ -1,3 +1,8 @@
+using SafeTrace.API.Middlewares;
+using SafeTrace.Application.DependencyInjection;
+using SafeTrace.Infrastructure.DependencyInjection;
+using Serilog;
+
 namespace SafeTrace
 {
     public class Program
@@ -6,23 +11,23 @@ namespace SafeTrace
         {
             var builder = WebApplication.CreateBuilder(args);
 
+            Log.Logger = new LoggerConfiguration()
+                        .ReadFrom.Configuration(builder.Configuration)
+                        .CreateLogger();
+
+            builder.Host.UseSerilog();
+
             // Add services to the container.
 
             builder.Services.AddEndpointsApiExplorer();
             builder.Services.AddControllers();
             builder.Services.AddSwaggerGen();
-            builder.Services.AddDbContext<ApplicationDbContext>(options =>
-                options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
-
-            builder.Services.AddIdentity<ApplicationUser, IdentityRole>()
-                .AddEntityFrameworkStores<ApplicationDbContext>()
-                    .AddDefaultTokenProviders();
 
             //builder.Services.AddScoped<IDBInitializer, DBInitializer>();
             //builder.Services.AddScoped(typeof(IRepository<>), typeof(Repository<>));
-            builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 
-            builder.Services.AddAutoMapper(cfg => { cfg.AddProfile<MappingProfile>(); });
+            builder.Services.AddInfrastructure(builder.Configuration);
+            builder.Services.AddApplication();
 
             builder.Services.AddCors(options =>
             {
@@ -43,6 +48,8 @@ namespace SafeTrace
 
             var app = builder.Build();
 
+            app.UseMiddleware<GlobalExceptionMiddleware>();
+
             // Configure the HTTP request pipeline.
             if (app.Environment.IsDevelopment())
             {
@@ -54,7 +61,7 @@ namespace SafeTrace
 
 
             app.UseHttpsRedirection();
-            //app.UseStaticFiles();
+            app.UseStaticFiles();
 
             app.UseAuthorization();
 

@@ -155,6 +155,30 @@ namespace SafeTrace.Infrastructure.Migrations
                     b.ToTable("AspNetUserTokens", (string)null);
                 });
 
+            modelBuilder.Entity("SafeTrace.Domain.Entities.AgeCategory", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("MaxAge")
+                        .HasColumnType("int");
+
+                    b.Property<int>("MinAge")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("AgeCategories", (string)null);
+                });
+
             modelBuilder.Entity("SafeTrace.Domain.Entities.ApplicationUser", b =>
                 {
                     b.Property<string>("Id")
@@ -182,7 +206,8 @@ namespace SafeTrace.Infrastructure.Migrations
 
                     b.Property<string>("FName")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
 
                     b.Property<double?>("HomeLocationLatitude")
                         .HasColumnType("float");
@@ -198,7 +223,8 @@ namespace SafeTrace.Infrastructure.Migrations
 
                     b.Property<string>("LName")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
 
                     b.Property<bool>("LockoutEnabled")
                         .HasColumnType("bit");
@@ -246,7 +272,7 @@ namespace SafeTrace.Infrastructure.Migrations
                         .HasDatabaseName("UserNameIndex")
                         .HasFilter("[NormalizedUserName] IS NOT NULL");
 
-                    b.ToTable("AspNetUsers", (string)null);
+                    b.ToTable("ApplicationUsers", (string)null);
                 });
 
             modelBuilder.Entity("SafeTrace.Domain.Entities.BaseCase", b =>
@@ -260,12 +286,20 @@ namespace SafeTrace.Infrastructure.Migrations
                     b.Property<int>("Age")
                         .HasColumnType("int");
 
+                    b.Property<int>("AgeCategoryId")
+                        .HasColumnType("int");
+
                     b.Property<string>("CaseCode")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("nvarchar(max)")
+                        .HasDefaultValue("10000");
 
                     b.Property<int>("CaseType")
                         .HasColumnType("int");
+
+                    b.Property<string>("CommunicationPhone")
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
@@ -288,6 +322,9 @@ namespace SafeTrace.Infrastructure.Migrations
                     b.Property<double>("LocationLongitude")
                         .HasColumnType("float");
 
+                    b.Property<DateTime>("LostDate")
+                        .HasColumnType("datetime2");
+
                     b.Property<int>("Relation")
                         .HasColumnType("int");
 
@@ -305,6 +342,8 @@ namespace SafeTrace.Infrastructure.Migrations
                         .HasColumnType("nvarchar(450)");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("AgeCategoryId");
 
                     b.HasIndex("UserId");
 
@@ -329,13 +368,17 @@ namespace SafeTrace.Infrastructure.Migrations
 
                     b.Property<string>("ImagePath")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<bool>("IsPrimary")
+                        .HasColumnType("bit");
 
                     b.HasKey("Id");
 
                     b.HasIndex("CaseId");
 
-                    b.ToTable("CasePhotos");
+                    b.ToTable("CasePhotos", (string)null);
                 });
 
             modelBuilder.Entity("SafeTrace.Domain.Entities.Chat", b =>
@@ -364,7 +407,7 @@ namespace SafeTrace.Infrastructure.Migrations
 
                     b.HasIndex("CaseId");
 
-                    b.ToTable("Chats");
+                    b.ToTable("Chats", (string)null);
                 });
 
             modelBuilder.Entity("SafeTrace.Domain.Entities.Complaint", b =>
@@ -383,7 +426,8 @@ namespace SafeTrace.Infrastructure.Migrations
 
                     b.Property<string>("Message")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
 
                     b.Property<string>("UserId")
                         .IsRequired()
@@ -393,7 +437,7 @@ namespace SafeTrace.Infrastructure.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("Complaints");
+                    b.ToTable("Complaints", (string)null);
                 });
 
             modelBuilder.Entity("SafeTrace.Domain.Entities.FoundPersonInfo", b =>
@@ -409,7 +453,8 @@ namespace SafeTrace.Infrastructure.Migrations
 
                     b.Property<string>("City")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
 
                     b.Property<string>("Description")
                         .IsRequired()
@@ -424,11 +469,13 @@ namespace SafeTrace.Infrastructure.Migrations
 
                     b.Property<string>("Government")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
 
                     b.Property<string>("Street")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
 
                     b.HasKey("Id");
 
@@ -437,7 +484,7 @@ namespace SafeTrace.Infrastructure.Migrations
 
                     b.HasIndex("FoundedUserId");
 
-                    b.ToTable("FoundPersonInfos");
+                    b.ToTable("FoundPersonInfos", (string)null);
                 });
 
             modelBuilder.Entity("SafeTrace.Domain.Entities.Message", b =>
@@ -453,7 +500,8 @@ namespace SafeTrace.Infrastructure.Migrations
 
                     b.Property<string>("Content")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
 
                     b.Property<string>("FilePath")
                         .HasColumnType("nvarchar(max)");
@@ -479,7 +527,7 @@ namespace SafeTrace.Infrastructure.Migrations
 
                     b.HasIndex("ChatId");
 
-                    b.ToTable("Messages");
+                    b.ToTable("Messages", (string)null);
                 });
 
             modelBuilder.Entity("SafeTrace.Domain.Entities.Notification", b =>
@@ -492,7 +540,8 @@ namespace SafeTrace.Infrastructure.Migrations
 
                     b.Property<string>("Content")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
@@ -511,7 +560,7 @@ namespace SafeTrace.Infrastructure.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("Notifications");
+                    b.ToTable("Notifications", (string)null);
                 });
 
             modelBuilder.Entity("SafeTrace.Domain.Entities.LongTermMissingCase", b =>
@@ -520,27 +569,23 @@ namespace SafeTrace.Infrastructure.Migrations
 
                     b.Property<string>("City")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
 
                     b.Property<string>("Government")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
 
                     b.Property<string>("PoliceReportImage")
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("Street")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
 
                     b.ToTable("LongTermMissingCases", (string)null);
-                });
-
-            modelBuilder.Entity("SafeTrace.Domain.Entities.UnknownCase", b =>
-                {
-                    b.HasBaseType("SafeTrace.Domain.Entities.BaseCase");
-
-                    b.ToTable("UnknownCases", (string)null);
                 });
 
             modelBuilder.Entity("SafeTrace.Domain.Entities.UrgentCase", b =>
@@ -609,11 +654,19 @@ namespace SafeTrace.Infrastructure.Migrations
 
             modelBuilder.Entity("SafeTrace.Domain.Entities.BaseCase", b =>
                 {
+                    b.HasOne("SafeTrace.Domain.Entities.AgeCategory", "AgeCategory")
+                        .WithMany("BaseCases")
+                        .HasForeignKey("AgeCategoryId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
                     b.HasOne("SafeTrace.Domain.Entities.ApplicationUser", "User")
                         .WithMany("Cases")
                         .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
+
+                    b.Navigation("AgeCategory");
 
                     b.Navigation("User");
                 });
@@ -656,13 +709,13 @@ namespace SafeTrace.Infrastructure.Migrations
                     b.HasOne("SafeTrace.Domain.Entities.BaseCase", "Case")
                         .WithOne("FoundPersonInfo")
                         .HasForeignKey("SafeTrace.Domain.Entities.FoundPersonInfo", "CaseId")
-                        .OnDelete(DeleteBehavior.NoAction)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.HasOne("SafeTrace.Domain.Entities.ApplicationUser", "FoundedUser")
                         .WithMany()
                         .HasForeignKey("FoundedUserId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.Navigation("Case");
@@ -701,15 +754,6 @@ namespace SafeTrace.Infrastructure.Migrations
                         .IsRequired();
                 });
 
-            modelBuilder.Entity("SafeTrace.Domain.Entities.UnknownCase", b =>
-                {
-                    b.HasOne("SafeTrace.Domain.Entities.BaseCase", null)
-                        .WithOne()
-                        .HasForeignKey("SafeTrace.Domain.Entities.UnknownCase", "Id")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-                });
-
             modelBuilder.Entity("SafeTrace.Domain.Entities.UrgentCase", b =>
                 {
                     b.HasOne("SafeTrace.Domain.Entities.BaseCase", null)
@@ -717,6 +761,11 @@ namespace SafeTrace.Infrastructure.Migrations
                         .HasForeignKey("SafeTrace.Domain.Entities.UrgentCase", "Id")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("SafeTrace.Domain.Entities.AgeCategory", b =>
+                {
+                    b.Navigation("BaseCases");
                 });
 
             modelBuilder.Entity("SafeTrace.Domain.Entities.ApplicationUser", b =>

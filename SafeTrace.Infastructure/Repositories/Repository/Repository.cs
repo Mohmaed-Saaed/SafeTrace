@@ -1,10 +1,6 @@
-﻿using Microsoft.EntityFrameworkCore;
-using SafeTrace.Domain.Interfaces.IReposityory;
+﻿using SafeTrace.Domain.Common;
 using SafeTrace.Infrastructure.DataAccess;
-using System;
-using System.Collections.Generic;
 using System.Linq.Expressions;
-using System.Text;
 
 namespace SafeTrace.Infrastructure.Repositories.Repository
 {
@@ -87,39 +83,41 @@ namespace SafeTrace.Infrastructure.Repositories.Repository
                 return Task.FromResult(false);
             }
         }
-        public async Task<IEnumerable<T>> GetAllAsync(Expression<Func<T, bool>>? expression = null, bool tracked = true,
-            Func<IQueryable<T>, IOrderedQueryable<T>>? orderByExpression = null, int take = -1 , params Expression<Func<T, object>>[] includes)
+        public async Task<IEnumerable<T>> GetAllAsync(
+      Expression<Func<T, bool>>? expression = null,
+      bool tracked = true,
+      Expression<Func<T, object>>? orderBy = null,
+      string orderByDirection = OrderBy.Ascending,
+      int? page = null,
+      int? pageSize = null,
+      params Expression<Func<T, object>>[] includes)
         {
-
             IQueryable<T> entities = _db;
 
-            // Apply tracking as early as possible
             if (!tracked)
-            {
                 entities = entities.AsNoTracking();
-            }
-
-            if (expression is not null)
-            {
-                entities = entities.Where(expression);
-            }
 
             if (includes is not null && includes.Length > 0)
             {
                 foreach (var item in includes)
-                {
                     entities = entities.Include(item);
-                }
             }
 
-            if (orderByExpression is not null)
+            if (expression is not null)
+                entities = entities.Where(expression);
+
+            if (orderBy != null)
             {
-                entities = orderByExpression(entities);
+                entities = orderByDirection == OrderBy.Descending
+                    ? entities.OrderByDescending(orderBy)
+                    : entities.OrderBy(orderBy);
             }
 
-            if (take > -1)
+            if (page.HasValue && pageSize.HasValue)
             {
-                entities = entities.Take(take);
+                entities = entities
+                    .Skip((page.Value - 1) * pageSize.Value)
+                    .Take(pageSize.Value);
             }
 
             return await entities.ToListAsync();

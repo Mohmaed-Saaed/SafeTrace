@@ -1,12 +1,4 @@
-﻿using Microsoft.AspNetCore.Identity;
-
-using SafeTrace.Domain.Enums;
-using System;
-using System.Collections.Generic;
-using System.Reflection.Emit;
-using System.Text;
-
-namespace SafeTrace.Infrastructure.DataAccess
+﻿namespace SafeTrace.Infrastructure.DataAccess
 {
     public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
     {
@@ -22,6 +14,8 @@ namespace SafeTrace.Infrastructure.DataAccess
         public DbSet<Chat> Chats{ get; set; }
         public DbSet<Message> Messages{ get; set; }
         public DbSet<Notification> Notifications{ get; set; }
+        public DbSet<AgeCategory> AgeCategories { get; set; }
+
 
         public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) : base(options)
         {

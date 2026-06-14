@@ -4,6 +4,7 @@
     <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <UserSecretsId>6cf200f4-381b-48b7-930e-e271e0c6cee5</UserSecretsId>
   </PropertyGroup>
 
   <ItemGroup>
@@ -20,9 +21,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="Controllers\Admin\" />
-    <Folder Include="Controllers\Auth\" />
-    <Folder Include="Controllers\User\" />
+    <Folder Include="wwwroot\Images\" />
   </ItemGroup>
 
 </Project>
