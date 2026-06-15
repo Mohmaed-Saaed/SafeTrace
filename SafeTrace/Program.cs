@@ -2,6 +2,7 @@ using SafeTrace.API.Middlewares;
 using SafeTrace.Application.DependencyInjection;
 using SafeTrace.Infrastructure.DependencyInjection;
 using Serilog;
+using System.Text.Json.Serialization;
 
 namespace SafeTrace
 {
@@ -20,7 +21,14 @@ namespace SafeTrace
             // Add services to the container.
 
             builder.Services.AddEndpointsApiExplorer();
-            builder.Services.AddControllers();
+
+            builder.Services.AddControllers()
+                            .AddJsonOptions(options =>
+                            {
+                                options.JsonSerializerOptions.Converters.Add(
+                                    new JsonStringEnumConverter());
+                            });
+
             builder.Services.AddSwaggerGen();
 
             //builder.Services.AddScoped<IDBInitializer, DBInitializer>();
