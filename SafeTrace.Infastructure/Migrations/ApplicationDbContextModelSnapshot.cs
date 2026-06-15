@@ -588,6 +588,25 @@ namespace SafeTrace.Infrastructure.Migrations
                     b.ToTable("LongTermMissingCases", (string)null);
                 });
 
+            modelBuilder.Entity("SafeTrace.Domain.Entities.UnknownCase", b =>
+                {
+                    b.HasBaseType("SafeTrace.Domain.Entities.BaseCase");
+
+                    b.Property<string>("City")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Government")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Street")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.ToTable("unknownCases");
+                });
+
             modelBuilder.Entity("SafeTrace.Domain.Entities.UrgentCase", b =>
                 {
                     b.HasBaseType("SafeTrace.Domain.Entities.BaseCase");
@@ -750,6 +769,15 @@ namespace SafeTrace.Infrastructure.Migrations
                     b.HasOne("SafeTrace.Domain.Entities.BaseCase", null)
                         .WithOne()
                         .HasForeignKey("SafeTrace.Domain.Entities.LongTermMissingCase", "Id")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("SafeTrace.Domain.Entities.UnknownCase", b =>
+                {
+                    b.HasOne("SafeTrace.Domain.Entities.BaseCase", null)
+                        .WithOne()
+                        .HasForeignKey("SafeTrace.Domain.Entities.UnknownCase", "Id")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });

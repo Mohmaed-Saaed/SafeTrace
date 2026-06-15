@@ -7,6 +7,8 @@
         public DbSet<LongTermMissingCase> LongTermMissingCases{ get; set; }
         public DbSet<UrgentCase> UrgentCases { get; set; }
 
+        public DbSet<UnknownCase> unknownCases { get; set; }
+
         public DbSet<FoundPersonInfo> FoundPersonInfos { get; set; }
 
         public DbSet<Complaint> Complaints { get; set; }
