@@ -9,6 +9,7 @@ namespace SafeTrace.Application.DTOs.Founded.Response
         public long CaseId { get; set; }
         public string Name { get; set; } = null!;
         public string Age { get; set; } = null!;
+        public DateOnly FoundedAt { get; set; } 
         public string Image { get; set; } = null!;
     }
 }
