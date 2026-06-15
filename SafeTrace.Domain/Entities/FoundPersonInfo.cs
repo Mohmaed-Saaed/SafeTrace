@@ -14,7 +14,7 @@
 
         public long CaseId { get; set; }
 
-        public DateTime FoundedAt { get; set; }
+        public DateOnly FoundedAt { get; set; }
 
         public string FoundedUserId { get; set; } = null!;
 
