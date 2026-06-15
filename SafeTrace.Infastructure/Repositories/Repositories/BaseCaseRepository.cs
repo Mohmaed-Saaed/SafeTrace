@@ -9,6 +9,8 @@ namespace SafeTrace.Infrastructure.Repositories.Repositories
         public BaseCaseRepository(ApplicationDbContext context) : base(context)
         {
         }
+
+        
     }
 
 }
