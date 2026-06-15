@@ -12,8 +12,8 @@ namespace SafeTrace.Domain.Interfaces.IRepository
         Task<bool> DeleteAsync(T entity);
         Task<bool> DeleteRangeAsync(IEnumerable<T> entity);
         public Task<IEnumerable<T>> GetAllAsync(Expression<Func<T, bool>>? expression = null,bool tracked = true,Expression<Func<T, object>>? orderBy = null,string orderByDirection = OrderBy.Ascending,
-            int page = 1,
-            int pageSize = 10,
+            int? page = null,
+            int? pageSize = null,
             params Expression<Func<T, object>>[] includes);
 
         Task<T?> GetOneAsync(Expression<Func<T, bool>>? expression = null, bool tracked = true , params Expression<Func<T, object>>[] includes);
