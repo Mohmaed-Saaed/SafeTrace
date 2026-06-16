@@ -1,4 +1,4 @@
-using SafeTrace.API.Middlewares;
+using SafeTrace.API.ExceptionHandlers;
 using SafeTrace.Application.DependencyInjection;
 using SafeTrace.Infrastructure.DependencyInjection;
 using Serilog;
@@ -21,6 +21,8 @@ namespace SafeTrace
             // Add services to the container.
 
             builder.Services.AddEndpointsApiExplorer();
+
+            builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 
             builder.Services.AddControllers()
                             .AddJsonOptions(options =>
@@ -56,7 +58,7 @@ namespace SafeTrace
 
             var app = builder.Build();
 
-            app.UseMiddleware<GlobalExceptionMiddleware>();
+            app.UseExceptionHandler();
 
             // Configure the HTTP request pipeline.
             if (app.Environment.IsDevelopment())
