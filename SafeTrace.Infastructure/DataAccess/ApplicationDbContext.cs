@@ -6,11 +6,12 @@
         public DbSet<BaseCase> BaseCase { get; set; }
         public DbSet<LongTermMissingCase> LongTermMissingCases{ get; set; }
         public DbSet<UrgentCase> UrgentCases { get; set; }
+     
 
         public DbSet<UnknownCase> unknownCases { get; set; }
 
         public DbSet<FoundPersonInfo> FoundPersonInfos { get; set; }
-
+        public DbSet<UnknownCase> UnknownCases { get; set; }
         public DbSet<Complaint> Complaints { get; set; }
         public DbSet<CasePhoto> CasePhotos { get; set; }
         public DbSet<Chat> Chats{ get; set; }

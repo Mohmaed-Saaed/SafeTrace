@@ -1,68 +1,99 @@
-﻿using Microsoft.AspNetCore.Http;
+﻿using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Http;
+using SafeTrace.Application.DTOs.Responses;
 using SafeTrace.Application.Interfaces.IServices;
 
 namespace SafeTrace.Infrastructure.Services
 {
     public class FileStorageService : IFileStorageService
     {
-        public async Task<string> SaveFileAsync(IFormFile file, string folderName)
+        private readonly IWebHostEnvironment _environment;
+
+        public FileStorageService(IWebHostEnvironment environment)
         {
-            var rootPath = Directory.GetCurrentDirectory();
+            _environment = environment;
+        }
 
-            var uploadsPath = Path.Combine(
-                rootPath,
-                "wwwroot",
-                "Uploads",
-                folderName);
-
-            if (!Directory.Exists(uploadsPath))
+        public async Task<ApiResponse<string>> SaveFileAsync(IFormFile file, string folderName)
+        {
+            if (file == null || file.Length == 0)
             {
-                Directory.CreateDirectory(uploadsPath);
+                return new ApiResponse<string>
+                {
+                    Success = false,
+                    StatusCode = 400,
+                    Message = "No file was uploaded."
+                };
             }
 
-            var extension = Path.GetExtension(file.FileName).ToLower();
+            const long maxFileSize = 5 * 1024 * 1024; // 5 MB
 
-            var allowedExtensions = new[]
+            if (file.Length > maxFileSize)
             {
-                ".jpg",
-                ".jpeg",
-                ".png",
-                ".webp"
+                return new ApiResponse<string>
+                {
+                    Success = false,
+                    StatusCode = 400,
+                    Message = "File size cannot exceed 5 MB."
+                };
+            }
+
+            string wwwRootPath = _environment.WebRootPath;
+            string contentPath = Path.Combine(wwwRootPath, "Images", folderName);
+
+            if (!Directory.Exists(contentPath))
+            {
+                Directory.CreateDirectory(contentPath);
+            }
+
+            string extension = Path.GetExtension(file.FileName).ToLower();
+            string[] allowedExtensions = { ".jpg", ".jpeg", ".png", ".webp" };
+            string[] allowedContentTypes = {"image/jpeg", "image/png", "image/webp", "image/jpg"};
+
+            if (!allowedExtensions.Contains(extension) || !allowedContentTypes.Contains(file.ContentType))
+            {
+                return new ApiResponse<string>
+                {
+                    Success = false,
+                    StatusCode = 404,
+                    Message = "Only .jpg, .jpeg, .png, and .webp files are allowed.",
+                    Data = null
+                };
+            }
+
+            string uniqueFileName = $"{Guid.NewGuid()}{extension}";
+            string fullPath = Path.Combine(contentPath, uniqueFileName);
+
+            using (var fileStream = new FileStream(fullPath, FileMode.Create))
+            {
+                await file.CopyToAsync(fileStream);
+            }
+
+            return new ApiResponse<string>
+            {
+                Success = true,
+                StatusCode = 200,
+                Message = "Image uploaded successfully",
+                Data = $"/Images/{folderName}/{uniqueFileName}"
             };
-
-            if (!allowedExtensions.Contains(extension))
-            {
-                throw new Exception("Only .jpg, .jpeg, .png and .webp files are allowed.");
-            }
-
-            var fileName = $"{Guid.NewGuid()}{extension}";
-            var filePath = Path.Combine(uploadsPath, fileName);
-
-            using (var stream = new FileStream(filePath, FileMode.Create))
-            {
-                await file.CopyToAsync(stream);
-            }
-
-            return $"/Uploads/{folderName}/{fileName}";
         }
 
         public bool DeleteFile(string fileUrl)
         {
-            if (string.IsNullOrWhiteSpace(fileUrl))
-                return false;
+            if (string.IsNullOrEmpty(fileUrl)) return false;
 
-            var rootPath = Directory.GetCurrentDirectory();
+            string wwwRootPath = _environment.WebRootPath;
 
-            var filePath = Path.Combine(
-                rootPath,
-                "wwwroot",
-                fileUrl.TrimStart('/'));
+            string cleanedPath = fileUrl.TrimStart('/');
+            string fullPath = Path.Combine(wwwRootPath, cleanedPath);
 
-            if (!File.Exists(filePath))
-                return false;
+            if (File.Exists(fullPath))
+            {
+                File.Delete(fullPath);
+                return true;
+            }
 
-            File.Delete(filePath);
-            return true;
+            return false;
         }
     }
 }
