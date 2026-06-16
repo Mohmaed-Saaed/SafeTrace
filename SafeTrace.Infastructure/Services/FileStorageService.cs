@@ -21,7 +21,6 @@ namespace SafeTrace.Infrastructure.Services
                 return new ApiResponse<string>
                 {
                     Success = false,
-                    StatusCode = 400,
                     Message = "No file was uploaded."
                 };
             }
@@ -33,7 +32,6 @@ namespace SafeTrace.Infrastructure.Services
                 return new ApiResponse<string>
                 {
                     Success = false,
-                    StatusCode = 400,
                     Message = "File size cannot exceed 5 MB."
                 };
             }
@@ -55,7 +53,6 @@ namespace SafeTrace.Infrastructure.Services
                 return new ApiResponse<string>
                 {
                     Success = false,
-                    StatusCode = 404,
                     Message = "Only .jpg, .jpeg, .png, and .webp files are allowed.",
                     Data = null
                 };
@@ -72,7 +69,6 @@ namespace SafeTrace.Infrastructure.Services
             return new ApiResponse<string>
             {
                 Success = true,
-                StatusCode = 200,
                 Message = "Image uploaded successfully",
                 Data = $"/Images/{folderName}/{uniqueFileName}"
             };
