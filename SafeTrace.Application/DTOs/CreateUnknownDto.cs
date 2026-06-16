@@ -1,10 +1,11 @@
 ﻿
+using Microsoft.AspNetCore.Http;
 using SafeTrace.Domain.Entities;
 using SafeTrace.Domain.Enums;
 
 namespace SafeTrace.Application.DTOs
 {
-    public class UnknownDto
+    public class CreateUnknownDto
     {
         public Gender Gender { get; set; }
         public string? FName { get; set; }
@@ -13,12 +14,15 @@ namespace SafeTrace.Application.DTOs
         public string? LName { get; set; }
         public int Age { get; set; }
 
+        public string Government { get; set; } = null!;
+
+        public string City { get; set; } = null!;
+
+        public string Street { get; set; } = null!;
         public string? CommunicationPhone { get; set; }
-
-        public RelationType Relation { get; set; }
-
         public string? Description { get; set; }
 
+        public List<IFormFile> Photos { get; set; } = new();
         public int AgeCategoryId { get; set; }
 
     }

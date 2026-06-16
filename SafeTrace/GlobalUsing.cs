@@ -6,3 +6,4 @@ global using SafeTrace.Infrastructure.Repositories.Repository;
 global using SafeTrace.Infrastructure.Repositories.UnitOfWork;
 global using Microsoft.AspNetCore.Identity;
 global using Microsoft.EntityFrameworkCore;
+
