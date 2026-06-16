@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using SafeTrace.Application.Interfaces.IServices;
+using SafeTrace.Application.Exceptions;
 
 namespace SafeTrace.API.Controllers
 {
@@ -17,6 +18,7 @@ namespace SafeTrace.API.Controllers
         [HttpGet]
         public async Task<IActionResult> test()
         {
+            throw new NotFoundException("Saalllaaaammmmm");
             await _emailServiceSendGrid.SendEmailAsync("jcdk", "dkjcndj", "srhgfbd");
             return Ok();
         }

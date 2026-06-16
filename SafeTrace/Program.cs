@@ -1,4 +1,4 @@
-using SafeTrace.API.Middlewares;
+using SafeTrace.API.ExceptionHandlers;
 using SafeTrace.Application.DependencyInjection;
 using SafeTrace.Infrastructure.DependencyInjection;
 using Serilog;
@@ -54,9 +54,12 @@ namespace SafeTrace
             // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
             //builder.Services.AddOpenApi();
 
+            builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
+            builder.Services.AddProblemDetails();
+
             var app = builder.Build();
 
-            app.UseMiddleware<GlobalExceptionMiddleware>();
+            app.UseExceptionHandler();
 
             // Configure the HTTP request pipeline.
             if (app.Environment.IsDevelopment())
