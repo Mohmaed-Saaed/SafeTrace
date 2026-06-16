@@ -1,7 +1,8 @@
-using SafeTrace.API.Middlewares;
+using SafeTrace.API.ExceptionHandlers;
 using SafeTrace.Application.DependencyInjection;
 using SafeTrace.Infrastructure.DependencyInjection;
 using Serilog;
+using System.Text.Json.Serialization;
 
 namespace SafeTrace
 {
@@ -20,7 +21,14 @@ namespace SafeTrace
             // Add services to the container.
 
             builder.Services.AddEndpointsApiExplorer();
-            builder.Services.AddControllers();
+
+            builder.Services.AddControllers()
+                            .AddJsonOptions(options =>
+                            {
+                                options.JsonSerializerOptions.Converters.Add(
+                                    new JsonStringEnumConverter());
+                            });
+
             builder.Services.AddSwaggerGen();
 
             //builder.Services.AddScoped<IDBInitializer, DBInitializer>();
@@ -46,9 +54,12 @@ namespace SafeTrace
             // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
             //builder.Services.AddOpenApi();
 
+            builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
+            builder.Services.AddProblemDetails();
+
             var app = builder.Build();
 
-            app.UseMiddleware<GlobalExceptionMiddleware>();
+            app.UseExceptionHandler();
 
             // Configure the HTTP request pipeline.
             if (app.Environment.IsDevelopment())

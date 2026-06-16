@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using SafeTrace.Infrastructure.DataAccess;
 
@@ -11,9 +12,11 @@ using SafeTrace.Infrastructure.DataAccess;
 namespace SafeTrace.Infrastructure.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260616164319_FixBaseCasesProperties")]
+    partial class FixBaseCasesProperties
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -356,7 +359,7 @@ namespace SafeTrace.Infrastructure.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("BaseCase", (string)null);
+                    b.ToTable("BaseCases", (string)null);
 
                     b.UseTptMappingStrategy();
                 });
@@ -586,22 +589,7 @@ namespace SafeTrace.Infrastructure.Migrations
                 {
                     b.HasBaseType("SafeTrace.Domain.Entities.BaseCase");
 
-                    b.Property<string>("City")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
-
-                    b.Property<string>("Government")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
-
-                    b.Property<string>("Street")
-                        .IsRequired()
-                        .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)");
-
-                    b.ToTable("UnknownCases", (string)null);
+                    b.ToTable("UnknownCases");
                 });
 
             modelBuilder.Entity("SafeTrace.Domain.Entities.UrgentCase", b =>
