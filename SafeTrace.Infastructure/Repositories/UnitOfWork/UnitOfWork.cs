@@ -13,7 +13,6 @@ namespace SafeTrace.Infrastructure.Repositories.UnitOfWork
 
         private IDbContextTransaction? _transaction;
 
-        public IUserSessionRepository UserSessionRepository { get; private set; }
         public IBaseCaseRepository BaseCaseRepository { get; private set; }
         public ICasePhotoRepository CasePhotoRepository { get; private set; }
         public IChatRepository ChatRepository { get; private set; }
@@ -38,7 +37,6 @@ namespace SafeTrace.Infrastructure.Repositories.UnitOfWork
             NotificationRepository = new NotificationRepository(_context);
             UnknownCaseRepository = new UnknownCaseRepository(_context);
             UrgentCaseRepository = new UrgentCaseRepository(_context);
-            UserSessionRepository = new UserSessionRepository(_context);
         }
 
         public async Task<int> SaveAsync()

@@ -22,8 +22,6 @@ namespace SafeTrace
 
             builder.Services.AddEndpointsApiExplorer();
 
-            builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
-
             builder.Services.AddControllers()
                             .AddJsonOptions(options =>
                             {
@@ -37,7 +35,6 @@ namespace SafeTrace
             //builder.Services.AddScoped(typeof(IRepository<>), typeof(Repository<>));
 
             builder.Services.AddInfrastructure(builder.Configuration);
-            builder.Services.AddJwtAuthentication(builder.Configuration);
             builder.Services.AddApplication();
 
             builder.Services.AddCors(options =>
@@ -56,6 +53,9 @@ namespace SafeTrace
             });
             // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
             //builder.Services.AddOpenApi();
+
+            builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
+            builder.Services.AddProblemDetails();
 
             var app = builder.Build();
 

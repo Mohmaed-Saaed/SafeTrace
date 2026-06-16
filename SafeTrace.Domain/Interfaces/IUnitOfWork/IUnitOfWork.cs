@@ -4,8 +4,6 @@ namespace SafeTrace.Domain.Interfaces.IUnitOfWork
 {
     public interface IUnitOfWork : IDisposable
     {
-        IUserSessionRepository UserSessionRepository { get; }
-
         IBaseCaseRepository BaseCaseRepository { get; }
         ICasePhotoRepository CasePhotoRepository { get; }
         IChatRepository ChatRepository { get; }
