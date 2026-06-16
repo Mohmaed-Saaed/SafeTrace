@@ -3,7 +3,7 @@
     public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
     {
         public DbSet<ApplicationUser> ApplicationUsers { get; set; }
-        public DbSet<BaseCase> BaseCase { get; set; }
+        public DbSet<BaseCase> BaseCases { get; set; }
         public DbSet<LongTermMissingCase> LongTermMissingCases{ get; set; }
         public DbSet<UrgentCase> UrgentCases { get; set; }
      
