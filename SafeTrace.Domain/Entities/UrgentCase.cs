@@ -1,9 +1,10 @@
-﻿namespace SafeTrace.Domain.Entities
+﻿using System.Drawing;
+
+namespace SafeTrace.Domain.Entities
 {
     public class UrgentCase : BaseCase
     {
-        public double LocationLatitude { get; set; }
-        public double LocationLongitude { get; set; }
+        public Point? Location { get; set; }
         public DateTime EndDate { get; set; }
         public DateTime LimitReachDate { get; set; }
     }
