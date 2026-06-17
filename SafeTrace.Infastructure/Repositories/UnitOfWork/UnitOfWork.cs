@@ -13,6 +13,8 @@ namespace SafeTrace.Infrastructure.Repositories.UnitOfWork
 
         private IDbContextTransaction? _transaction;
 
+        public IRefreshTokenRepository RefreshTokenRepository { get; set; }
+        public IUserOtpRepository UserOtpRepository { get; set; }
         public IBaseCaseRepository BaseCaseRepository { get; private set; }
         public ICasePhotoRepository CasePhotoRepository { get; private set; }
         public IChatRepository ChatRepository { get; private set; }
@@ -27,6 +29,8 @@ namespace SafeTrace.Infrastructure.Repositories.UnitOfWork
         public UnitOfWork(ApplicationDbContext context)
         {
             _context = context;
+            RefreshTokenRepository = new RefreshTokenRepository(_context);
+            UserOtpRepository = new UserOtpRepository(_context);
             BaseCaseRepository = new BaseCaseRepository(_context);
             CasePhotoRepository = new CasePhotoRepository(_context);
             ChatRepository = new ChatRepository(_context);
