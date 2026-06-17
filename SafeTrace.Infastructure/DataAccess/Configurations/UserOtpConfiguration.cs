@@ -1,4 +1,5 @@
 ﻿using Microsoft.EntityFrameworkCore.Metadata.Builders;
+
 namespace SafeTrace.Infrastructure.DataAccess.Configurations
 {
     public class UserOtpConfiguration : IEntityTypeConfiguration<UserOtp>
