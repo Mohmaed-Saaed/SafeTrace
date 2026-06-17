@@ -1,8 +1,10 @@
 ﻿using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.IdentityModel.Tokens;
 using SafeTrace.Domain.Interfaces.IUnitOfWork;
+using SafeTrace.Infrastructure.Authorization;
 using SafeTrace.Infrastructure.DataAccess;
 using SafeTrace.Infrastructure.Options;
 using SafeTrace.Infrastructure.Repositories.UnitOfWork;
@@ -26,6 +28,9 @@ namespace SafeTrace.Infrastructure.DependencyInjection
 
             services.Configure<SendGridOptions>(configuration.GetSection("SendGrid"));
             services.Configure<JwtOptions>(configuration.GetSection("JwtOptions"));
+
+            services.AddSingleton<IAuthorizationPolicyProvider, PermissionPolicyProvider>();
+            services.AddScoped<IAuthorizationHandler, PermissionHandler>();
 
             services.AddIdentity<ApplicationUser, IdentityRole>()
                 .AddEntityFrameworkStores<ApplicationDbContext>()
