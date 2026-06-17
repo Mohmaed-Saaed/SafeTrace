@@ -17,6 +17,8 @@
         public DbSet<Notification> Notifications{ get; set; }
         public DbSet<AgeCategory> AgeCategories { get; set; }
 
+        public DbSet<UserOtp> UserOtps { get; set; }
+        public DbSet<RefreshToken> RefreshTokens { get; set; }
 
         public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) : base(options)
         {
