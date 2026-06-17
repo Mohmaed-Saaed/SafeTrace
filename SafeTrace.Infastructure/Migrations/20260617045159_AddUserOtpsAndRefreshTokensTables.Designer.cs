@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using SafeTrace.Infrastructure.DataAccess;
 
@@ -11,9 +12,11 @@ using SafeTrace.Infrastructure.DataAccess;
 namespace SafeTrace.Infrastructure.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260617045159_AddUserOtpsAndRefreshTokensTables")]
+    partial class AddUserOtpsAndRefreshTokensTables
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -298,11 +301,6 @@ namespace SafeTrace.Infrastructure.Migrations
                     b.Property<int>("CaseType")
                         .HasColumnType("int");
 
-                    b.Property<string>("City")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
-
                     b.Property<string>("CommunicationPhone")
                         .HasColumnType("nvarchar(max)");
 
@@ -312,22 +310,23 @@ namespace SafeTrace.Infrastructure.Migrations
                     b.Property<string>("Description")
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<DateTime>("EventDate")
-                        .HasColumnType("datetime2");
-
                     b.Property<string>("FName")
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<int>("Gender")
                         .HasColumnType("int");
 
-                    b.Property<string>("Government")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
-
                     b.Property<string>("LName")
                         .HasColumnType("nvarchar(max)");
+
+                    b.Property<double>("LocationLatitude")
+                        .HasColumnType("float");
+
+                    b.Property<double>("LocationLongitude")
+                        .HasColumnType("float");
+
+                    b.Property<DateTime>("LostDate")
+                        .HasColumnType("datetime2");
 
                     b.Property<int>("Relation")
                         .HasColumnType("int");
@@ -337,11 +336,6 @@ namespace SafeTrace.Infrastructure.Migrations
 
                     b.Property<int>("Status")
                         .HasColumnType("int");
-
-                    b.Property<string>("Street")
-                        .IsRequired()
-                        .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)");
 
                     b.Property<string>("TName")
                         .HasColumnType("nvarchar(max)");
@@ -651,8 +645,23 @@ namespace SafeTrace.Infrastructure.Migrations
                 {
                     b.HasBaseType("SafeTrace.Domain.Entities.BaseCase");
 
+                    b.Property<string>("City")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("Government")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
                     b.Property<string>("PoliceReportImage")
                         .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Street")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
 
                     b.ToTable("LongTermMissingCases", (string)null);
                 });
@@ -673,12 +682,6 @@ namespace SafeTrace.Infrastructure.Migrations
 
                     b.Property<DateTime>("LimitReachDate")
                         .HasColumnType("datetime2");
-
-                    b.Property<double>("LocationLatitude")
-                        .HasColumnType("float");
-
-                    b.Property<double>("LocationLongitude")
-                        .HasColumnType("float");
 
                     b.ToTable("UrgentCases", (string)null);
                 });
