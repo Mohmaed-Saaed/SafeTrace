@@ -25,5 +25,8 @@
         public ICollection<Notification> Notifications { get; set; } = new List<Notification>();
 
         public ICollection<Complaint> Complaints { get; set; } = new List<Complaint>();
+        public ICollection<UserOtp> UserOtps { get; set; }
+
+        public ICollection<RefreshToken> RefreshTokens { get; set; }
     }
 }
