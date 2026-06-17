@@ -4,6 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 using SafeTrace.Application.Interfaces.IServices;
 using SafeTrace.Domain.Interfaces.IUnitOfWork;
 using SafeTrace.Infrastructure.DataAccess;
+using SafeTrace.Infrastructure.Options;
 using SafeTrace.Infrastructure.Repositories.UnitOfWork;
 using SafeTrace.Infrastructure.Services;
 
@@ -19,6 +20,9 @@ namespace SafeTrace.Infrastructure.DependencyInjection
             services.AddScoped<IUnitOfWork, UnitOfWork>();
             services.AddScoped<IFileStorageService, FileStorageService>();
             services.AddScoped<IEmailServiceSendGrid, EmailServiceSendGrid>();
+
+            services.Configure<SendGridOptions>(configuration.GetSection("SendGrid"));
+            services.Configure<JwtOptions>(configuration.GetSection("JwtOptions"));
 
             services.AddIdentity<ApplicationUser, IdentityRole>()
                 .AddEntityFrameworkStores<ApplicationDbContext>()
