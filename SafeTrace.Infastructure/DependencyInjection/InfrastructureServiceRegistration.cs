@@ -3,11 +3,14 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.IdentityModel.Tokens;
+using SafeTrace.Application.Interfaces;
+using SafeTrace.Application.Interfaces.IServices;
 using SafeTrace.Domain.Interfaces.IUnitOfWork;
 using SafeTrace.Infrastructure.Authorization;
 using SafeTrace.Infrastructure.DataAccess;
 using SafeTrace.Infrastructure.Options;
 using SafeTrace.Infrastructure.Repositories.UnitOfWork;
+using SafeTrace.Infrastructure.Service.Founded;
 using SafeTrace.Infrastructure.Services;
 using System.Text;
 
@@ -32,6 +35,8 @@ namespace SafeTrace.Infrastructure.DependencyInjection
             services.AddSingleton<IAuthorizationPolicyProvider, PermissionPolicyProvider>();
             services.AddScoped<IAuthorizationHandler, PermissionHandler>();
 
+            services.AddScoped<IFoundedService, FoundedService>();
+            
             services.AddIdentity<ApplicationUser, IdentityRole>()
                 .AddEntityFrameworkStores<ApplicationDbContext>()
                     .AddDefaultTokenProviders();
