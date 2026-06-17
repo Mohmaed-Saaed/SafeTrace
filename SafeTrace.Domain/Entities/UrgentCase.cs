@@ -1,10 +1,12 @@
-﻿using System.Drawing;
+﻿using NetTopologySuite.Geometries;
+using System.ComponentModel.DataAnnotations.Schema;
+//using System.Drawing;
 
 namespace SafeTrace.Domain.Entities
 {
     public class UrgentCase : BaseCase
     {
-        public Point? Location { get; set; }
+        public Point Location { get; set; } = default!;
         public DateTime EndDate { get; set; }
         public DateTime LimitReachDate { get; set; }
     }
