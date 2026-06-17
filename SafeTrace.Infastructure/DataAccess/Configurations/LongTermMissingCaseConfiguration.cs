@@ -7,17 +7,6 @@ namespace SafeTrace.Infrastructure.DataAccess.Configurations
         public void Configure(EntityTypeBuilder<LongTermMissingCase> builder)
         {
             builder.ToTable("LongTermMissingCases");
-
-            builder.Property(l => l.Government)
-                .IsRequired()
-                .HasMaxLength(200);
-
-            builder.Property(l => l.City)
-                .IsRequired()
-                .HasMaxLength(200);
-
-            builder.Property(l => l.Street)
-                .HasMaxLength(500);
         }
     }
 }
