@@ -2,6 +2,7 @@ using SafeTrace.API.ExceptionHandlers;
 using SafeTrace.Application.DependencyInjection;
 using SafeTrace.Infrastructure.DependencyInjection;
 using Serilog;
+using System.Security.Cryptography;
 using System.Text.Json.Serialization;
 
 namespace SafeTrace
