@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using SafeTrace.Application.DTOs;
+using SafeTrace.Application.Exceptions;
 using SafeTrace.Application.Interfaces.IServices;
 using SafeTrace.Application.Services;
 using System.Security.Claims;
@@ -19,14 +20,15 @@ namespace SafeTrace.API.Controllers
             _unKnownServiceCase = unKnownServiceCase;
         }
         [HttpPost]
+        [Consumes("multipart/form-data")]
         public async Task<IActionResult> CreateUnknown([FromForm] CreateUnknownDto dto)
         {
-            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            //var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
 
-            var result = await _unKnownServiceCase.CreateUnknownCaseAsync(dto, userId);
+            //if (string.IsNullOrEmpty(userId))
+            //    throw new UnauthorizedException("User is not authenticated.");
 
-            if (!result.Success)
-                return StatusCode(result.StatusCode, result);
+            var result = await _unKnownServiceCase.CreateUnknownCaseAsync(dto); //,userId
 
             return Ok(result);
         }

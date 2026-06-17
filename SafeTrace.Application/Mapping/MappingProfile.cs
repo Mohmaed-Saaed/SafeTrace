@@ -9,6 +9,7 @@ namespace SafeTrace.Application.Mapping
         {
             CreateMap<CreateUnknownDto, UnknownCase>()
            .ForMember(dest => dest.Photos, opt => opt.Ignore());
+        
         }
     }
 }

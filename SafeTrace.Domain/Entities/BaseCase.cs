@@ -26,7 +26,7 @@ namespace SafeTrace.Domain.Entities
         public CaseType CaseType { get; set; }
         public int   AgeCategoryId { get; set; }
         public FoundPersonInfo? FoundPersonInfo { get; set; }
-        public AgeCategory AgeCategory { get; set; } = new AgeCategory();
+        public AgeCategory AgeCategory { get; set; }
         public ICollection<CasePhoto> Photos { get; set; } = new List<CasePhoto>();
         public ICollection<Chat> Chats { get; set; } = new List<Chat>();
     }

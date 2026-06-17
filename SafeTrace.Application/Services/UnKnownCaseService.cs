@@ -1,6 +1,8 @@
 ﻿using Microsoft.AspNetCore.Identity;
+using Microsoft.Extensions.Logging;
 using SafeTrace.Application.DTOs;
 using SafeTrace.Application.DTOs.Responses;
+using SafeTrace.Application.Exceptions;
 using SafeTrace.Application.Interfaces.IServices;
 using SafeTrace.Domain.Entities;
 using SafeTrace.Domain.Enums;
@@ -14,6 +16,7 @@ namespace SafeTrace.Application.Services
         private readonly IMapper _mapper;
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly IFileStorageService _fileStorageService;
+        //private readonly ILogger<UnKnownCaseService> logger;
 
         public UnKnownCaseService(IUnitOfWork unitOfWork,IMapper mapper,UserManager<ApplicationUser> userManager ,IFileStorageService fileStorageService)
         {
@@ -22,23 +25,23 @@ namespace SafeTrace.Application.Services
             _userManager = userManager;
             _fileStorageService = fileStorageService;
         }
-        public async Task<ApiResponse<string>> CreateUnknownCaseAsync(CreateUnknownDto dto, string userId)
+        public async Task<ApiResponse<string>> CreateUnknownCaseAsync(CreateUnknownDto dto)//, string userId
         {
-            var user = await _userManager.FindByIdAsync(userId);
+            //var user = await _userManager.FindByIdAsync(userId);
 
-            if (user == null)
-                return ApiResponse<string>.Fail("User not found", 404);
+            //if (user == null)
+            //    throw new NotFoundException($"User was not found.");
 
-            if (!user.IsVerified)
-                return ApiResponse<string>.Fail("User not verified", 401);
+            //if (!user.IsVerified)
+            //    throw new UnauthorizedException("You must verify your account before creating a case.");
 
             var unknownCase = _mapper.Map<UnknownCase>(dto);
 
-            unknownCase.UserId = userId;
+            //unknownCase.UserId = userId;
             unknownCase.CreatedAt = DateTime.UtcNow;
             unknownCase.Status = CaseStatus.Pending;
 
-            await _unitOfWork.UnknownCaseRepository.CreateAsync(unknownCase);
+  
 
             if (dto.Photos?.Any() == true)
             {
@@ -47,7 +50,7 @@ namespace SafeTrace.Application.Services
                     var result = await _fileStorageService.SaveFileAsync(file, "UnknownCases");
 
                     if (!result.Success)
-                        return ApiResponse<string>.Fail(result.Message, result.StatusCode);
+                        throw new BadRequestException(result.Message);
 
                     unknownCase.Photos.Add(new CasePhoto
                     {
@@ -58,9 +61,8 @@ namespace SafeTrace.Application.Services
 
                 unknownCase.Photos.First().IsPrimary = true;
             }
-
+            await _unitOfWork.UnknownCaseRepository.CreateAsync(unknownCase);
             await _unitOfWork.SaveAsync();
-
             return ApiResponse<string>.Ok("Unknown case created successfully");
         }
     }

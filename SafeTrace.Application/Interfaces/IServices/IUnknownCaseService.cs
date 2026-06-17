@@ -8,6 +8,6 @@ namespace SafeTrace.Application.Interfaces.IServices
 {
     public interface IUnknownCaseService
     {
-        Task<ApiResponse<string>> CreateUnknownCaseAsync(CreateUnknownDto dto, string userId);
+        Task<ApiResponse<string>> CreateUnknownCaseAsync(CreateUnknownDto dto); //, string userId
     }
 }
