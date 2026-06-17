@@ -38,17 +38,6 @@ namespace SafeTrace.Application.Services
                 tracked: false
              );
 
-             if (
-                filter.LocationLatitude.HasValue &&
-                filter.LocationLongitude.HasValue)
-            {
-                data = [.. data
-                    .OrderBy(c => GeoHelper.DistanceKm(
-                        filter.LocationLatitude.Value,
-                        filter.LocationLongitude.Value,
-                        c.LocationLatitude,
-                        c.LocationLongitude))];
-            }
 
             var dataDto = _mapper.Map<IEnumerable<UrgentCaseListItemDto>>(data);
 
@@ -68,9 +57,7 @@ namespace SafeTrace.Application.Services
 
             var otherCases = await _unitOfWork.UrgentCaseRepository.GetAllAsync(
                 expression: c =>
-                    c.Id != id &&
-                    c.LocationLatitude != 0 &&
-                    c.LocationLongitude != 0,
+                    c.Id != id,
                 tracked: false
             );
 
@@ -78,14 +65,8 @@ namespace SafeTrace.Application.Services
                 .Select(c => new
                 {
                     Case = c,
-                    Distance = GeoHelper.DistanceKm(
-                        currentCase.LocationLatitude,
-                        currentCase.LocationLongitude,
-                        c.LocationLatitude,
-                        c.LocationLongitude
-                    )
                 })
-                .OrderBy(x => x.Distance)
+                .OrderBy(x => x)
                 .Take(5)
                 .Select(x => x.Case)
                 .ToList();
