@@ -1,33 +1,34 @@
-﻿using Microsoft.Extensions.Configuration;
-using SafeTrace.Application.Interfaces.IServices;
+﻿using Microsoft.Extensions.Options;
+using SafeTrace.Application.Exceptions;
+using SafeTrace.Infrastructure.Options;
 using SendGrid;
 using SendGrid.Helpers.Mail;
+using System.Net;
 
 namespace SafeTrace.Infrastructure.Services
 {
     public class EmailServiceSendGrid : IEmailServiceSendGrid
     {
-        private readonly IConfiguration _configuration;
-        public EmailServiceSendGrid(IConfiguration configuration)
+        private readonly SendGridOptions _sendGridOptions;
+
+        public EmailServiceSendGrid(IOptions<SendGridOptions> sendGridOptions)
         {
-            _configuration = configuration;
+            _sendGridOptions = sendGridOptions.Value;
         }
 
         public async Task SendEmailAsync(string toEmail, string subject, string body)
         {
-            var apiKey = _configuration["SendGrid:ApiKey"];
-            var fromEmail = _configuration["SendGrid:FromEmail"];
-            var fromName = _configuration["SendGrid:FromName"];
+            if (string.IsNullOrWhiteSpace(toEmail))
+                throw new BadRequestException("Recipient email address cannot be null or empty.");
 
-            if (string.IsNullOrWhiteSpace(apiKey))
-                throw new InvalidOperationException("SendGrid API key is not configured.");
+            if (string.IsNullOrWhiteSpace(_sendGridOptions.ApiKey))
+                throw new InvalidOperationException("SendGrid runtime API infrastructure key is not configured.");
 
-            if (string.IsNullOrWhiteSpace(fromEmail))
-                throw new InvalidOperationException("SendGrid sender email is not configured.");
+            if (string.IsNullOrWhiteSpace(_sendGridOptions.FromEmail))
+                throw new InvalidOperationException("SendGrid verified sender identity email address is missing.");
 
-            var client = new SendGridClient(apiKey);
-
-            var from = new EmailAddress(fromEmail, fromName);
+            var client = new SendGridClient(_sendGridOptions.ApiKey);
+            var from = new EmailAddress(_sendGridOptions.FromEmail, _sendGridOptions.FromName);
             var to = new EmailAddress(toEmail);
 
             var message = MailHelper.CreateSingleEmail(
@@ -37,13 +38,21 @@ namespace SafeTrace.Infrastructure.Services
                 plainTextContent: StripHtml(body),
                 htmlContent: body);
 
-            var response = await client.SendEmailAsync(message);
-
-            if (!response.IsSuccessStatusCode)
+            try
             {
-                var errorBody = await response.Body.ReadAsStringAsync();
-                throw new InvalidOperationException(
-                    $"Failed to send email via SendGrid. Status: {(int)response.StatusCode}, Body: {errorBody}");
+                var response = await client.SendEmailAsync(message);
+
+                if (!response.IsSuccessStatusCode)
+                {
+                    if (response.StatusCode == HttpStatusCode.Unauthorized)
+                        throw new UnauthorizedException("SendGrid mail dispatch request rejected due to invalid API key permission references.");
+
+                    throw new BadRequestException($"External mail delivery network failure.");
+                }
+            }
+            catch (Exception ex) when (ex is not BadRequestException && ex is not UnauthorizedException)
+            {
+                throw new BadRequestException($"Critical gateway time-out or network drop during remote mail dispatch.");
             }
         }
 

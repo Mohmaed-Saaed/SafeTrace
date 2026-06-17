@@ -1,7 +1,6 @@
 ﻿using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using SafeTrace.Application.DTOs.Responses;
-using SafeTrace.Application.Interfaces.IServices;
 
 namespace SafeTrace.Infrastructure.Services
 {
