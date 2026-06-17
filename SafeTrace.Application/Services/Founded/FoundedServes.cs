@@ -41,7 +41,6 @@ namespace SafeTrace.Infrastructure.Service.Founded
             return new ApiResponse<List<FoundPersonListItemDto>>
             {
                 Success = true,
-                StatusCode = 200,
                 Message = "Founded persons retrieved successfully",
                 Data = _mapper.Map<List<FoundPersonListItemDto>>(foundedPersons)
             };
