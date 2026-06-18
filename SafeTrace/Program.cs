@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Mvc;
 using SafeTrace.API.ExceptionHandlers;
 using SafeTrace.API.ExtensionMethods;
 using SafeTrace.Application.DependencyInjection;
@@ -58,6 +59,21 @@ namespace SafeTrace
             var app = builder.Build();
 
             app.UseExceptionHandler();
+            app.UseStatusCodePages(async context =>
+            {
+                var response = context.HttpContext.Response;
+
+                if (response.StatusCode == 404)
+                {
+                    await response.WriteAsJsonAsync(new ProblemDetails
+                    {
+                        Status = 404,
+                        Title = "Not Found",
+                        Detail = "The requested endpoint was not found.",
+                        Instance = context.HttpContext.Request.Path
+                    });
+                }
+            });
 
             // Configure the HTTP request pipeline.
             if (app.Environment.IsDevelopment())
