@@ -1,4 +1,5 @@
 using SafeTrace.API.ExceptionHandlers;
+using SafeTrace.API.ExtensionMethods;
 using SafeTrace.Application.DependencyInjection;
 using SafeTrace.Infrastructure.DependencyInjection;
 using Serilog;
@@ -8,7 +9,7 @@ namespace SafeTrace
 {
     public class Program
     {
-        public static void Main(string[] args)
+        public static async Task Main(string[] args)
         {
             var builder = WebApplication.CreateBuilder(args);
 
@@ -30,9 +31,6 @@ namespace SafeTrace
                             });
 
             builder.Services.AddSwaggerGen();
-
-            //builder.Services.AddScoped<IDBInitializer, DBInitializer>();
-            //builder.Services.AddScoped(typeof(IRepository<>), typeof(Repository<>));
 
             builder.Services.AddInfrastructure(builder.Configuration);
             builder.Services.AddApplication();
@@ -70,17 +68,14 @@ namespace SafeTrace
 
             app.UseCors("CorsPolicy");
 
+            await app.SeedDataAsync();
+            await app.ApplyPendingMigrationsAsync();
 
             app.UseHttpsRedirection();
             app.UseStaticFiles();
 
             app.UseAuthorization();
 
-            //using (var scope = app.Services.CreateScope())
-            //{
-            //    var dbInitializer = scope.ServiceProvider.GetRequiredService<IDBInitializer>();
-            //    dbInitializer.Initialize();
-            //}
             app.MapControllers();
             app.MapControllerRoute(
                 name: "default",
