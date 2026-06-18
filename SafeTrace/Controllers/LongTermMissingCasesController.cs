@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using SafeTrace.Application.DTOs.LongTermCases;
+using SafeTrace.Application.Exceptions;
 using SafeTrace.Application.Interfaces.IServices;
 using System.Security.Claims;
 
@@ -22,8 +23,7 @@ namespace SafeTrace.API.Controllers
 
         private bool IsAdmin => User.IsInRole("Admin");
 
-        /// <summary>Public list with search/filter/sort/pagination (FR-21 .. FR-25).</summary>
-        // GET: api/LongTermMissingCases?name=...&gender=...&ageCategory=...&sortDescending=true&pageNumber=1&pageSize=12
+
         [HttpGet]
         [AllowAnonymous]
         public async Task<IActionResult> GetAll([FromQuery] LongTermCaseFilterDto filter)
@@ -32,8 +32,7 @@ namespace SafeTrace.API.Controllers
             return Ok(result);
         }
 
-        /// <summary>Cases marked as Found - Founded Cases section (FR-50 .. FR-53).</summary>
-        // GET: api/LongTermMissingCases/founded
+
         [HttpGet("founded")]
         [AllowAnonymous]
         public async Task<IActionResult> GetFounded()
@@ -42,31 +41,38 @@ namespace SafeTrace.API.Controllers
             return Ok(result);
         }
 
-        /// <summary>Full case details.</summary>
-        // GET: api/LongTermMissingCases/5
+
+        // Admin only: cases users have soft-deleted, kept around for review (restore or permanent delete)
+        [Authorize(Roles = "Admin")]
+        [HttpGet("deleted")]
+        public async Task<IActionResult> GetDeleted()
+        {
+            var result = await _service.GetDeletedCasesAsync();
+            return Ok(result);
+        }
+
+
         [HttpGet("{id:long}")]
         [AllowAnonymous]
         public async Task<IActionResult> GetById(long id)
         {
-            var result = await _service.GetByIdAsync(id);
-            if (result == null) return NotFound();
+            // Admins can also open soft-deleted cases, everyone else only sees non-deleted ones
+            var result = await _service.GetByIdAsync(id, includeDeleted: IsAdmin);
             return Ok(result);
         }
 
-        /// <summary>Cases reported by the current user ("My Cases").</summary>
-        // GET: api/LongTermMissingCases/my-cases
+
         [Authorize]
         [HttpGet("my-cases")]
         public async Task<IActionResult> GetMyCases()
         {
-            if (CurrentUserId == null) return Unauthorized();
+            if (CurrentUserId == null) throw new UnauthorizedException("User identity not found.");
 
             var result = await _service.GetMyCasesAsync(CurrentUserId);
             return Ok(result);
         }
 
-        /// <summary>Admin queue of cases awaiting approval (FR-20).</summary>
-        // GET: api/LongTermMissingCases/pending
+
         [Authorize(Roles = "Admin")]
         [HttpGet("pending")]
         public async Task<IActionResult> GetPending()
@@ -75,82 +81,87 @@ namespace SafeTrace.API.Controllers
             return Ok(result);
         }
 
-        /// <summary>
-        /// Creates a new Long-Term Missing Case (FR-18 .. FR-20).
-        /// Only Verified Users / Admins may create one (BR-2).
-        /// The case is created with Status = Pending until an Admin approves it.
-        /// </summary>
-        // POST: api/LongTermMissingCases  (multipart/form-data)
+
         [Authorize(Roles = "Verified,Admin")]
         [HttpPost]
         [Consumes("multipart/form-data")]
         public async Task<IActionResult> Create([FromForm] CreateLongTermCaseDto dto)
         {
-            if (CurrentUserId == null) return Unauthorized();
+            if (CurrentUserId == null) throw new UnauthorizedException("User identity not found.");
 
             var id = await _service.CreateAsync(dto, CurrentUserId);
             return CreatedAtAction(nameof(GetById), new { id }, new { id });
         }
 
-        /// <summary>Updates a case. Only the owner or an Admin may update it.</summary>
-        // PUT: api/LongTermMissingCases/5  (multipart/form-data)
+
         [Authorize]
         [HttpPut("{id:long}")]
         [Consumes("multipart/form-data")]
         public async Task<IActionResult> Update(long id, [FromForm] UpdateLongTermCaseDto dto)
         {
-            if (CurrentUserId == null) return Unauthorized();
+            if (CurrentUserId == null) throw new UnauthorizedException("User identity not found.");
 
-            var success = await _service.UpdateAsync(id, dto, CurrentUserId, IsAdmin);
-            if (!success) return Forbid();
+            // If a regular user edits the case, it goes back to Pending until an Admin approves it again
+            await _service.UpdateAsync(id, dto, CurrentUserId, IsAdmin);
             return NoContent();
         }
 
-        /// <summary>Deletes a case. Only the owner or an Admin may delete it.</summary>
-        // DELETE: api/LongTermMissingCases/5
+
         [Authorize]
         [HttpDelete("{id:long}")]
         public async Task<IActionResult> Delete(long id)
         {
-            if (CurrentUserId == null) return Unauthorized();
+            if (CurrentUserId == null) throw new UnauthorizedException("User identity not found.");
 
-            var success = await _service.DeleteAsync(id, CurrentUserId, IsAdmin);
-            if (!success) return Forbid();
+            // Soft delete: hidden from the owner/public, Admin still sees it under /deleted
+            await _service.DeleteAsync(id, CurrentUserId, IsAdmin);
             return NoContent();
         }
 
-        /// <summary>Admin approval - Pending -> Active (FR-20, FR-21).</summary>
-        // PUT: api/LongTermMissingCases/5/approve
+
+        [Authorize(Roles = "Admin")]
+        [HttpPut("{id:long}/restore")]
+        public async Task<IActionResult> Restore(long id)
+        {
+            await _service.RestoreAsync(id);
+            return NoContent();
+        }
+
+
+        [Authorize(Roles = "Admin")]
+        [HttpDelete("{id:long}/permanent")]
+        public async Task<IActionResult> PermanentDelete(long id)
+        {
+            await _service.PermanentDeleteAsync(id);
+            return NoContent();
+        }
+
+
         [Authorize(Roles = "Admin")]
         [HttpPut("{id:long}/approve")]
         public async Task<IActionResult> Approve(long id)
         {
-            var success = await _service.ApproveAsync(id);
-            if (!success) return NotFound();
+            await _service.ApproveAsync(id);
             return NoContent();
         }
 
-        /// <summary>Admin rejection - Pending -> Closed.</summary>
-        // PUT: api/LongTermMissingCases/5/reject
+
         [Authorize(Roles = "Admin")]
         [HttpPut("{id:long}/reject")]
         public async Task<IActionResult> Reject(long id)
         {
-            var success = await _service.RejectAsync(id);
-            if (!success) return NotFound();
+            await _service.RejectAsync(id);
             return NoContent();
         }
 
-        /// <summary>Mark as Founded - Active -> Found, creates FoundPersonInfo (FR-47 .. FR-50).</summary>
-        // PUT: api/LongTermMissingCases/5/mark-as-founded
+
         [Authorize]
         [HttpPut("{id:long}/mark-as-founded")]
         public async Task<IActionResult> MarkAsFounded(long id, [FromBody] MarkAsFoundedDto dto)
         {
-            if (CurrentUserId == null) return Unauthorized();
+            if (CurrentUserId == null) throw new UnauthorizedException("User identity not found.");
 
-            var success = await _service.MarkAsFoundedAsync(id, dto, CurrentUserId, IsAdmin);
-            if (!success) return BadRequest();
+            await _service.MarkAsFoundedAsync(id, dto, CurrentUserId, IsAdmin);
             return NoContent();
         }
     }

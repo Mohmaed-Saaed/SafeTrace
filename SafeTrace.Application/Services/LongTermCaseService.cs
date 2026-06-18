@@ -3,6 +3,7 @@ using Microsoft.Extensions.Logging;
 using SafeTrace.Application.Common.Helpers;
 using SafeTrace.Application.Common.Models;
 using SafeTrace.Application.DTOs.LongTermCases;
+using SafeTrace.Application.Exceptions;
 using SafeTrace.Application.Interfaces.IServices;
 using SafeTrace.Domain.Common;
 using SafeTrace.Domain.Entities;
@@ -17,14 +18,7 @@ using System.Threading.Tasks;
 
 namespace SafeTrace.Application.Services
 {
-    /// <summary>
-    /// Business logic for the Long-Term Missing Cases module (FR-18 .. FR-25, FR-47 .. FR-50).
-    /// Relies entirely on the existing IUnitOfWork / IRepository&lt;T&gt; abstractions - no direct DbContext access.
-    ///
-    /// NOTE: ordering uses SafeTrace.Domain.Common.OrderBy.Ascending / OrderBy.Descending (string constants),
-    /// as required by the team's IRepository&lt;T&gt;.GetAllAsync signature. If your constants have different
-    /// names, this is the only file that needs updating.
-    /// </summary>
+
     public class LongTermCaseService : ILongTermCaseService
     {
         private readonly IUnitOfWork _unitOfWork;
@@ -57,6 +51,7 @@ namespace SafeTrace.Application.Services
             var ageMax = ageRange.Max;
 
             Expression<Func<LongTermMissingCase, bool>> predicate = c =>
+                !c.IsDeleted &&
                 c.Status == CaseStatus.Active &&
                 (string.IsNullOrEmpty(name) ||
                     (c.FName ?? "").Contains(name) ||
@@ -91,22 +86,26 @@ namespace SafeTrace.Application.Services
             };
         }
 
-        public async Task<LongTermCaseDetailsDto?> GetByIdAsync(long id)
+        public async Task<LongTermCaseDetailsDto> GetByIdAsync(long id, bool includeDeleted = false)
         {
             var entity = await _unitOfWork.LongTermMissingCaseRepository.GetOneAsync(
-                c => c.Id == id,
+                c => c.Id == id && (includeDeleted || !c.IsDeleted),
                 false,
                 c => c.Photos,
                 c => c.FoundPersonInfo!,
                 c => c.User);
 
-            return entity == null ? null : _mapper.Map<LongTermCaseDetailsDto>(entity);
+            if (entity == null)
+                throw new NotFoundException($"Long-term case with id {id} was not found.");
+
+            return _mapper.Map<LongTermCaseDetailsDto>(entity);
         }
 
         public async Task<IEnumerable<LongTermCaseCardDto>> GetMyCasesAsync(string userId)
         {
+            // Soft-deleted cases are hidden from the owner too - only Admin can see them (GetDeletedCasesAsync)
             var entities = await _unitOfWork.LongTermMissingCaseRepository.GetAllAsync(
-                c => c.UserId == userId,
+                c => c.UserId == userId && !c.IsDeleted,
                 false,
                 c => c.CreatedAt,
                 OrderBy.Descending,
@@ -120,7 +119,7 @@ namespace SafeTrace.Application.Services
         public async Task<IEnumerable<LongTermCaseCardDto>> GetFoundedCasesAsync()
         {
             var entities = await _unitOfWork.LongTermMissingCaseRepository.GetAllAsync(
-                c => c.Status == CaseStatus.Found,
+                c => c.Status == CaseStatus.Found && !c.IsDeleted,
                 false,
                 c => c.CreatedAt,
                 OrderBy.Descending,
@@ -134,10 +133,25 @@ namespace SafeTrace.Application.Services
         public async Task<IEnumerable<LongTermCaseCardDto>> GetPendingCasesAsync()
         {
             var entities = await _unitOfWork.LongTermMissingCaseRepository.GetAllAsync(
-                c => c.Status == CaseStatus.Pending,
+                c => c.Status == CaseStatus.Pending && !c.IsDeleted,
                 false,
                 c => c.CreatedAt,
                 OrderBy.Ascending,
+                null,
+                null,
+                c => c.Photos);
+
+            return _mapper.Map<IEnumerable<LongTermCaseCardDto>>(entities);
+        }
+
+        public async Task<IEnumerable<LongTermCaseCardDto>> GetDeletedCasesAsync()
+        {
+            // Admin-only "trash" view: cases users deleted, still here until an Admin restores or purges them
+            var entities = await _unitOfWork.LongTermMissingCaseRepository.GetAllAsync(
+                c => c.IsDeleted,
+                false,
+                c => c.DeletedAt!,
+                OrderBy.Descending,
                 null,
                 null,
                 c => c.Photos);
@@ -155,20 +169,24 @@ namespace SafeTrace.Application.Services
             entity.CreatedAt = DateTime.UtcNow;
             entity.CaseCode = GenerateCaseCode();
             entity.Street ??= string.Empty; // Street is non-nullable on the entity
+            entity.IsDeleted = false;
 
             if (dto.PoliceReportImage != null)
-                entity.PoliceReportImage = await _fileStorage.SaveFileAsync(dto.PoliceReportImage, "long-term/police-reports");
+            {
+                // Throws BadRequestException on failure - caught by the global exception handler
+                entity.PoliceReportImage = await _fileStorage.SaveFileAsync(
+                    dto.PoliceReportImage,
+                    "long-term/police-reports");
+            }
 
             if (dto.Photos != null)
             {
                 foreach (var photo in dto.Photos)
                 {
-                    var path = await _fileStorage.SaveFileAsync(photo, "long-term/photos");
-                    entity.Photos.Add(new CasePhoto
-                    {
-                        ImagePath = path,
-                        CreatedAt = DateTime.UtcNow
-                    });
+                    var path = await _fileStorage.SaveFileAsync(photo, "long-term");
+
+                    // NOTE: previously the uploaded path was never attached to the entity - fixed here
+                    entity.Photos.Add(new CasePhoto { ImagePath = path });
                 }
             }
 
@@ -193,21 +211,22 @@ namespace SafeTrace.Application.Services
             }
         }
 
-        public async Task<bool> UpdateAsync(long id, UpdateLongTermCaseDto dto, string userId, bool isAdmin)
+        public async Task UpdateAsync(long id, UpdateLongTermCaseDto dto, string userId, bool isAdmin)
         {
-            var entity = await _unitOfWork.LongTermMissingCaseRepository.GetOneAsync(c => c.Id == id, true, c => c.Photos);
+            var entity = await _unitOfWork.LongTermMissingCaseRepository.GetOneAsync(
+                c => c.Id == id && !c.IsDeleted, true, c => c.Photos);
 
             if (entity == null)
             {
                 _logger.LogWarning("Update failed - LongTermCase {CaseId} not found. UserId={UserId}", id, userId);
-                return false;
+                throw new NotFoundException($"Long-term case with id {id} was not found.");
             }
 
             if (entity.UserId != userId && !isAdmin)
             {
                 _logger.LogWarning(
                     "Unauthorized update attempt on LongTermCase {CaseId} by UserId={UserId}", id, userId);
-                return false;
+                throw new ForbiddenException("You are not allowed to update this case.");
             }
 
             if (dto.Gender.HasValue) entity.Gender = dto.Gender.Value;
@@ -229,7 +248,9 @@ namespace SafeTrace.Application.Services
                 if (!string.IsNullOrEmpty(entity.PoliceReportImage))
                     _fileStorage.DeleteFile(entity.PoliceReportImage);
 
-                entity.PoliceReportImage = await _fileStorage.SaveFileAsync(dto.PoliceReportImage, "long-term/police-reports");
+                entity.PoliceReportImage = await _fileStorage.SaveFileAsync(
+                    dto.PoliceReportImage,
+                    "long-term/police-reports");
             }
 
             if (dto.RemovedPhotoIds != null && dto.RemovedPhotoIds.Count > 0)
@@ -247,34 +268,93 @@ namespace SafeTrace.Application.Services
             {
                 foreach (var photo in dto.NewPhotos)
                 {
-                    var path = await _fileStorage.SaveFileAsync(photo, "long-term/photos");
-                    entity.Photos.Add(new CasePhoto { ImagePath = path, CreatedAt = DateTime.UtcNow });
+                    var path = await _fileStorage.SaveFileAsync(photo, "long-term");
+
+                    // NOTE: previously the uploaded path was never attached to the entity - fixed here
+                    entity.Photos.Add(new CasePhoto { ImagePath = path });
                 }
+            }
+
+            // Edits made by a regular (non-admin) user must be re-approved by an Admin before
+            // the case is public again. We remember the status it had before the edit so a
+            // Reject only undoes the edit instead of closing an already-active case.
+            if (!isAdmin && entity.Status != CaseStatus.Pending)
+            {
+                entity.PreviousStatus = entity.Status;
+                entity.Status = CaseStatus.Pending;
             }
 
             await _unitOfWork.LongTermMissingCaseRepository.UpdateAsync(entity);
             await _unitOfWork.SaveAsync();
 
             _logger.LogInformation("Long-term case {CaseId} updated by UserId={UserId} (IsAdmin={IsAdmin})", id, userId, isAdmin);
-            return true;
         }
 
-        public async Task<bool> DeleteAsync(long id, string userId, bool isAdmin)
+        public async Task DeleteAsync(long id, string userId, bool isAdmin)
         {
             var entity = await _unitOfWork.LongTermMissingCaseRepository.GetOneAsync(
-                c => c.Id == id, true, c => c.Photos, c => c.FoundPersonInfo!);
+                c => c.Id == id && !c.IsDeleted, true);
 
             if (entity == null)
             {
                 _logger.LogWarning("Delete failed - LongTermCase {CaseId} not found. UserId={UserId}", id, userId);
-                return false;
+                throw new NotFoundException($"Long-term case with id {id} was not found.");
             }
 
             if (entity.UserId != userId && !isAdmin)
             {
                 _logger.LogWarning(
                     "Unauthorized delete attempt on LongTermCase {CaseId} by UserId={UserId}", id, userId);
-                return false;
+                throw new ForbiddenException("You are not allowed to delete this case.");
+            }
+
+            // Soft delete only: files and the row stay in place so Admin can restore or purge it
+            entity.IsDeleted = true;
+            entity.DeletedAt = DateTime.UtcNow;
+            entity.DeletedByUserId = userId;
+
+            await _unitOfWork.LongTermMissingCaseRepository.UpdateAsync(entity);
+            await _unitOfWork.SaveAsync();
+
+            _logger.LogWarning("Long-term case {CaseId} soft-deleted by UserId={UserId} (IsAdmin={IsAdmin})", id, userId, isAdmin);
+        }
+
+        public async Task RestoreAsync(long id)
+        {
+            var entity = await _unitOfWork.LongTermMissingCaseRepository.GetOneAsync(
+                c => c.Id == id && c.IsDeleted, true);
+
+            if (entity == null)
+            {
+                _logger.LogWarning("Restore failed - deleted LongTermCase {CaseId} not found.", id);
+                throw new NotFoundException($"Deleted long-term case with id {id} was not found.");
+            }
+
+            entity.IsDeleted = false;
+            entity.DeletedAt = null;
+            entity.DeletedByUserId = null;
+
+            await _unitOfWork.LongTermMissingCaseRepository.UpdateAsync(entity);
+            await _unitOfWork.SaveAsync();
+
+            _logger.LogInformation("Long-term case {CaseId} restored by Admin.", id);
+        }
+
+        public async Task PermanentDeleteAsync(long id)
+        {
+            var entity = await _unitOfWork.LongTermMissingCaseRepository.GetOneAsync(
+                c => c.Id == id, true, c => c.Photos, c => c.FoundPersonInfo!);
+
+            if (entity == null)
+            {
+                _logger.LogWarning("Permanent delete failed - LongTermCase {CaseId} not found.", id);
+                throw new NotFoundException($"Long-term case with id {id} was not found.");
+            }
+
+            if (!entity.IsDeleted)
+            {
+                _logger.LogWarning("Permanent delete blocked - LongTermCase {CaseId} is not soft-deleted yet.", id);
+                throw new ConflictException("Only soft-deleted cases can be permanently deleted. Delete it first.");
             }
 
             foreach (var photo in entity.Photos)
@@ -286,64 +366,93 @@ namespace SafeTrace.Application.Services
             await _unitOfWork.LongTermMissingCaseRepository.DeleteAsync(entity);
             await _unitOfWork.SaveAsync();
 
-            _logger.LogWarning("Long-term case {CaseId} deleted by UserId={UserId} (IsAdmin={IsAdmin})", id, userId, isAdmin);
-            return true;
+            _logger.LogWarning("Long-term case {CaseId} permanently deleted by Admin.", id);
         }
 
-        public async Task<bool> ApproveAsync(long id)
+        public async Task ApproveAsync(long id)
         {
-            var entity = await _unitOfWork.LongTermMissingCaseRepository.GetOneAsync(c => c.Id == id, true);
-            if (entity == null || entity.Status != CaseStatus.Pending)
+            var entity = await _unitOfWork.LongTermMissingCaseRepository.GetOneAsync(
+                c => c.Id == id && !c.IsDeleted, true);
+
+            if (entity == null)
             {
-                _logger.LogWarning("Approve failed - LongTermCase {CaseId} not found or not Pending.", id);
-                return false;
+                _logger.LogWarning("Approve failed - LongTermCase {CaseId} not found.", id);
+                throw new NotFoundException($"Long-term case with id {id} was not found.");
+            }
+
+            if (entity.Status != CaseStatus.Pending)
+            {
+                _logger.LogWarning("Approve failed - LongTermCase {CaseId} is not Pending.", id);
+                throw new ConflictException("Only pending cases can be approved.");
             }
 
             entity.Status = CaseStatus.Active;
+            entity.PreviousStatus = null;
+
             await _unitOfWork.LongTermMissingCaseRepository.UpdateAsync(entity);
             await _unitOfWork.SaveAsync();
 
             _logger.LogInformation("Long-term case {CaseId} approved (Pending -> Active).", id);
-            return true;
         }
 
-        public async Task<bool> RejectAsync(long id)
+        public async Task RejectAsync(long id)
         {
-            var entity = await _unitOfWork.LongTermMissingCaseRepository.GetOneAsync(c => c.Id == id, true);
-            if (entity == null || entity.Status != CaseStatus.Pending)
+            var entity = await _unitOfWork.LongTermMissingCaseRepository.GetOneAsync(
+                c => c.Id == id && !c.IsDeleted, true);
+
+            if (entity == null)
             {
-                _logger.LogWarning("Reject failed - LongTermCase {CaseId} not found or not Pending.", id);
-                return false;
+                _logger.LogWarning("Reject failed - LongTermCase {CaseId} not found.", id);
+                throw new NotFoundException($"Long-term case with id {id} was not found.");
             }
 
-            entity.Status = CaseStatus.Closed;
+            if (entity.Status != CaseStatus.Pending)
+            {
+                _logger.LogWarning("Reject failed - LongTermCase {CaseId} is not Pending.", id);
+                throw new ConflictException("Only pending cases can be rejected.");
+            }
+
+            if (entity.PreviousStatus.HasValue)
+            {
+                // This Pending state came from a user edit on an already-approved case:
+                // rejecting the edit reverts it instead of closing the whole case.
+                entity.Status = entity.PreviousStatus.Value;
+                entity.PreviousStatus = null;
+            }
+            else
+            {
+                // This was a brand-new case awaiting first approval - reject closes it.
+                entity.Status = CaseStatus.Closed;
+            }
+
             await _unitOfWork.LongTermMissingCaseRepository.UpdateAsync(entity);
             await _unitOfWork.SaveAsync();
 
-            _logger.LogInformation("Long-term case {CaseId} rejected (Pending -> Closed).", id);
-            return true;
+            _logger.LogInformation("Long-term case {CaseId} rejected (Pending -> {Status}).", id, entity.Status);
         }
 
-        public async Task<bool> MarkAsFoundedAsync(long id, MarkAsFoundedDto dto, string userId, bool isAdmin)
+        public async Task MarkAsFoundedAsync(long id, MarkAsFoundedDto dto, string userId, bool isAdmin)
         {
-            var entity = await _unitOfWork.LongTermMissingCaseRepository.GetOneAsync(c => c.Id == id, true);
+            var entity = await _unitOfWork.LongTermMissingCaseRepository.GetOneAsync(
+                c => c.Id == id && !c.IsDeleted, true);
+
             if (entity == null)
             {
                 _logger.LogWarning("MarkAsFounded failed - LongTermCase {CaseId} not found. UserId={UserId}", id, userId);
-                return false;
+                throw new NotFoundException($"Long-term case with id {id} was not found.");
             }
 
             if (entity.UserId != userId && !isAdmin)
             {
                 _logger.LogWarning(
                     "Unauthorized MarkAsFounded attempt on LongTermCase {CaseId} by UserId={UserId}", id, userId);
-                return false;
+                throw new ForbiddenException("You are not allowed to mark this case as found.");
             }
 
             if (entity.Status != CaseStatus.Active)
             {
                 _logger.LogWarning("MarkAsFounded failed - LongTermCase {CaseId} is not Active (Status={Status}).", id, entity.Status);
-                return false;
+                throw new ConflictException("Only active cases can be marked as found.");
             }
 
             var foundInfo = new FoundPersonInfo
@@ -353,7 +462,7 @@ namespace SafeTrace.Application.Services
                 Government = dto.Government,
                 City = dto.City,
                 Street = dto.Street ?? string.Empty,
-                FoundedAt = DateTime.UtcNow,
+                FoundedAt = DateOnly.FromDateTime(DateTime.UtcNow),
                 FoundedUserId = userId
             };
 
@@ -364,7 +473,6 @@ namespace SafeTrace.Application.Services
             await _unitOfWork.SaveAsync();
 
             _logger.LogInformation("Long-term case {CaseId} marked as Found by UserId={UserId}.", id, userId);
-            return true;
         }
 
         private static string GenerateCaseCode()

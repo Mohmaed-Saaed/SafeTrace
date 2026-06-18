@@ -27,6 +27,11 @@ namespace SafeTrace.Domain.Entities
         public string? Description { get; set; }
         public CaseType CaseType { get; set; }
         public int   AgeCategoryId { get; set; }
+        public bool IsDeleted { get; set; } = false;
+        public DateTime? DeletedAt { get; set; }
+        public string? DeletedByUserId { get; set; }
+
+        public CaseStatus? PreviousStatus { get; set; }
 
         public FoundPersonInfo? FoundPersonInfo { get; set; }
 

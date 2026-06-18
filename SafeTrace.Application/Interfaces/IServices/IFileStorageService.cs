@@ -1,11 +1,13 @@
 ﻿using Microsoft.AspNetCore.Http;
-using SafeTrace.Application.DTOs.Responses;
 
 namespace SafeTrace.Application.Interfaces.IServices
 {
     public interface IFileStorageService
     {
-        public Task<ApiResponse<string>> SaveFileAsync(IFormFile file, string folderName);
-        public bool DeleteFile(string fileUrl);
+        // Returns the saved relative path directly. Throws BadRequestException on validation/IO failure
+        // so the GlobalExceptionHandler middleware turns it into a proper 400 response.
+        Task<string> SaveFileAsync(IFormFile file, string folderName);
+
+        bool DeleteFile(string fileUrl);
     }
 }
