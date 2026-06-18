@@ -1,13 +1,16 @@
-using SafeTrace.API.Middlewares;
+using Microsoft.AspNetCore.Mvc;
+using SafeTrace.API.ExceptionHandlers;
+using SafeTrace.API.ExtensionMethods;
 using SafeTrace.Application.DependencyInjection;
 using SafeTrace.Infrastructure.DependencyInjection;
 using Serilog;
+using System.Text.Json.Serialization;
 
 namespace SafeTrace
 {
     public class Program
     {
-        public static void Main(string[] args)
+        public static async Task Main(string[] args)
         {
             var builder = WebApplication.CreateBuilder(args);
 
@@ -20,11 +23,15 @@ namespace SafeTrace
             // Add services to the container.
 
             builder.Services.AddEndpointsApiExplorer();
-            builder.Services.AddControllers();
-            builder.Services.AddSwaggerGen();
 
-            //builder.Services.AddScoped<IDBInitializer, DBInitializer>();
-            //builder.Services.AddScoped(typeof(IRepository<>), typeof(Repository<>));
+            builder.Services.AddControllers()
+                            .AddJsonOptions(options =>
+                            {
+                                options.JsonSerializerOptions.Converters.Add(
+                                    new JsonStringEnumConverter());
+                            });
+
+            builder.Services.AddSwaggerGen();
 
             builder.Services.AddInfrastructure(builder.Configuration);
             builder.Services.AddApplication();
@@ -46,9 +53,27 @@ namespace SafeTrace
             // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
             //builder.Services.AddOpenApi();
 
+            builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
+            builder.Services.AddProblemDetails();
+
             var app = builder.Build();
 
-            app.UseMiddleware<GlobalExceptionMiddleware>();
+            app.UseExceptionHandler();
+            app.UseStatusCodePages(async context =>
+            {
+                var response = context.HttpContext.Response;
+
+                if (response.StatusCode == 404)
+                {
+                    await response.WriteAsJsonAsync(new ProblemDetails
+                    {
+                        Status = 404,
+                        Title = "Not Found",
+                        Detail = "The requested endpoint was not found.",
+                        Instance = context.HttpContext.Request.Path
+                    });
+                }
+            });
 
             // Configure the HTTP request pipeline.
             if (app.Environment.IsDevelopment())
@@ -59,21 +84,16 @@ namespace SafeTrace
 
             app.UseCors("CorsPolicy");
 
+            await app.SeedDataAsync();
+            await app.ApplyPendingMigrationsAsync();
 
             app.UseHttpsRedirection();
             app.UseStaticFiles();
 
             app.UseAuthorization();
 
-            //using (var scope = app.Services.CreateScope())
-            //{
-            //    var dbInitializer = scope.ServiceProvider.GetRequiredService<IDBInitializer>();
-            //    dbInitializer.Initialize();
-            //}
             app.MapControllers();
-            app.MapControllerRoute(
-                name: "default",
-                pattern: "api/{controller}/{action=Index}/{id?}");
+            
             app.Run();
         }
     }

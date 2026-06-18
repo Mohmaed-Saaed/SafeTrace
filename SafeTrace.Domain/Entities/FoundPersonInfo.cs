@@ -14,12 +14,12 @@
 
         public long CaseId { get; set; }
 
-        public DateTime FoundedAt { get; set; }
+        public DateOnly FoundedAt { get; set; }
 
         public string FoundedUserId { get; set; } = null!;
 
         public ApplicationUser FoundedUser { get; set; } = null!;
 
-        public BaseCase Case { get; set; } = null!;
+        public Case Case { get; set; } = null!;
     }
 }

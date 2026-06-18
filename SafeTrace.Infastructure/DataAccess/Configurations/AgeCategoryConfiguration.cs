@@ -20,7 +20,7 @@ namespace SafeTrace.Infrastructure.DataAccess.Configurations
             builder.Property(x => x.MaxAge)
                 .IsRequired();
 
-            builder.HasMany(x => x.BaseCases)
+            builder.HasMany(x => x.Cases)
                 .WithOne(x => x.AgeCategory)
                 .HasForeignKey(x => x.AgeCategoryId)
                 .OnDelete(DeleteBehavior.Restrict);

@@ -1,13 +1,7 @@
-﻿using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Storage;
-using SafeTrace.Domain.Interfaces.IRepositories;
+﻿using Microsoft.EntityFrameworkCore.Storage;
 using SafeTrace.Domain.Interfaces.IUnitOfWork;
 using SafeTrace.Infrastructure.DataAccess;
-using SafeTrace.Infrastructure.Repositories.Repositories;
 using SafeTrace.Infrastructure.Repositories.Repository;
-using System;
-using System.Collections.Generic;
-using System.Text;
 
 namespace SafeTrace.Infrastructure.Repositories.UnitOfWork
 {
@@ -17,31 +11,30 @@ namespace SafeTrace.Infrastructure.Repositories.UnitOfWork
 
         private IDbContextTransaction? _transaction;
 
-        public IBaseCaseRepository BaseCaseRepository { get; private set; }
-        public ICasePhotoRepository CasePhotoRepository { get; private set; }
-        public IChatRepository ChatRepository { get; private set; }
-        public IComplaintRepository ComplaintRepository { get; private set; }
-        public IFoundPersonInfoRepository FoundPersonInfoRepository { get; private set; }
-        public ILongTermMissingCaseRepository LongTermMissingCaseRepository { get; private set; }
-        public IMessageRepository MessageRepository { get; private set; }
-        public INotificationRepository NotificationRepository { get; private set; }
-        public IUnknownCaseRepository UnknownCaseRepository { get; private set; }
-        public IUrgentCaseRepository UrgentCaseRepository { get; private set; }
+        public IRepository<RefreshToken> RefreshTokenRepository { get; private set; }
+        public IRepository<UserOtp> UserOtpRepository { get; private set; }
+        public IRepository<Case> CaseRepository { get; private set; }
+        public IRepository<CasePhoto> CasePhotoRepository { get; private set; }
+        public IRepository<Chat> ChatRepository { get; private set; }
+        public IRepository<Complaint> ComplaintRepository { get; private set; }
+        public IRepository<FoundPersonInfo> FoundPersonInfoRepository { get; private set; }
+        public IRepository<Message> MessageRepository { get; private set; }
+        public IRepository<Notification> NotificationRepository { get; private set; }
+        public IRepository<AgeCategory> AgeCategoryRepository { get; private set; }
 
         public UnitOfWork(ApplicationDbContext context)
         {
             _context = context;
-            BaseCaseRepository = new BaseCaseRepository(_context);
-            CasePhotoRepository = new CasePhotoRepository(_context);
-            ChatRepository = new ChatRepository(_context);
-            ComplaintRepository = new ComplaintRepository(_context);
-            FoundPersonInfoRepository = new FoundPersonInfoRepository(_context);
-            LongTermMissingCaseRepository = new LongTermMissingCaseRepository(_context);
-            MessageRepository = new MessageRepository(_context);
-            NotificationRepository = new NotificationRepository(_context);
-            UnknownCaseRepository = new UnknownCaseRepository(_context);
-            UrgentCaseRepository = new UrgentCaseRepository(_context);
-
+            CaseRepository = new Repository<Case>(context);
+            CasePhotoRepository = new Repository<CasePhoto>(_context);
+            ChatRepository = new Repository<Chat>(_context);
+            ComplaintRepository = new Repository<Complaint>(_context);
+            FoundPersonInfoRepository = new Repository<FoundPersonInfo>(_context);
+            MessageRepository = new Repository<Message>(_context);
+            NotificationRepository = new Repository<Notification>(_context);
+            UserOtpRepository = new Repository<UserOtp>(_context);
+            RefreshTokenRepository = new Repository<RefreshToken>(_context);
+            AgeCategoryRepository = new Repository<AgeCategory>(_context);
         }
 
         public async Task<int> SaveAsync()
