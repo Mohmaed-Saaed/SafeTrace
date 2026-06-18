@@ -2,7 +2,7 @@
 
 namespace SafeTrace.Domain.Entities
 {
-    public abstract class BaseCase
+    public abstract class Case
     {
         public long Id { get; set; }
         public Gender Gender { get; set; }
@@ -20,7 +20,12 @@ namespace SafeTrace.Domain.Entities
         public CaseStatus Status { get; set; }
         public string CaseCode { get; set; } = null!;
         public RelationType Relation { get; set; }
-        public DateTime CreatedAt { get; set; }
+        public DateTime? CreatedAt { get; set; }
+        public DateTime? UpdatedAt { get; set; }
+        public DateTime? DeletedAt { get; set; }
+        public string? DeletedByUserId { get; set; }
+        public CaseStatus? PreviousStatus { get; set; }
+        public bool IsDeleted { get; set; }
         public DateTime EventDate { get; set; }
         public string? Description { get; set; }
         public CaseType CaseType { get; set; }

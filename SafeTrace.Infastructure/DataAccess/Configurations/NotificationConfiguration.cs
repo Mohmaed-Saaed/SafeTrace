@@ -10,6 +10,9 @@ namespace SafeTrace.Infrastructure.DataAccess.Configurations
 
             builder.HasKey(n => n.Id);
 
+            builder.Property(x => x.Type)
+                   .HasConversion<string>();
+
             builder.Property(n => n.Content).IsRequired().HasMaxLength(1000);
 
             builder.HasOne(n => n.User)

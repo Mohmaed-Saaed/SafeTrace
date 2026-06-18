@@ -6,7 +6,6 @@ namespace SafeTrace.Infrastructure.DataAccess.Configurations
     {
         public void Configure(EntityTypeBuilder<LongTermMissingCase> builder)
         {
-            builder.ToTable("LongTermMissingCases");
         }
     }
 }
