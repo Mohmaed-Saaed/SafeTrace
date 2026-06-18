@@ -5,6 +5,7 @@ using SafeTrace.Application.Interfaces;
 using SafeTrace.Application.Interfaces.IServices;
 using SafeTrace.Domain.Interfaces.IUnitOfWork;
 using SafeTrace.Infrastructure.DataAccess;
+using SafeTrace.Infrastructure.Persistence;
 using SafeTrace.Infrastructure.Repositories.UnitOfWork;
 using SafeTrace.Infrastructure.Service.Founded;
 using SafeTrace.Infrastructure.Services;
@@ -18,6 +19,7 @@ namespace SafeTrace.Infrastructure.DependencyInjection
             services.AddDbContext<ApplicationDbContext>(options =>
                 options.UseSqlServer(configuration.GetConnectionString("DefaultConnection"),x => x.UseNetTopologySuite())  );
             
+            services.AddScoped<IDBInitializer, DBInitializer>();
             services.AddScoped<IUnitOfWork, UnitOfWork>();
             services.AddScoped<IFileStorageService, FileStorageService>();
             services.AddScoped<IEmailServiceSendGrid, EmailServiceSendGrid>();

@@ -6,8 +6,6 @@ namespace SafeTrace.Infrastructure.DataAccess.Configurations
     {
         public void Configure(EntityTypeBuilder<UrgentCase> builder)
         {
-            builder.ToTable("UrgentCases");
-
             builder.Property(u => u.EndDate)
                 .IsRequired();
 

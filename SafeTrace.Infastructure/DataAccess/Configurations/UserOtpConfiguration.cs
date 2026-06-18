@@ -6,6 +6,9 @@ namespace SafeTrace.Infrastructure.DataAccess.Configurations
     {
         public void Configure(EntityTypeBuilder<UserOtp> builder)
         {
+            builder.Property(x => x.Type)
+               .HasConversion<string>();
+
             builder.HasKey(o => o.Id);
             builder.Property(o => o.Code).IsRequired().HasMaxLength(6);
             builder.Property(o => o.Type).HasConversion<string>().HasMaxLength(30);
