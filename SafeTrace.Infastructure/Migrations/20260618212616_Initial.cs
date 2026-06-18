@@ -137,15 +137,15 @@ namespace SafeTrace.Infrastructure.Migrations
                 });
 
             migrationBuilder.CreateTable(
-                name: "BaseCases",
+                name: "Cases",
                 columns: table => new
                 {
                     Id = table.Column<long>(type: "bigint", nullable: false)
                         .Annotation("SqlServer:Identity", "1, 1"),
-                    Gender = table.Column<int>(type: "int", nullable: false),
-                    Government = table.Column<string>(type: "nvarchar(200)", maxLength: 200, nullable: false),
-                    City = table.Column<string>(type: "nvarchar(200)", maxLength: 200, nullable: false),
-                    Street = table.Column<string>(type: "nvarchar(500)", maxLength: 500, nullable: false),
+                    Gender = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    Government = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
+                    City = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
+                    Street = table.Column<string>(type: "nvarchar(200)", maxLength: 200, nullable: false),
                     FName = table.Column<string>(type: "nvarchar(max)", nullable: true),
                     SName = table.Column<string>(type: "nvarchar(max)", nullable: true),
                     TName = table.Column<string>(type: "nvarchar(max)", nullable: true),
@@ -153,26 +153,36 @@ namespace SafeTrace.Infrastructure.Migrations
                     Age = table.Column<int>(type: "int", nullable: false),
                     UserId = table.Column<string>(type: "nvarchar(450)", nullable: false),
                     CommunicationPhone = table.Column<string>(type: "nvarchar(max)", nullable: true),
-                    Status = table.Column<int>(type: "int", nullable: false),
+                    Status = table.Column<string>(type: "nvarchar(max)", nullable: false),
                     CaseCode = table.Column<string>(type: "nvarchar(max)", nullable: false, defaultValue: "10000"),
-                    Relation = table.Column<int>(type: "int", nullable: false),
-                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    Relation = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: true, defaultValueSql: "GETUTCDATE()"),
+                    UpdatedAt = table.Column<DateTime>(type: "datetime2", nullable: true),
+                    DeletedAt = table.Column<DateTime>(type: "datetime2", nullable: true),
+                    DeletedByUserId = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    PreviousStatus = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    IsDeleted = table.Column<bool>(type: "bit", nullable: false, defaultValue: false),
                     EventDate = table.Column<DateTime>(type: "datetime2", nullable: false),
                     Description = table.Column<string>(type: "nvarchar(max)", nullable: true),
-                    CaseType = table.Column<int>(type: "int", nullable: false),
-                    AgeCategoryId = table.Column<int>(type: "int", nullable: false)
+                    CaseType = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    AgeCategoryId = table.Column<int>(type: "int", nullable: false),
+                    Discriminator = table.Column<string>(type: "nvarchar(21)", maxLength: 21, nullable: false),
+                    PoliceReportImage = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    Location = table.Column<Point>(type: "geography", nullable: true),
+                    EndDate = table.Column<DateTime>(type: "datetime2", nullable: true),
+                    LimitReachDate = table.Column<DateTime>(type: "datetime2", nullable: true)
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_BaseCases", x => x.Id);
+                    table.PrimaryKey("PK_Cases", x => x.Id);
                     table.ForeignKey(
-                        name: "FK_BaseCases_AgeCategories_AgeCategoryId",
+                        name: "FK_Cases_AgeCategories_AgeCategoryId",
                         column: x => x.AgeCategoryId,
                         principalTable: "AgeCategories",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Restrict);
                     table.ForeignKey(
-                        name: "FK_BaseCases_ApplicationUsers_UserId",
+                        name: "FK_Cases_ApplicationUsers_UserId",
                         column: x => x.UserId,
                         principalTable: "ApplicationUsers",
                         principalColumn: "Id",
@@ -209,7 +219,7 @@ namespace SafeTrace.Infrastructure.Migrations
                         .Annotation("SqlServer:Identity", "1, 1"),
                     IsRead = table.Column<bool>(type: "bit", nullable: false),
                     CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
-                    Type = table.Column<int>(type: "int", nullable: false),
+                    Type = table.Column<string>(type: "nvarchar(max)", nullable: false),
                     UserId = table.Column<string>(type: "nvarchar(450)", nullable: false),
                     Content = table.Column<string>(type: "nvarchar(1000)", maxLength: 1000, nullable: false)
                 },
@@ -225,7 +235,7 @@ namespace SafeTrace.Infrastructure.Migrations
                 });
 
             migrationBuilder.CreateTable(
-                name: "RefreshToken",
+                name: "RefreshTokens",
                 columns: table => new
                 {
                     Id = table.Column<int>(type: "int", nullable: false)
@@ -239,9 +249,9 @@ namespace SafeTrace.Infrastructure.Migrations
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_RefreshToken", x => x.Id);
+                    table.PrimaryKey("PK_RefreshTokens", x => x.Id);
                     table.ForeignKey(
-                        name: "FK_RefreshToken_ApplicationUsers_UserId",
+                        name: "FK_RefreshTokens_ApplicationUsers_UserId",
                         column: x => x.UserId,
                         principalTable: "ApplicationUsers",
                         principalColumn: "Id",
@@ -249,7 +259,7 @@ namespace SafeTrace.Infrastructure.Migrations
                 });
 
             migrationBuilder.CreateTable(
-                name: "UserOtp",
+                name: "UserOtps",
                 columns: table => new
                 {
                     Id = table.Column<int>(type: "int", nullable: false)
@@ -262,9 +272,9 @@ namespace SafeTrace.Infrastructure.Migrations
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_UserOtp", x => x.Id);
+                    table.PrimaryKey("PK_UserOtps", x => x.Id);
                     table.ForeignKey(
-                        name: "FK_UserOtp_ApplicationUsers_UserId",
+                        name: "FK_UserOtps_ApplicationUsers_UserId",
                         column: x => x.UserId,
                         principalTable: "ApplicationUsers",
                         principalColumn: "Id",
@@ -331,9 +341,9 @@ namespace SafeTrace.Infrastructure.Migrations
                 {
                     table.PrimaryKey("PK_CasePhotos", x => x.Id);
                     table.ForeignKey(
-                        name: "FK_CasePhotos_BaseCases_CaseId",
+                        name: "FK_CasePhotos_Cases_CaseId",
                         column: x => x.CaseId,
-                        principalTable: "BaseCases",
+                        principalTable: "Cases",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
                 });
@@ -353,9 +363,9 @@ namespace SafeTrace.Infrastructure.Migrations
                 {
                     table.PrimaryKey("PK_Chats", x => x.Id);
                     table.ForeignKey(
-                        name: "FK_Chats_BaseCases_CaseId",
+                        name: "FK_Chats_Cases_CaseId",
                         column: x => x.CaseId,
-                        principalTable: "BaseCases",
+                        principalTable: "Cases",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
                 });
@@ -384,66 +394,11 @@ namespace SafeTrace.Infrastructure.Migrations
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Restrict);
                     table.ForeignKey(
-                        name: "FK_FoundPersonInfos_BaseCases_CaseId",
+                        name: "FK_FoundPersonInfos_Cases_CaseId",
                         column: x => x.CaseId,
-                        principalTable: "BaseCases",
+                        principalTable: "Cases",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Restrict);
-                });
-
-            migrationBuilder.CreateTable(
-                name: "LongTermMissingCases",
-                columns: table => new
-                {
-                    Id = table.Column<long>(type: "bigint", nullable: false),
-                    PoliceReportImage = table.Column<string>(type: "nvarchar(max)", nullable: true)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_LongTermMissingCases", x => x.Id);
-                    table.ForeignKey(
-                        name: "FK_LongTermMissingCases_BaseCases_Id",
-                        column: x => x.Id,
-                        principalTable: "BaseCases",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
-                });
-
-            migrationBuilder.CreateTable(
-                name: "UnknownCases",
-                columns: table => new
-                {
-                    Id = table.Column<long>(type: "bigint", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_UnknownCases", x => x.Id);
-                    table.ForeignKey(
-                        name: "FK_UnknownCases_BaseCases_Id",
-                        column: x => x.Id,
-                        principalTable: "BaseCases",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
-                });
-
-            migrationBuilder.CreateTable(
-                name: "UrgentCases",
-                columns: table => new
-                {
-                    Id = table.Column<long>(type: "bigint", nullable: false),
-                    Location = table.Column<Point>(type: "geography", nullable: false),
-                    EndDate = table.Column<DateTime>(type: "datetime2", nullable: false),
-                    LimitReachDate = table.Column<DateTime>(type: "datetime2", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_UrgentCases", x => x.Id);
-                    table.ForeignKey(
-                        name: "FK_UrgentCases_BaseCases_Id",
-                        column: x => x.Id,
-                        principalTable: "BaseCases",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
                 });
 
             migrationBuilder.CreateTable(
@@ -455,7 +410,7 @@ namespace SafeTrace.Infrastructure.Migrations
                     Content = table.Column<string>(type: "nvarchar(2000)", maxLength: 2000, nullable: false),
                     SenderId = table.Column<string>(type: "nvarchar(max)", nullable: false),
                     ReceiverId = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    FileType = table.Column<int>(type: "int", nullable: true),
+                    FileType = table.Column<string>(type: "nvarchar(max)", nullable: true),
                     FilePath = table.Column<string>(type: "nvarchar(max)", nullable: true),
                     IsRead = table.Column<bool>(type: "bit", nullable: false),
                     SendAt = table.Column<DateTime>(type: "datetime2", nullable: false),
@@ -512,19 +467,19 @@ namespace SafeTrace.Infrastructure.Migrations
                 column: "RoleId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_BaseCases_AgeCategoryId",
-                table: "BaseCases",
-                column: "AgeCategoryId");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_BaseCases_UserId",
-                table: "BaseCases",
-                column: "UserId");
-
-            migrationBuilder.CreateIndex(
                 name: "IX_CasePhotos_CaseId",
                 table: "CasePhotos",
                 column: "CaseId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Cases_AgeCategoryId",
+                table: "Cases",
+                column: "AgeCategoryId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Cases_UserId",
+                table: "Cases",
+                column: "UserId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_Chats_CaseId",
@@ -558,19 +513,19 @@ namespace SafeTrace.Infrastructure.Migrations
                 column: "UserId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_RefreshToken_Token",
-                table: "RefreshToken",
+                name: "IX_RefreshTokens_Token",
+                table: "RefreshTokens",
                 column: "Token",
                 unique: true);
 
             migrationBuilder.CreateIndex(
-                name: "IX_RefreshToken_UserId",
-                table: "RefreshToken",
+                name: "IX_RefreshTokens_UserId",
+                table: "RefreshTokens",
                 column: "UserId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_UserOtp_UserId",
-                table: "UserOtp",
+                name: "IX_UserOtps_UserId",
+                table: "UserOtps",
                 column: "UserId");
         }
 
@@ -602,25 +557,16 @@ namespace SafeTrace.Infrastructure.Migrations
                 name: "FoundPersonInfos");
 
             migrationBuilder.DropTable(
-                name: "LongTermMissingCases");
-
-            migrationBuilder.DropTable(
                 name: "Messages");
 
             migrationBuilder.DropTable(
                 name: "Notifications");
 
             migrationBuilder.DropTable(
-                name: "RefreshToken");
+                name: "RefreshTokens");
 
             migrationBuilder.DropTable(
-                name: "UnknownCases");
-
-            migrationBuilder.DropTable(
-                name: "UrgentCases");
-
-            migrationBuilder.DropTable(
-                name: "UserOtp");
+                name: "UserOtps");
 
             migrationBuilder.DropTable(
                 name: "AspNetRoles");
@@ -629,7 +575,7 @@ namespace SafeTrace.Infrastructure.Migrations
                 name: "Chats");
 
             migrationBuilder.DropTable(
-                name: "BaseCases");
+                name: "Cases");
 
             migrationBuilder.DropTable(
                 name: "AgeCategories");
