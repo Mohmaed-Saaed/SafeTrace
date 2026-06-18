@@ -8,11 +8,7 @@ namespace SafeTrace.Application.DependencyInjection
     {
         public static IServiceCollection AddApplication(this IServiceCollection services)
         {
-            services.AddAutoMapper(cfg => { cfg.AddProfile<MappingProfile>(); cfg.AddProfile<UrgentCaseProfile>(); });
-
-            services.AddScoped<IUrgentCaseService, UrgentCaseService>();
-        
-            
+            services.AddAutoMapper(cfg => { }, typeof(ApplicationServiceRegistration).Assembly);
             return services;
         }
     }
