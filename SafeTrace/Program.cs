@@ -77,9 +77,7 @@ namespace SafeTrace
             app.UseAuthorization();
 
             app.MapControllers();
-            app.MapControllerRoute(
-                name: "default",
-                pattern: "api/{controller}/{action=Index}/{id?}");
+            
             app.Run();
         }
     }
