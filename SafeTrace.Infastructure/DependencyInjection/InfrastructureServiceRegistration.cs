@@ -7,7 +7,6 @@ using SafeTrace.Domain.Interfaces.IUnitOfWork;
 using SafeTrace.Infrastructure.DataAccess;
 using SafeTrace.Infrastructure.Persistence;
 using SafeTrace.Infrastructure.Repositories.UnitOfWork;
-using SafeTrace.Infrastructure.Service.Founded;
 using SafeTrace.Infrastructure.Services;
 
 namespace SafeTrace.Infrastructure.DependencyInjection
@@ -22,11 +21,19 @@ namespace SafeTrace.Infrastructure.DependencyInjection
             services.AddScoped<IDBInitializer, DBInitializer>();
             services.AddScoped<IUnitOfWork, UnitOfWork>();
             services.AddScoped<IFileStorageService, FileStorageService>();
-            services.AddScoped<IFoundedService, FoundedService>();
             
-            services.AddIdentity<ApplicationUser, IdentityRole>()
-                .AddEntityFrameworkStores<ApplicationDbContext>()
-                    .AddDefaultTokenProviders();
+            services.AddIdentity<ApplicationUser, IdentityRole>(options =>
+            {
+                options.Password.RequiredLength = 8;
+                options.Password.RequireNonAlphanumeric = true;
+                options.Password.RequireUppercase = true;
+                options.Password.RequireLowercase = true;
+                options.Password.RequireDigit = true;
+
+                options.User.RequireUniqueEmail = true;
+            })
+            .AddEntityFrameworkStores<ApplicationDbContext>()
+            .AddDefaultTokenProviders();
 
             return services;
         }
