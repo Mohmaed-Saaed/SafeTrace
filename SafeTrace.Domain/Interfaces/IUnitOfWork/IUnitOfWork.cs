@@ -4,9 +4,10 @@
     {
         public IRepository<RefreshToken> RefreshTokenRepository { get;}
         public IRepository<UserOtp> UserOtpRepository { get;}
-        public IRepository<UrgentCase> UrgentCaseRepository { get;}
-        public IRepository<LongTermMissingCase> LongTermCaseRepository { get;}
-        public IRepository<UnknownCase> UnknownCaseRepository { get;}
+        //public IRepository<UrgentCase> UrgentCaseRepository { get;}
+        //public IRepository<LongTermMissingCase> LongTermCaseRepository { get;}
+        //public IRepository<UnknownCase> UnknownCaseRepository { get;}
+        public IRepository<Case> CaseRepository { get;}
         public IRepository<CasePhoto> CasePhotoRepository { get;}
         public IRepository<Chat> ChatRepository { get;}
         public IRepository<Complaint> ComplaintRepository { get;}

@@ -13,9 +13,10 @@ namespace SafeTrace.Infrastructure.Repositories.UnitOfWork
 
         public IRepository<RefreshToken> RefreshTokenRepository { get; private set; }
         public IRepository<UserOtp> UserOtpRepository { get; private set; }
-        public IRepository<UrgentCase> UrgentCaseRepository { get; private set; }
-        public IRepository<LongTermMissingCase> LongTermCaseRepository { get; private set; }
-        public IRepository<UnknownCase> UnknownCaseRepository { get; private set; }
+       // public IRepository<UrgentCase> UrgentCaseRepository { get; private set; }
+       // public IRepository<LongTermMissingCase> LongTermCaseRepository { get; private set; }
+       // public IRepository<UnknownCase> UnknownCaseRepository { get; private set; }
+        public IRepository<Case> CaseRepository { get; private set; }
         public IRepository<CasePhoto> CasePhotoRepository { get; private set; }
         public IRepository<Chat> ChatRepository { get; private set; }
         public IRepository<Complaint> ComplaintRepository { get; private set; }
@@ -27,9 +28,10 @@ namespace SafeTrace.Infrastructure.Repositories.UnitOfWork
         public UnitOfWork(ApplicationDbContext context)
         {
             _context = context;
-            UrgentCaseRepository = new Repository<UrgentCase>(_context);
-            UnknownCaseRepository = new Repository<UnknownCase>(_context);
-            LongTermCaseRepository = new Repository<LongTermMissingCase>(_context);
+            //UrgentCaseRepository = new Repository<UrgentCase>(_context);
+            //UnknownCaseRepository = new Repository<UnknownCase>(_context);
+            //LongTermCaseRepository = new Repository<LongTermMissingCase>(_context);
+            CaseRepository = new Repository<Case>(_context);
             CasePhotoRepository = new Repository<CasePhoto>(_context);
             ChatRepository = new Repository<Chat>(_context);
             ComplaintRepository = new Repository<Complaint>(_context);
