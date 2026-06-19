@@ -1,18 +1,10 @@
-﻿using AutoMapper;
-using Microsoft.Extensions.Logging;
+﻿using Microsoft.Extensions.Logging;
 using SafeTrace.Application.DTOs.Founded.Request;
 using SafeTrace.Application.DTOs.Founded.Response;
 using SafeTrace.Application.DTOs.Responses;
 using SafeTrace.Application.Interfaces;
 using SafeTrace.Domain.Common;
-using SafeTrace.Domain.Entities;
-using SafeTrace.Domain.Enums;
 using SafeTrace.Domain.Interfaces.IUnitOfWork;
-using Serilog.Core;
-using System;
-using System.Collections.Generic;
-using System.Text;
-using static Microsoft.EntityFrameworkCore.DbLoggerCategory;
 
 namespace SafeTrace.Infrastructure.Service.Founded
 {
@@ -33,7 +25,7 @@ namespace SafeTrace.Infrastructure.Service.Founded
 
             var foundedPersons = await _unitOfWork.FoundPersonInfoRepository.GetAllAsync(
                     f => (string.IsNullOrEmpty(query.Search) || f.Case.FName!.Contains(query.Search)|| f.Case.SName!.Contains(query.Search))
-                        && ( !query.Gender.HasValue || f.Case.Gender == query.Gender)
+                        && ( !query.Gender.HasValue || f.Case.Gender == query.Gender.Value)
                         && (query.AgeCategory == 0 || f.Case.AgeCategory.Id == query.AgeCategory),
                             false,f => f.Case.CreatedAt, OrderBy.Descending, 
                             query.Page, query.PageSize, f => f.Case , f => f.Case.Photos  , f => f.Case.AgeCategory);
