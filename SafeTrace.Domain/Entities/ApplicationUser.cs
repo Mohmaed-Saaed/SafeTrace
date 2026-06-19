@@ -20,10 +20,14 @@
 
         public double? CurrentLocationLongitude { get; set; }
 
-        public ICollection<BaseCase> Cases { get; set; } = new List<BaseCase>();
+        public ICollection<Case> Cases { get; set; } = new List<Case>();
 
         public ICollection<Notification> Notifications { get; set; } = new List<Notification>();
 
         public ICollection<Complaint> Complaints { get; set; } = new List<Complaint>();
+
+        public ICollection<UserOtp> UserOtps { get; set; } = new List<UserOtp>();
+
+        public ICollection<RefreshToken> RefreshTokens { get; set; } = new List<RefreshToken>();
     }
 }

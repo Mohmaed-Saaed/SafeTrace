@@ -1,7 +1,6 @@
 ﻿namespace SafeTrace.Domain.Entities
 {
-    public class UnknownCase : BaseCase
+    public class UnknownCase : Case
     {
-
     }
 }
