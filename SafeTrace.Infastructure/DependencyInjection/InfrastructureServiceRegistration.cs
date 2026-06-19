@@ -23,7 +23,6 @@ namespace SafeTrace.Infrastructure.DependencyInjection
             services.AddScoped<IDBInitializer, DBInitializer>();
             services.AddScoped<IUnitOfWork, UnitOfWork>();
             services.AddScoped<IFileStorageService, FileStorageService>();
-            //services.AddScoped<IEmailServiceSendGrid, EmailServiceSendGrid>();
             services.AddScoped<IFoundedService, FoundedService>();
             
             services.AddIdentity<ApplicationUser, IdentityRole>()

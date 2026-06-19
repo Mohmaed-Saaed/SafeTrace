@@ -1,5 +1,4 @@
-﻿using AutoMapper;
-using SafeTrace.Application.DTOs.Founded.Response;
+﻿using SafeTrace.Application.DTOs.Founded.Response;
 using SafeTrace.Application.Helpers;
 using SafeTrace.Domain.Entities;
 
