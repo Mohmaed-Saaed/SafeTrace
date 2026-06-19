@@ -5,11 +5,11 @@ using SafeTrace.Infrastructure.Repositories.Repository;
 
 namespace SafeTrace.Infrastructure.Repositories.UnitOfWork
 {
-    public class UnitOfWork : IUnitOfWork
+    public class UnitOfWork : IUnitOfWork, IAsyncDisposable
     {
         private readonly ApplicationDbContext _context;
 
-        private IDbContextTransaction? _transaction;
+        private IDbContextTransaction? _currentTransaction;
 
         private readonly Dictionary<Type, object> _repositories = new();
 
@@ -37,57 +37,56 @@ namespace SafeTrace.Infrastructure.Repositories.UnitOfWork
 
         public async Task BeginTransactionAsync()
         {
-            if (_transaction is null)
+            if (_currentTransaction is not null)
             {
-                _transaction = await _context.Database.BeginTransactionAsync();
+                throw new InvalidOperationException("A transaction is already in progress.");
             }
+
+            _currentTransaction = await _context.Database.BeginTransactionAsync();
         }
 
         public async Task CommitTransactionAsync()
         {
+            if (_currentTransaction is null)
+            {
+                throw new InvalidOperationException("No transaction is currently in progress.");
+            }
+
             try
             {
-                await _context.SaveChangesAsync();
-
-                if (_transaction is not null)
-                {
-                    await _transaction.CommitAsync();
-                    await _transaction.DisposeAsync();
-
-                    _transaction = null;
-                }
+                await _currentTransaction.CommitAsync();
             }
-            catch
+            finally
             {
-                await RollbackTransactionAsync();
-                throw;
+                await _currentTransaction.DisposeAsync();
+                _currentTransaction = null;
             }
         }
 
         public async Task RollbackTransactionAsync()
         {
-            if (_transaction is not null)
-            {
-                await _transaction.RollbackAsync();
-                await _transaction.DisposeAsync();
+            if (_currentTransaction is null)
+                return;
 
-                _transaction = null;
+            try
+            {
+                await _currentTransaction.RollbackAsync();
+            }
+            finally
+            {
+                await _currentTransaction.DisposeAsync();
+                _currentTransaction = null;
             }
         }
 
-        public void Dispose()
+        public async ValueTask DisposeAsync()
         {
-            try
+            if (_currentTransaction is not null)
             {
-                _transaction?.Dispose();
+                await _currentTransaction.DisposeAsync();
             }
-            catch { }
 
-            try
-            {
-                _context.Dispose();
-            }
-            catch { }
+            await _context.DisposeAsync();
         }
     }
 }
