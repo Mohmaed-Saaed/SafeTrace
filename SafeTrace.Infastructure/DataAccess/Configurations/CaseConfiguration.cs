@@ -40,11 +40,6 @@ namespace SafeTrace.Infrastructure.DataAccess.Configurations
             builder.Property(c => c.CreatedAt)
                 .HasDefaultValueSql("GETUTCDATE()");
 
-            builder.HasQueryFilter(c => !c.IsDeleted);
-
-            builder.Property(c => c.IsDeleted)
-                .HasDefaultValue(false);
-
             builder.Property(c => c.CaseCode)
                 .HasDefaultValue(10000);
 
