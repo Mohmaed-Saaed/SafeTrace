@@ -3,7 +3,7 @@ using NetTopologySuite;
 using NetTopologySuite.Geometries;
 using SafeTrace.Application.DTOs.UrgentMissingCase;
 using SafeTrace.Application.Extensions;
-using SafeTrace.Domain.Entities;
+
 
 namespace SafeTrace.Application.Services
 {
@@ -22,7 +22,13 @@ namespace SafeTrace.Application.Services
 
         public async Task<ApiResponse<IEnumerable<UrgentCaseListItemDto>>> GetAllAsync(UrgentCaseFilterDto filter)
         {
-            var query = _unitOfWork.Repository<UrgentCase>().Query();
+            var query = _unitOfWork.UrgentCaseRepository.Query(
+                tracked: false,
+                orderBy: c => c.CreatedAt,
+                page: filter.PageNumber,
+                pageSize: filter.PageSize,
+                includes: [c => c.Photos]
+                );
 
             // Search
             query = query.WhereIf(!string.IsNullOrWhiteSpace(filter.Search), x => x.FName.Contains(filter.Search!) || x.LName.Contains(filter.Search!));
@@ -52,29 +58,21 @@ namespace SafeTrace.Application.Services
             var totalCount = await query.CountAsync();
 
             // Data
-            var items = await query
-                .OrderByDescending(x => x.CreatedAt)
-                .Skip((filter.PageNumber - 1) * filter.PageSize)
-                .Take(filter.PageSize)
-                .Select(x => new UrgentCaseListItemDto
-                {
-                    Id = x.Id,
-                    FullName = x.FName + " " + x.LName,
-                    Age = x.Age,
-                    Gender = x.Gender
-                })
-                .ToListAsync();
+            var items = await query.ToListAsync();
+
+            var dataDto = _mapper.Map<IEnumerable<UrgentCaseListItemDto>>(items);
 
             return new ApiResponse<IEnumerable<UrgentCaseListItemDto>>
             {
-                Data = items,
+                Data = dataDto,
+                Message = "Urgent cases retrieved successfully"
             };
         }
         
         // public async Task<ApiResponse<UrgentCaseDetailWithRelatedDto>> GetByIdAsync(long id)
         // {
         //     var currentCase = await _unitOfWork.UrgentCaseRepository.GetOneAsync(
-        //         expression: c => c.Id == id,
+        //         predicate: c => c.Id == id,
         //         includes: [c => c.AgeCategory, c => c.Photos],
         //         tracked: false
         //     );
@@ -82,7 +80,7 @@ namespace SafeTrace.Application.Services
         //     if (currentCase is null)
         //         return ApiResponse<UrgentCaseDetailWithRelatedDto>.Fail("Case not found");
 
-        //     var otherCases = await _unitOfWork.UrgentCaseRepository.GetAllAsync(
+        //     var otherCases = await _unitOfWork.UrgentCaseRepository.Query(
         //         expression: c =>
         //             c.Id != id,
         //         tracked: false

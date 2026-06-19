@@ -22,11 +22,11 @@ namespace SafeTrace.API.Controllers
             return Ok(await _urgentCaseService.GetAllAsync(filter));
         }
 
-        [HttpGet("Detail")]
-        public async Task<IActionResult> GetById(long id)
-        {
-            return Ok(await _urgentCaseService.GetByIdAsync(id));
-        }
+        // [HttpGet("Detail")]
+        // public async Task<IActionResult> GetById(long id)
+        // {
+        //     return Ok(await _urgentCaseService.GetByIdAsync(id));
+        // }
 
 
     }
