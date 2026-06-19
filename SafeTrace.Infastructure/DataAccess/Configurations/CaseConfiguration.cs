@@ -9,19 +9,19 @@ namespace SafeTrace.Infrastructure.DataAccess.Configurations
             builder.ToTable("Cases");
 
             builder.Property(x => x.Gender)
-                   .HasConversion<string>();
+                   .HasConversion<int>();
 
             builder.Property(x => x.Status)
-                   .HasConversion<string>();
+                   .HasConversion<int>();
 
             builder.Property(x => x.CaseType)
-                   .HasConversion<string>();
+                   .HasConversion<int>();
 
             builder.Property(x => x.Relation)
-                   .HasConversion<string>();
+                   .HasConversion<int>();
 
             builder.Property(x => x.PreviousStatus)
-                   .HasConversion<string>();
+                   .HasConversion<int>();
 
             builder.HasKey(c => c.Id);
 
@@ -39,11 +39,6 @@ namespace SafeTrace.Infrastructure.DataAccess.Configurations
 
             builder.Property(c => c.CreatedAt)
                 .HasDefaultValueSql("GETUTCDATE()");
-
-            builder.HasQueryFilter(c => !c.IsDeleted);
-
-            builder.Property(c => c.IsDeleted)
-                .HasDefaultValue(false);
 
             builder.Property(c => c.CaseCode)
                 .HasDefaultValue(10000);
@@ -67,6 +62,13 @@ namespace SafeTrace.Infrastructure.DataAccess.Configurations
                 .WithMany(ac => ac.Cases)
                 .HasForeignKey(c => c.AgeCategoryId)
                 .OnDelete(DeleteBehavior.Restrict);
+
+
+            builder.HasDiscriminator<string>("Discriminator")
+            .HasValue<Case>("Case")
+            .HasValue<UrgentCase>("UrgentCase")
+            .HasValue<LongTermMissingCase>("LongTermMissingCase")
+            .HasValue<UnknownCase>("UnknownCase");
         }
     }
 }
