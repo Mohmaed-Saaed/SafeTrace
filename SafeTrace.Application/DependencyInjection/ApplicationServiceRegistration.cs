@@ -13,6 +13,10 @@ namespace SafeTrace.Application.DependencyInjection
             services.AddScoped<ILongTermCaseService, LongTermCaseService>();  
 
 
+            services.AddAutoMapper(cfg => { }, typeof(ApplicationServiceRegistration).Assembly);
+
+            services.AddScoped<IFoundedService, FoundedService>();
+
             return services;
         }
     }
