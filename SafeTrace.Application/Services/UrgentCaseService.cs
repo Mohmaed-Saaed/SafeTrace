@@ -25,9 +25,7 @@ namespace SafeTrace.Application.Services
             var query = _unitOfWork.Repository<UrgentCase>().Query();
 
             // Search
-            query = query.WhereIf(
-                !string.IsNullOrWhiteSpace(filter.Search),
-                x => x.FName.Contains(filter.Search!) || x.LName.Contains(filter.Search!));
+            query = query.WhereIf(!string.IsNullOrWhiteSpace(filter.Search), x => x.FName.Contains(filter.Search!) || x.LName.Contains(filter.Search!));
 
             // Gender
             query = query.WhereIf(filter.Gender.HasValue, x => x.Gender == filter.Gender);
