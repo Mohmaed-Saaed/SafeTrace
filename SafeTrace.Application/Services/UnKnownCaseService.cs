@@ -95,7 +95,8 @@ namespace SafeTrace.Application.Services
         public async Task<ApiResponse<IEnumerable<GetUnknownDto>>> GetAllApprovedAsync()
         {
             var unknownCases = await _unitOfWork.CaseRepository.GetAllAsync(
-                x => x.Status == CaseStatus.Active,
+                x => x.Status == CaseStatus.Active
+                     && x.CaseType == CaseType.Unknown,
                 tracked: false,
                 includes: x => x.Photos);
 
