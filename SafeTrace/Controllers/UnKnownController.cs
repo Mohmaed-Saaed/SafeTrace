@@ -19,31 +19,31 @@ namespace SafeTrace.API.Controllers
         {
             _unKnownServiceCase = unKnownServiceCase;
         }
-        [HttpPost]
-        [Consumes("multipart/form-data")]
-        public async Task<IActionResult> CreateUnknown([FromForm] CreateUnknownDto dto)
-        {
-            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-
-            if (string.IsNullOrEmpty(userId))
-                throw new UnauthorizedException("User is not authenticated.");
-
-            var result = await _unKnownServiceCase.CreateUnknownCaseAsync(dto, userId);
-
-            return Ok(result);
-        }
-        //Test-Create-EndPoint
-
         //[HttpPost]
         //[Consumes("multipart/form-data")]
-        //public async Task<IActionResult> CreateUnknown(
-        //[FromForm] CreateUnknownDto dto,
-        //[FromQuery] string userId)
+        //public async Task<IActionResult> CreateUnknown([FromForm] CreateUnknownDto dto)
         //{
+        //    var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+        //    if (string.IsNullOrEmpty(userId))
+        //        throw new UnauthorizedException("User is not authenticated.");
+
         //    var result = await _unKnownServiceCase.CreateUnknownCaseAsync(dto, userId);
 
         //    return Ok(result);
         //}
+        //Test-Create-EndPoint
+
+        [HttpPost]
+        [Consumes("multipart/form-data")]
+        public async Task<IActionResult> CreateUnknown(
+        [FromForm] CreateUnknownDto dto,
+        [FromQuery] string userId)
+        {
+            var result = await _unKnownServiceCase.CreateUnknownCaseAsync(dto, userId);
+
+            return Ok(result);
+        }
 
         //[Authorize(Roles = "Admin")]
         [HttpPut("{id:long}/approve")]

@@ -19,7 +19,7 @@ namespace SafeTrace.Application.Services
         private readonly IFileStorageService _fileStorageService;
         //private readonly ILogger<UnKnownCaseService> logger;
 
-        public UnKnownCaseService(IUnitOfWork unitOfWork,IMapper mapper,UserManager<ApplicationUser> userManager ,IFileStorageService fileStorageService)
+        public UnKnownCaseService(IUnitOfWork unitOfWork, IMapper mapper, UserManager<ApplicationUser> userManager, IFileStorageService fileStorageService)
         {
             _unitOfWork = unitOfWork;
             _mapper = mapper;
@@ -41,34 +41,34 @@ namespace SafeTrace.Application.Services
             unknownCase.UserId = userId;
             unknownCase.CreatedAt = DateTime.UtcNow;
             unknownCase.Status = CaseStatus.Pending;
-
+            unknownCase.CaseType = CaseType.Unknown;
+            unknownCase.CaseCode =
+                        $"UNK-{Guid.NewGuid().ToString("N")[..8]}";
             if (dto.Photos != null && dto.Photos.Any())
             {
                 foreach (var file in dto.Photos)
                 {
-                    var result = await _fileStorageService.SaveFileAsync(file, "UnknownCases");
-
-                    if (!result.Success)
-                        throw new BadRequestException(result.Message);
+                    var imagePath = await _fileStorageService
+                        .SaveFileAsync(file, "UnknownCases");
 
                     unknownCase.Photos.Add(new CasePhoto
                     {
-                        ImagePath = result.Data!,
+                        ImagePath = imagePath,
                         CreatedAt = DateTime.UtcNow
                     });
                 }
 
-                unknownCase.Photos.FirstOrDefault()!.IsPrimary = true;
+                unknownCase.Photos.First().IsPrimary = true;
             }
 
-            await _unitOfWork.UnknownCaseRepository.CreateAsync(unknownCase);
+            await _unitOfWork.CaseRepository.CreateAsync(unknownCase);
             await _unitOfWork.SaveAsync();
 
             return ApiResponse<string>.Ok("Unknown case created successfully");
         }
         public async Task<ApiResponse<string>> ApproveAsync(long id)
         {
-            var unknownCase = await _unitOfWork.UnknownCaseRepository
+            var unknownCase = await _unitOfWork.CaseRepository
                 .GetOneAsync(x => x.Id == id);
 
             if (unknownCase == null)
@@ -85,7 +85,7 @@ namespace SafeTrace.Application.Services
 
             unknownCase.Status = CaseStatus.Active;
 
-            await _unitOfWork.UnknownCaseRepository.UpdateAsync(unknownCase);
+            await _unitOfWork.CaseRepository.UpdateAsync(unknownCase);
             await _unitOfWork.SaveAsync();
 
             return ApiResponse<string>.Ok(
@@ -94,7 +94,7 @@ namespace SafeTrace.Application.Services
 
         public async Task<ApiResponse<IEnumerable<GetUnknownDto>>> GetAllApprovedAsync()
         {
-            var unknownCases = await _unitOfWork.UnknownCaseRepository.GetAllAsync(
+            var unknownCases = await _unitOfWork.CaseRepository.GetAllAsync(
                 x => x.Status == CaseStatus.Active,
                 tracked: false,
                 includes: x => x.Photos);
@@ -107,8 +107,8 @@ namespace SafeTrace.Application.Services
         }
         public async Task<ApiResponse<string>> RejectAsync(long id)
         {
-            var unknownCase = await _unitOfWork.UnknownCaseRepository
-                .GetOneAsync(x => x.Id == id);
+            var unknownCase = await _unitOfWork
+                .CaseRepository.GetOneAsync(x => x.Id == id);
 
             if (unknownCase == null)
                 throw new NotFoundException("Unknown case not found.");
@@ -124,30 +124,42 @@ namespace SafeTrace.Application.Services
 
             unknownCase.Status = CaseStatus.Rejected;
 
-            await _unitOfWork.UnknownCaseRepository.UpdateAsync(unknownCase);
+            await _unitOfWork.CaseRepository.UpdateAsync(unknownCase);
             await _unitOfWork.SaveAsync();
 
             return ApiResponse<string>.Ok(
                 message: "Unknown case rejected successfully.");
         }
-        public async Task<ApiResponse<IEnumerable<BaseCase>>> GetCasesAsync(UnKnownCaseFilterDto filter)
+        public async Task<ApiResponse<IEnumerable<Case>>> GetCasesAsync(UnKnownCaseFilterDto filter)
         {
-            var data = await _unitOfWork.BaseCaseRepository.GetAllAsync(
+            var data = await _unitOfWork.CaseRepository.GetAllAsync(
                 expression: x =>
+                    x.CaseType == CaseType.Unknown &&
+
                     (string.IsNullOrEmpty(filter.Name) ||
-                     (x.FName + " " + x.SName + " " + x.LName).Contains(filter.Name))
+                     (
+                        (x.FName ?? "") + " " +
+                        (x.SName ?? "") + " " +
+                        (x.LName ?? "")
+                     ).Contains(filter.Name))
 
-                    && (!filter.Gender.HasValue || x.Gender == filter.Gender)
+                    && (!filter.Gender.HasValue ||
+                        x.Gender == filter.Gender)
 
-                    && (!filter.AgeCategoryId.HasValue || x.AgeCategoryId == filter.AgeCategoryId),
+                    && (!filter.AgeCategoryId.HasValue ||
+                        x.AgeCategoryId == filter.AgeCategoryId),
 
                 orderBy: x => x.CreatedAt,
-                orderByDirection: filter.SortDirection == "asc"
+                orderByDirection: filter.SortDirection?.ToLower() == "asc"
                     ? OrderBy.Ascending
                     : OrderBy.Descending
             );
 
-            return ApiResponse<IEnumerable<BaseCase>>.Ok(data);
+            return ApiResponse<IEnumerable<Case>>.Ok(
+                data,
+                "Unknown cases retrieved successfully."
+            );
+
         }
     }
 }
