@@ -8,9 +8,7 @@ namespace SafeTrace.Infrastructure.Repositories.UnitOfWork
     public class UnitOfWork : IUnitOfWork
     {
         private readonly ApplicationDbContext _context;
-        private readonly Dictionary<Type, object> _repositories = new();
         private IDbContextTransaction? _transaction;
-
         private readonly Dictionary<Type, object> _repositories = new();
 
         public UnitOfWork(ApplicationDbContext context)
