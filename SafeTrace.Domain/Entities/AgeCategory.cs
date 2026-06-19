@@ -7,7 +7,7 @@
         public int MinAge {  get; set; }
         public int MaxAge { get; set; }
 
-        public ICollection<BaseCase> BaseCases { get; set; } = new List<BaseCase>();
+        public ICollection<Case> Cases { get; set; } = new List<Case>();
 
     }
 }

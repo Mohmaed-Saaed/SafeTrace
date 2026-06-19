@@ -15,73 +15,33 @@ namespace SafeTrace.Infrastructure.Repositories.Repository
         }
         public async Task<bool> CreateAsync(T entity)
         {
-            try
-            {
-                await _db.AddAsync(entity);
-                return true;
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Ex: {ex}");
-                return false;
-            }
+            await _db.AddAsync(entity);
+            return true;
         }
 
         public async Task<bool> CreateRangeAsync(IEnumerable<T> entity)
         {
-            try
-            {
-                await _db.AddRangeAsync(entity);
-                return true;
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Ex: {ex}");
-                return false;
-            }
+            await _db.AddRangeAsync(entity);
+            return true;
         }
 
         public Task<bool> UpdateAsync(T entity)
         {
-            try
-            {
-                _db.Update(entity);
-                return Task.FromResult(true);
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Ex: {ex}");
-                return Task.FromResult(false);
-            }
+            _db.Update(entity);
+            return Task.FromResult(true);
         }
 
         public Task<bool> DeleteAsync(T entity)
         {
-            try
-            {
-                _db.Attach(entity);
-                _db.Remove(entity);
-                return Task.FromResult(true);
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Ex: {ex}");
-                return Task.FromResult(false);
-            }
+            _db.Attach(entity);
+            _db.Remove(entity);
+            return Task.FromResult(true);
         }
 
         public Task<bool> DeleteRangeAsync(IEnumerable<T> entity)
         {
-            try
-            {
-                _db.RemoveRange(entity);
-                return Task.FromResult(true);
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Ex: {ex}");
-                return Task.FromResult(false);
-            }
+            _db.RemoveRange(entity);
+            return Task.FromResult(true);
         }
         public async Task<IEnumerable<T>> GetAllAsync(
       Expression<Func<T, bool>>? expression = null,

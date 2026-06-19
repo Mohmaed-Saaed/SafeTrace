@@ -8,6 +8,9 @@ namespace SafeTrace.Infrastructure.DataAccess.Configurations
         {
             builder.ToTable("Messages");
 
+            builder.Property(x => x.FileType)
+                 .HasConversion<string>();
+
             builder.HasKey(m => m.Id);
 
             builder.Property(m => m.Content).IsRequired().HasMaxLength(2000);
