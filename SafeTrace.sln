@@ -6,7 +6,7 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SafeTrace.API", "SafeTrace\
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SafeTrace.Application", "SafeTrace.Application\SafeTrace.Application.csproj", "{476A0221-C5B2-B397-6DB6-9440C046C3B8}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SafeTrace.Infrastructure", "SafeTrace.Infastructure\SafeTrace.Infrastructure.csproj", "{C27D9881-C39F-A08E-107E-3769B4FF4210}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SafeTrace.Infrastructure", "SafeTrace.Infrastructure\SafeTrace.Infrastructure.csproj", "{C27D9881-C39F-A08E-107E-3769B4FF4210}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SafeTrace.Domain", "SafeTrace.Domain\SafeTrace.Domain.csproj", "{0BD677F9-83E2-D5AC-E8F7-E2A6BF49379F}"
 EndProject
