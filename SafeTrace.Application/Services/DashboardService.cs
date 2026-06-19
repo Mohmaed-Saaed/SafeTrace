@@ -25,21 +25,33 @@ namespace SafeTrace.Application.Services
 
         async Task<ApiResponse<DashboardDto>> IDashboardService.GetDashboardAsync()
         {
-            var urgentCases = await _unitOfWork.UrgentCaseRepository.GetAllAsync();
-            var longTermCases = await _unitOfWork.LongTermMissingCaseRepository.GetAllAsync();
-            var unknownCases = await _unitOfWork.UnknownCaseRepository.GetAllAsync();
 
-            var cases = urgentCases.Cast<BaseCase>()
-                .Concat(longTermCases)
-                .Concat(unknownCases)
-                .ToList();
+            var cases = await _unitOfWork.CaseRepository.GetAllAsync();
+
+            var urgentCases = cases.Where(e => e.CaseType == CaseType.Urgent);
+            var longTermCases = cases.Where(e => e.CaseType == CaseType.LongTerm);
+            var unknownCases = cases.Where(e => e.CaseType == CaseType.Unknown);
+            //var urgentCases = await _unitOfWork.UrgentCaseRepository.GetAllAsync();
+            
+            //var longTermCases = await _unitOfWork.LongTermMissingCaseRepository.GetAllAsync();
+            //var unknownCases = await _unitOfWork.UnknownCaseRepository.GetAllAsync();
+
+            //var cases = urgentCases.Cast<BaseCase>()
+            //    .Concat(longTermCases)
+            //    .Concat(unknownCases)
+            //    .ToList();
 
             var users = await _userManager.GetUsersInRoleAsync("User");
 
-            var totalFounded = cases.Count(x => x.Status == CaseStatus.Found);
-            var totalActive = cases.Count(x => x.Status == CaseStatus.Active);
-            var totalClosed = cases.Count(x => x.Status == CaseStatus.Closed);
-            var totalPending = cases.Count(x => x.Status == CaseStatus.Pending);
+                var totalFounded = cases.Count(x => x.Status == CaseStatus.Found);
+                var totalActive = cases.Count(x => x.Status == CaseStatus.Active);
+                var totalDeleted = cases.Count(x => x.Status == CaseStatus.Deleted);
+                var totalPending = cases.Count(x => x.Status == CaseStatus.Pending);
+
+            //var totalFounded = cases.Count(x => x.Status == CaseStatus.Found);
+            //var totalActive = cases.Count(x => x.Status == CaseStatus.Active);
+            //var totalDeleted = cases.Count(x => x.Status == CaseStatus.Deleted);
+            //var totalPending = cases.Count(x => x.Status == CaseStatus.Pending);
 
             var caseTypes = cases
                 .GroupBy(x => x.CaseType)
@@ -49,7 +61,7 @@ namespace SafeTrace.Application.Services
                     Total = g.Count(),
                     Active = g.Count(x => x.Status == CaseStatus.Active),
                     Founded = g.Count(x => x.Status == CaseStatus.Found),
-                    Closed = g.Count(x => x.Status == CaseStatus.Closed)
+                    Closed = g.Count(x => x.Status == CaseStatus.Deleted)
                 })
                 .ToList();
 
@@ -57,10 +69,10 @@ namespace SafeTrace.Application.Services
                 new DashboardDto
                 {
                     TotalUsers = users.Count,
-                    TotalCases = cases.Count,
+                    TotalCases = cases.Count(),
                     TotalFoundedCases = totalFounded,
                     TotalActiveCases = totalActive,
-                    TotalClosedCases = totalClosed,
+                    TotalDeletedCases = totalDeleted,
                     TotalPendingCases = totalPending, 
                     CaseTypes = caseTypes
                 });

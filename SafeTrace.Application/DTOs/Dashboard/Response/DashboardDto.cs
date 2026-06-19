@@ -12,6 +12,7 @@ namespace SafeTrace.Application.DTOs.Dashboard.Response
         public int TotalFoundedCases { get; set; }
         public int TotalActiveCases { get; set; }
         public int TotalClosedCases { get; set; }
+        public int TotalDeletedCases { get; set; }
         public int TotalPendingCases { get; set; }
 
         public List<CaseTypeStatsDto> CaseTypes { get; set; } = new();

@@ -2,6 +2,7 @@
 using SafeTrace.Domain.Interfaces.IUnitOfWork;
 using SafeTrace.Infrastructure.DataAccess;
 using SafeTrace.Infrastructure.Repositories.Repository;
+using SendGrid.Helpers.Mail;
 
 namespace SafeTrace.Infrastructure.Repositories.UnitOfWork
 {
