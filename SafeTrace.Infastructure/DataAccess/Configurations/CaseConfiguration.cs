@@ -62,6 +62,12 @@ namespace SafeTrace.Infrastructure.DataAccess.Configurations
                 .WithMany(ac => ac.Cases)
                 .HasForeignKey(c => c.AgeCategoryId)
                 .OnDelete(DeleteBehavior.Restrict);
+
+            builder.HasDiscriminator<string>("Discriminator")
+            .HasValue<Case>("Case")
+            .HasValue<UrgentCase>("UrgentCase")
+            .HasValue<LongTermMissingCase>("LongTermMissingCase")
+            .HasValue<UnknownCase>("UnknownCase");
         }
     }
 }
