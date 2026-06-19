@@ -236,8 +236,6 @@ namespace SafeTrace.Application.Services
             if (dto.LName != null) entity.LName = dto.LName;
             if (dto.Age.HasValue) entity.Age = dto.Age.Value;
             if (dto.Relation.HasValue) entity.Relation = dto.Relation.Value;
-            if (dto.LocationLatitude.HasValue) entity.LocationLatitude = dto.LocationLatitude.Value;
-            if (dto.LocationLongitude.HasValue) entity.LocationLongitude = dto.LocationLongitude.Value;
             if (dto.Description != null) entity.Description = dto.Description;
             if (dto.Government != null) entity.Government = dto.Government;
             if (dto.City != null) entity.City = dto.City;

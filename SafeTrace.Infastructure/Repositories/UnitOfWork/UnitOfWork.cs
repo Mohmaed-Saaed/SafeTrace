@@ -13,6 +13,7 @@ namespace SafeTrace.Infrastructure.Repositories.UnitOfWork
 
         public IRepository<RefreshToken> RefreshTokenRepository { get; private set; }
         public IRepository<UserOtp> UserOtpRepository { get; private set; }
+        public IRepository<LongTermMissingCase> LongTermMissingCaseRepository { get; }
         public IRepository<Case> CaseRepository { get; private set; }
         public IRepository<CasePhoto> CasePhotoRepository { get; private set; }
         public IRepository<Chat> ChatRepository { get; private set; }
@@ -25,6 +26,7 @@ namespace SafeTrace.Infrastructure.Repositories.UnitOfWork
         public UnitOfWork(ApplicationDbContext context)
         {
             _context = context;
+            LongTermMissingCaseRepository = new Repository<LongTermMissingCase>(context);
             CaseRepository = new Repository<Case>(context);
             CasePhotoRepository = new Repository<CasePhoto>(_context);
             ChatRepository = new Repository<Chat>(_context);

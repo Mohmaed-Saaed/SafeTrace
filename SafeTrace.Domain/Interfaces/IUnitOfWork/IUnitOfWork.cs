@@ -4,6 +4,7 @@
     {
         public IRepository<RefreshToken> RefreshTokenRepository { get;}
         public IRepository<UserOtp> UserOtpRepository { get;}
+        public IRepository<LongTermMissingCase> LongTermMissingCaseRepository { get; }
         public IRepository<Case> CaseRepository { get;}
         public IRepository<CasePhoto> CasePhotoRepository { get;}
         public IRepository<Chat> ChatRepository { get;}

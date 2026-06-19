@@ -30,11 +30,6 @@ namespace SafeTrace.Domain.Entities
         public CaseType CaseType { get; set; }
         public int   AgeCategoryId { get; set; }
         public bool IsDeleted { get; set; } = false;
-        public DateTime? DeletedAt { get; set; }
-        public string? DeletedByUserId { get; set; }
-
-        public CaseStatus? PreviousStatus { get; set; }
-
         public FoundPersonInfo? FoundPersonInfo { get; set; }
         public AgeCategory AgeCategory { get; set; } = null!;
         public ICollection<CasePhoto> Photos { get; set; } = new List<CasePhoto>();

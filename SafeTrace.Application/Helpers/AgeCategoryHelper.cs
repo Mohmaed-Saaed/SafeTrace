@@ -7,10 +7,7 @@ using System.Threading.Tasks;
 
 namespace SafeTrace.Application.Common.Helpers
 {
-    /// <summary>
-    /// Converts between a raw <c>Age</c> value and an <see cref="AgeCategory"/>.
-    /// If the team decides on different ranges, this is the only place to edit.
-    /// </summary>
+
     public static class AgeCategoryHelper
     {
         public static AgeCategory GetCategory(int age)

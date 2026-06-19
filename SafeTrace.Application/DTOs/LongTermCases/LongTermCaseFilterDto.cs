@@ -13,7 +13,7 @@ namespace SafeTrace.Application.DTOs.LongTermCases
     /// (FR-22 search by name, FR-23 filter by gender, FR-24 filter by age category,
     /// FR-25 sort by date).
     /// </summary>
-    public class LongTermCaseFilterDto
+    public class    LongTermCaseFilterDto
     {
         /// <summary>Search by name (FR-22) - matches FName/SName/TName/LName.</summary>
         public string? Name { get; set; }
