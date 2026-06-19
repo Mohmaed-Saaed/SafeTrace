@@ -1,6 +1,6 @@
 <Solution>
   <Project Path="SafeTrace.Application/SafeTrace.Application.csproj" />
   <Project Path="SafeTrace.Domain/SafeTrace.Domain.csproj" />
-  <Project Path="SafeTrace.Infastructure/SafeTrace.Infrastructure.csproj" />
+  <Project Path="SafeTrace.Infrastructure/SafeTrace.Infrastructure.csproj" />
   <Project Path="SafeTrace/SafeTrace.API.csproj" />
 </Solution>
