@@ -1,12 +1,14 @@
-﻿using SafeTrace.Domain.Common;
+﻿using System.Linq.Expressions;
+using Microsoft.AspNetCore.SignalR;
+using SafeTrace.Domain.Common;
 using SafeTrace.Infrastructure.DataAccess;
-using System.Linq.Expressions;
 
 namespace SafeTrace.Infrastructure.Repositories.Repository
 {
     public class Repository<T> : IRepository<T> where T : class
     {
         private readonly ApplicationDbContext _context;
+
         private DbSet<T> _db { set; get; }
         public Repository(ApplicationDbContext context)
         {
@@ -84,7 +86,7 @@ namespace SafeTrace.Infrastructure.Repositories.Repository
             }
         }
         public async Task<IEnumerable<T>> GetAllAsync(Expression<Func<T, bool>>? expression = null, bool tracked = true,
-            Expression<Func<T , object>>? orderBy = null, string orderByDirection = OrderBy.Ascending, int page = 1 , int pageSize = 10, params Expression<Func<T, object>>[] includes)
+            Expression<Func<T, object>>? orderBy = null, string orderByDirection = OrderBy.Ascending, int page = 1, int pageSize = 10, params Expression<Func<T, object>>[] includes)
         {
 
             IQueryable<T> entities = _db;
@@ -160,6 +162,10 @@ namespace SafeTrace.Infrastructure.Repositories.Repository
             }
 
             return await entities.CountAsync();
+        }
+        public async Task AddAsync(T entity)
+        {
+            await _context.Set<T>().AddAsync(entity);
         }
     }
 }

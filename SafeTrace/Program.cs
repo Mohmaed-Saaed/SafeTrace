@@ -1,5 +1,6 @@
 using SafeTrace.API.Middlewares;
 using SafeTrace.Application.DependencyInjection;
+using SafeTrace.Application.Hubs;
 using SafeTrace.Infrastructure.DependencyInjection;
 using Serilog;
 
@@ -17,17 +18,15 @@ namespace SafeTrace
 
             builder.Host.UseSerilog();
 
-            // Add services to the container.
 
             builder.Services.AddEndpointsApiExplorer();
             builder.Services.AddControllers();
             builder.Services.AddSwaggerGen();
 
-            //builder.Services.AddScoped<IDBInitializer, DBInitializer>();
-            //builder.Services.AddScoped(typeof(IRepository<>), typeof(Repository<>));
-
             builder.Services.AddInfrastructure(builder.Configuration);
             builder.Services.AddApplication();
+            builder.Services.AddSignalR();
+
 
             builder.Services.AddCors(options =>
             {
@@ -59,18 +58,18 @@ namespace SafeTrace
 
             app.UseCors("CorsPolicy");
 
+            app.MapHub<NotificationsHub>("SafeTrace.Application/Hubs/notifications");
+
 
             app.UseHttpsRedirection();
             app.UseStaticFiles();
 
+            app.UseAuthentication();
             app.UseAuthorization();
 
-            //using (var scope = app.Services.CreateScope())
-            //{
-            //    var dbInitializer = scope.ServiceProvider.GetRequiredService<IDBInitializer>();
-            //    dbInitializer.Initialize();
-            //}
+
             app.MapControllers();
+
             app.MapControllerRoute(
                 name: "default",
                 pattern: "api/{controller}/{action=Index}/{id?}");
