@@ -2,7 +2,7 @@
 
 namespace SafeTrace.Domain.Entities
 {
-    public class UrgentCase : BaseCase
+    public class UrgentCase : Case
     {
         public Point Location { get; set; } = default!;
         public DateTime EndDate { get; set; }
