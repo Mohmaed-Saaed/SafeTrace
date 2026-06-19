@@ -1,4 +1,5 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
+using SafeTrace.Application.Services;
 namespace SafeTrace.Application.DependencyInjection
 {
     public static class ApplicationServiceRegistration

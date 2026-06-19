@@ -65,6 +65,7 @@ namespace SafeTrace.Application.Services
 
             return new ApiResponse<IEnumerable<UrgentCaseListItemDto>>
             {
+                Success = true,
                 Data = dataDto,
                 Message = "Urgent cases retrieved successfully"
             };

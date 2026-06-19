@@ -10,8 +10,7 @@ namespace SafeTrace.Infrastructure.Repositories.UnitOfWork
         private readonly ApplicationDbContext _context;
         private readonly Dictionary<Type, object> _repositories = new();
         private IDbContextTransaction? _transaction;
-        public IRepository<TEntity> Repository<TEntity>()
-            where TEntity : class
+        public IRepository<TEntity> Repository<TEntity>() where TEntity : class
         {
             if (_repositories.TryGetValue(typeof(TEntity), out var repository))
                 return (IRepository<TEntity>)repository;
