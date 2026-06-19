@@ -8,7 +8,6 @@
 
   <ItemGroup>
     <Folder Include="DTOs\Auth\" />
-    <Folder Include="Helpers\" />
   </ItemGroup>
 
   <ItemGroup>
@@ -17,6 +16,10 @@
     <PackageReference Include="Serilog.AspNetCore" Version="10.0.0" />
     <PackageReference Include="Serilog.Settings.Configuration" Version="10.0.0" />
     <PackageReference Include="Serilog.Sinks.Seq" Version="9.1.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Interfaces\Services\" />
   </ItemGroup>
 
   <ItemGroup>

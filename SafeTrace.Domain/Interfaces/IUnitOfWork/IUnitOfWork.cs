@@ -1,21 +1,19 @@
-﻿using SafeTrace.Domain.Interfaces.IRepositories;
-
-namespace SafeTrace.Domain.Interfaces.IUnitOfWork
+﻿namespace SafeTrace.Domain.Interfaces.IUnitOfWork
 {
     public interface IUnitOfWork : IDisposable
     {
-        IBaseCaseRepository BaseCaseRepository { get; }
-        ICasePhotoRepository CasePhotoRepository { get; }
-        IChatRepository ChatRepository { get; }
-        IComplaintRepository ComplaintRepository { get; }
-        IFoundPersonInfoRepository FoundPersonInfoRepository { get; }
-        ILongTermMissingCaseRepository LongTermMissingCaseRepository { get; }
-        IMessageRepository MessageRepository { get; }
-        INotificationRepository NotificationRepository { get; }
-        IUnknownCaseRepository UnknownCaseRepository { get; }
-        IUrgentCaseRepository UrgentCaseRepository { get; }
+        public IRepository<RefreshToken> RefreshTokenRepository { get;}
+        public IRepository<UserOtp> UserOtpRepository { get;}
+        public IRepository<Case> CaseRepository { get;}
+        public IRepository<CasePhoto> CasePhotoRepository { get;}
+        public IRepository<Chat> ChatRepository { get;}
+        public IRepository<Complaint> ComplaintRepository { get;}
+        public IRepository<FoundPersonInfo> FoundPersonInfoRepository { get;}
+        public IRepository<Message> MessageRepository { get;}
+        public IRepository<Notification> NotificationRepository { get;}
+        public IRepository<AgeCategory> AgeCategoryRepository { get;}
 
-        Task<int> SaveAsync();
+            Task<int> SaveAsync();
 
         Task BeginTransactionAsync();
 

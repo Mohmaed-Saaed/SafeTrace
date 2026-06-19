@@ -6,6 +6,8 @@ using SafeTrace.Application.Services.NotificationServices;
 using SafeTrace.Application.Services.UserProfileServices;
 using SafeTrace.Domain.Interfaces.IRepositories;
 
+using SafeTrace.Application.Interfaces;
+using SafeTrace.Infrastructure.Service.Founded;
 namespace SafeTrace.Application.DependencyInjection
 {
     public static class ApplicationServiceRegistration
@@ -15,6 +17,10 @@ namespace SafeTrace.Application.DependencyInjection
             services.AddScoped<IUserProfileService, UserProfileService>();
             services.AddScoped<INotificationServices, NotificationService>();
             services.AddAutoMapper(cfg => { cfg.AddProfile<MappingProfile>(); });
+
+            services.AddAutoMapper(cfg => { }, typeof(ApplicationServiceRegistration).Assembly);
+
+            services.AddScoped<IFoundedService, FoundedService>();
 
             return services;
         }
