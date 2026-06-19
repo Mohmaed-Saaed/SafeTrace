@@ -10,6 +10,14 @@ namespace SafeTrace.Infrastructure.Repositories.UnitOfWork
         private readonly ApplicationDbContext _context;
         private readonly Dictionary<Type, object> _repositories = new();
         private IDbContextTransaction? _transaction;
+
+        private readonly Dictionary<Type, object> _repositories = new();
+
+        public UnitOfWork(ApplicationDbContext context)
+        {
+            _context = context;
+        }
+
         public IRepository<TEntity> Repository<TEntity>() where TEntity : class
         {
             if (_repositories.TryGetValue(typeof(TEntity), out var repository))
@@ -20,11 +28,6 @@ namespace SafeTrace.Infrastructure.Repositories.UnitOfWork
             _repositories.Add(typeof(TEntity), repo);
 
             return repo;
-        }
-
-        public UnitOfWork(ApplicationDbContext context)
-        {
-            _context = context;
         }
 
         public async Task<int> SaveAsync()
