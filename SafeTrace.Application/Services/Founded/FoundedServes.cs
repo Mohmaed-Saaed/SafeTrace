@@ -1,18 +1,10 @@
-﻿using AutoMapper;
-using Microsoft.Extensions.Logging;
+﻿using Microsoft.Extensions.Logging;
 using SafeTrace.Application.DTOs.Founded.Request;
 using SafeTrace.Application.DTOs.Founded.Response;
 using SafeTrace.Application.DTOs.Responses;
 using SafeTrace.Application.Interfaces;
 using SafeTrace.Domain.Common;
-using SafeTrace.Domain.Entities;
-using SafeTrace.Domain.Enums;
 using SafeTrace.Domain.Interfaces.IUnitOfWork;
-using Serilog.Core;
-using System;
-using System.Collections.Generic;
-using System.Text;
-using static Microsoft.EntityFrameworkCore.DbLoggerCategory;
 
 namespace SafeTrace.Infrastructure.Service.Founded
 {
