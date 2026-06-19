@@ -32,13 +32,13 @@
             builder.ApplyConfigurationsFromAssembly(typeof(ApplicationDbContext).Assembly);
 
 
-            builder.Entity<BaseCase>().ToTable("BaseCase");
+            //builder.Entity<BaseCase>().ToTable("BaseCases");
 
-            builder.Entity<UnknownCase>().ToTable("UnknownCases");
+            //builder.Entity<UnknownCase>().ToTable("UnknownCases");
 
-            builder.Entity<LongTermMissingCase>().ToTable("LongTermMissingCases");
+            //builder.Entity<LongTermMissingCase>().ToTable("LongTermMissingCases");
 
-            builder.Entity<UrgentCase>().ToTable("UrgentCases");
+            //builder.Entity<UrgentCase>().ToTable("UrgentCases");
 
         }
 
