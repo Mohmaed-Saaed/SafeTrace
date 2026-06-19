@@ -1,5 +1,6 @@
-﻿using SafeTrace.Application.DTOs.UrgentMissingCase;
-using SafeTrace.Application.Helpers;
+﻿using NetTopologySuite;
+using NetTopologySuite.Geometries;
+using SafeTrace.Application.DTOs.UrgentMissingCase;
 using SafeTrace.Domain.Common;
 
 namespace SafeTrace.Application.Services
@@ -16,34 +17,63 @@ namespace SafeTrace.Application.Services
             _unitOfWork = unitOfWork;
             _mapper = mapper;
         }
+
         public async Task<ApiResponse<IEnumerable<UrgentCaseListItemDto>>> GetAllAsync(UrgentCaseFilterDto filter)
         {
+            bool hasAdvancedFilters = !string.IsNullOrWhiteSpace(filter.Search) ||
+                filter.Gender.HasValue ||
+                filter.MinAge.HasValue ||
+                filter.MaxAge.HasValue;
+
+            // Nearby Only
+            if (
+                filter.Location.Coordinate.CoordinateValue.IsValid &&
+                !hasAdvancedFilters
+            )
+            {
+                var nearestCases = await _unitOfWork.UrgentCaseRepository.GetNearestAsync(0.3, 0.2);
+
+                var nearestDto = _mapper.Map<IEnumerable<UrgentCaseListItemDto>>(nearestCases);
+
+                return ApiResponse<IEnumerable<UrgentCaseListItemDto>>.Ok(nearestDto, "Nearest urgent cases retrieved successfully");
+            }
+
+            // Search + Filters
             var data = await _unitOfWork.UrgentCaseRepository.GetAllAsync(
-                expression: 
-                c => (string.IsNullOrWhiteSpace(filter.Search) || 
-                    (c.FName ?? "").Contains(filter.Search) ||
-                    (c.SName ?? "").Contains(filter.Search))
-                && (!filter.Gender.HasValue || 
-                    c.Gender == filter.Gender)
-                && (!filter.MinAge.HasValue || 
-                    c.Age >= filter.MinAge)
-                && (!filter.MaxAge.HasValue || 
-                    c.Age <= filter.MaxAge),
+                expression:
+                    c => (string.IsNullOrWhiteSpace(filter.Search) ||
+                            (c.FName ?? "").Contains(filter.Search) ||
+                            (c.SName ?? "").Contains(filter.Search))
+                        &&
+                        (!filter.Gender.HasValue ||
+                            c.Gender == filter.Gender)
+                        &&
+                        (!filter.MinAge.HasValue ||
+                            c.Age >= filter.MinAge)
+                        &&
+                        (!filter.MaxAge.HasValue ||
+                            c.Age <= filter.MaxAge),
 
                 orderBy: c => c.CreatedAt,
-                orderByDirection: filter.SortDirection == SortDirection.Newest? OrderBy.Descending : OrderBy.Ascending,
+
+                orderByDirection:
+                    filter.SortDirection == SortDirection.Newest
+                        ? OrderBy.Descending
+                        : OrderBy.Ascending,
+
                 page: filter.PageNumber,
                 pageSize: filter.PageSize,
-                includes: c => c.Photos,
-                tracked: false
-             );
 
+                includes: c => c.Photos,
+
+                tracked: false
+            );
 
             var dataDto = _mapper.Map<IEnumerable<UrgentCaseListItemDto>>(data);
 
-            return ApiResponse<IEnumerable<UrgentCaseListItemDto>>.Ok(data: dataDto, message: "Urgent cases retrieved successfully");
-        }
-       
+            return ApiResponse<IEnumerable<UrgentCaseListItemDto>>.Ok(dataDto, "Urgent cases retrieved successfully");
+        } 
+
         public async Task<ApiResponse<UrgentCaseDetailWithRelatedDto>> GetByIdAsync(long id)
         {
             var currentCase = await _unitOfWork.UrgentCaseRepository.GetOneAsync(
@@ -84,6 +114,20 @@ namespace SafeTrace.Application.Services
                 "Urgent case retrieved successfully"
             );
         }
+
+        // public async Task CreateAsync(CreateUrgentCaseDto dto)
+        // {
             
+        //     var entity = _mapper.Map<UrgentCase>(dto);
+
+        //     var factory = NtsGeometryServices.Instance.CreateGeometryFactory(4326);
+
+        //     entity.Location = factory.CreatePoint(new Coordinate( dto.LocationLongitude, dto.LocationLatitude));
+
+        //     await _unitOfWork.UrgentCaseRepository.CreateAsync(entity);
+
+        //     await _unitOfWork.SaveAsync();
+        // }
+                    
     }
 }
