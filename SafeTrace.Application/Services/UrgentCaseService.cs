@@ -3,6 +3,7 @@ using NetTopologySuite;
 using NetTopologySuite.Geometries;
 using SafeTrace.Application.DTOs.UrgentMissingCase;
 using SafeTrace.Application.Extensions;
+using SafeTrace.Domain.Entities;
 
 
 namespace SafeTrace.Application.Services
@@ -22,7 +23,7 @@ namespace SafeTrace.Application.Services
 
         public async Task<ApiResponse<IEnumerable<UrgentCaseListItemDto>>> GetAllAsync(UrgentCaseFilterDto filter)
         {
-            var query = _unitOfWork.UrgentCaseRepository.Query(
+            var query = _unitOfWork.Repository<UrgentCase>().Query(
                 tracked: false,
                 orderBy: c => c.CreatedAt,
                 page: filter.PageNumber,

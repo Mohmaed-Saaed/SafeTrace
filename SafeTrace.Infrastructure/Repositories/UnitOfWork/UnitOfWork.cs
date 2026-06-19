@@ -10,35 +10,22 @@ namespace SafeTrace.Infrastructure.Repositories.UnitOfWork
         private readonly ApplicationDbContext _context;
         private readonly Dictionary<Type, object> _repositories = new();
         private IDbContextTransaction? _transaction;
+        public IRepository<TEntity> Repository<TEntity>()
+            where TEntity : class
+        {
+            if (_repositories.TryGetValue(typeof(TEntity), out var repository))
+                return (IRepository<TEntity>)repository;
 
-        public IRepository<RefreshToken> RefreshTokenRepository { get; private set; }
-        public IRepository<UserOtp> UserOtpRepository { get; private set; }
-        public IRepository<UrgentCase> UrgentCaseRepository { get; private set; }
-        public IRepository<LongTermMissingCase> LongTermCaseRepository { get; private set; }
-        public IRepository<UnknownCase> UnknownCaseRepository { get; private set; }
-        public IRepository<CasePhoto> CasePhotoRepository { get; private set; }
-        public IRepository<Chat> ChatRepository { get; private set; }
-        public IRepository<Complaint> ComplaintRepository { get; private set; }
-        public IRepository<FoundPersonInfo> FoundPersonInfoRepository { get; private set; }
-        public IRepository<Message> MessageRepository { get; private set; }
-        public IRepository<Notification> NotificationRepository { get; private set; }
-        public IRepository<AgeCategory> AgeCategoryRepository { get; private set; }
+            var repo = new Repository<TEntity>(_context);
+
+            _repositories.Add(typeof(TEntity), repo);
+
+            return repo;
+        }
 
         public UnitOfWork(ApplicationDbContext context)
         {
             _context = context;
-            UrgentCaseRepository = new Repository<UrgentCase>(_context);
-            UnknownCaseRepository = new Repository<UnknownCase>(_context);
-            LongTermCaseRepository = new Repository<LongTermMissingCase>(_context);
-            CasePhotoRepository = new Repository<CasePhoto>(_context);
-            ChatRepository = new Repository<Chat>(_context);
-            ComplaintRepository = new Repository<Complaint>(_context);
-            FoundPersonInfoRepository = new Repository<FoundPersonInfo>(_context);
-            MessageRepository = new Repository<Message>(_context);
-            NotificationRepository = new Repository<Notification>(_context);
-            UserOtpRepository = new Repository<UserOtp>(_context);
-            RefreshTokenRepository = new Repository<RefreshToken>(_context);
-            AgeCategoryRepository = new Repository<AgeCategory>(_context);
         }
 
         public async Task<int> SaveAsync()
