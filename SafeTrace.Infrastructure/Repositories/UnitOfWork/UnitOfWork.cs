@@ -11,30 +11,23 @@ namespace SafeTrace.Infrastructure.Repositories.UnitOfWork
 
         private IDbContextTransaction? _transaction;
 
-        public IRepository<RefreshToken> RefreshTokenRepository { get; private set; }
-        public IRepository<UserOtp> UserOtpRepository { get; private set; }
-        public IRepository<Case> CaseRepository { get; private set; }
-        public IRepository<CasePhoto> CasePhotoRepository { get; private set; }
-        public IRepository<Chat> ChatRepository { get; private set; }
-        public IRepository<Complaint> ComplaintRepository { get; private set; }
-        public IRepository<FoundPersonInfo> FoundPersonInfoRepository { get; private set; }
-        public IRepository<Message> MessageRepository { get; private set; }
-        public IRepository<Notification> NotificationRepository { get; private set; }
-        public IRepository<AgeCategory> AgeCategoryRepository { get; private set; }
+        private readonly Dictionary<Type, object> _repositories = new();
 
         public UnitOfWork(ApplicationDbContext context)
         {
             _context = context;
-            CaseRepository = new Repository<Case>(context);
-            CasePhotoRepository = new Repository<CasePhoto>(_context);
-            ChatRepository = new Repository<Chat>(_context);
-            ComplaintRepository = new Repository<Complaint>(_context);
-            FoundPersonInfoRepository = new Repository<FoundPersonInfo>(_context);
-            MessageRepository = new Repository<Message>(_context);
-            NotificationRepository = new Repository<Notification>(_context);
-            UserOtpRepository = new Repository<UserOtp>(_context);
-            RefreshTokenRepository = new Repository<RefreshToken>(_context);
-            AgeCategoryRepository = new Repository<AgeCategory>(_context);
+        }
+
+        public IRepository<TEntity> Repository<TEntity>() where TEntity : class
+        {
+            if (_repositories.TryGetValue(typeof(TEntity), out var repository))
+                return (IRepository<TEntity>)repository;
+
+            var repo = new Repository<TEntity>(_context);
+
+            _repositories.Add(typeof(TEntity), repo);
+
+            return repo;
         }
 
         public async Task<int> SaveAsync()

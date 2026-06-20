@@ -65,9 +65,10 @@ namespace SafeTrace.Infrastructure.DataAccess.Configurations
 
 
             builder.HasDiscriminator<string>("Discriminator")
-            .HasValue<UrgentCase>("UrgentCase")
-            .HasValue<LongTermMissingCase>("LongTermMissingCase")
-            .HasValue<UnknownCase>("UnknownCase");
+                .HasValue<Case>("Case")
+                .HasValue<UrgentCase>("UrgentCase")
+                .HasValue<LongTermMissingCase>("LongTermMissingCase")
+                .HasValue<UnknownCase>("UnknownCase");
         }
     }
 }

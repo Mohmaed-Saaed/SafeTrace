@@ -17,7 +17,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\SafeTrace.Application\SafeTrace.Application.csproj" />
-    <ProjectReference Include="..\SafeTrace.Infastructure\SafeTrace.Infrastructure.csproj" />
+    <ProjectReference Include="..\SafeTrace.Infrastructure\SafeTrace.Infrastructure.csproj" />
   </ItemGroup>
 
   <ItemGroup>
