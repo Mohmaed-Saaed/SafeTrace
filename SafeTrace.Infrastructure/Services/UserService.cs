@@ -40,9 +40,9 @@ namespace SafeTrace.Infrastructure.Services
                                          u.PhoneNumber!.Contains(term));
             }
 
-            if (filterDto.IsVerified.HasValue)
+            if (filterDto.VerificationStatus.HasValue)
             {
-                query = query.Where(u => u.IsVerified == filterDto.IsVerified.Value);
+                query = query.Where(u => u.VerificationStatus == filterDto.VerificationStatus.Value);
             }
 
             var totalCount = await query.CountAsync();

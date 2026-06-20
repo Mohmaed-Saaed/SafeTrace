@@ -1,4 +1,6 @@
-﻿namespace SafeTrace.Application.DTOs.Auth.Response
+﻿using SafeTrace.Domain.Enums;
+
+namespace SafeTrace.Application.DTOs.Auth.Response
 {
     public class AuthResponseDto
     {
@@ -7,6 +9,6 @@
         public DateTime RefreshTokenExpiration { get; set; }
         public string Email { get; set; } = null!;
         public string FullName { get; set; } = null!;
-        public bool IsVerified { get; set; }
+        public VerificationStatus VerificationStatus { get; set; }
     }
 }

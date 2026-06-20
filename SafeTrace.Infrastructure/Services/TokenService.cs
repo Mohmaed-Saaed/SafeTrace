@@ -24,7 +24,7 @@ namespace SafeTrace.Infrastructure.Services
             {
                 new(ClaimTypes.NameIdentifier, user.Id),
                 new(ClaimTypes.Email, user.Email!),
-                new("IsVerified", user.IsVerified.ToString().ToLower())
+                new("VerificationStatus", user.VerificationStatus.ToString().ToLower())
             };
 
             foreach (var role in roles)

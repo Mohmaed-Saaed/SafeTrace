@@ -302,7 +302,7 @@ namespace SafeTrace.Infrastructure.Services
                     RefreshTokenExpiration = newRefreshToken.ExpiresAt,
                     Email = user.Email!,
                     FullName = $"{user.FName} {user.LName}",
-                    IsVerified = user.IsVerified
+                    VerificationStatus = user.VerificationStatus
                 }, "Session criteria securely updated.");
             }
             catch
@@ -342,7 +342,7 @@ namespace SafeTrace.Infrastructure.Services
                 RefreshTokenExpiration = refreshToken.ExpiresAt,
                 Email = user.Email!,
                 FullName = $"{user.FName} {user.LName}",
-                IsVerified = user.IsVerified
+                VerificationStatus = user.VerificationStatus
             };
         }
 
@@ -361,7 +361,7 @@ namespace SafeTrace.Infrastructure.Services
                         FName = firstName,
                         LName = lastName,
                         EmailConfirmed = true,
-                        IsVerified = false
+                        VerificationStatus = VerificationStatus.Unverified
                     };
 
                     var identityResult = await _userManager.CreateAsync(user);
