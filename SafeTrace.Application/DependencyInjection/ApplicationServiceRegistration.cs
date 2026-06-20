@@ -10,6 +10,9 @@ namespace SafeTrace.Application.DependencyInjection
         public static IServiceCollection AddApplication(this IServiceCollection services)
         {
             services.AddAutoMapper(cfg => { }, typeof(ApplicationServiceRegistration).Assembly);
+            services.AddScoped<IChatService,ChatService>();
+            services.AddScoped<IMessageService, MessageService>();
+
             return services;
         }
     }

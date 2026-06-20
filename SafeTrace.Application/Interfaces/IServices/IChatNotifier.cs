@@ -1,0 +1,14 @@
+﻿using SafeTrace.Application.DTOs.Message;
+using System;
+using System.Collections.Generic;
+using System.Text;
+
+namespace SafeTrace.Application.Interfaces.IServices
+{
+    public interface IChatNotifier
+    {
+        Task SendMessageAsync(
+            string receiverId,
+            MessageDto message);
+    }
+}

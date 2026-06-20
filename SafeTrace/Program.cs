@@ -1,5 +1,7 @@
 using SafeTrace.API.ExceptionHandlers;
+using SafeTrace.API.Hubs;
 using SafeTrace.Application.DependencyInjection;
+using SafeTrace.Application.Interfaces.IServices;
 using SafeTrace.Infrastructure.DependencyInjection;
 using Serilog;
 using System.Text.Json.Serialization;
@@ -36,6 +38,8 @@ namespace SafeTrace
 
             builder.Services.AddInfrastructure(builder.Configuration);
             builder.Services.AddApplication();
+            builder.Services.AddSignalR();
+            builder.Services.AddScoped<IChatNotifier,SignalRChatNotifier>();
 
             builder.Services.AddCors(options =>
             {
@@ -69,7 +73,7 @@ namespace SafeTrace
             }
 
             app.UseCors("CorsPolicy");
-
+            app.MapHub<ChatHub>("/chatHub");
 
             app.UseHttpsRedirection();
             app.UseStaticFiles();
