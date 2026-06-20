@@ -1,6 +1,6 @@
 ﻿using System.ComponentModel.DataAnnotations;
 
-namespace SafeTrace.Application.DTOs.Auth
+namespace SafeTrace.Application.DTOs.Auth.Request
 {
     public class RefreshTokenRequestDto
     {

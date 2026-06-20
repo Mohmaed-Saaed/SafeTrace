@@ -1,5 +1,5 @@
 ﻿using Microsoft.AspNetCore.Mvc;
-using SafeTrace.Application.DTOs.Auth;
+using SafeTrace.Application.DTOs.Auth.Request;
 using SafeTrace.Application.Interfaces.IServices;
 using SafeTrace.Domain.Enums;
 

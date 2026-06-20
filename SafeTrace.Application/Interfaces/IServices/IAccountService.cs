@@ -1,6 +1,6 @@
-﻿using SafeTrace.Application.DTOs.Auth;
+﻿using SafeTrace.Application.DTOs.Auth.Request;
+using SafeTrace.Application.DTOs.Auth.Response;
 using SafeTrace.Application.DTOs.Responses;
-using SafeTrace.Application.DTOs.Responses.Auth;
 using SafeTrace.Domain.Enums;
 
 namespace SafeTrace.Application.Interfaces.IServices

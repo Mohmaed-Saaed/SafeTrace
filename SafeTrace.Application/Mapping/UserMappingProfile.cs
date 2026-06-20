@@ -1,4 +1,4 @@
-﻿using SafeTrace.Application.DTOs.Auth;
+﻿using SafeTrace.Application.DTOs.Auth.Request;
 using SafeTrace.Domain.Entities;
 
 namespace SafeTrace.Application.Mapping

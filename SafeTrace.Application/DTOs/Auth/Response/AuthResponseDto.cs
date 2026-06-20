@@ -1,4 +1,4 @@
-﻿namespace SafeTrace.Application.DTOs.Responses.Auth
+﻿namespace SafeTrace.Application.DTOs.Auth.Response
 {
     public class AuthResponseDto
     {

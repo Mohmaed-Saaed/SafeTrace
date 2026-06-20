@@ -2,9 +2,9 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
-using SafeTrace.Application.DTOs.Auth;
+using SafeTrace.Application.DTOs.Auth.Request;
+using SafeTrace.Application.DTOs.Auth.Response;
 using SafeTrace.Application.DTOs.Responses;
-using SafeTrace.Application.DTOs.Responses.Auth;
 using SafeTrace.Application.Exceptions;
 using SafeTrace.Application.Extensions;
 using SafeTrace.Application.Interfaces.IServices;
