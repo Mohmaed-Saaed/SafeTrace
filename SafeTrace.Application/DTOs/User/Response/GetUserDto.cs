@@ -9,6 +9,7 @@ namespace SafeTrace.Application.DTOs.User.Response
         public string LName { get; set; } = null!;
         public string Email { get; set; } = null!;
         public string PhoneNumber { get; set; } = null!;
+        public string? IdentificationImage { get; set; }
         public VerificationStatus VerificationStatus { get; set; }
     }
 }

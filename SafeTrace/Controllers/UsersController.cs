@@ -1,5 +1,4 @@
-﻿using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 using SafeTrace.Application.DTOs.User.Request;
 using SafeTrace.Application.Interfaces.IServices;
 
@@ -20,6 +19,13 @@ namespace SafeTrace.API.Controllers
         public async Task<IActionResult> GetAllUsers([FromQuery] UserFilterDto filterDto)
         {
             var response = await _userService.GetAllUsersAsync(filterDto);
+            return Ok(response);
+        }
+
+        [HttpGet("{userId}")]
+        public async Task<IActionResult> GetUserById(string userId)
+        {
+            var response = await _userService.GetUserByIdAsync(userId);
             return Ok(response);
         }
 
