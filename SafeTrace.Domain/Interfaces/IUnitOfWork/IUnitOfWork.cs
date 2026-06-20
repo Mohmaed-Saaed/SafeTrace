@@ -1,6 +1,6 @@
 ﻿namespace SafeTrace.Domain.Interfaces.IUnitOfWork
 {
-    public interface IUnitOfWork : IDisposable
+    public interface IUnitOfWork : IAsyncDisposable
     {
         IRepository<TEntity> Repository<TEntity>() where TEntity : class;
 
