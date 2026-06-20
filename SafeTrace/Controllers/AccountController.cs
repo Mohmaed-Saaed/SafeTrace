@@ -16,12 +16,6 @@ namespace SafeTrace.API.Controllers
             _accountService = accountService;
         }
 
-        [HttpGet]
-        public IActionResult test()
-        {
-            throw new KeyNotFoundException();
-        }
-
         [HttpPost("register")]
         public async Task<IActionResult> Register([FromBody] RegisterDto registerDto)
         {
