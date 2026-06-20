@@ -8,8 +8,7 @@ namespace SafeTrace.Application.Interfaces.IServices
     public interface IAccountService
     {
         Task<ApiResponse<string>> RegisterAsync(RegisterDto registerDto);
-        Task<ApiResponse<LoginResponseDto>> LoginAsync(LoginDto loginDto);
-        Task<ApiResponse<AuthResponseDto>> VerifyLoginOtpAsync(VerifyLoginDto verifyLoginDto);
+        Task<ApiResponse<AuthResponseDto>> LoginAsync(LoginDto loginDto);
         Task<ApiResponse<AuthResponseDto>> GoogleLoginAsync(ExternalLoginDto externalLoginDto);
         Task<ApiResponse<AuthResponseDto>> FacebookLoginAsync(ExternalLoginDto externalLoginDto);
         Task<ApiResponse<string>> ConfirmEmailAsync(string email, string otpCode);

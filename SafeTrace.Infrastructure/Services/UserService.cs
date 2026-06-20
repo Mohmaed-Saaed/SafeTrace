@@ -47,11 +47,10 @@ namespace SafeTrace.Infrastructure.Services
 
             var totalCount = await query.CountAsync();
 
-            var users = await query
-                .Skip((filterDto.PageNumber - 1) * filterDto.PageSize)
-                .Take(filterDto.PageSize)
-                .ProjectTo<GetUserDto>(_mapper.ConfigurationProvider)
-                .ToListAsync();
+            var users = await query.Skip((filterDto.PageNumber - 1) * filterDto.PageSize)
+                                   .Take(filterDto.PageSize)
+                                   .ProjectTo<GetUserDto>(_mapper.ConfigurationProvider)
+                                   .ToListAsync();
 
             var paginatedResult = new PaginationResponseDto<GetUserDto>
             {

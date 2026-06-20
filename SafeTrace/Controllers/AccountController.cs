@@ -30,13 +30,6 @@ namespace SafeTrace.API.Controllers
             return Ok(response);
         }
 
-        [HttpPost("verify-login")]
-        public async Task<IActionResult> VerifyLogin([FromBody] VerifyLoginDto verifyLoginDto)
-        {
-            var response = await _accountService.VerifyLoginOtpAsync(verifyLoginDto);
-            return Ok(response);
-        }
-
         [HttpPost("google-login")]
         public async Task<IActionResult> GoogleLogin([FromBody] ExternalLoginDto externalLoginDto)
         {
