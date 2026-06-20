@@ -13,6 +13,6 @@ namespace SafeTrace.Application.Interfaces.IServices
         Task<ApiResponse<IEnumerable<ChatSummaryDto>>> GetUserChatsAsync (string currentUserId);
         Task<ApiResponse<ChatDetailsDto>> GetChatDetailsAsync(long chatId, string currentUserId);
 
-        Task <ApiResponse<PaginatedMessagesDto>> GetPaginatedMessagesAsync (long chatId, string currentUserId,int page, int pageSize);
+        Task <ApiResponse<PaginationResponseDto<MessageDto>>> GetPaginatedMessagesAsync (long chatId, string currentUserId,int page, int pageSize);
     }
 }

@@ -1,4 +1,5 @@
 ﻿using Microsoft.AspNetCore.SignalR;
+using Microsoft.Extensions.Logging;
 using SafeTrace.Application.DTOs.Message;
 using SafeTrace.Application.DTOs.Responses;
 using SafeTrace.Application.Exceptions;
@@ -14,24 +15,43 @@ namespace SafeTrace.Application.Services
         private readonly IUnitOfWork _unitOfWork;
         private readonly IMapper _mapper;
         private readonly IChatNotifier _chatNotifier;
-        public MessageService (IUnitOfWork unitOfWork, IMapper mapper, IChatNotifier chatNotifier)
+        private readonly ILogger<MessageService> _logger;
+        public MessageService (IUnitOfWork unitOfWork, IMapper mapper,
+            IChatNotifier chatNotifier, ILogger<MessageService> logger)
         {
             _unitOfWork = unitOfWork;
             _mapper = mapper;
             _chatNotifier = chatNotifier;
+            _logger = logger;
         }
 
         public async Task<ApiResponse<MessageDto>> SendMessageAsync(SendMessageRequest request, string senderId)
         {
-            if(string.IsNullOrWhiteSpace(request.Content) && request.FileType is null)
+            _logger.LogInformation(
+            "User {SenderId} is sending a message to Chat {ChatId}.",
+            senderId,
+            request.ChatId);
+
+            if (string.IsNullOrWhiteSpace(request.Content) && request.FileType is null)
             {
+                _logger.LogWarning(
+                "Invalid message attempt by User {SenderId} in Chat {ChatId}. No content or file.",
+                senderId,
+                request.ChatId);
                 throw new BadRequestException("A message must contain either text content or a file attachment.");
             }
+
             var chat = await _unitOfWork.ChatRepository
                 .GetChatWithDetailsAsync(request.ChatId)
                 ?? throw new NotFoundException($"Chat with id {request.ChatId} was not found.");
+
             if(chat.SenderId!= senderId && chat.ReceiverId!= senderId)
             {
+                _logger.LogWarning(
+                "Unauthorized message attempt by User {SenderId} on Chat {ChatId}.",
+                senderId,
+                request.ChatId);
+
                 throw new ForbiddenException("You are not a participant of this conversation.");
             }
             var receiverId = chat.SenderId == senderId ? chat.ReceiverId : chat.SenderId;
@@ -51,6 +71,13 @@ namespace SafeTrace.Application.Services
             await _unitOfWork.MessageRepository.CreateAsync(message);
             await _unitOfWork.SaveAsync();
 
+            _logger.LogInformation(
+            "Message {MessageId} sent from {SenderId} to {ReceiverId} in Chat {ChatId}.",
+            message.Id,
+            senderId,
+            receiverId,
+            request.ChatId);
+
             var messageDto = _mapper.Map<MessageDto>(message);
             await _chatNotifier.SendMessageAsync(receiverId, messageDto);
 
@@ -60,18 +87,35 @@ namespace SafeTrace.Application.Services
         }
         public async Task<ApiResponse<int>> MarkMessagesAsReadAsync(long chatId, string userId)
         {
+            _logger.LogInformation(
+            "User {UserId} is marking messages as read in Chat {ChatId}.",
+            userId,
+            chatId);
+
             var chat = await _unitOfWork.ChatRepository
                 .GetChatWithDetailsAsync(chatId)
                 ?? throw new NotFoundException($"Chat with id {chatId} was not found.");
+
             if(chat.SenderId != userId && chat.ReceiverId != userId)
             {
+                _logger.LogWarning(
+                 "Unauthorized read attempt by User {UserId} on Chat {ChatId}.",
+                userId,
+                chatId);
+
                 throw new ForbiddenException(
-            "You are not a participant of this conversation.");
+                "You are not a participant of this conversation.");
 
             }
 
             var updatedCount = await _unitOfWork.MessageRepository
                 .MarkMessagesAsReadAsync(chatId, userId);
+
+            _logger.LogInformation(
+            "User {UserId} marked {Count} messages as read in Chat {ChatId}.",
+            userId,
+            updatedCount,
+            chatId);
 
             return new ApiResponse<int>
             {

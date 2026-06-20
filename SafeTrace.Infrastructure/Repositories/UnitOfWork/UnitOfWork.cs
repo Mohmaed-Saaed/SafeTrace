@@ -1,4 +1,5 @@
 ﻿using Microsoft.EntityFrameworkCore.Storage;
+using SafeTrace.Domain.Interfaces.IRepositories;
 using SafeTrace.Domain.Interfaces.IUnitOfWork;
 using SafeTrace.Infrastructure.DataAccess;
 using SafeTrace.Infrastructure.Repositories.Repository;
@@ -12,6 +13,15 @@ namespace SafeTrace.Infrastructure.Repositories.UnitOfWork
         private IDbContextTransaction? _currentTransaction;
 
         private readonly Dictionary<Type, object> _repositories = new();
+
+        private IChatRepository? _chatRepository;
+        private IMessageRepository? _messageRepository;
+
+        public IChatRepository ChatRepository
+            => _chatRepository ??= new ChatRepository(_context);
+
+        public IMessageRepository MessageRepository
+            => _messageRepository ??= new MessageRepository(_context);
 
         public UnitOfWork(ApplicationDbContext context)
         {

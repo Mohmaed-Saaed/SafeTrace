@@ -17,7 +17,7 @@ namespace SafeTrace.API.Controllers
             _messageService = messageService;
         }
 
-        [HttpPost]
+        [HttpPost("send")]
         public async Task<IActionResult> SendMessage([FromBody] SendMessageRequest request, string senderId)
         {
             //var senderId = GetCurrentUserId();
@@ -26,7 +26,7 @@ namespace SafeTrace.API.Controllers
                 actionName: null,
                 value: message);
         }
-        [HttpPut]
+        [HttpPut("{chatId}/read")]
         public async Task<IActionResult> MarkAsRead([FromRoute] long chatId, [FromQuery] string userId)
         {
             //var userId = GetCurrentUserId();
