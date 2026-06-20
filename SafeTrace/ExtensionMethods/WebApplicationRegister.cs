@@ -6,23 +6,29 @@ namespace SafeTrace.API.ExtensionMethods
     {
         public static async Task<WebApplication> SeedDataAsync(this WebApplication app)
         {
-            using var scope = app.Services.CreateScope();
-            var dataIntializer = scope.ServiceProvider.GetRequiredService<IDBInitializer>();
-            await dataIntializer.Initialize();
+            await using var scope = app.Services.CreateAsyncScope();
+
+            var dataInitializer = scope.ServiceProvider.GetRequiredService<IDBInitializer>();
+
+            await dataInitializer.Initialize();
 
             return app;
         }
 
         public static async Task<WebApplication> ApplyPendingMigrationsAsync(this WebApplication app)
         {
-            using var scope = app.Services.CreateScope();
+            await using var scope = app.Services.CreateAsyncScope();
+
             var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-            var pendingMigrations = await dbContext.Database.GetPendingMigrationsAsync();
+
+            var pendingMigrations =
+                await dbContext.Database.GetPendingMigrationsAsync();
 
             if (pendingMigrations.Any())
             {
                 await dbContext.Database.MigrateAsync();
             }
+
             return app;
         }
     }
