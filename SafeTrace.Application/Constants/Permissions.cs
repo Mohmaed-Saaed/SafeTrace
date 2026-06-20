@@ -61,10 +61,20 @@
 
         public static class Complaints
         {
+            public const string Manage = "Complaints.Manage";
             public const string GetAll = "Complaints.GetAll";
             public const string GetById = "Complaints.GetById";
             public const string Create = "Complaints.Create";
             public const string HardDelete = "Complaints.HardDelete";
+        }
+
+        public static class Users
+        {
+            public const string Manage = "Users.Manage";
+            public const string GetAll = "Users.GetAll";
+            public const string ChangeRole = "Users.ChangeRole";
+            public const string GetPermissions = "Users.GetPermissions";
+            public const string AssignPermissions = "Users.AssignPermissions";
         }
 
         public static class Chat

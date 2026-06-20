@@ -31,6 +31,7 @@ namespace SafeTrace.Infrastructure.DependencyInjection
             services.AddScoped<IAccountService, AccountService>();
             services.AddScoped<IEmailService, EmailService>();
             services.AddScoped<IRolePermissionService, RolePermissionService>();
+            services.AddScoped<IUserService, UserService>();
 
             services.Configure<JwtOptions>(configuration.GetSection("Jwt"));
             services.Configure<MailSettingsOptions>(configuration.GetSection("MailSettings"));
