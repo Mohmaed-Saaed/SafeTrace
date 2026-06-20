@@ -40,21 +40,21 @@ namespace SafeTrace.API.Controllers
         }
 
         [HttpDelete("{id}")]
-        public async Task<IActionResult> Delete(long id)
+        public async Task<IActionResult> DeleteNotification(long id)
         {
             var result = await _notificationService.RemoveNotificationAsync(id);
             if (!result) return NotFound();
             return Ok();
         }
 
-        [HttpPut("{id}/read")]
+        [HttpPut("{id}/MarkAsRead")]
         public async Task<IActionResult> MarkAsRead(long id)
         {
             await _notificationService.MarkAsReadAsync(id);
             return Ok();
         }
 
-        [HttpPut("read-all")]
+        [HttpPut("MarkAllAsRead")]
         public async Task<IActionResult> MarkAllAsRead()
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);

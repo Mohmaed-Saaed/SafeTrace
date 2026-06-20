@@ -1,16 +1,20 @@
 ﻿using System.Security.Claims;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SafeTrace.Application.DTOs.User_Profiel_DTOS;
+using SafeTrace.Application.Interfaces.IServices;
 using SafeTrace.Application.Interfaces.IServices.IUserProfile;
 namespace SafeTrace.API.Controllers
 {
-    //[Authorize]
+    [Authorize]
     [Route("api/[controller]")]
     [ApiController]
     public class UserProfileController : ControllerBase
     {
         private readonly IUserProfileService _user;
-        public UserProfileController(IUserProfileService userProfileService, ILogger<UserProfileController> logger)
+        public UserProfileController(IUserProfileService userProfileService,
+             IFileStorageService Image
+            )
         {
             _user = userProfileService;
         }
@@ -77,7 +81,7 @@ namespace SafeTrace.API.Controllers
                 })
             });
         }
-        [HttpGet("specifc user")]
+        [HttpGet("test specifc user")]
         public async Task<IActionResult> GetUserInfoTest(string userId)
         {
             var profile = await _user.GetProfileInfoAsync(userId);

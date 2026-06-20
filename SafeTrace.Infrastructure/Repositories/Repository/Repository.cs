@@ -50,6 +50,7 @@ namespace SafeTrace.Infrastructure.Repositories.Repository
             return query;
         }
 
+
         public async Task<T?> GetOneAsync(Expression<Func<T, bool>> predicate, bool tracked = true, params Expression<Func<T, object>>[] includes)
         {
             IQueryable<T> query = _db;

@@ -7,7 +7,6 @@ using SafeTrace.Application.Services.UserProfileServices;
 using SafeTrace.Domain.Interfaces.IRepositories;
 
 using SafeTrace.Application.Interfaces;
-using SafeTrace.Infrastructure.Service.Founded;
 namespace SafeTrace.Application.DependencyInjection
 {
     public static class ApplicationServiceRegistration
@@ -20,7 +19,7 @@ namespace SafeTrace.Application.DependencyInjection
 
             services.AddAutoMapper(cfg => { }, typeof(ApplicationServiceRegistration).Assembly);
 
-            services.AddScoped<IFoundedService, FoundedService>();
+            //services.AddScoped<IFoundedService, FoundedService>();
 
             return services;
         }

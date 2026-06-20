@@ -9,6 +9,5 @@ global using SafeTrace.Application.Interfaces.IServices;
 global using SafeTrace.Domain.Interfaces.IRepositories;
 global using SafeTrace.Domain.Interfaces.IUnitOfWork;
 global using SafeTrace.Infrastructure.DataAccess;
-global using SafeTrace.Infrastructure.Repositories.Repositories;
 global using SafeTrace.Infrastructure.Repositories.UnitOfWork;
 global using SafeTrace.Infrastructure.Services;

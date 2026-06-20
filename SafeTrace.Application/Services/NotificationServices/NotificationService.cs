@@ -1,25 +1,29 @@
 ﻿using Microsoft.AspNetCore.SignalR;
+using Microsoft.EntityFrameworkCore;
 using SafeTrace.Application.DTOs.NotificationDTOS;
+using SafeTrace.Application.Extensions;
 using SafeTrace.Application.Hubs;
 using SafeTrace.Application.Interfaces.IServices.INotificationSewrvice;
+using SafeTrace.Domain.Common;
 using SafeTrace.Domain.Entities;
 using SafeTrace.Domain.Interfaces.IRepositories;
+using SafeTrace.Domain.Interfaces.IUnitOfWork;
 
 namespace SafeTrace.Application.Services.NotificationServices
 {
     public class NotificationService : INotificationServices
     {
-        private readonly INotificationRepository _notificationRepo;
+        private readonly IUnitOfWork _UNIT;
         private readonly IHubContext<NotificationsHub> _hubContext;
         private readonly IMapper _mapper;
 
         public NotificationService(
-            INotificationRepository notificationRepo,
             IHubContext<NotificationsHub> hubContext,
-            IMapper mapper
+            IMapper mapper,
+            IUnitOfWork UNIT
             )
         {
-            _notificationRepo = notificationRepo;
+            _UNIT = UNIT;
             _hubContext = hubContext;
             _mapper = mapper;
         }
@@ -27,15 +31,22 @@ namespace SafeTrace.Application.Services.NotificationServices
         #region test
         public async Task<IEnumerable<Notification>> GetAllrNotificationsAsync()
         {
-            var notifis = await _notificationRepo.GetAllrNotificationsAsync();
-            return notifis;
+            var notifications = await _UNIT.NotificationRepository
+
+    .Query(
+        tracked: false)
+    .ToListAsync();
+            return notifications;
         }
         #endregion
+
+
+
         public async Task SendNotificationAsync(SendNotificationDTO dto)
         {
             var notification = _mapper.Map<Notification>(dto);
-            await _notificationRepo.CreateAsync(notification);
-            await _notificationRepo.SaveAsync();
+            await _UNIT.NotificationRepository.CreateAsync(notification);
+            await _UNIT.SaveAsync();
             await _hubContext.Clients
                 .Group($"user_{dto.UserId}")
                 .SendAsync("ReceiveNotification", new
@@ -47,7 +58,9 @@ namespace SafeTrace.Application.Services.NotificationServices
                     notification.CreatedAt
                 });
 
-            var unreadCount = await _notificationRepo.GetUnreadCountAsync(dto.UserId);
+            var unreadCount = await _UNIT.NotificationRepository
+            .Query(tracked: false)
+            .CountAsync(n => n.UserId == dto.UserId && !n.IsRead);
             await _hubContext.Clients
                 .Group($"user_{dto.UserId}")
                 .SendAsync("UnreadCount", unreadCount);
@@ -55,8 +68,6 @@ namespace SafeTrace.Application.Services.NotificationServices
 
         public async Task SendNotificationToAllAsync(SendNotificationDTO dto)
         {
-            //var notifiction = _mapper.Map<Notification>(dto);
-            //await _hubContext.Clients.All.SendAsync("ReceiveNotification", notifiction);
 
             // 1. Map من DTO للـ Entity عشان تحفظ
             var notification = _mapper.Map<Notification>(dto);
@@ -64,8 +75,8 @@ namespace SafeTrace.Application.Services.NotificationServices
             notification.CreatedAt = DateTime.UtcNow;
 
             // 2. احفظ في الـ Database
-            await _notificationRepo.CreateAsync(notification);
-            await _notificationRepo.SaveAsync();
+            await _UNIT.NotificationRepository.CreateAsync(notification);
+            await _UNIT.SaveAsync();
 
             // 3. ابعت DTO نظيف على SignalR مش Entity
             var responseDto = _mapper.Map<GetUserNotificationsDTO>(notification);
@@ -74,23 +85,32 @@ namespace SafeTrace.Application.Services.NotificationServices
 
         public async Task<bool> RemoveNotificationAsync(long id)
         {
-            var notification = await _notificationRepo.GetNotificationByIdAsync(id);
+            var notification = await _UNIT.NotificationRepository.GetByIdAsync(id);
             if (notification is null) return false;
-            await _notificationRepo.DeleteAsync(notification); // ← DeleteAsync
-            await _notificationRepo.SaveAsync();
+            _UNIT.NotificationRepository.Remove(notification);
+            await _UNIT.SaveAsync();
             return true;
         }
 
         public async Task MarkAsReadAsync(long id)
         {
-            await _notificationRepo.MarkAsReadAsync(id);
-            await _notificationRepo.SaveAsync();
+            var notification = await _UNIT.NotificationRepository.GetByIdAsync(id);
+
+            if (notification is null)
+                return;
+            notification.IsRead = true;
+
+            _UNIT.NotificationRepository.Update(notification);
+
+            await _UNIT.SaveAsync();
         }
 
         public async Task MarkAllAsReadAsync(string userId)
         {
-            await _notificationRepo.MarkAllAsReadAsync(userId);
-
+            await _UNIT.NotificationRepository
+                     .Query()
+                      .Where(n => n.UserId == userId && !n.IsRead)
+                      .ExecuteUpdateAsync(s => s.SetProperty(n => n.IsRead, true));
             await _hubContext.Clients
                 .Group($"user_{userId}")
                 .SendAsync("UnreadCount", 0);
@@ -98,7 +118,13 @@ namespace SafeTrace.Application.Services.NotificationServices
 
         public async Task<IEnumerable<GetUserNotificationsDTO>> GetUserNotificationsAsync(string userId)
         {
-            var notifications = await _notificationRepo.GetUserNotificationsAsync(userId);
+            var notifications = await _UNIT.NotificationRepository
+    .Query(
+        tracked: false,
+        orderBy: n => n.CreatedAt,
+        orderByDirection: OrderBy.Descending)
+        .Where(n => n.UserId == userId)
+        .ToListAsync();
             return _mapper.Map<IEnumerable<GetUserNotificationsDTO>>(notifications);
         }
 

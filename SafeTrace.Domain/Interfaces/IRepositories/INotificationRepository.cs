@@ -10,6 +10,6 @@ namespace SafeTrace.Domain.Interfaces.IRepositories
         Task MarkAsReadAsync(long id);
         Task MarkAllAsReadAsync(string userId);
         Task<int> GetUnreadCountAsync(string userId);
-        Task SaveAsync();
+        //Task SaveAsync();
     }
 }
