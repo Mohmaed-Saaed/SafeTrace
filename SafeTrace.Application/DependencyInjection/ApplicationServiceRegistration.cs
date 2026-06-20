@@ -19,8 +19,6 @@ namespace SafeTrace.Application.DependencyInjection
 
             services.AddAutoMapper(cfg => { }, typeof(ApplicationServiceRegistration).Assembly);
 
-            //services.AddScoped<IFoundedService, FoundedService>();
-
             return services;
         }
     }
