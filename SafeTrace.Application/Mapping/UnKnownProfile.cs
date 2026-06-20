@@ -29,6 +29,12 @@ namespace SafeTrace.Application.Mapping
               .ForMember(dest => dest.Photos,
               opt => opt.MapFrom(src =>
                 src.Photos.Select(p => p.ImagePath).ToList()));
+
+
+            CreateMap<UpdateUnkownCaseDto, UnknownCase>()
+               .ForMember(dest => dest.Photos, opt => opt.Ignore())
+               .ForAllMembers(opt =>
+               opt.Condition((src, dest, srcMember) => srcMember != null));
         }
     }
 }

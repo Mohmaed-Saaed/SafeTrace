@@ -64,16 +64,64 @@ namespace SafeTrace.API.Controllers
             var response = await _unKnownServiceCase.GetAllApprovedAsync();
             return Ok(response);
         }
-        [HttpGet]
+        [HttpGet("Filter")]
         public async Task<IActionResult> GetCases([FromQuery] UnKnownCaseFilterDto filter)
         {
             var result = await _unKnownServiceCase.GetCasesAsync(filter);
             return Ok(result);
         }
+        //[HttpPut("{id}/UpdateUnKnownCase")]
+        //public async Task<IActionResult> UpdateUnknownCase(long id,[FromForm] UpdateUnkownCaseDto dto)
+        //{
+        //    var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
 
+        //    var result = await _unKnownServiceCase
+        //        .UpdateUnknownCaseAsync(id, dto, userId);
 
+        //    return Ok(result);
+        //}
+        //testing 
+        [HttpPut("{id}")]
+        public async Task<IActionResult> UpdateUnknownCase(long id,[FromForm] UpdateUnkownCaseDto dto,[FromQuery] string userId)
+        {
+            var result = await _unKnownServiceCase
+                .UpdateUnknownCaseAsync(id, dto, userId);
 
+            return Ok(result);
+        }
 
+        [HttpGet("{id}/GetDetails")]
+        public async Task<IActionResult> GetDetails(long id)
+        {
+            var result = await _unKnownServiceCase.GetDetailsAsync(id);
+            return Ok(result);
+        }
+
+        //[HttpDelete("{id}")]
+        //public async Task<IActionResult> DeleteUnknownCase(long id)
+        //{
+        //    var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+        //    var result = await _unKnownServiceCase.DeleteUnKnownCase(id, userId);
+
+        //    return Ok(result);
+        //}
+        //testing 
+        [HttpDelete("{id}")]
+        public async Task<IActionResult> DeleteUnknownCase(long id ,[FromQuery] string userId)
+        {
+            var result = await _unKnownServiceCase.DeleteUnKnownCase(id, userId);
+
+            return Ok(result);
+        }
+
+        [HttpPut("{id}/UpdateTobeFound")]
+        public async Task<IActionResult> FoundUnknownCase(long id, [FromQuery] string userId)
+        {
+            var result = await _unKnownServiceCase.FoundUnKnownCase(id, userId);
+
+            return Ok(result);
+        }
 
     }
 }

@@ -11,7 +11,6 @@ namespace SafeTrace.Application.DTOs.UnKnownDtos
         public Gender? Gender { get; set; }
         public int? AgeCategoryId { get; set; }
 
-        public string? SortBy { get; set; }
         public string? SortDirection { get; set; }
 
         public int PageNumber { get; set; } = 1;
