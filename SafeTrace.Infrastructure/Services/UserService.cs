@@ -27,7 +27,7 @@ namespace SafeTrace.Infrastructure.Services
             _mapper = mapper;
         }
 
-        public async Task<ApiResponse<PaginatedResultDto<GetUserDto>>> GetAllUsersAsync(UserFilterDto filterDto)
+        public async Task<ApiResponse<PaginationResponseDto<GetUserDto>>> GetAllUsersAsync(UserFilterDto filterDto)
         {
             var query = _userManager.Users.AsNoTracking();
 
@@ -53,7 +53,7 @@ namespace SafeTrace.Infrastructure.Services
                 .ProjectTo<GetUserDto>(_mapper.ConfigurationProvider)
                 .ToListAsync();
 
-            var paginatedResult = new PaginatedResultDto<GetUserDto>
+            var paginatedResult = new PaginationResponseDto<GetUserDto>
             {
                 Items = users,
                 PageNumber = filterDto.PageNumber,
@@ -61,7 +61,7 @@ namespace SafeTrace.Infrastructure.Services
                 TotalCount = totalCount
             };
 
-            return ApiResponse<PaginatedResultDto<GetUserDto>>.Ok(paginatedResult, "Users retrieved successfully with current filter criteria.");
+            return ApiResponse<PaginationResponseDto<GetUserDto>>.Ok(paginatedResult, "Users retrieved successfully with current filter criteria.");
         }
 
         public async Task<ApiResponse<string>> ChangeUserRoleAsync(string userId, ChangeUserRoleDto dto)
