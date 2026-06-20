@@ -30,6 +30,7 @@ namespace SafeTrace.Infrastructure.DependencyInjection
             services.AddScoped<ITokenService, TokenService>();
             services.AddScoped<IAccountService, AccountService>();
             services.AddScoped<IEmailService, EmailService>();
+            services.AddScoped<IOtpService, OtpService>();
             services.AddScoped<IRolePermissionService, RolePermissionService>();
             services.AddScoped<IUserService, UserService>();
 
