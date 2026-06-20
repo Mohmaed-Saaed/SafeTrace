@@ -12,7 +12,7 @@
 
         public string ReceiverId { get; set; } = null!;
 
-        public BaseCase Case { get; set; } = null!;
+        public Case Case { get; set; } = null!;
 
         public ICollection<Message> Messages { get; set; } = new List<Message>();
     }

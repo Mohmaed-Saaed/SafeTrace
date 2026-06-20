@@ -1,6 +1,6 @@
 ﻿namespace SafeTrace.Domain.Entities
 {
-        public class LongTermMissingCase : BaseCase
+        public class LongTermMissingCase : Case
         {
 
 

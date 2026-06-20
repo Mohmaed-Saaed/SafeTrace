@@ -20,7 +20,7 @@
 
         public double? CurrentLocationLongitude { get; set; }
 
-        public ICollection<BaseCase> Cases { get; set; } = new List<BaseCase>();
+        public ICollection<Case> Cases { get; set; } = new List<Case>();
 
         public ICollection<Notification> Notifications { get; set; } = new List<Notification>();
 

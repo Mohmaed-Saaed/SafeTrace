@@ -1,21 +1,8 @@
-﻿using SafeTrace.Domain.Interfaces.IRepositories;
-
-namespace SafeTrace.Domain.Interfaces.IUnitOfWork
+﻿namespace SafeTrace.Domain.Interfaces.IUnitOfWork
 {
-    public interface IUnitOfWork : IDisposable
+    public interface IUnitOfWork : IAsyncDisposable
     {
-        IRefreshTokenRepository RefreshTokenRepository { get; set; }
-        IUserOtpRepository UserOtpRepository { get; set; }
-        IBaseCaseRepository BaseCaseRepository { get; }
-        ICasePhotoRepository CasePhotoRepository { get; }
-        IChatRepository ChatRepository { get; }
-        IComplaintRepository ComplaintRepository { get; }
-        IFoundPersonInfoRepository FoundPersonInfoRepository { get; }
-        ILongTermMissingCaseRepository LongTermMissingCaseRepository { get; }
-        IMessageRepository MessageRepository { get; }
-        INotificationRepository NotificationRepository { get; }
-        IUnknownCaseRepository UnknownCaseRepository { get; }
-        IUrgentCaseRepository UrgentCaseRepository { get; }
+        IRepository<TEntity> Repository<TEntity>() where TEntity : class;
 
         Task<int> SaveAsync();
 
