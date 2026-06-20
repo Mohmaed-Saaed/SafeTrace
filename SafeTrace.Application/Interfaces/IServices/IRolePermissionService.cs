@@ -1,6 +1,8 @@
 ﻿using SafeTrace.Application.DTOs.Responses;
 using SafeTrace.Application.DTOs.RolePermission.Request;
-using SafeTrace.Application.DTOs.RolePermission.Response;namespace SafeTrace.Application.Interfaces.IServices
+using SafeTrace.Application.DTOs.RolePermission.Response;
+
+namespace SafeTrace.Application.Interfaces.IServices
 {
     public interface IRolePermissionService
     {

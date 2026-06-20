@@ -1,4 +1,4 @@
-﻿namespace SafeTrace.Application.DTOs.RolePermission.Request
+﻿namespace SafeTrace.Application.DTOs.RolePermission.Response
 {
     public class RoleDto
     {
