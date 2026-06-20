@@ -1,4 +1,6 @@
-﻿namespace SafeTrace.Domain.Entities
+﻿using SafeTrace.Domain.Enums;
+
+namespace SafeTrace.Domain.Entities
 {
     public class ApplicationUser : IdentityUser
     {
@@ -10,7 +12,7 @@
 
         public string? ProfileImage { get; set; }
 
-        public bool IsVerified { get; set; }
+        public VerificationStatus VerificationStatus { get; set; }
 
         public double? HomeLocationLatitude { get; set; }
 

@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using NetTopologySuite.Geometries;
 using SafeTrace.Infrastructure.DataAccess;
@@ -12,9 +13,11 @@ using SafeTrace.Infrastructure.DataAccess;
 namespace SafeTrace.Infrastructure.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260620200835_VerificationUserStatusIOisVerified")]
+    partial class VerificationUserStatusIOisVerified
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -303,8 +306,8 @@ namespace SafeTrace.Infrastructure.Migrations
 
                     b.Property<string>("City")
                         .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
 
                     b.Property<string>("CommunicationPhone")
                         .HasColumnType("nvarchar(max)");
@@ -323,6 +326,11 @@ namespace SafeTrace.Infrastructure.Migrations
                     b.Property<string>("Description")
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<string>("Discriminator")
+                        .IsRequired()
+                        .HasMaxLength(21)
+                        .HasColumnType("nvarchar(21)");
+
                     b.Property<DateTime>("EventDate")
                         .HasColumnType("datetime2");
 
@@ -334,8 +342,8 @@ namespace SafeTrace.Infrastructure.Migrations
 
                     b.Property<string>("Government")
                         .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
 
                     b.Property<string>("LName")
                         .HasColumnType("nvarchar(max)");
@@ -354,8 +362,8 @@ namespace SafeTrace.Infrastructure.Migrations
 
                     b.Property<string>("Street")
                         .IsRequired()
-                        .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)");
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
 
                     b.Property<string>("TName")
                         .HasColumnType("nvarchar(max)");
@@ -375,7 +383,9 @@ namespace SafeTrace.Infrastructure.Migrations
 
                     b.ToTable("Cases", (string)null);
 
-                    b.UseTptMappingStrategy();
+                    b.HasDiscriminator<string>("Discriminator").HasValue("Case");
+
+                    b.UseTphMappingStrategy();
                 });
 
             modelBuilder.Entity("SafeTrace.Domain.Entities.CasePhoto", b =>
@@ -672,14 +682,14 @@ namespace SafeTrace.Infrastructure.Migrations
                     b.Property<string>("PoliceReportImage")
                         .HasColumnType("nvarchar(max)");
 
-                    b.ToTable("LongTermMissingCase");
+                    b.HasDiscriminator().HasValue("LongTermMissingCase");
                 });
 
             modelBuilder.Entity("SafeTrace.Domain.Entities.UnknownCase", b =>
                 {
                     b.HasBaseType("SafeTrace.Domain.Entities.Case");
 
-                    b.ToTable("LongTermMissingCases", (string)null);
+                    b.HasDiscriminator().HasValue("UnknownCase");
                 });
 
             modelBuilder.Entity("SafeTrace.Domain.Entities.UrgentCase", b =>
@@ -696,7 +706,7 @@ namespace SafeTrace.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("geography");
 
-                    b.ToTable("UrgentCase");
+                    b.HasDiscriminator().HasValue("UrgentCase");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<string>", b =>
@@ -863,24 +873,6 @@ namespace SafeTrace.Infrastructure.Migrations
                         .IsRequired();
 
                     b.Navigation("User");
-                });
-
-            modelBuilder.Entity("SafeTrace.Domain.Entities.UnknownCase", b =>
-                {
-                    b.HasOne("SafeTrace.Domain.Entities.Case", null)
-                        .WithOne()
-                        .HasForeignKey("SafeTrace.Domain.Entities.UnknownCase", "Id")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("SafeTrace.Domain.Entities.UrgentCase", b =>
-                {
-                    b.HasOne("SafeTrace.Domain.Entities.Case", null)
-                        .WithOne()
-                        .HasForeignKey("SafeTrace.Domain.Entities.UrgentCase", "Id")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
                 });
 
             modelBuilder.Entity("SafeTrace.Domain.Entities.AgeCategory", b =>
