@@ -14,6 +14,6 @@ namespace SafeTrace.Application.Interfaces.IServices
         Task<ApiResponse<string>> ApproveAsync(long id);
         Task<ApiResponse<IEnumerable<GetUnknownDto>>> GetAllApprovedAsync();
         Task<ApiResponse<string>> RejectAsync(long id);
-        Task<ApiResponse<IEnumerable<Case>>> GetCasesAsync(UnKnownCaseFilterDto filter);
+        Task<ApiResponse<PagedResponse<GetUnknownDto>>> GetCasesAsync(UnKnownCaseFilterDto filter);
     }
 }

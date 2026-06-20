@@ -35,16 +35,15 @@ namespace SafeTrace.API.Controllers
         //Test-Create-EndPoint
 
         [HttpPost]
-        [Consumes("multipart/form-data")]
-        public async Task<IActionResult> CreateUnknown(
-        [FromForm] CreateUnknownDto dto,
-        [FromQuery] string userId)
+        public async Task<IActionResult> CreateUnknownCase(
+            [FromForm] CreateUnknownDto dto,
+           [FromQuery] string userId)
         {
-            var result = await _unKnownServiceCase.CreateUnknownCaseAsync(dto, userId);
+            var result = await _unKnownServiceCase
+                .CreateUnknownCaseAsync(dto, userId);
 
             return Ok(result);
         }
-
         //[Authorize(Roles = "Admin")]
         [HttpPut("{id:long}/approve")]
         public async Task<IActionResult> Approve(long id)

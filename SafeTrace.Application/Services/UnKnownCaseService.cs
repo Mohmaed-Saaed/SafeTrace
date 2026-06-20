@@ -3,8 +3,9 @@ using Microsoft.Extensions.Logging;
 using SafeTrace.Application.DTOs.Responses;
 using SafeTrace.Application.DTOs.UnKnownDtos;
 using SafeTrace.Application.Exceptions;
+using SafeTrace.Application.Helpers;
 using SafeTrace.Application.Interfaces.IServices;
-using SafeTrace.Domain.Common;
+using Microsoft.EntityFrameworkCore;
 using SafeTrace.Domain.Entities;
 using SafeTrace.Domain.Enums;
 using SafeTrace.Domain.Interfaces.IUnitOfWork;
@@ -42,8 +43,8 @@ namespace SafeTrace.Application.Services
             unknownCase.CreatedAt = DateTime.UtcNow;
             unknownCase.Status = CaseStatus.Pending;
             unknownCase.CaseType = CaseType.Unknown;
-            unknownCase.CaseCode =
-                        $"UNK-{Guid.NewGuid().ToString("N")[..8]}";
+            unknownCase.CaseCode = Generators.GenerateCaseCode();
+                       
             if (dto.Photos != null && dto.Photos.Any())
             {
                 foreach (var file in dto.Photos)
@@ -61,14 +62,15 @@ namespace SafeTrace.Application.Services
                 unknownCase.Photos.First().IsPrimary = true;
             }
 
-            await _unitOfWork.CaseRepository.CreateAsync(unknownCase);
+            await _unitOfWork.Repository<UnknownCase>().CreateAsync(unknownCase);
             await _unitOfWork.SaveAsync();
 
             return ApiResponse<string>.Ok("Unknown case created successfully");
         }
+
         public async Task<ApiResponse<string>> ApproveAsync(long id)
         {
-            var unknownCase = await _unitOfWork.CaseRepository
+            var unknownCase = await _unitOfWork.Repository<UnknownCase>()
                 .GetOneAsync(x => x.Id == id);
 
             if (unknownCase == null)
@@ -85,7 +87,7 @@ namespace SafeTrace.Application.Services
 
             unknownCase.Status = CaseStatus.Active;
 
-            await _unitOfWork.CaseRepository.UpdateAsync(unknownCase);
+            _unitOfWork.Repository<UnknownCase>().Update(unknownCase);
             await _unitOfWork.SaveAsync();
 
             return ApiResponse<string>.Ok(
@@ -94,22 +96,29 @@ namespace SafeTrace.Application.Services
 
         public async Task<ApiResponse<IEnumerable<GetUnknownDto>>> GetAllApprovedAsync()
         {
-            var unknownCases = await _unitOfWork.CaseRepository.GetAllAsync(
-                x => x.Status == CaseStatus.Active
-                     && x.CaseType == CaseType.Unknown,
-                tracked: false,
-                includes: x => x.Photos);
+            var unknownCases = await _unitOfWork
+                .Repository<UnknownCase>()
+                .Query(
+                    tracked: false,
+                    includes: x => x.Photos)
+                .Where(x =>
+                    x.Status == CaseStatus.Active &&
+                    x.CaseType == CaseType.Unknown)
+                .ToListAsync();
 
-            var result = _mapper.Map<IEnumerable<GetUnknownDto>>(unknownCases);
+            var result =
+                _mapper.Map<IEnumerable<GetUnknownDto>>(
+                    unknownCases);
 
-            return ApiResponse<IEnumerable<GetUnknownDto>>.Ok(
-                result,
-                "Approved unknown cases retrieved successfully.");
+            return ApiResponse<IEnumerable<GetUnknownDto>>
+                .Ok(
+                    result,
+                    "Approved unknown cases retrieved successfully.");
         }
         public async Task<ApiResponse<string>> RejectAsync(long id)
         {
             var unknownCase = await _unitOfWork
-                .CaseRepository.GetOneAsync(x => x.Id == id);
+                .Repository<UnknownCase>().GetOneAsync(x => x.Id == id);
 
             if (unknownCase == null)
                 throw new NotFoundException("Unknown case not found.");
@@ -125,42 +134,92 @@ namespace SafeTrace.Application.Services
 
             unknownCase.Status = CaseStatus.Rejected;
 
-            await _unitOfWork.CaseRepository.UpdateAsync(unknownCase);
+            _unitOfWork.Repository<UnknownCase>().Update(unknownCase);
             await _unitOfWork.SaveAsync();
 
             return ApiResponse<string>.Ok(
                 message: "Unknown case rejected successfully.");
         }
-        public async Task<ApiResponse<IEnumerable<Case>>> GetCasesAsync(UnKnownCaseFilterDto filter)
+        public async Task<ApiResponse<PagedResponse<GetUnknownDto>>> GetCasesAsync(
+            UnKnownCaseFilterDto filter)
         {
-            var data = await _unitOfWork.CaseRepository.GetAllAsync(
-                expression: x =>
-                    x.CaseType == CaseType.Unknown &&
+            var query = _unitOfWork
+                .Repository<UnknownCase>()
+                .Query(tracked: false);
 
-                    (string.IsNullOrEmpty(filter.Name) ||
-                     (
+
+            query = query.Where(x =>
+                x.CaseType == CaseType.Unknown &&
+                x.Status == CaseStatus.Active);
+
+
+           
+            if (!string.IsNullOrWhiteSpace(filter.Name))
+            {
+                var name = filter.Name.Trim().ToLower();
+
+                query = query.Where(x =>
+                    (
                         (x.FName ?? "") + " " +
                         (x.SName ?? "") + " " +
+                        (x.TName ?? "") + " " +
                         (x.LName ?? "")
-                     ).Contains(filter.Name))
+                    )
+                    .ToLower()
+                    .Contains(name));
+            }
 
-                    && (!filter.Gender.HasValue ||
-                        x.Gender == filter.Gender)
 
-                    && (!filter.AgeCategoryId.HasValue ||
-                        x.AgeCategoryId == filter.AgeCategoryId),
+            
+            if (filter.Gender.HasValue)
+            {
+                query = query.Where(x =>
+                    x.Gender == filter.Gender);
+            }
 
-                orderBy: x => x.CreatedAt,
-                orderByDirection: filter.SortDirection?.ToLower() == "asc"
-                    ? OrderBy.Ascending
-                    : OrderBy.Descending
-            );
 
-            return ApiResponse<IEnumerable<Case>>.Ok(
-                data,
-                "Unknown cases retrieved successfully."
-            );
+            
+            if (filter.AgeCategoryId.HasValue)
+            {
+                query = query.Where(x =>
+                    x.AgeCategoryId == filter.AgeCategoryId);
+            }
 
+
+            if (filter.SortDirection?.ToLower() == "asc")
+            {
+                query = query.OrderBy(x => x.CreatedAt);
+            }
+            else
+            {
+                query = query.OrderByDescending(x => x.CreatedAt);
+            }
+
+
+        
+            var totalCount = await query.CountAsync();
+
+
+            
+            var data = await query
+                .Skip((filter.PageNumber - 1) * filter.PageSize)
+                .Take(filter.PageSize)
+                .ToListAsync();
+
+
+            var result = _mapper.Map<List<GetUnknownDto>>(data);
+
+
+            return ApiResponse<PagedResponse<GetUnknownDto>>
+                .Ok(
+                    new PagedResponse<GetUnknownDto>
+                    {
+                        Items = result,
+                        TotalCount = totalCount,
+                        PageNumber = filter.PageNumber,
+                        PageSize = filter.PageSize
+                    },
+                    "Unknown cases retrieved successfully");
         }
     }
 }
