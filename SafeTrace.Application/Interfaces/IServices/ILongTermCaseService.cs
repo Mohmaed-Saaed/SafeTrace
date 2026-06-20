@@ -27,8 +27,6 @@ namespace SafeTrace.Application.Interfaces.IServices
         // Soft delete (sets IsDeleted = true)
         Task DeleteAsync(long id, string userId, bool isAdmin);
 
-        // Admin-only: undo a soft delete
-        Task RestoreAsync(long id);
 
         // Admin-only: hard delete (only allowed on already soft-deleted cases)
         Task PermanentDeleteAsync(long id);

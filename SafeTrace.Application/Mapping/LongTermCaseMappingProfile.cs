@@ -49,7 +49,7 @@ namespace SafeTrace.Application.Mapping
                 .ForMember(d => d.PoliceReportImage, opt => opt.Ignore());
         }
 
-        private static string? BuildFullName(BaseCase c)
+        private static string? BuildFullName(Case c)
         {
             var parts = new[] { c.FName, c.SName, c.TName, c.LName }
                 .Where(p => !string.IsNullOrWhiteSpace(p));

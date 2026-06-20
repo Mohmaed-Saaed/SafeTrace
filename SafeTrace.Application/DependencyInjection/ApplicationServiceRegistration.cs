@@ -10,8 +10,6 @@ namespace SafeTrace.Application.DependencyInjection
         public static IServiceCollection AddApplication(this IServiceCollection services)
         {
             services.AddScoped<ILongTermCaseService, LongTermCaseService>();  
-
-
             services.AddAutoMapper(cfg => { }, typeof(ApplicationServiceRegistration).Assembly);
 
 

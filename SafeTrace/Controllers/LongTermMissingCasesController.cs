@@ -19,9 +19,11 @@ namespace SafeTrace.API.Controllers
             _service = service;
         }
 
-        private string? CurrentUserId => User.FindFirstValue(ClaimTypes.NameIdentifier);
+        //private string? CurrentUserId => User.FindFirstValue(ClaimTypes.NameIdentifier);
 
-        private bool IsAdmin => User.IsInRole("Admin");
+        //private bool IsAdmin => User.IsInRole("Admin");
+        private string CurrentUserId => "test-user-id";
+        private bool IsAdmin => true;
 
 
         [HttpGet]
@@ -43,7 +45,7 @@ namespace SafeTrace.API.Controllers
 
 
         // Admin only: cases users have soft-deleted, kept around for review (restore or permanent delete)
-        [Authorize(Roles = "Admin")]
+        //[Authorize(Roles = "Admin")]
         [HttpGet("deleted")]
         public async Task<IActionResult> GetDeleted()
         {
@@ -62,7 +64,7 @@ namespace SafeTrace.API.Controllers
         }
 
 
-        [Authorize]
+        //[Authorize]
         [HttpGet("my-cases")]
         public async Task<IActionResult> GetMyCases()
         {
@@ -73,7 +75,7 @@ namespace SafeTrace.API.Controllers
         }
 
 
-        [Authorize(Roles = "Admin")]
+        //[Authorize(Roles = "Admin")]
         [HttpGet("pending")]
         public async Task<IActionResult> GetPending()
         {
@@ -82,10 +84,10 @@ namespace SafeTrace.API.Controllers
         }
 
 
-        [Authorize(Roles = "Verified,Admin")]
+        //[Authorize(Roles = "Verified,Admin")]
         [HttpPost]
-        [Consumes("multipart/form-data")]
-        public async Task<IActionResult> Create([FromForm] CreateLongTermCaseDto dto)
+        //[Consumes("multipart/form-data")]
+        public async Task<IActionResult> Create( CreateLongTermCaseDto dto)
         {
             if (CurrentUserId == null) throw new UnauthorizedException("User identity not found.");
 
@@ -94,7 +96,7 @@ namespace SafeTrace.API.Controllers
         }
 
 
-        [Authorize]
+        //[Authorize]
         [HttpPut("{id:long}")]
         [Consumes("multipart/form-data")]
         public async Task<IActionResult> Update(long id, [FromForm] UpdateLongTermCaseDto dto)
@@ -107,7 +109,7 @@ namespace SafeTrace.API.Controllers
         }
 
 
-        [Authorize]
+        //[Authorize]
         [HttpDelete("{id:long}")]
         public async Task<IActionResult> Delete(long id)
         {
@@ -118,17 +120,9 @@ namespace SafeTrace.API.Controllers
             return NoContent();
         }
 
+   
 
-        [Authorize(Roles = "Admin")]
-        [HttpPut("{id:long}/restore")]
-        public async Task<IActionResult> Restore(long id)
-        {
-            await _service.RestoreAsync(id);
-            return NoContent();
-        }
-
-
-        [Authorize(Roles = "Admin")]
+        //[Authorize(Roles = "Admin")]
         [HttpDelete("{id:long}/permanent")]
         public async Task<IActionResult> PermanentDelete(long id)
         {
@@ -137,7 +131,7 @@ namespace SafeTrace.API.Controllers
         }
 
 
-        [Authorize(Roles = "Admin")]
+        //[Authorize(Roles = "Admin")]
         [HttpPut("{id:long}/approve")]
         public async Task<IActionResult> Approve(long id)
         {
@@ -146,7 +140,7 @@ namespace SafeTrace.API.Controllers
         }
 
 
-        [Authorize(Roles = "Admin")]
+        //[Authorize(Roles = "Admin")]
         [HttpPut("{id:long}/reject")]
         public async Task<IActionResult> Reject(long id)
         {
@@ -155,7 +149,7 @@ namespace SafeTrace.API.Controllers
         }
 
 
-        [Authorize]
+        //[Authorize]
         [HttpPut("{id:long}/mark-as-founded")]
         public async Task<IActionResult> MarkAsFounded(long id, [FromBody] MarkAsFoundedDto dto)
         {

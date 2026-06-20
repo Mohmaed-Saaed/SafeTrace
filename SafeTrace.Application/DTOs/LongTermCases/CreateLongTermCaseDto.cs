@@ -18,8 +18,9 @@ namespace SafeTrace.Application.DTOs.LongTermCases
     {
         [Required]
         public Gender Gender { get; set; }
-
-        public string? FName { get; set; }
+        
+        [Required, MaxLength(100)]
+        public string FName { get; set; }
         public string? SName { get; set; }
         public string? TName { get; set; }
 
@@ -31,9 +32,6 @@ namespace SafeTrace.Application.DTOs.LongTermCases
 
         [Required]
         public RelationType Relation { get; set; }
-
-        public double LocationLatitude { get; set; }
-        public double LocationLongitude { get; set; }
 
         [MaxLength(2000)]
         public string? Description { get; set; }

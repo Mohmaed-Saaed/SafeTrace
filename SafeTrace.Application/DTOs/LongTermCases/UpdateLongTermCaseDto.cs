@@ -26,8 +26,7 @@ namespace SafeTrace.Application.DTOs.LongTermCases
 
         public RelationType? Relation { get; set; }
 
-        public double? LocationLatitude { get; set; }
-        public double? LocationLongitude { get; set; }
+
 
         [MaxLength(2000)]
         public string? Description { get; set; }
