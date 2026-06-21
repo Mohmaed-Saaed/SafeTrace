@@ -31,7 +31,7 @@ namespace SafeTrace.API.Controllers
 
         #endregion
 
-        [HttpGet]
+        [HttpGet("my-Notifications")]
         public async Task<IActionResult> GetMyNotifications()
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);

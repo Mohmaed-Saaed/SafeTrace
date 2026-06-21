@@ -1,4 +1,8 @@
 <Solution>
+  <Configurations>
+    <Platform Name="Any CPU" />
+    <Platform Name="x64" />
+  </Configurations>
   <Project Path="C:/Program Files/BraveSoftware/Brave-Browser/Application/chrome_proxy.exe">
     <BuildType Project="Release" />
     <Platform Project="x64" />

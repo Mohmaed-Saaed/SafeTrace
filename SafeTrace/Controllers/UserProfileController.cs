@@ -6,7 +6,7 @@ using SafeTrace.Application.Interfaces.IServices;
 using SafeTrace.Application.Interfaces.IServices.IUserProfile;
 namespace SafeTrace.API.Controllers
 {
-    [Authorize]
+    //[Authorize]
     [Route("api/[controller]")]
     [ApiController]
     public class UserProfileController : ControllerBase
@@ -41,7 +41,7 @@ namespace SafeTrace.API.Controllers
         #region  Test Before Jwt
 
 
-        [HttpGet("all")]
+        [HttpGet("TestAll")]
         public async Task<IActionResult> GetAllUsers()
         {
             try

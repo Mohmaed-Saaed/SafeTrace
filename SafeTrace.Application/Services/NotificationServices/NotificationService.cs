@@ -31,7 +31,7 @@ namespace SafeTrace.Application.Services.NotificationServices
         #region test
         public async Task<IEnumerable<Notification>> GetAllrNotificationsAsync()
         {
-            var notifications = await _UNIT.NotificationRepository
+            var notifications = await _UNIT.Repository<Notification>()
 
     .Query(
         tracked: false)
@@ -39,33 +39,46 @@ namespace SafeTrace.Application.Services.NotificationServices
             return notifications;
         }
         #endregion
-
-
-
         public async Task SendNotificationAsync(SendNotificationDTO dto)
         {
             var notification = _mapper.Map<Notification>(dto);
-            await _UNIT.NotificationRepository.CreateAsync(notification);
+            notification.IsRead = false;
+            notification.CreatedAt = DateTime.UtcNow;
+
+
+            await _UNIT.Repository<Notification>().CreateAsync(notification);
             await _UNIT.SaveAsync();
+
+            var responseDto = _mapper.Map<GetUserNotificationsDTO>(notification);
+
             await _hubContext.Clients
                 .Group($"user_{dto.UserId}")
-                .SendAsync("ReceiveNotification", new
-                {
-                    notification.Id,
-                    notification.Content,
-                    notification.Type,
-                    notification.IsRead,
-                    notification.CreatedAt
-                });
+                .SendAsync("ReceiveNotification", responseDto);
 
-            var unreadCount = await _UNIT.NotificationRepository
-            .Query(tracked: false)
-            .CountAsync(n => n.UserId == dto.UserId && !n.IsRead);
+            var unreadCount = await _UNIT.Repository<Notification>()
+                .Query(tracked: false)
+                .CountAsync(n => n.UserId == dto.UserId && !n.IsRead);
+
             await _hubContext.Clients
                 .Group($"user_{dto.UserId}")
                 .SendAsync("UnreadCount", unreadCount);
         }
 
+        //    private async Task<Notification> CreateNotificationAsync(
+        //SendNotificationDTO dto)
+        //    {
+        //        var notification = _mapper.Map<Notification>(dto);
+
+        //        notification.IsRead = false;
+        //        notification.CreatedAt = DateTime.UtcNow;
+
+        //        await _UNIT.Repository<Notification>()
+        //                   .CreateAsync(notification);
+
+        //        await _UNIT.SaveAsync();
+
+        //        return notification;
+        //    }
         public async Task SendNotificationToAllAsync(SendNotificationDTO dto)
         {
 
@@ -75,7 +88,7 @@ namespace SafeTrace.Application.Services.NotificationServices
             notification.CreatedAt = DateTime.UtcNow;
 
             // 2. احفظ في الـ Database
-            await _UNIT.NotificationRepository.CreateAsync(notification);
+            await _UNIT.Repository<Notification>().CreateAsync(notification);
             await _UNIT.SaveAsync();
 
             // 3. ابعت DTO نظيف على SignalR مش Entity
@@ -85,29 +98,29 @@ namespace SafeTrace.Application.Services.NotificationServices
 
         public async Task<bool> RemoveNotificationAsync(long id)
         {
-            var notification = await _UNIT.NotificationRepository.GetByIdAsync(id);
+            var notification = await _UNIT.Repository<Notification>().GetByIdAsync(id);
             if (notification is null) return false;
-            _UNIT.NotificationRepository.Remove(notification);
+            _UNIT.Repository<Notification>().Remove(notification);
             await _UNIT.SaveAsync();
             return true;
         }
 
         public async Task MarkAsReadAsync(long id)
         {
-            var notification = await _UNIT.NotificationRepository.GetByIdAsync(id);
+            var notification = await _UNIT.Repository<Notification>().GetByIdAsync(id);
 
             if (notification is null)
                 return;
             notification.IsRead = true;
 
-            _UNIT.NotificationRepository.Update(notification);
+            _UNIT.Repository<Notification>().Update(notification);
 
             await _UNIT.SaveAsync();
         }
 
         public async Task MarkAllAsReadAsync(string userId)
         {
-            await _UNIT.NotificationRepository
+            await _UNIT.Repository<Notification>()
                      .Query()
                       .Where(n => n.UserId == userId && !n.IsRead)
                       .ExecuteUpdateAsync(s => s.SetProperty(n => n.IsRead, true));
@@ -118,7 +131,7 @@ namespace SafeTrace.Application.Services.NotificationServices
 
         public async Task<IEnumerable<GetUserNotificationsDTO>> GetUserNotificationsAsync(string userId)
         {
-            var notifications = await _UNIT.NotificationRepository
+            var notifications = await _UNIT.Repository<Notification>()
     .Query(
         tracked: false,
         orderBy: n => n.CreatedAt,
