@@ -90,6 +90,7 @@ namespace SafeTrace
             app.UseHttpsRedirection();
             app.UseStaticFiles();
 
+            app.UseAuthentication();
             app.UseAuthorization();
 
             app.MapControllers();
