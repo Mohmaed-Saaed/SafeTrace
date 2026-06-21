@@ -58,10 +58,6 @@ namespace SafeTrace.Infrastructure.Repositories.Repository
             _db.RemoveRange(entities);
         }
 
-        public async Task<bool> AnyAsync(ISpecification<T> spec)
-        {
-            return await AnyAsync();
-        }
         public async Task<int> CountAsync()
         {
             return await CountAsync();
@@ -77,5 +73,9 @@ namespace SafeTrace.Infrastructure.Repositories.Repository
             return await ApplySpecification(spec).AnyAsync();
         }
 
+        public async Task<bool> AnyAsync()
+        {
+            return await AnyAsync();
+        }
     }
 }
