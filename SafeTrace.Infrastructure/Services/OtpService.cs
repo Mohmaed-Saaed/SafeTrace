@@ -18,7 +18,9 @@ namespace SafeTrace.Infrastructure.Services
 
         public async Task<string> GenerateAndSaveOtpAsync(string userId, OtpType type)
         {
-            var existingOtps = await _unitOfWork.Repository<UserOtp>().Query().Where(o => o.UserId == userId && o.Type == type && !o.IsUsed).ToListAsync(); 
+            var existingOtps = await _unitOfWork.Repository<UserOtp>().Query()
+                                                                      .Where(o => o.UserId == userId && o.Type == type && !o.IsUsed)
+                                                                      .ToListAsync(); 
             foreach (var existingOtp in existingOtps)
             {
                 existingOtp.IsUsed = true;
