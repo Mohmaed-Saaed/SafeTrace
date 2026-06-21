@@ -18,7 +18,8 @@ namespace SafeTrace.API.Controllers
         }
 
         [HttpPost("send")]
-        public async Task<IActionResult> SendMessage([FromBody] SendMessageRequest request, string senderId)
+        [Consumes("multipart/form-data")]
+        public async Task<IActionResult> SendMessage([FromForm] SendMessageRequest request, string senderId)
         {
             //var senderId = GetCurrentUserId();
             var message = await _messageService.SendMessageAsync(request, senderId);
@@ -26,6 +27,7 @@ namespace SafeTrace.API.Controllers
                 actionName: null,
                 value: message);
         }
+
         [HttpPut("{chatId}/read")]
         public async Task<IActionResult> MarkAsRead([FromRoute] long chatId, [FromQuery] string userId)
         {

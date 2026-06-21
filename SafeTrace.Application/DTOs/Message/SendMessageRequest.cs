@@ -1,4 +1,5 @@
-﻿using SafeTrace.Domain.Enums;
+﻿using Microsoft.AspNetCore.Http;
+using SafeTrace.Domain.Enums;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
@@ -15,7 +16,6 @@ namespace SafeTrace.Application.DTOs.Message
         public string? Content { get; set; }
 
         // File attachment (optional)
-        public FileType? FileType { get; set; }
-        public string? FilePath { get; set; }
+        public IFormFile? File { get; set; }
     }
 }

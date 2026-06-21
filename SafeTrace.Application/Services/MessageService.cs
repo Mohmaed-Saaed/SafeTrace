@@ -5,6 +5,7 @@ using SafeTrace.Application.DTOs.Responses;
 using SafeTrace.Application.Exceptions;
 using SafeTrace.Application.Interfaces.IServices;
 using SafeTrace.Domain.Entities;
+using SafeTrace.Domain.Enums;
 using SafeTrace.Domain.Interfaces.IUnitOfWork;
 
 
@@ -16,13 +17,16 @@ namespace SafeTrace.Application.Services
         private readonly IMapper _mapper;
         private readonly IChatNotifier _chatNotifier;
         private readonly ILogger<MessageService> _logger;
+        private readonly IFileStorageService _fileStorageService;
         public MessageService (IUnitOfWork unitOfWork, IMapper mapper,
-            IChatNotifier chatNotifier, ILogger<MessageService> logger)
+            IChatNotifier chatNotifier, ILogger<MessageService> logger,
+            IFileStorageService fileStorageService)
         {
             _unitOfWork = unitOfWork;
             _mapper = mapper;
             _chatNotifier = chatNotifier;
             _logger = logger;
+            _fileStorageService = fileStorageService;
         }
 
         public async Task<ApiResponse<MessageDto>> SendMessageAsync(SendMessageRequest request, string senderId)
@@ -32,7 +36,7 @@ namespace SafeTrace.Application.Services
             senderId,
             request.ChatId);
 
-            if (string.IsNullOrWhiteSpace(request.Content) && request.FileType is null)
+            if (string.IsNullOrWhiteSpace(request.Content) && request.File is null)
             {
                 _logger.LogWarning(
                 "Invalid message attempt by User {SenderId} in Chat {ChatId}. No content or file.",
@@ -55,6 +59,26 @@ namespace SafeTrace.Application.Services
                 throw new ForbiddenException("You are not a participant of this conversation.");
             }
             var receiverId = chat.SenderId == senderId ? chat.ReceiverId : chat.SenderId;
+            string? filePath = null;
+            FileType? fileType=null;
+
+            if (request.File != null && request.File.Length>0)
+
+            {
+                if (string.IsNullOrEmpty(request.File.FileName))
+                    throw new BadRequestException("Invalid file.");
+
+                var extension = Path.GetExtension(request.File.FileName).ToLower();
+
+                if (extension is not (".jpg" or ".jpeg" or ".png" or ".webp"))
+                {
+                    throw new BadRequestException("Only image files are allowed.");
+                }
+                filePath = await _fileStorageService
+                    .SaveFileAsync(request.File, "chat");
+                fileType = FileType.Image;
+                
+            }
 
             var message = new Message
             {
@@ -62,8 +86,8 @@ namespace SafeTrace.Application.Services
                 SenderId = senderId,
                 ReceiverId = receiverId,
                 Content = request.Content,
-                FileType = request.FileType,
-                FilePath = request.FilePath,
+                FileType =fileType,
+                FilePath = filePath,
                 IsRead = false,
                 SendAt = DateTime.UtcNow,
             };
