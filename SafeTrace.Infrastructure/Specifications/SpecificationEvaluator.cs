@@ -1,10 +1,9 @@
 using SafeTrace.Domain.Specifications;
-using SafeTrace.Domain.Specifications.Expressions;
 
 namespace SafeTrace.Infrastructure.Specifications {
     public static class SpecificationEvaluator
     {
-        public static IQueryable<T> GetQuery<T> (IQueryable<T> query, ISpecification<T> spec) where T : class
+        public static IQueryable<T> GetQuery<T>(IQueryable<T> query, ISpecification<T> spec) where T : class
         {
 
             if (spec.CriteriaList.Count > 0)
