@@ -219,9 +219,6 @@ namespace SafeTrace.Infrastructure.Migrations
                     b.Property<string>("IdentificationImage")
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<bool>("IsVerified")
-                        .HasColumnType("bit");
-
                     b.Property<string>("LName")
                         .IsRequired()
                         .HasMaxLength(100)
@@ -262,6 +259,11 @@ namespace SafeTrace.Infrastructure.Migrations
                     b.Property<string>("UserName")
                         .HasMaxLength(256)
                         .HasColumnType("nvarchar(256)");
+
+                    b.Property<int>("VerificationStatus")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(0);
 
                     b.HasKey("Id");
 

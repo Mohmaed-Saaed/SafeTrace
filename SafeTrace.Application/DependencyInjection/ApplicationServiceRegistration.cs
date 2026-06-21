@@ -1,5 +1,4 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
-using SafeTrace.Application.Mapping;
 namespace SafeTrace.Application.DependencyInjection
 {
     public static class ApplicationServiceRegistration
@@ -7,6 +6,7 @@ namespace SafeTrace.Application.DependencyInjection
         public static IServiceCollection AddApplication(this IServiceCollection services)
         {
             services.AddAutoMapper(cfg => { }, typeof(ApplicationServiceRegistration).Assembly);
+
             return services;
         }
     }
