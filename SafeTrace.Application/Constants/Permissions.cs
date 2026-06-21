@@ -4,59 +4,79 @@
     {
         public static class UrgentCases
         {
+            public const string Manage = "UrgentCases.Manage";
+            public const string GetAll = "UrgentCases.GetAll";
+            public const string GetById = "UrgentCases.GetById";
             public const string Create = "UrgentCases.Create";
+            public const string Update = "UrgentCases.Update";
             public const string SoftDelete = "UrgentCases.SoftDelete";
             public const string HardDelete = "UrgentCases.HardDelete";
         }
 
         public static class LongTermCases
         {
+            public const string Manage = "LongTermCases.Manage";
             public const string GetAll = "LongTermCases.GetAll";
             public const string GetById = "LongTermCases.GetById";
+            public const string GetMyCases = "LongTermCases.GetMyCases";
+            public const string GetFounded = "LongTermCases.GetFounded";
+            public const string GetDeleted = "LongTermCases.GetDeleted";
+            public const string GetPending = "LongTermCases.GetPending";
             public const string Create = "LongTermCases.Create";
+            public const string Update = "LongTermCases.Update";
             public const string SoftDelete = "LongTermCases.SoftDelete";
             public const string HardDelete = "LongTermCases.HardDelete";
+            public const string Reject = "LongTermCases.Reject";
+            public const string Approve = "LongTermCases.Approve";
+            public const string MarkAsFounded = "LongTermCases.MarkAsFounded";
         }
 
         public static class UnkownCases
         {
+            public const string Manage = "UnkownCases.Manage";
             public const string GetAll = "UnkownCases.GetAll";
+            public const string Filter = "UnkownCases.Filter";
             public const string GetById = "UnkownCases.GetById";
             public const string Create = "UnkownCases.Create";
+            public const string Update = "UnkownCases.Update";
+            public const string Reject = "UnkownCases.Reject";
+            public const string Approve = "UnkownCases.Approve";
             public const string SoftDelete = "UnkownCases.SoftDelete";
             public const string HardDelete = "UnkownCases.HardDelete";
         }
 
         public static class FoundedCases
         {
+            public const string Manage = "FoundedCases.Manage";
             public const string GetAll = "FoundedCases.GetAll";
-            public const string GetById = "FoundedCases.GetById";
-            public const string HardDelete = "FoundedCases.HardDelete";
         }
 
         public static class Notifications
         {
-            public const string GetAll = "Notifications.GetAll";
-            public const string GetById = "Notifications.GetById";
-            public const string Create = "Notifications.Create";
-            public const string SoftDelete = "Notifications.SoftDelete";
-            public const string HardDelete = "Notifications.HardDelete";
+            public const string Manage = "Notifications.Manage";
+            public const string GetMyNotifications = "Notifications.GetMyNotifications";
+            public const string DeleteNotification = "Notifications.DeleteNotification";
+            public const string MarkAsRead = "Notifications.MarkAsRead";
+            public const string MarkAllAsRead = "Notifications.MarkAllAsRead";
         }
 
         public static class AiMatching
         {
+            public const string Manage = "AiMatching.Manage";
             public const string Search = "AiSearch.Search";
         }
 
         public static class Profile
         {
-            public const string GetProfile = "Profile.Get";
-            public const string UpdateProfile = "Profile.Update";
+            public const string Manage = "Profile.Manage";
+            public const string GetUserInfo = "Profile.GetUserInfo";
+            public const string UpdateUserInfo = "Profile.UpdateUserInfo";
         }
 
         public static class Dashboard
         {
-            public const string GetAll = "Dashboard.GetAll";
+            public const string Manage = "Dashboard.Manage";
+            public const string GetStatistics = "Dashboard.GetStatistics";
         }
 
         public static class Complaints
@@ -68,22 +88,37 @@
             public const string HardDelete = "Complaints.HardDelete";
         }
 
+        public static class RolePermission
+        {
+            public const string Manage = "RolePermission.Manage";
+            public const string GetAllRoles = "RolePermission.GetAllRoles";
+            public const string GetPermissionsByRole = "RolePermission.GetPermissionsByRole";
+            public const string UpdateRolePermissions = "RolePermission.UpdateRolePermissions";
+        }
+
         public static class Users
         {
             public const string Manage = "Users.Manage";
             public const string GetAll = "Users.GetAll";
+            public const string GetById = "Users.GetById";
             public const string ChangeRole = "Users.ChangeRole";
             public const string GetPermissions = "Users.GetPermissions";
             public const string AssignPermissions = "Users.AssignPermissions";
+            public const string Approve = "Users.Approve";
+            public const string Reject = "Users.Reject";
+            public const string Block = "Users.Block";
+            public const string UnBlock = "Users.UnBlock";
         }
 
         public static class Chat
         {
+            public const string Manage = "Chat.Manage";
             public const string GetAll = "Chat.GetAll";
             public const string GetById = "Chat.GetById";
+            public const string GetMessages  = "Chat.GetMessages";
+            public const string SendMessage = "Chat.SendMessage";
             public const string Create = "Chat.Create";
-            public const string SoftDelete = "Chat.SoftDelete";
-            public const string HardDelete = "Chat.HardDelete";
+            public const string MarkAsRead = "Chat.MarkAsRead";
         }
     }
 }
