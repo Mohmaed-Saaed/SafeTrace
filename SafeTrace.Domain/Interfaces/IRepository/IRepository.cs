@@ -12,7 +12,9 @@ namespace SafeTrace.Domain.Interfaces.IRepository
         void Update(T entity);
         void Remove(T entity);
         void RemoveRange(IEnumerable<T> entities);    
+        Task<int> CountAsync();
         Task<int> CountAsync(ISpecification<T> spec);
+        Task<bool> AnyAsync();
         Task<bool> AnyAsync(ISpecification<T> spec);
     }
 }

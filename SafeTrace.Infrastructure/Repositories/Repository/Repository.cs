@@ -24,7 +24,6 @@ namespace SafeTrace.Infrastructure.Repositories.Repository
         {
             return await ApplySpecification(spec).FirstOrDefaultAsync();
         }
-
         public async Task<IReadOnlyList<T>> GetAllAsync(ISpecification<T> spec)
         {
             return await ApplySpecification(spec).ToListAsync();
@@ -44,7 +43,6 @@ namespace SafeTrace.Infrastructure.Repositories.Repository
         {
             await _db.AddRangeAsync(entities);
         }
-
         public void Update(T entity)
         {
             _db.Update(entity);
@@ -62,12 +60,22 @@ namespace SafeTrace.Infrastructure.Repositories.Repository
 
         public async Task<bool> AnyAsync(ISpecification<T> spec)
         {
-            return await ApplySpecification(spec).AnyAsync();
+            return await AnyAsync();
+        }
+        public async Task<int> CountAsync()
+        {
+            return await CountAsync();
         }
 
         public async Task<int> CountAsync(ISpecification<T> spec)
         {
             return await ApplySpecification(spec).CountAsync();
         }
+
+        public async Task<bool> AnyAsync(ISpecification<T> spec)
+        {
+            return await ApplySpecification(spec).AnyAsync();
+        }
+
     }
 }
