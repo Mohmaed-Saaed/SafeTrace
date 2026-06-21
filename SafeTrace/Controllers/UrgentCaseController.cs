@@ -28,6 +28,5 @@ namespace SafeTrace.API.Controllers
         //     return Ok(await _urgentCaseService.GetByIdAsync(id));
         // }
 
-
     }
 }

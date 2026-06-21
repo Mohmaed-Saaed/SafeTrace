@@ -1,8 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
-using NetTopologySuite;
-using NetTopologySuite.Geometries;
-using SafeTrace.Application.DTOs.UrgentMissingCase;
-using SafeTrace.Application.Extensions;
+﻿using SafeTrace.Application.DTOs.UrgentMissingCase;
 using SafeTrace.Domain.Entities;
 
 
@@ -20,111 +16,21 @@ namespace SafeTrace.Application.Services
             _unitOfWork = unitOfWork;
             _mapper = mapper;
         }
-
         public async Task<ApiResponse<IEnumerable<UrgentCaseListItemDto>>> GetAllAsync(UrgentCaseFilterDto filter)
         {
-            var query = _unitOfWork.Repository<UrgentCase>().Query(
-                tracked: false,
-                orderBy: c => c.CreatedAt,
-                page: filter.PageNumber,
-                pageSize: filter.PageSize,
-                includes: [c => c.Photos]
-                );
 
-            // Search
-            query = query.WhereIf(!string.IsNullOrWhiteSpace(filter.Search), x => x.FName.Contains(filter.Search!) || x.LName.Contains(filter.Search!));
+            var spec = new UrgentCaseSpecification(filter);
 
-            // Gender
-            query = query.WhereIf(filter.Gender.HasValue, x => x.Gender == filter.Gender);
+            var items = await _unitOfWork.Repository<UrgentCase>().GetAllAsync(spec);
 
-            // Age
-            query = query.WhereIf(filter.MinAge.HasValue, x => x.Age >= filter.MinAge!.Value);
-
-            query = query.WhereIf(filter.MaxAge.HasValue, x => x.Age <= filter.MaxAge!.Value);
-
-            // Nearby Search
-            if (filter.Latitude.HasValue && filter.Longitude.HasValue)
-            {
-                var point = new Point(filter.Longitude.Value, filter.Latitude.Value)
-                {
-                    SRID = 4326
-                };
-
-                var radiusMeters = filter.RadiusKm * 1000;
-
-                query = query.Where(x => x.Location.Distance(point) <= radiusMeters);
-            }
-
-            // Total Count
-            var totalCount = await query.CountAsync();
-
-            // Data
-            var items = await query.ToListAsync();
-
-            var dataDto = _mapper.Map<IEnumerable<UrgentCaseListItemDto>>(items);
+            var data = _mapper.Map<IEnumerable<UrgentCaseListItemDto>>(items);
 
             return new ApiResponse<IEnumerable<UrgentCaseListItemDto>>
             {
                 Success = true,
-                Data = dataDto,
+                Data = data,
                 Message = "Urgent cases retrieved successfully"
             };
-        }
-        
-        // public async Task<ApiResponse<UrgentCaseDetailWithRelatedDto>> GetByIdAsync(long id)
-        // {
-        //     var currentCase = await _unitOfWork.UrgentCaseRepository.GetOneAsync(
-        //         predicate: c => c.Id == id,
-        //         includes: [c => c.AgeCategory, c => c.Photos],
-        //         tracked: false
-        //     );
-
-        //     if (currentCase is null)
-        //         return ApiResponse<UrgentCaseDetailWithRelatedDto>.Fail("Case not found");
-
-        //     var otherCases = await _unitOfWork.UrgentCaseRepository.Query(
-        //         expression: c =>
-        //             c.Id != id,
-        //         tracked: false
-        //     );
-
-        //     var relatedCases = otherCases
-        //         .Select(c => new
-        //         {
-        //             Case = c,
-        //         })
-        //         .OrderBy(x => x)
-        //         .Take(5)
-        //         .Select(x => x.Case)
-        //         .ToList();
-
-        //     var dataDetailDto = _mapper.Map<UrgentCaseDetailDto>(currentCase);
-        //     var dataRelatedDto = _mapper.Map<List<RelatedUrgentCaseDto>>(relatedCases);
-
-        //     var dataDto = new UrgentCaseDetailWithRelatedDto() {
-        //         UrgentCaseDetail = dataDetailDto,
-        //         RelatedUrgentCaseDto = dataRelatedDto
-        //     };
-
-        //     return ApiResponse<UrgentCaseDetailWithRelatedDto>.Ok(
-        //         dataDto,
-        //         "Urgent case retrieved successfully"
-        //     );
-        // }
-
-        // public async Task CreateAsync(CreateUrgentCaseDto dto)
-        // {
-            
-        //     var entity = _mapper.Map<UrgentCase>(dto);
-
-        //     var factory = NtsGeometryServices.Instance.CreateGeometryFactory(4326);
-
-        //     entity.Location = factory.CreatePoint(new Coordinate( dto.LocationLongitude, dto.LocationLatitude));
-
-        //     await _unitOfWork.UrgentCaseRepository.CreateAsync(entity);
-
-        //     await _unitOfWork.SaveAsync();
-        // }
-                    
+        }           
     }
 }
