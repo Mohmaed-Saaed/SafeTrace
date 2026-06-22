@@ -39,13 +39,22 @@ namespace SafeTrace.API.Controllers
         [HttpPost("/approve{userId}")]
         public async Task<IActionResult> ApproveUser(string userId)
         {
-
+            var response = _userService.ApproveUserAsync(userId);
+            return Ok(response);
         }
 
         [HttpPost("/reject{userId}")]
         public async Task<IActionResult> RejectUser(string userId)
         {
+            var response = _userService.RejectUserAsync(userId);
+            return Ok(response);
+        }
 
+        [HttpPost("/toggle-block/{userId}")]
+        public async Task<IActionResult> ToggleBlockStatus(string userId)
+        {
+            var response = await _userService.ToggleUserBlockStatusAsync(userId);
+            return Ok(response);
         }
 
         [HttpGet("/GetUserPermissions")]

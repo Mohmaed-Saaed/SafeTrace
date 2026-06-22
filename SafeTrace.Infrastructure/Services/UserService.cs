@@ -1,11 +1,14 @@
 ﻿using AutoMapper;
 using AutoMapper.QueryableExtensions;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.Extensions.Logging;
 using SafeTrace.Application.DTOs.Responses;
 using SafeTrace.Application.DTOs.User.Request;
 using SafeTrace.Application.DTOs.User.Response;
 using SafeTrace.Application.Exceptions;
 using SafeTrace.Application.Interfaces.IServices;
+using SafeTrace.Domain.Enums;
+using SafeTrace.Domain.Interfaces.IUnitOfWork;
 using System.Reflection;
 using System.Security.Claims;
 
@@ -15,16 +18,25 @@ namespace SafeTrace.Infrastructure.Services
     {
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly RoleManager<IdentityRole> _roleManager;
+        private readonly IUnitOfWork _unitOfWork;
         private readonly IMapper _mapper;
+        private readonly IFileStorageService _fileStorageService;
+        private readonly ILogger<UserService> _logger;
 
         public UserService(
             UserManager<ApplicationUser> userManager,
             RoleManager<IdentityRole> roleManager,
-            IMapper mapper)
+            IUnitOfWork unitOfWork,
+            IMapper mapper,
+            IFileStorageService fileStorageService,
+            ILogger<UserService> logger)
         {
             _userManager = userManager;
             _roleManager = roleManager;
+            _unitOfWork = unitOfWork;
             _mapper = mapper;
+            _fileStorageService = fileStorageService;
+            _logger = logger;
         }
 
         public async Task<ApiResponse<PaginationResponseDto<GetUserDto>>> GetAllUsersAsync(UserFilterDto filterDto)
@@ -67,8 +79,7 @@ namespace SafeTrace.Infrastructure.Services
         {
             var user = await _userManager.FindByIdAsync(userId);
 
-            if (user == null)
-                throw new NotFoundException($"User account with ID '{userId}' was not found.");
+            if (user == null) throw new NotFoundException("User account not found in the system.");
 
             var userDto = _mapper.Map<GetUserDto>(user);
 
@@ -91,7 +102,8 @@ namespace SafeTrace.Infrastructure.Services
             var addResult = await _userManager.AddToRoleAsync(user, dto.NewRole);
             if (!addResult.Succeeded) throw new BadRequestException("Failed to assign the new role.");
 
-            return ApiResponse<string>.Ok("User role has been successfully updated.");
+            _logger.LogWarning($"Role changed for User with ID: {dto.UserId} from {string.Join(",", currentRoles)} to {dto.NewRole}");
+            return ApiResponse<string>.Ok(null, "User role has been successfully updated.");
         }
 
         public async Task<ApiResponse<string>> ApproveUserAsync(string userId)
@@ -99,7 +111,20 @@ namespace SafeTrace.Infrastructure.Services
             var user = await _userManager.FindByIdAsync(userId);
             if (user == null) throw new NotFoundException("User account not found in the system.");
 
+            if (user.IdentificationImage == null) throw new BadRequestException("There is no identification image for this user to approve.");
+
+            user.VerificationStatus = VerificationStatus.Verified;
             
+            var currentRoles = await _userManager.GetRolesAsync(user);
+
+            var removeResult = await _userManager.RemoveFromRolesAsync(user, currentRoles);
+            if (!removeResult.Succeeded) throw new BadRequestException("Failed to remove existing roles to this user.");
+
+            var addResult = await _userManager.AddToRoleAsync(user, "VerifiedUser");
+            if (!addResult.Succeeded) throw new BadRequestException("Failed to assign the new role to this user.");
+
+            _logger.LogWarning($"Role changed for User with ID: {userId} from {string.Join(",", currentRoles)} to VerifiedUser");
+            return ApiResponse<string>.Ok(null, "User Approved successfully");
         }
 
         public async Task<ApiResponse<string>> RejectUserAsync(string userId)
@@ -107,7 +132,50 @@ namespace SafeTrace.Infrastructure.Services
             var user = await _userManager.FindByIdAsync(userId);
             if (user == null) throw new NotFoundException("User account not found in the system.");
 
+            if (user.IdentificationImage == null) throw new BadRequestException("There is no identification image for this user to reject.");
 
+            user.VerificationStatus = VerificationStatus.Unverified;
+
+            var DeletedResult = _fileStorageService.DeleteFile(user.IdentificationImage);
+            if (!DeletedResult) throw new BadRequestException("Failed to remove IdentificationImage for this user.");
+
+            return ApiResponse<string>.Ok(null, "User Rejected successfully");
+        }
+
+        public async Task<ApiResponse<string>> ToggleUserBlockStatusAsync(string userId)
+        {
+            var user = await _userManager.FindByIdAsync(userId);
+            if (user == null) throw new NotFoundException("User account not found.");
+
+            bool isCurrentlyBlocked = user.LockoutEnd.HasValue && user.LockoutEnd.Value > DateTimeOffset.UtcNow;
+
+            if (isCurrentlyBlocked)
+            {
+                await _userManager.SetLockoutEndDateAsync(user, null);
+
+                _logger.LogInformation("User {Email} has been unblocked by Admin.", user.Email);
+                return ApiResponse<string>.Ok(user.Id, "User account has been successfully unblocked.");
+            }
+            else
+            {
+                await _userManager.SetLockoutEndDateAsync(user, DateTimeOffset.MaxValue);
+
+                var activeTokens = await _unitOfWork.Repository<RefreshToken>().Query()
+                                                                               .Where(rt => rt.UserId == userId && 
+                                                                                            rt.RevokedAt == null && 
+                                                                                            rt.ExpiresAt > DateTime.UtcNow)
+                                                                               .ToListAsync();
+
+                foreach (var token in activeTokens)
+                {
+                    token.RevokedAt = DateTime.UtcNow;
+                    _unitOfWork.Repository<RefreshToken>().Update(token);
+                }
+                await _unitOfWork.SaveAsync();
+
+                _logger.LogInformation("User {Email} has been blocked and all active sessions revoked.", user.Email);
+                return ApiResponse<string>.Ok(null, "User has been blocked and all active sessions terminated.");
+            }
         }
 
         public async Task<ApiResponse<UserPermissionsResponseDto>> GetUserPermissionsAsync(string userId)
@@ -167,7 +235,8 @@ namespace SafeTrace.Infrastructure.Services
                 if (!addResult.Succeeded) throw new BadRequestException("Failed to assign the new permission policies.");
             }
 
-            return ApiResponse<string>.Ok("User specific permissions updated successfully.");
+            _logger.LogWarning($"New permissions assigned for User with ID: {dto.UserId}");
+            return ApiResponse<string>.Ok(null, "User specific permissions updated successfully.");
         }
     }
 }

@@ -1,7 +1,10 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using SafeTrace.Application.DTOs.Auth.Request;
+using SafeTrace.Application.Exceptions;
 using SafeTrace.Application.Interfaces.IServices;
 using SafeTrace.Domain.Enums;
+using System.Security.Claims;
 
 namespace SafeTrace.API.Controllers
 {
@@ -69,6 +72,17 @@ namespace SafeTrace.API.Controllers
         public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordDto resetPasswordDto)
         {
             var response = await _accountService.ResetPasswordAsync(resetPasswordDto);
+            return Ok(response);
+        }
+
+        [HttpPost("change-password/{userId}")]
+        public async Task<IActionResult> ChangePassword(string userId, [FromBody] ChangePasswordDto dto)
+        {
+            //var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+            //if (string.IsNullOrEmpty(userId)) throw new UnauthorizedException("User identity could not be verified from token.");
+
+            var response = await _accountService.ChangePasswordAsync(userId, dto);
             return Ok(response);
         }
 

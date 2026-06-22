@@ -109,6 +109,12 @@ namespace SafeTrace.Infrastructure.Services
                 throw new ForbiddenException("Please verify your identity via email confirmation before attempting access.");
             }
 
+            if (user.LockoutEnd.HasValue && user.LockoutEnd.Value > DateTimeOffset.UtcNow)
+            {
+                _logger.LogWarning("Blocked user {Email} attempted to login.", user.Email);
+                throw new ForbiddenException("This account has been Blocked by the administration.");
+            }
+
             await _unitOfWork.BeginTransactionAsync();
             try
             {
@@ -176,7 +182,7 @@ namespace SafeTrace.Infrastructure.Services
         public async Task<ApiResponse<string>> ResetPasswordAsync(ResetPasswordDto resetPasswordDto)
         {
             var user = await _userManager.FindByEmailAsync(resetPasswordDto.Email);
-            if (user == null) throw new NotFoundException("Identity entity missing.");
+            if (user == null) throw new NotFoundException("User account not found.");
 
             await _unitOfWork.BeginTransactionAsync();
             try
@@ -190,7 +196,8 @@ namespace SafeTrace.Infrastructure.Services
                 if (!result.Succeeded)
                 {
                     var errors = string.Join(", ", result.Errors.Select(e => e.Description));
-                    throw new BadRequestException($"State change rejected: {errors}");
+                    _logger.LogWarning("Failed password reset attempt for user {Email}. Errors: {Errors}", user.Email, errors);
+                    throw new BadRequestException("An unexpected error occurred while resetting the password");
                 }
 
                 await _unitOfWork.CommitTransactionAsync();
@@ -204,6 +211,25 @@ namespace SafeTrace.Infrastructure.Services
                 await _unitOfWork.RollbackTransactionAsync();
                 throw;
             }
+        }
+
+        public async Task<ApiResponse<string>> ChangePasswordAsync(string userId, ChangePasswordDto dto)
+        {
+            var user = await _userManager.FindByIdAsync(userId);
+            if (user == null) throw new NotFoundException("User account not found.");
+
+            var result = await _userManager.ChangePasswordAsync(user, dto.CurrentPassword, dto.NewPassword);
+
+            if (!result.Succeeded)
+            {
+                var errors = string.Join(", ", result.Errors.Select(e => e.Description));
+                _logger.LogWarning("Failed password change attempt for user {Email}. Errors: {Errors}", user.Email, errors);
+                throw new BadRequestException("An unexpected error occurred while changing the password");
+            }
+
+            _logger.LogInformation("User {Email} successfully changed their password.", user.Email);
+
+            return ApiResponse<string>.Ok(null, "Password has been changed successfully.");
         }
 
         public async Task<ApiResponse<AuthResponseDto>> GoogleLoginAsync(ExternalLoginDto externalLoginDto)

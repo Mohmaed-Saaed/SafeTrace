@@ -15,6 +15,7 @@ namespace SafeTrace.Application.Interfaces.IServices
         Task<ApiResponse<string>> ResendOtpAsync(string email, OtpType type);
         Task<ApiResponse<string>> ForgetPasswordAsync(string email);
         Task<ApiResponse<string>> ResetPasswordAsync(ResetPasswordDto resetPasswordDto);
+        Task<ApiResponse<string>> ChangePasswordAsync(string userId, ChangePasswordDto dto);
         Task<ApiResponse<AuthResponseDto>> RefreshTokenAsync(RefreshTokenRequestDto requestDto);
         Task<ApiResponse<string>> RevokeTokenAsync(string token);
     }
