@@ -64,7 +64,7 @@ namespace SafeTrace.Infrastructure.Services
                 {
                     var errors = string.Join(", ", result.Errors.Select(e => e.Description));
                     _logger.LogError("Failed to create user {Email}. Errors: {Errors}", registerDto.Email, errors);
-                    throw new BadRequestException($"Registration failed: {errors}");
+                    throw new BadRequestException("Registration failed");
                 }
 
                 await _userManager.AddToRoleAsync(user, "User");

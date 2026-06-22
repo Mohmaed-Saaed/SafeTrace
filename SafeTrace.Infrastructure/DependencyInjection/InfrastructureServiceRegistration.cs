@@ -72,7 +72,7 @@ namespace SafeTrace.Infrastructure.DependencyInjection
                     ValidateLifetime = true,
                     ValidIssuer = jwtOptions?.Issuer,
                     ValidAudience = jwtOptions?.Audience,
-                    IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtOptions?.Secret ?? "FallbackSecretKeyForSecurityFrameworkLong")),
+                    IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtOptions?.SecretKey ?? "FallbackSecretKeyForSecurityFrameworkLong")),
                     ClockSkew = TimeSpan.Zero
                 };
             });
