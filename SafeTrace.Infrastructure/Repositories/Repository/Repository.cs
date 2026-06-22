@@ -1,6 +1,5 @@
-﻿using SafeTrace.Domain.Specifications;
-using SafeTrace.Infrastructure.DataAccess;
-using SafeTrace.Infrastructure.Specifications;
+﻿using SafeTrace.Infrastructure.DataAccess;
+
 
 namespace SafeTrace.Infrastructure.Repositories.Repository
 {
@@ -13,20 +12,6 @@ namespace SafeTrace.Infrastructure.Repositories.Repository
         {
             _context = context;
             _db = _context.Set<T>();
-        }
-
-        private IQueryable<T> ApplySpecification(ISpecification<T> spec)
-        {
-            return SpecificationEvaluator.GetQuery(_db.AsQueryable(), spec);
-        }
-
-        public async Task<T?> GetAsync(ISpecification<T> spec)
-        {
-            return await ApplySpecification(spec).FirstOrDefaultAsync();
-        }
-        public async Task<IReadOnlyList<T>> GetAllAsync(ISpecification<T> spec)
-        {
-            return await ApplySpecification(spec).ToListAsync();
         }
 
         public async Task<T?> GetByIdAsync(object id)
@@ -63,19 +48,9 @@ namespace SafeTrace.Infrastructure.Repositories.Repository
             return await CountAsync();
         }
 
-        public async Task<int> CountAsync(ISpecification<T> spec)
-        {
-            return await ApplySpecification(spec).CountAsync();
-        }
-
         public async Task<bool> AnyAsync()
         {
             return await AnyAsync();
-        }
-        
-        public async Task<bool> AnyAsync(ISpecification<T> spec)
-        {
-            return await ApplySpecification(spec).AnyAsync();
         }
     }
 }
