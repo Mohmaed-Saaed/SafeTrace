@@ -12,9 +12,11 @@ namespace SafeTrace.Application.Common.Enums
     /// </summary>
     public enum AgeCategory
     {
-        Child,    // 0  - 12
-        Teenager, // 13 - 17
-        Adult,    // 18 - 59
-        Elderly   // 60+
+        Infant,     // 0  - 2
+        Child,      // 3  - 12
+        Teenager,   // 13 - 17
+        YoungAdult, // 18 - 35
+        Adult,      // 36 - 59
+        Senior      // 60 - 120
     }
 }

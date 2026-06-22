@@ -28,8 +28,7 @@ namespace SafeTrace.Application.DTOs.LongTermCases
         public RelationType Relation { get; set; }
         public CaseStatus Status { get; set; }
 
-        public double LocationLatitude { get; set; }
-        public double LocationLongitude { get; set; }
+
 
         // Last known location of the missing person (LongTermMissingCaseConfiguration)
         public string Government { get; set; } = null!;

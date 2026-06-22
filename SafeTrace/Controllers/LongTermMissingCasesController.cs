@@ -22,7 +22,7 @@ namespace SafeTrace.API.Controllers
         //private string? CurrentUserId => User.FindFirstValue(ClaimTypes.NameIdentifier);
 
         //private bool IsAdmin => User.IsInRole("Admin");
-        private string CurrentUserId => "test-user-id";
+        private string CurrentUserId => "1dcc168b-80da-4909-8438-4e177016be76";
         private bool IsAdmin => true;
 
 
@@ -86,8 +86,8 @@ namespace SafeTrace.API.Controllers
 
         //[Authorize(Roles = "Verified,Admin")]
         [HttpPost]
-        //[Consumes("multipart/form-data")]
-        public async Task<IActionResult> Create( CreateLongTermCaseDto dto)
+        [Consumes("multipart/form-data")]
+        public async Task<IActionResult> Create([FromForm] CreateLongTermCaseDto dto)
         {
             if (CurrentUserId == null) throw new UnauthorizedException("User identity not found.");
 

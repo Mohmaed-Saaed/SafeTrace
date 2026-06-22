@@ -152,6 +152,7 @@ namespace SafeTrace.Application.Services
             entity.CreatedAt = DateTime.UtcNow;
             entity.CaseCode = GenerateCaseCode();
             entity.Street ??= string.Empty;
+            entity.AgeCategoryId = await AgeCategoryHelper.ResolveAgeCategoryIdAsync(_unitOfWork, entity.Age); 
 
             if (dto.PoliceReportImage is not null)
                 entity.PoliceReportImage = await _fileStorage.SaveFileAsync(dto.PoliceReportImage, "long-term/police-reports");
@@ -207,6 +208,11 @@ namespace SafeTrace.Application.Services
             {
                 _logger.LogWarning("Unauthorized update on LongTermCase {CaseId} by UserId={UserId}", id, userId);
                 throw new ForbiddenException("You are not allowed to update this case.");
+            }
+            if (dto.Age.HasValue)
+            {
+                entity.Age = dto.Age.Value;
+                entity.AgeCategoryId = await AgeCategoryHelper.ResolveAgeCategoryIdAsync(_unitOfWork, entity.Age);
             }
 
             // Patch only provided fields
@@ -431,13 +437,17 @@ namespace SafeTrace.Application.Services
             _logger.LogInformation("LongTermCase {CaseId} marked as Found by UserId={UserId}.", id, userId);
         }
 
+ 
         // ─────────────────────────────────────────────────────────────
         // HELPERS
         // ─────────────────────────────────────────────────────────────
 
         private static string GenerateCaseCode() =>
             $"LT-{DateTime.UtcNow:yyyyMMdd}-{Guid.NewGuid().ToString("N")[..6].ToUpperInvariant()}";
+  
 
-    
+
+
+
     }
 }
