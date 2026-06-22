@@ -8,7 +8,6 @@ using SafeTrace.Application.Interfaces.IServices;
 using SafeTrace.Application.Interfaces.IServices.INotificationSewrvice;
 using SafeTrace.Application.Interfaces.IServices.IUserProfile;
 using SafeTrace.Domain.Entities;
-using SafeTrace.Domain.Enums;
 
 namespace SafeTrace.Application.Services.UserProfileServices
 {
