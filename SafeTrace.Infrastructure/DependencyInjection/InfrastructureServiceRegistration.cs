@@ -21,7 +21,8 @@ namespace SafeTrace.Infrastructure.DependencyInjection
             services.AddScoped<IDBInitializer, DBInitializer>();
             services.AddScoped<IUnitOfWork, UnitOfWork>();
             services.AddScoped<IFileStorageService, FileStorageService>();
-            
+            services.AddScoped<IComplaintService, ComplaintService>();
+
             services.AddIdentity<ApplicationUser, IdentityRole>(options =>
             {
                 options.Password.RequiredLength = 8;
