@@ -1,5 +1,5 @@
 
-using NetTopologySuite.Geometries;
+using SafeTrace.Application.Common.Enums;
 
 namespace SafeTrace.Application.DTOs.UrgentMissingCase{
     public class UrgentCaseFilterDto
@@ -9,12 +9,14 @@ namespace SafeTrace.Application.DTOs.UrgentMissingCase{
 
         public int? MinAge { get; set; }
         public int? MaxAge { get; set; }
+        
+        public AgeSort AgeSort { get; set; } = AgeSort.None;
+
+        public DateSort DateSort { get; set; } = DateSort.Newest;
 
         public double? Latitude { get; set; }
         public double? Longitude { get; set; }
         public double RadiusKm { get; set; } = 10;
-
-        public SortDirection SortDirection { get; set; } = SortDirection.Newest;
 
         public int PageNumber { get; set; } = 1;
         public int PageSize { get; set; } = 10;

@@ -77,10 +77,5 @@ namespace SafeTrace.Infrastructure.Repositories.Repository
         {
             return await ApplySpecification(spec).AnyAsync();
         }
-
-        public async Task<bool> AnyAsync()
-        {
-            return await AnyAsync();
-        }
     }
 }

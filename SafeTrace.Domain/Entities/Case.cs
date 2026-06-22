@@ -17,7 +17,6 @@ namespace SafeTrace.Domain.Entities
         public int Age { get; set; }
         public string UserId { get; set; } = null!;
         public ApplicationUser User { get; set; } = null!;
-        public Point Location { get; set; } = default!;
         public string? CommunicationPhone{ get; set; }
         public string CaseCode { get; set; } = null!;
         public CaseStatus Status { get; set; }

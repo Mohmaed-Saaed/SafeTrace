@@ -1,5 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
-using SafeTrace.Application.DTOs.UrgentMissingCase;
+using SafeTrace.Application.DTOs.MissingCases.Request;
 using SafeTrace.Application.Interfaces.IServices;
 
 namespace SafeTrace.API.Controllers
@@ -16,7 +16,7 @@ namespace SafeTrace.API.Controllers
         }
 
         [HttpGet]
-        public async Task<IActionResult> GetAll([FromQuery] UrgentCaseFilterDto filter)
+        public async Task<IActionResult> GetAll([FromQuery] FilterCasesDto filter)
         {
 
             return Ok(await _urgentCaseService.GetAllAsync(filter));

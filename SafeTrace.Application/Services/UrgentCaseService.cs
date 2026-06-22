@@ -1,6 +1,5 @@
-﻿using SafeTrace.Application.DTOs.UrgentMissingCase;
-using SafeTrace.Domain.Entities;
-
+﻿using SafeTrace.Application.DTOs.MissingCases.Request;
+using SafeTrace.Application.DTOs.UrgentMissingCase;
 
 namespace SafeTrace.Application.Services
 {
@@ -16,12 +15,10 @@ namespace SafeTrace.Application.Services
             _unitOfWork = unitOfWork;
             _mapper = mapper;
         }
-        public async Task<ApiResponse<IEnumerable<UrgentCaseListItemDto>>> GetAllAsync(UrgentCaseFilterDto filter)
+        public async Task<ApiResponse<IEnumerable<UrgentCaseListItemDto>>> GetAllAsync(FilterCasesDto filter)
         {
 
-            var spec = new UrgentCaseSpecification(filter);
-
-            var items = await _unitOfWork.Repository<UrgentCase>().GetAllAsync(spec);
+            var items = await _unitOfWork.Repository<UrgentCase>();
 
             var data = _mapper.Map<IEnumerable<UrgentCaseListItemDto>>(items);
 
