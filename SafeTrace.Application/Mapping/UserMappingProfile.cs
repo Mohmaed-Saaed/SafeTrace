@@ -10,10 +10,14 @@ namespace SafeTrace.Application.Mapping
         public UserMappingProfile()
         {
             CreateMap<RegisterDto, ApplicationUser>()
-                .ForMember(dest => dest.UserName, opt => opt.MapFrom(src => src.Email))
-                .ForMember(dest => dest.VerificationStatus, opt => opt.MapFrom(src => VerificationStatus.Unverified));
+                .ForMember(dest => dest.UserName, 
+                           opt => opt.MapFrom(src => src.Email))
+                .ForMember(dest => dest.VerificationStatus, 
+                           opt => opt.MapFrom(src => VerificationStatus.Unverified));
 
-            CreateMap<ApplicationUser, GetUserDto>();
+            CreateMap<ApplicationUser, GetUserDto>()
+                .ForMember(dest => dest.IsBlocked, opt => opt.MapFrom(src =>
+                           src.LockoutEnd.HasValue && src.LockoutEnd.Value > DateTimeOffset.UtcNow));
         }
     }
 }

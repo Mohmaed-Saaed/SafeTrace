@@ -11,5 +11,6 @@ namespace SafeTrace.Application.DTOs.User.Response
         public string PhoneNumber { get; set; } = null!;
         public string? IdentificationImage { get; set; }
         public VerificationStatus VerificationStatus { get; set; }
+        public bool IsBlocked { get; set; }
     }
 }
