@@ -7,9 +7,14 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Remove="Specifications\**" />
+    <EmbeddedResource Remove="Specifications\**" />
+    <None Remove="Specifications\**" />
+  </ItemGroup>
+
+  <ItemGroup>
     <Folder Include="Mapping/" />
     <Folder Include="Services/" />
-    <Folder Include="Specifications/CasesSpecifications/" />
   </ItemGroup>
 
   <ItemGroup>
