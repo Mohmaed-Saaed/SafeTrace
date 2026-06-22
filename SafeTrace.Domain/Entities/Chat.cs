@@ -10,7 +10,19 @@
 
         public string SenderId { get; set; } = null!;
 
+        public ApplicationUser Sender { get; set; } = null!;
+
         public string ReceiverId { get; set; } = null!;
+
+        public ApplicationUser Receiver { get; set; } = null!;
+
+        public bool DeletedBySender { get; set; } = false;
+
+        public bool DeletedByReceiver { get; set; } = false;
+
+        public DateTime? SenderDeletedAt { get; set; }
+
+        public DateTime? ReceiverDeletedAt { get; set; }
 
         public Case Case { get; set; } = null!;
 

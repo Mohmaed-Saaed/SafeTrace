@@ -1,6 +1,7 @@
-using System.Linq.Expressions;
+﻿using System.Linq.Expressions;
 
-namespace SafeTrace.Application.Extensions{
+namespace SafeTrace.Application.Extensions
+{
     public static class QueryableExtensions
     {
         public static IQueryable<T> WhereIf<T>(this IQueryable<T> query, bool condition, Expression<Func<T, bool>> predicate)
