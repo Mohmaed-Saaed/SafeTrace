@@ -1,4 +1,5 @@
-﻿using SafeTrace.Domain.Specifications;
+﻿using System.Linq.Expressions;
+using SafeTrace.Domain.Specifications;
 using SafeTrace.Infrastructure.DataAccess;
 using SafeTrace.Infrastructure.Specifications;
 
@@ -88,7 +89,7 @@ namespace SafeTrace.Infrastructure.Repositories.Repository
         {
             return await AnyAsync();
         }
-        
+
         public async Task<bool> AnyAsync(ISpecification<T> spec)
         {
             return await ApplySpecification(spec).AnyAsync();

@@ -1,6 +1,7 @@
 using SafeTrace.Domain.Specifications;
 
-namespace SafeTrace.Infrastructure.Specifications {
+namespace SafeTrace.Infrastructure.Specifications
+{
     public static class SpecificationEvaluator
     {
         public static IQueryable<T> GetQuery<T>(IQueryable<T> query, ISpecification<T> spec) where T : class

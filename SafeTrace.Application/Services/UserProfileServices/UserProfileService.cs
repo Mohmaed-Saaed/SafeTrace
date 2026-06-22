@@ -1,8 +1,6 @@
-﻿
-using Microsoft.AspNetCore.Identity;
+﻿using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
-using SafeTrace.Application.DTOs.NotificationDTOS;
 using SafeTrace.Application.DTOs.User_Profiel_DTOS;
 using SafeTrace.Application.Interfaces.IServices;
 using SafeTrace.Application.Interfaces.IServices.INotificationSewrvice;
@@ -67,32 +65,25 @@ namespace SafeTrace.Application.Services.UserProfileServices
                 _logger.LogWarning($"User With Id{userId} Not Found in {DateTime.Now}");
                 throw new KeyNotFoundException("User not found");
             }
-
-            var originalEmail = user.Email;
-            //src dest
-
-
-
-
-
             #region Email
-            if (!string.Equals(user.Email, dto.Email, StringComparison.OrdinalIgnoreCase))
-            {
-                // التأكد أن الإيميل الجديد غير مستخدم
-                var existingUser = await _userManager.FindByEmailAsync(dto.Email);
+            //var originalEmail = user.Email;
+            //if (!string.Equals(user.Email, dto.Email, StringComparison.OrdinalIgnoreCase))
+            //{
+            //    // التأكد أن الإيميل الجديد غير مستخدم
+            //    var existingUser = await _userManager.FindByEmailAsync(dto.Email);
 
-                if (existingUser is not null)
-                    throw new InvalidOperationException("Email already exists.");
+            //    if (existingUser is not null)
+            //        throw new InvalidOperationException("Email already exists.");
 
-                user.Email = dto.Email;
-                user.UserName = dto.Email;
-                user.EmailConfirmed = false;
+            //    user.Email = dto.Email;
+            //    user.UserName = dto.Email;
+            //    user.EmailConfirmed = false;
 
-                // Generate Token
-                var token = await _userManager.GenerateEmailConfirmationTokenAsync(user);
+            //    // Generate Token
+            //    var token = await _userManager.GenerateEmailConfirmationTokenAsync(user);
 
-                // Send Confirmation Email
-            }
+            //    // Send Confirmation Email
+            //}
 
             //Claude
 
@@ -115,8 +106,8 @@ namespace SafeTrace.Application.Services.UserProfileServices
             //}
             #endregion
 
+            //src dest
             _mapper.Map(dto, user);
-
             #region Id Image
             if (dto.IdentificationImage is not null)
             {
@@ -149,15 +140,16 @@ namespace SafeTrace.Application.Services.UserProfileServices
                     await _Image.SaveFileAsync(dto.ProfileImage, "Profile");
             }
             #endregion
-
-
+            
             var result = await _userManager.UpdateAsync(user);
 
+            #region EMAIL
             //if (!string.Equals(originalEmail, dto.Email, StringComparison.OrdinalIgnoreCase))
             //{
             //    var token = await _userManager.GenerateEmailConfirmationTokenAsync(user);
             //    await _emailService.SendConfirmationEmailAsync(dto.Email, token);
             //}
+            #endregion
 
             if (!result.Succeeded)
                 throw new InvalidOperationException("Failed to update profile.");

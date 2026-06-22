@@ -14,7 +14,7 @@ namespace SafeTrace.Application.Mapping
                  .ForMember(x => x.Email, opt => opt.Ignore())
                  .ForMember(dest => dest.EmailConfirmed, opt => opt.MapFrom(src => src.EmailConfirmed))
                  .ForMember(dest => dest.IdentificationImage, opt => opt.MapFrom(src => src.IdentificationImage))
-                 .ForMember(dest => dest.IsVerified, opt => opt.MapFrom(src => src.IsVerified))
+                 .ForMember(dest => dest.VerificationStatus, opt => opt.MapFrom(src => src.VerificationStatus))
                  .ForMember(dest => dest.HomeLocationLatitude, opt => opt.MapFrom(src => src.HomeLocationLatitude))
                  .ForMember(dest => dest.HomeLocationLongitude, opt => opt.MapFrom(src => src.HomeLocationLongitude))
                  .ForMember(dest => dest.ProfileImage, opt => opt.MapFrom(src => src.ProfileImage)).ReverseMap();
@@ -27,7 +27,7 @@ namespace SafeTrace.Application.Mapping
                  .ForMember(dest => dest.Email, opt => opt.MapFrom(src => src.Email))
                  .ForMember(dest => dest.EmailConfirmed, opt => opt.MapFrom(src => src.EmailConfirmed))
                  .ForMember(dest => dest.IdentificationImage, opt => opt.MapFrom(src => src.IdentificationImage))
-                 .ForMember(dest => dest.IsVerified, opt => opt.MapFrom(src => src.IsVerified))
+                 .ForMember(dest => dest.VerificationStatus, opt => opt.MapFrom(src => src.VerificationStatus))
                  .ForMember(dest => dest.HomeLocationLatitude, opt => opt.MapFrom(src => src.HomeLocationLatitude))
                  .ForMember(dest => dest.HomeLocationLongitude, opt => opt.MapFrom(src => src.HomeLocationLongitude))
                  .ForMember(dest => dest.ProfileImage, opt => opt.MapFrom(src => src.ProfileImage)).ReverseMap();
@@ -38,7 +38,7 @@ namespace SafeTrace.Application.Mapping
                 .ForMember(dest => dest.LName, opt => opt.MapFrom(src => src.LName))
                 .ForMember(dest => dest.Email, opt => opt.MapFrom(src => src.Email))
                 .ForMember(dest => dest.IdentificationImage, opt => opt.MapFrom(src => src.IdentificationImage))
-                .ForMember(dest => dest.IsVerified, opt => opt.MapFrom(src => src.IsVerified))
+                .ForMember(dest => dest.VerificationStatus, opt => opt.MapFrom(src => src.VerificationStatus))
                 .ForMember(dest => dest.HomeLocationLatitude, opt => opt.MapFrom(src => src.HomeLocationLatitude))
                 .ForMember(dest => dest.HomeLocationLongitude, opt => opt.MapFrom(src => src.HomeLocationLongitude))
                 .ForMember(dest => dest.ProfileImage, opt => opt.MapFrom(src => src.ProfileImage)).ReverseMap();

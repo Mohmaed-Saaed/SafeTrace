@@ -1,12 +1,10 @@
 ﻿using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using SafeTrace.Application.DTOs.NotificationDTOS;
-using SafeTrace.Application.Extensions;
 using SafeTrace.Application.Hubs;
 using SafeTrace.Application.Interfaces.IServices.INotificationSewrvice;
 using SafeTrace.Domain.Common;
 using SafeTrace.Domain.Entities;
-using SafeTrace.Domain.Interfaces.IRepositories;
 using SafeTrace.Domain.Interfaces.IUnitOfWork;
 
 namespace SafeTrace.Application.Services.NotificationServices
