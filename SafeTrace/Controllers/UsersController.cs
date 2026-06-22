@@ -29,24 +29,36 @@ namespace SafeTrace.API.Controllers
             return Ok(response);
         }
 
-        [HttpPost("{userId}/roles")]
-        public async Task<IActionResult> ChangeUserRole(string userId, [FromBody] ChangeUserRoleDto dto)
+        [HttpPost("/ChangeUserRole")]
+        public async Task<IActionResult> ChangeUserRole([FromBody] ChangeUserRoleDto dto)
         {
-            var response = await _userService.ChangeUserRoleAsync(userId, dto);
+            var response = await _userService.ChangeUserRoleAsync(dto);
             return Ok(response);
         }
 
-        [HttpGet("{userId}/permissions")]
+        [HttpPost("/approve{userId}")]
+        public async Task<IActionResult> ApproveUser(string userId)
+        {
+
+        }
+
+        [HttpPost("/reject{userId}")]
+        public async Task<IActionResult> RejectUser(string userId)
+        {
+
+        }
+
+        [HttpGet("/GetUserPermissions")]
         public async Task<IActionResult> GetUserPermissions(string userId)
         {
             var response = await _userService.GetUserPermissionsAsync(userId);
             return Ok(response);
         }
 
-        [HttpPost("{userId}/permissions")]
-        public async Task<IActionResult> AssignUserPermissions(string userId, [FromBody] AssignUserPermissionsDto dto)
+        [HttpPost("/AssignUserPermissions")]
+        public async Task<IActionResult> AssignUserPermissions([FromBody] AssignUserPermissionsDto dto)
         {
-            var response = await _userService.AssignUserPermissionsAsync(userId, dto);
+            var response = await _userService.AssignUserPermissionsAsync(dto);
             return Ok(response);
         }
     }

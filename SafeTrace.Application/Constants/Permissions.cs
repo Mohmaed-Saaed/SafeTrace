@@ -4,18 +4,23 @@
     {
         public static class UrgentCases
         {
-            public const string Manage = "UrgentCases.Manage";
             public const string GetAll = "UrgentCases.GetAll";
             public const string GetById = "UrgentCases.GetById";
+            public const string GetMyCases = "UrgentCases.GetMyCases";
+            public const string GetFounded = "UrgentCases.GetFounded";
+            public const string GetDeleted = "UrgentCases.GetDeleted";
+            public const string GetPending = "UrgentCases.GetPending";
             public const string Create = "UrgentCases.Create";
             public const string Update = "UrgentCases.Update";
             public const string SoftDelete = "UrgentCases.SoftDelete";
             public const string HardDelete = "UrgentCases.HardDelete";
+            public const string Reject = "UrgentCases.Reject";
+            public const string Approve = "UrgentCases.Approve";
+            public const string MarkAsFounded = "UrgentCases.MarkAsFounded";
         }
 
         public static class LongTermCases
         {
-            public const string Manage = "LongTermCases.Manage";
             public const string GetAll = "LongTermCases.GetAll";
             public const string GetById = "LongTermCases.GetById";
             public const string GetMyCases = "LongTermCases.GetMyCases";
@@ -33,27 +38,28 @@
 
         public static class UnkownCases
         {
-            public const string Manage = "UnkownCases.Manage";
             public const string GetAll = "UnkownCases.GetAll";
-            public const string Filter = "UnkownCases.Filter";
             public const string GetById = "UnkownCases.GetById";
+            public const string GetMyCases = "UnkownCases.GetMyCases";
+            public const string GetFounded = "UnkownCases.GetFounded";
+            public const string GetDeleted = "UnkownCases.GetDeleted";
+            public const string GetPending = "UnkownCases.GetPending";
             public const string Create = "UnkownCases.Create";
             public const string Update = "UnkownCases.Update";
-            public const string Reject = "UnkownCases.Reject";
-            public const string Approve = "UnkownCases.Approve";
             public const string SoftDelete = "UnkownCases.SoftDelete";
             public const string HardDelete = "UnkownCases.HardDelete";
+            public const string Reject = "UnkownCases.Reject";
+            public const string Approve = "UnkownCases.Approve";
+            public const string MarkAsFounded = "UnkownCases.MarkAsFounded";
         }
 
         public static class FoundedCases
         {
-            public const string Manage = "FoundedCases.Manage";
             public const string GetAll = "FoundedCases.GetAll";
         }
 
         public static class Notifications
         {
-            public const string Manage = "Notifications.Manage";
             public const string GetMyNotifications = "Notifications.GetMyNotifications";
             public const string DeleteNotification = "Notifications.DeleteNotification";
             public const string MarkAsRead = "Notifications.MarkAsRead";
@@ -62,26 +68,22 @@
 
         public static class AiMatching
         {
-            public const string Manage = "AiMatching.Manage";
             public const string Search = "AiSearch.Search";
         }
 
         public static class Profile
         {
-            public const string Manage = "Profile.Manage";
             public const string GetUserInfo = "Profile.GetUserInfo";
             public const string UpdateUserInfo = "Profile.UpdateUserInfo";
         }
 
         public static class Dashboard
         {
-            public const string Manage = "Dashboard.Manage";
             public const string GetStatistics = "Dashboard.GetStatistics";
         }
 
         public static class Complaints
         {
-            public const string Manage = "Complaints.Manage";
             public const string GetAll = "Complaints.GetAll";
             public const string GetById = "Complaints.GetById";
             public const string Create = "Complaints.Create";
@@ -90,7 +92,6 @@
 
         public static class RolePermission
         {
-            public const string Manage = "RolePermission.Manage";
             public const string GetAllRoles = "RolePermission.GetAllRoles";
             public const string GetPermissionsByRole = "RolePermission.GetPermissionsByRole";
             public const string UpdateRolePermissions = "RolePermission.UpdateRolePermissions";
@@ -98,7 +99,6 @@
 
         public static class Users
         {
-            public const string Manage = "Users.Manage";
             public const string GetAll = "Users.GetAll";
             public const string GetById = "Users.GetById";
             public const string ChangeRole = "Users.ChangeRole";
@@ -112,7 +112,6 @@
 
         public static class Chat
         {
-            public const string Manage = "Chat.Manage";
             public const string GetAll = "Chat.GetAll";
             public const string GetById = "Chat.GetById";
             public const string GetMessages  = "Chat.GetMessages";

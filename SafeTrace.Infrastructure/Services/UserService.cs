@@ -75,9 +75,9 @@ namespace SafeTrace.Infrastructure.Services
             return ApiResponse<GetUserDto>.Ok(userDto);
         }
 
-        public async Task<ApiResponse<string>> ChangeUserRoleAsync(string userId, ChangeUserRoleDto dto)
+        public async Task<ApiResponse<string>> ChangeUserRoleAsync(ChangeUserRoleDto dto)
         {
-            var user = await _userManager.FindByIdAsync(userId);
+            var user = await _userManager.FindByIdAsync(dto.UserId);
             if (user == null) throw new NotFoundException("User account not found in the system.");
 
             var roleExists = await _roleManager.RoleExistsAsync(dto.NewRole);
@@ -91,7 +91,23 @@ namespace SafeTrace.Infrastructure.Services
             var addResult = await _userManager.AddToRoleAsync(user, dto.NewRole);
             if (!addResult.Succeeded) throw new BadRequestException("Failed to assign the new role.");
 
-            return ApiResponse<string>.Ok(user.Id, "User role has been successfully updated.");
+            return ApiResponse<string>.Ok("User role has been successfully updated.");
+        }
+
+        public async Task<ApiResponse<string>> ApproveUserAsync(string userId)
+        {
+            var user = await _userManager.FindByIdAsync(userId);
+            if (user == null) throw new NotFoundException("User account not found in the system.");
+
+            
+        }
+
+        public async Task<ApiResponse<string>> RejectUserAsync(string userId)
+        {
+            var user = await _userManager.FindByIdAsync(userId);
+            if (user == null) throw new NotFoundException("User account not found in the system.");
+
+
         }
 
         public async Task<ApiResponse<UserPermissionsResponseDto>> GetUserPermissionsAsync(string userId)
@@ -100,10 +116,9 @@ namespace SafeTrace.Infrastructure.Services
             if (user == null) throw new NotFoundException("User account not found.");
 
             var existingClaims = await _userManager.GetClaimsAsync(user);
-            var assignedPermissions = existingClaims
-                .Where(c => c.Type == "Permission")
-                .Select(c => c.Value)
-                .ToList();
+            var assignedPermissions = existingClaims.Where(c => c.Type == "Permission")
+                                                    .Select(c => c.Value)
+                                                    .ToList();
 
             var allPermissions = new List<string>();
             var modules = typeof(Application.Constants.Permissions).GetNestedTypes(BindingFlags.Public | BindingFlags.Static);
@@ -132,9 +147,9 @@ namespace SafeTrace.Infrastructure.Services
             return ApiResponse<UserPermissionsResponseDto>.Ok(response);
         }
 
-        public async Task<ApiResponse<string>> AssignUserPermissionsAsync(string userId, AssignUserPermissionsDto dto)
+        public async Task<ApiResponse<string>> AssignUserPermissionsAsync(AssignUserPermissionsDto dto)
         {
-            var user = await _userManager.FindByIdAsync(userId);
+            var user = await _userManager.FindByIdAsync(dto.UserId);
             if (user == null) throw new NotFoundException("User account not found.");
 
             var existingClaims = await _userManager.GetClaimsAsync(user);
@@ -152,7 +167,7 @@ namespace SafeTrace.Infrastructure.Services
                 if (!addResult.Succeeded) throw new BadRequestException("Failed to assign the new permission policies.");
             }
 
-            return ApiResponse<string>.Ok(user.Id, "User specific permissions updated successfully.");
+            return ApiResponse<string>.Ok("User specific permissions updated successfully.");
         }
     }
 }
