@@ -1,7 +1,6 @@
-﻿using System.Linq.Expressions;
-using SafeTrace.Domain.Specifications;
+﻿using SafeTrace.Domain.Specifications;
 using SafeTrace.Infrastructure.DataAccess;
-using SafeTrace.Infrastructure.Specifications;
+using System.Linq.Expressions;
 
 namespace SafeTrace.Infrastructure.Repositories.Repository
 {
@@ -16,18 +15,54 @@ namespace SafeTrace.Infrastructure.Repositories.Repository
             _db = _context.Set<T>();
         }
 
-        private IQueryable<T> ApplySpecification(ISpecification<T> spec)
+        public IQueryable<T> Query(
+            bool tracked = true,
+            Expression<Func<T, object>>? orderBy = null,
+            string orderByDirection = OrderBy.Ascending,
+            int? page = null,
+            int? pageSize = null,
+            params Expression<Func<T, object>>[] includes)
         {
-            return SpecificationEvaluator.GetQuery(_db.AsQueryable(), spec);
+            IQueryable<T> query = _db;
+
+            if (!tracked)
+                query = query.AsNoTracking();
+
+            foreach (var include in includes)
+            {
+                query = query.Include(include);
+            }
+
+            if (orderBy is not null)
+            {
+                query = orderByDirection == OrderBy.Descending
+                    ? query.OrderByDescending(orderBy)
+                    : query.OrderBy(orderBy);
+            }
+
+            if (page.HasValue && pageSize.HasValue)
+            {
+                query = query
+                    .Skip((page.Value - 1) * pageSize.Value)
+                    .Take(pageSize.Value);
+            }
+
+            return query;
         }
 
-        public async Task<T?> GetAsync(ISpecification<T> spec)
+        public async Task<T?> GetOneAsync(Expression<Func<T, bool>> predicate, bool tracked = true, params Expression<Func<T, object>>[] includes)
         {
-            return await ApplySpecification(spec).FirstOrDefaultAsync();
-        }
-        public async Task<IReadOnlyList<T>> GetAllAsync(ISpecification<T> spec)
-        {
-            return await ApplySpecification(spec).ToListAsync();
+            IQueryable<T> query = _db;
+
+            if (!tracked)
+                query = query.AsNoTracking();
+
+            foreach (var include in includes)
+            {
+                query = query.Include(include);
+            }
+
+            return await query.FirstOrDefaultAsync(predicate);
         }
 
 
@@ -60,6 +95,7 @@ namespace SafeTrace.Infrastructure.Repositories.Repository
         {
             await _db.AddRangeAsync(entities);
         }
+
         public void Update(T entity)
         {
             _db.Update(entity);
@@ -75,25 +111,14 @@ namespace SafeTrace.Infrastructure.Repositories.Repository
             _db.RemoveRange(entities);
         }
 
-        public async Task<int> CountAsync()
-        {
-            return await CountAsync();
-        }
-
-        public async Task<int> CountAsync(ISpecification<T> spec)
-        {
-            return await ApplySpecification(spec).CountAsync();
-        }
-
         public async Task<bool> AnyAsync()
         {
-            return await AnyAsync();
+            return await _db.AnyAsync();
         }
 
         public async Task<bool> AnyAsync(ISpecification<T> spec)
         {
-            return await ApplySpecification(spec).AnyAsync();
+            return await _db.CountAsync();
         }
-
     }
 }
