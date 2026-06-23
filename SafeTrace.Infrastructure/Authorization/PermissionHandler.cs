@@ -23,9 +23,6 @@ namespace SafeTrace.Infrastructure.Authorization
 
         protected override async Task HandleRequirementAsync(AuthorizationHandlerContext context, PermissionRequirement requirement)
         {
-            context.Succeed(requirement);
-            return;
-
             if (context.User == null) return;
 
             var userId = context.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;

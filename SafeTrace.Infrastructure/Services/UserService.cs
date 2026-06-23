@@ -155,7 +155,7 @@ namespace SafeTrace.Infrastructure.Services
                 await _userManager.SetLockoutEndDateAsync(user, null);
 
                 _logger.LogInformation("User {Email} has been unblocked by Admin.", user.Email);
-                return ApiResponse<string>.Ok(user.Id, "تم فك الحظر عن المستخدم بنجاح.");
+                return ApiResponse<string>.Ok(null, "تم فك الحظر عن المستخدم بنجاح.");
             }
             else
             {

@@ -9,10 +9,14 @@ namespace SafeTrace.Infrastructure.Persistence
     {
         public readonly IUnitOfWork _unitOfWork;
         private readonly RoleManager<IdentityRole> _roleManager;
-        public DBInitializer(IUnitOfWork unitOfWork, RoleManager<IdentityRole> roleManager)
+        private readonly UserManager<ApplicationUser> _userManager;
+        public DBInitializer(IUnitOfWork unitOfWork, 
+                             RoleManager<IdentityRole> roleManager,
+                             UserManager<ApplicationUser> userManager)
         {
             _roleManager = roleManager;
             _unitOfWork = unitOfWork;
+            _userManager = userManager;
         }
 
         public async Task Initialize()
@@ -26,6 +30,13 @@ namespace SafeTrace.Infrastructure.Persistence
                     var Role = new IdentityRole(role);
                     await _roleManager.CreateAsync(Role);
                 }
+            }
+
+            var adminEmail = "esraataha3092001@gmail.com";
+            var user = await _userManager.FindByEmailAsync(adminEmail);
+            if(user != null && !await _userManager.IsInRoleAsync(user, "Admin"))
+            {
+                await _userManager.AddToRoleAsync(user, "Admin");
             }
 
             string[] AdminPermissions = { "UrgentCases.GetAll", "UrgentCases.GetById", "UrgentCases.GetMyCases", "UrgentCases.Create", "UrgentCases.Update", "UrgentCases.SoftDelete", "UrgentCases.HardDelete", "UrgentCases.Reject", "UrgentCases.Approve", "UrgentCases.MarkAsFounded",

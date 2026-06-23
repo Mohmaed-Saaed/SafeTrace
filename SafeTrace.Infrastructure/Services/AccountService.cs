@@ -229,7 +229,13 @@ namespace SafeTrace.Infrastructure.Services
                 {
                     var errors = string.Join(", ", result.Errors.Select(e => e.Description));
                     _logger.LogWarning("Failed password change attempt for user {Email}. Errors: {Errors}", user.Email, errors);
-                    throw new BadRequestException("حدث خطأ غير متوقع أثناء تغيير كلمة المرور.");
+
+                    if (result.Errors.Any(e => e.Code == "PasswordMismatch"))
+                    {
+                        throw new BadRequestException("كلمة المرور الحالية غير صحيحة.");
+                    }
+
+                    throw new BadRequestException("حدث خطأ أثناء تغيير كلمة المرور، يرجى التأكد من الشروط المطلوبة.");
                 }
 
                 await RevokeAllActiveSessionsAsync(userId, dto.CurrentRefreshToken);
