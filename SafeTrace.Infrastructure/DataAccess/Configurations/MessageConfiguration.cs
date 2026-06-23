@@ -13,7 +13,7 @@ namespace SafeTrace.Infrastructure.DataAccess.Configurations
 
             builder.HasKey(m => m.Id);
 
-            builder.Property(m => m.Content).IsRequired().HasMaxLength(2000);
+            builder.Property(m => m.Content).HasMaxLength(2000);
 
             builder.HasOne(c => c.Receiver)
                 .WithMany()
