@@ -35,7 +35,5 @@ namespace SafeTrace.API.Controllers
             var response = await _foundedService.GetDetailsAsync(id);
             return Ok(response);
         }
-
-
     }
 }

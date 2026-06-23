@@ -9,9 +9,9 @@ namespace SafeTrace.Application.DTOs.Founded.Request
     {
         public string? Search { get; set; }
         public int AgeCategory { get; set; }
-
+        public CaseType? CaseType { get; set; }
         public Gender? Gender { get; set; }
         public int Page { get; set; } = 1;
-        public int PageSize { get; set; } = 10;
+        public int PageSize { get; set; } = 12;
     }
 }

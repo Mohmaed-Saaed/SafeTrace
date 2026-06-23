@@ -47,7 +47,7 @@ namespace SafeTrace.Application.Mapping
             s.Case.Photos.Select(p => p.ImagePath).FirstOrDefault()))
     .ForMember(
         d => d.Age,
-        opt => opt.MapFrom(s => s.Case.AgeCategory.Name))
+        opt => opt.MapFrom(s => s.Case.Age))
     .ForMember(
         d => d.Gender,
         opt => opt.MapFrom(s => s.Case.Gender.ToString()))
@@ -63,7 +63,10 @@ namespace SafeTrace.Application.Mapping
     .ForMember(
         d => d.MissingLocation,
         opt => opt.MapFrom(s =>
-            $"{s.Case.Government} - {s.Case.City} - {s.Case.Street}"));
+            $"{s.Case.Government} - {s.Case.City} - {s.Case.Street}"))
+    .ForMember(d => d.FounedDate,
+        opt => opt.MapFrom(s => s.FoundedAt));
         }
+        
     }
 }

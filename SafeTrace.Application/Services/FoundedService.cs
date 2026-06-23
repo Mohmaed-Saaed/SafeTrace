@@ -37,6 +37,7 @@ namespace SafeTrace.Infrastructure.Service.Founded
                     (string.IsNullOrEmpty(query.Search)
                         || f.Case.FName!.Contains(query.Search)
                         || f.Case.SName!.Contains(query.Search))
+                        && (!query.CaseType.HasValue || f.Case.CaseType == query.CaseType.Value) 
                     && (!query.Gender.HasValue || f.Case.Gender == query.Gender.Value)
                     && (query.AgeCategory == 0 || f.Case.AgeCategory.Id == query.AgeCategory));
 
