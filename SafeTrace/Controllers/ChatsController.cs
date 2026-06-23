@@ -21,19 +21,19 @@ namespace SafeTrace.API.Controllers
         public async Task<IActionResult> StartChat([FromBody] StartChatRequest request, string userId)
         {
             //var userId = GetCurrentUserId();
-            var chat = await _chatService.StartOrGetChatAsync(request.CaseId,userId);
+            var chat = await _chatService.StartOrGetChatAsync(request.CaseId, userId);
             return Ok(chat);
         }
 
         [HttpGet]
-        public async Task<IActionResult> GetUserChats([FromQuery]string userId)
+        public async Task<IActionResult> GetUserChats([FromQuery] string userId)
         {
             var chats = await _chatService.GetUserChatsAsync(userId);
             return Ok(chats);
         }
 
         [HttpGet("{chatId:long}")]
-        public async Task<IActionResult> GetChatDetails([FromRoute] long chatId,[FromQuery] string userId)
+        public async Task<IActionResult> GetChatDetails([FromRoute] long chatId, [FromQuery] string userId)
         {
             //var userId = GetCurrentUserId();
             var chat = await _chatService.GetChatDetailsAsync(chatId, userId);
@@ -41,17 +41,41 @@ namespace SafeTrace.API.Controllers
         }
 
         [HttpGet("{chatId:long}/messages")]
-        public async Task<IActionResult> GetMessages ([FromQuery] string userId,
-           [FromRoute] long chatId, [FromQuery] int page =1 , [FromQuery] int pageSize = 20)
+        public async Task<IActionResult> GetMessages([FromQuery] string userId,
+           [FromRoute] long chatId, [FromQuery] int page = 1, [FromQuery] int pageSize = 20)
         {
-            if(page < 1) page = 1;
-            if(pageSize <1) pageSize = 20;
-            if(pageSize > 100) pageSize = 100;
+            if (page < 1) page = 1;
+            if (pageSize < 1) pageSize = 20;
+            if (pageSize > 100) pageSize = 100;
 
             //var userId = GetCurrentUserId();
-            var messages = await _chatService.GetPaginatedMessagesAsync(chatId, userId,page, pageSize);
+            var messages = await _chatService.GetPaginatedMessagesAsync(chatId, userId, page, pageSize);
             return Ok(messages);
 
+        }
+
+        [HttpDelete("{chatId:long}")]
+        public async Task<IActionResult> DeleteChat(long chatId, [FromQuery] string userId)
+        {
+            var deleted = await _chatService.DeleteChatAsync(chatId, userId);
+            return Ok(deleted);
+        }
+
+        [HttpDelete("{chatId:long}/hard-delete")]
+        public async Task<IActionResult> DeleteChatByAdmin (long chatId)
+        {
+            var deleted = await _chatService.DeleteChatByAdminAsync(chatId);
+            return Ok(deleted);
+        }
+
+        [HttpGet("admin/chats")]
+        public async Task<IActionResult> GetAllChats(
+            [FromQuery] ChatFilterDto filter,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 20)
+        {
+            var result = await _chatService.GetAllChatsAsync(page, pageSize, filter);
+            return Ok(result);
         }
 
         //private string GetCurrentUserId()
@@ -59,5 +83,8 @@ namespace SafeTrace.API.Controllers
         //    return User.FindFirstValue(ClaimTypes.NameIdentifier)
         //        ?? throw new UnauthorizedAccessException("User identity could not be resolved.");
         //}
+
     }
 }
+
+

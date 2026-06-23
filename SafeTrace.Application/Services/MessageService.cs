@@ -29,6 +29,7 @@ namespace SafeTrace.Application.Services
             _fileStorageService = fileStorageService;
         }
 
+
         public async Task<ApiResponse<MessageDto>> SendMessageAsync(SendMessageRequest request, string senderId)
         {
             _logger.LogInformation(
@@ -149,6 +150,73 @@ namespace SafeTrace.Application.Services
                 ? $"{updatedCount} messages marked as read"
                 : "No unread messages found"
             };
+        }
+
+        public async Task<ApiResponse<MessageDto>> DeleteMessageAsync (long messageId , string userId)
+        {
+            var message = await _unitOfWork.Repository<Message>()
+                .GetByIdAsync(messageId)
+                ?? throw new NotFoundException(
+            $"Message with id {messageId} was not found.");
+
+            EnsureParticipant(message, userId);
+
+            if(message.SenderId == userId)
+            {
+                message.DeletedBySender = true;
+                message.SenderDeletedAt = DateTime.UtcNow;
+            }
+
+            if (message.ReceiverId == userId)
+            {
+                message.DeletedByReceiver = true;
+                message.ReceiverDeletedAt = DateTime.UtcNow;
+            }
+
+            _unitOfWork.Repository<Message>().Update(message);
+
+            await _unitOfWork.SaveAsync();
+
+            return ApiResponse<MessageDto>.Ok(
+                _mapper.Map<MessageDto>(message),
+                "message deleted by user");
+        }
+
+        public async Task<ApiResponse<MessageDto>> DeleteMessageForEveryoneAsync(long messageId, string userId)
+        {
+            var message = await _unitOfWork.Repository<Message>()
+                .GetByIdAsync(messageId)
+                ?? throw new NotFoundException(
+            $"Message {messageId} was not found.");
+
+            if (message.SenderId != userId)
+            {
+                throw new ForbiddenException(
+                    "Only the sender can delete a message for everyone.");
+            }
+
+            message.IsDeletedForEveryone = true;
+            message.ForEveryoneDeletedAt = DateTime.UtcNow;
+
+            _unitOfWork.Repository<Message>().Update(message);
+            await _unitOfWork.SaveAsync();
+
+            return ApiResponse<MessageDto>.Ok(
+                _mapper.Map<MessageDto>(message),
+                "message deleted for everyone");
+        }
+
+        private void EnsureParticipant(Message message, string userId)
+        {
+            if (message.SenderId != userId && message.ReceiverId != userId)
+            {
+                _logger.LogWarning(
+            "Unauthorized access attempt. User {UserId} tried to send message {MessageId}",
+            userId,
+            message.Id);
+
+                throw new ForbiddenException("You are not allowed to delete this message.");
+            }
         }
     }
 }

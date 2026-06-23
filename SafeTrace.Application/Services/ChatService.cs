@@ -1,9 +1,11 @@
-﻿using Microsoft.Extensions.Logging;
+﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using SafeTrace.Application.DTOs.Chat;
 using SafeTrace.Application.DTOs.Message;
 using SafeTrace.Application.DTOs.Responses;
 using SafeTrace.Application.Exceptions;
 using SafeTrace.Application.Interfaces.IServices;
+using SafeTrace.Domain.Common;
 using SafeTrace.Domain.Entities;
 using SafeTrace.Domain.Interfaces.IUnitOfWork;
 using Serilog.Core;
@@ -50,10 +52,19 @@ namespace SafeTrace.Application.Services
                 throw new BadRequestException("You cannot start a conversation on your own case.");
             }
 
-            var existing = await _unitOfWork.ChatRepository
-                .GetExistingChatAsync(caseId, currentUserId,caseOwnerId);
+            //var existing = await _unitOfWork.ChatRepository
+            //    .GetExistingChatAsync(caseId, currentUserId,caseOwnerId);
 
-            if(existing is not null)
+            var existing = await _unitOfWork.Repository<Chat>()
+            .GetOneAsync(
+            c => c.CaseId == caseId &&
+            (
+                (c.SenderId == currentUserId && c.ReceiverId == caseOwnerId) ||
+                (c.SenderId == caseOwnerId && c.ReceiverId == currentUserId)
+            ),
+            tracked: false);
+
+            if (existing is not null)
             {
                 _logger.LogInformation(
             "Existing chat {ChatId} returned for user {UserId}.",
@@ -156,7 +167,7 @@ namespace SafeTrace.Application.Services
             EnsureParticipant(chat, currentUserId);
 
             var (messages, totalCount) = await _unitOfWork.MessageRepository
-                .GetPagedMessagesAsync(chatId, page, pageSize);
+                .GetPagedMessagesAsync(chatId,currentUserId, page, pageSize);
 
             _logger.LogInformation(
             "Returned {Count} messages out of {Total} for Chat {ChatId}.",
@@ -175,6 +186,148 @@ namespace SafeTrace.Application.Services
                 "paged messages returned");
 
 
+        }
+
+        public async Task<ApiResponse<ChatDetailsDto>> DeleteChatAsync(long chatId, string userId)
+        {
+            var chat = await _unitOfWork.Repository<Chat>()
+                .GetOneAsync(
+                c=> c.Id == chatId,
+                true,
+                c=> c.Sender,
+                chatId => chatId.Receiver)
+                ?? throw new NotFoundException($"Chat with id {chatId} was not found.");
+
+            EnsureParticipant(chat, userId);
+
+            if(chat.SenderId == userId)
+            {
+                chat.DeletedBySender = true;
+                chat.SenderDeletedAt = DateTime.UtcNow;
+            }
+
+            if (chat.ReceiverId == userId) 
+            {
+                chat.DeletedByReceiver = true;
+                chat.ReceiverDeletedAt = DateTime.UtcNow;
+            }
+
+            _unitOfWork.Repository<Chat>().Update(chat);
+            await _unitOfWork.SaveAsync();
+
+            var name = chat.SenderId == userId
+                ? chat.Sender.FName 
+                : chat.Receiver.FName;
+
+            _logger.LogInformation(
+            "user {name} delete {chatId} chat.",
+            name,
+            chatId
+            );
+
+
+            return ApiResponse<ChatDetailsDto>.Ok(
+               _mapper.Map<ChatDetailsDto>(chat),
+               $"{name} delete chat successfully");
+
+
+        }
+
+        public async Task<ApiResponse<ChatDetailsDto>> DeleteChatByAdminAsync(long chatId)
+        {
+            var chat = await _unitOfWork.Repository<Chat>()
+                .GetOneAsync(
+                c=> c.Id == chatId,
+                includes: c => c.Messages
+                )
+                ?? throw new NotFoundException(
+            $"Chat with id {chatId} was not found.");
+
+            _unitOfWork.Repository<Chat>().Remove( chat );
+            
+            await _unitOfWork.SaveAsync();
+
+            return ApiResponse<ChatDetailsDto>.Ok(
+               _mapper.Map<ChatDetailsDto>(chat),
+               "chat hard deleted successfully");
+
+
+        }
+
+        public async Task<ApiResponse<PaginationResponseDto<AdminChatsDto>>> GetAllChatsAsync(int page, int pageSize, ChatFilterDto filter)
+        {
+            var baseQuery = _unitOfWork.Repository<Chat>()
+                .Query(
+                 false,
+                 c => c.CreatedAt,
+                OrderBy.Descending,
+                null,
+                null,
+                c => c.Messages,
+                c => c.Case);
+
+            if (!string.IsNullOrWhiteSpace(filter.UserId))
+                baseQuery = baseQuery.Where(c => c.SenderId == filter.UserId || c.ReceiverId == filter.UserId);
+
+            if (filter.FromDate.HasValue)
+                baseQuery = baseQuery.Where(c => c.CreatedAt >= filter.FromDate);
+
+            if (filter.ToDate.HasValue)
+                baseQuery = baseQuery.Where(c => c.CreatedAt <= filter.ToDate);
+
+            if (filter.IsDeletedBySender.HasValue)
+                baseQuery = baseQuery.Where(c => c.DeletedBySender == filter.IsDeletedBySender);
+
+            if (filter.IsDeletedByReceiver.HasValue)
+                baseQuery = baseQuery.Where(c => c.DeletedByReceiver == filter.IsDeletedByReceiver);
+
+            if (!string.IsNullOrWhiteSpace(filter.Search))
+            {
+                baseQuery = baseQuery.Where(c =>
+                    c.Messages.Any(m => m.Content.Contains(filter.Search)));
+            }
+
+            var totalCount = await baseQuery.CountAsync();
+
+            var chats = await baseQuery
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .ToListAsync();
+
+            var items = chats.Select(c => new AdminChatsDto
+            {
+                ChatId = c.Id,
+                CaseId = c.CaseId,
+                SenderId = c.SenderId,
+                ReceiverId = c.ReceiverId,
+
+                MessagesCount = c.Messages.Count,
+                UnreadMessagesCount = c.Messages.Count(m => !m.IsRead),
+
+                CreatedAt = c.CreatedAt,
+
+                LastMessage = c.Messages
+                .OrderByDescending(m => m.SendAt)
+                .Select(m => m.Content)
+                .FirstOrDefault(),
+
+                IsDeletedBySender = c.DeletedBySender,
+                IsDeletedByReceiver = c.DeletedByReceiver,
+
+                SenderDeletedAt = c.SenderDeletedAt,
+                ReceiverDeletedAt = c.ReceiverDeletedAt,
+            }).ToList();
+
+            var result = new PaginationResponseDto<AdminChatsDto>
+            {
+                Items = items,
+                PageNumber = page,
+                PageSize = pageSize,
+                TotalCount = totalCount
+            };
+
+            return ApiResponse<PaginationResponseDto<AdminChatsDto>>
+            .Ok(result, "Filtered chats returned");
         }
 
         private void EnsureParticipant(Chat chat, string userId)

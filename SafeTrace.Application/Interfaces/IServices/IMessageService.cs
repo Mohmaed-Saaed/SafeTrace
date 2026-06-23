@@ -10,5 +10,9 @@ namespace SafeTrace.Application.Interfaces.IServices
     {
         Task <ApiResponse<MessageDto>> SendMessageAsync(SendMessageRequest request, string senderId);
         Task<ApiResponse<int>> MarkMessagesAsReadAsync(long chatId, string userId);
+
+        Task<ApiResponse<MessageDto>> DeleteMessageAsync(long messageId, string userId);
+        Task<ApiResponse<MessageDto>> DeleteMessageForEveryoneAsync(long messageId, string userId);
+
     }
 }

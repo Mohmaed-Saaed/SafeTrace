@@ -26,7 +26,8 @@ namespace SafeTrace.Infrastructure.Repositories.Repository
         public async Task<IEnumerable<Chat>> GetUserChatsAsync(string userId)
         {
             return await _context.Chats.AsNoTracking()
-                .Where(c => c.SenderId == userId || c.ReceiverId == userId)
+                .Where(c => (c.SenderId == userId && !c.DeletedBySender)
+                || c.ReceiverId == userId && !c.DeletedByReceiver)
                 .Include(c => c.Messages)
                 .OrderByDescending(c => c.Messages
                 .OrderByDescending(m => m.SendAt)

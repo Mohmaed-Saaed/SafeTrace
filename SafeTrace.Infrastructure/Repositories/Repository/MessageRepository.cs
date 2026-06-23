@@ -14,11 +14,18 @@ namespace SafeTrace.Infrastructure.Repositories.Repository
             _context = context;
         }
 
-        public async Task<(IEnumerable<Message> Messages, int TotalCount)> GetPagedMessagesAsync(long chatId, int page, int pageSize)
+        public async Task<(IEnumerable<Message> Messages, int TotalCount)> GetPagedMessagesAsync(long chatId,string currentUserId, int page, int pageSize)
         {
             var query = _context.Messages
                 .AsNoTracking()
-                .Where(m => m.ChatId == chatId)
+                .Where(m =>
+                    m.ChatId == chatId &&
+                    (
+                        (m.SenderId == currentUserId && !m.DeletedBySender)
+                        ||
+                        (m.ReceiverId == currentUserId && !m.DeletedByReceiver)
+                    )
+                )
                 .OrderBy(m => m.SendAt);
 
             var totalCount = await query.CountAsync();

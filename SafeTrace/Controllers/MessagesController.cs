@@ -35,6 +35,24 @@ namespace SafeTrace.API.Controllers
             var result = await _messageService.MarkMessagesAsReadAsync(chatId, userId);
             return Ok(result);
         }
+
+        [HttpDelete("{messageId}")]
+        public async Task<IActionResult> DeleteMessage([FromRoute] long messageId,[FromQuery] string userId)
+        {
+            var deleted = await _messageService.DeleteMessageAsync(messageId, userId);
+
+            return Ok(deleted);
+        }
+
+        [HttpDelete("{messageId}/everyone")]
+        public async Task<IActionResult> DeleteMessageForEveryone([FromRoute]long messageId, [FromQuery] string userId)
+        {
+            var deleted = await _messageService.DeleteMessageForEveryoneAsync(messageId, userId);
+
+            return Ok(deleted);
+        }
+
+
         //private string GetCurrentUserId()
         //{
         //    return User.FindFirstValue(ClaimTypes.NameIdentifier)

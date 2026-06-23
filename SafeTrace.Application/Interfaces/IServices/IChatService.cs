@@ -14,5 +14,9 @@ namespace SafeTrace.Application.Interfaces.IServices
         Task<ApiResponse<ChatDetailsDto>> GetChatDetailsAsync(long chatId, string currentUserId);
 
         Task <ApiResponse<PaginationResponseDto<MessageDto>>> GetPaginatedMessagesAsync (long chatId, string currentUserId,int page, int pageSize);
+        Task<ApiResponse<ChatDetailsDto>> DeleteChatAsync(long chatId, string userId);
+        Task<ApiResponse<ChatDetailsDto>> DeleteChatByAdminAsync(long chatId);
+
+        Task<ApiResponse<PaginationResponseDto<AdminChatsDto>>> GetAllChatsAsync(int page , int pageSize, ChatFilterDto filter);
     }
 }
