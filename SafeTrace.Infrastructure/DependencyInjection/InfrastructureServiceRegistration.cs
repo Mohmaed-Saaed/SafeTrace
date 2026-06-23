@@ -1,6 +1,9 @@
 ﻿using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.IdentityModel.Tokens;
@@ -22,13 +25,13 @@ namespace SafeTrace.Infrastructure.DependencyInjection
         public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration configuration)
         {
             services.AddDbContext<ApplicationDbContext>(options =>
-                options.UseSqlServer(configuration.GetConnectionString("DefaultConnection"),x => x.UseNetTopologySuite())  );
-            
+                options.UseSqlServer(configuration.GetConnectionString("DefaultConnection"), x => x.UseNetTopologySuite()));
+
             services.AddScoped<IDBInitializer, DBInitializer>();
             services.AddScoped<IUnitOfWork, UnitOfWork>();
             services.AddScoped<IFileStorageService, FileStorageService>();
             services.AddScoped<IEmailService, EmailService>();
-            services.AddScoped<ITokenService,  TokenService>();
+            services.AddScoped<ITokenService, TokenService>();
             services.AddScoped<IAccountService, AccountService>();
             services.AddScoped<IOtpService, OtpService>();
             services.AddScoped<IRolePermissionService, RolePermissionService>();
@@ -74,6 +77,41 @@ namespace SafeTrace.Infrastructure.DependencyInjection
                     ValidAudience = jwtOptions?.Audience,
                     IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtOptions?.SecretKey!)),
                     ClockSkew = TimeSpan.Zero
+                };
+
+                o.Events = new JwtBearerEvents
+                {
+                    OnChallenge = async context =>
+                    {
+                        context.HandleResponse();
+                        context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+                        context.Response.ContentType = "application/json";
+
+                        var problemDetails = new ProblemDetails
+                        {
+                            Status = StatusCodes.Status401Unauthorized,
+                            Title = "Unauthorized",
+                            Detail = "أنت غير مسجل الدخول، أو أن الجلسة غير صالحة أو منتهية.",
+                            Instance = context.Request.Path
+                        };
+
+                        await context.Response.WriteAsJsonAsync(problemDetails);
+                    },
+                    OnForbidden = async context =>
+                    {
+                        context.Response.StatusCode = StatusCodes.Status403Forbidden;
+                        context.Response.ContentType = "application/json";
+
+                        var problemDetails = new ProblemDetails
+                        {
+                            Status = StatusCodes.Status403Forbidden,
+                            Title = "Forbidden",
+                            Detail = "ليس لديك الصلاحيات الكافية لتنفيذ هذا الإجراء.",
+                            Instance = context.Request.Path
+                        };
+
+                        await context.Response.WriteAsJsonAsync(problemDetails);
+                    }
                 };
             });
 

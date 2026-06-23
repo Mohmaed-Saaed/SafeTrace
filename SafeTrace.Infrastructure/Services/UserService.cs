@@ -65,6 +65,13 @@ namespace SafeTrace.Infrastructure.Services
                                    .ProjectTo<GetUserDto>(_mapper.ConfigurationProvider)
                                    .ToListAsync();
 
+            foreach (var dto in users)
+            {
+                var userEntity = await _userManager.FindByEmailAsync(dto.Email);
+                var roles = await _userManager.GetRolesAsync(userEntity!);
+                dto.Role = roles.FirstOrDefault()!;
+            }
+
             var paginatedResult = new PaginationResponseDto<GetUserDto>
             {
                 Items = users,
@@ -83,6 +90,9 @@ namespace SafeTrace.Infrastructure.Services
             if (user == null) throw new NotFoundException("لم يتم العثور على هذا الحساب في النظام.");
 
             var userDto = _mapper.Map<GetUserByIdDto>(user);
+
+            var roles = await _userManager.GetRolesAsync(user);
+            userDto.Role = roles.FirstOrDefault()!;
 
             return ApiResponse<GetUserByIdDto>.Ok(userDto);
         }
