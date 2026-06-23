@@ -12,9 +12,7 @@ namespace SafeTrace.API.Controllers
     public class UserProfileController : ControllerBase
     {
         private readonly IUserProfileService _user;
-        public UserProfileController(IUserProfileService userProfileService,
-             IFileStorageService Image
-            )
+        public UserProfileController(IUserProfileService userProfileService)
         {
             _user = userProfileService;
         }

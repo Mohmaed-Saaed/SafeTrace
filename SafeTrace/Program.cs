@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
 using SafeTrace.API.ExceptionHandlers;
 using SafeTrace.API.ExtensionMethods;
 using SafeTrace.Application.DependencyInjection;
@@ -35,6 +36,7 @@ namespace SafeTrace
 
             builder.Services.AddInfrastructure(builder.Configuration);
             builder.Services.AddApplication();
+            builder.Services.AddSingleton<IUserIdProvider, QueryStringUserIdProvider>();
             builder.Services.AddSignalR();
 
 
@@ -45,7 +47,7 @@ namespace SafeTrace
                     builder
                         .WithOrigins("http://localhost:5500", "http://127.0.0.1:5500",
                                     "http://localhost:5501", "http://127.0.0.1:5501", "https://localhost:7204", "https://localhost:5173", "https://localhost:7126",
-                                    "http://localhost:3000", "http://localhost:8080") // Add common dev ports
+                                    "http://localhost:3000", "http://localhost:44334", "http://localhost:8080") // Add common dev ports
                         .AllowAnyHeader()
                         .AllowAnyMethod()
                         .AllowCredentials()
@@ -86,7 +88,8 @@ namespace SafeTrace
 
             app.UseCors("CorsPolicy");
 
-            app.MapHub<NotificationsHub>("SafeTrace.Application/Hubs/notifications");
+            app.MapHub<NotificationsHub>("/SafeTrace.Application/Hubs/notifications");
+
 
             await app.SeedDataAsync();
             await app.ApplyPendingMigrationsAsync();
@@ -97,9 +100,7 @@ namespace SafeTrace
             app.UseAuthentication();
             app.UseAuthorization();
 
-            //{
-            
-            //{
+
             app.MapControllerRoute(
                 name: "default",
                 pattern: "api/{controller}/{action=Index}/{id?}");

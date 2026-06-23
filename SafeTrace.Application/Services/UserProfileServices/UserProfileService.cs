@@ -1,11 +1,16 @@
 ﻿using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using SafeTrace.Application.DTOs.NotificationDTOS;
 using SafeTrace.Application.DTOs.User_Profiel_DTOS;
+using SafeTrace.Application.Exceptions;
 using SafeTrace.Application.Interfaces.IServices;
 using SafeTrace.Application.Interfaces.IServices.INotificationSewrvice;
 using SafeTrace.Application.Interfaces.IServices.IUserProfile;
+using SafeTrace.Application.Services.NotificationServices;
 using SafeTrace.Domain.Entities;
+using SafeTrace.Domain.Enums;
 
 namespace SafeTrace.Application.Services.UserProfileServices
 {
@@ -21,7 +26,7 @@ namespace SafeTrace.Application.Services.UserProfileServices
             IMapper mapper,
             ILogger<UserProfileService> logger,
             IFileStorageService Image,
-         INotificationServices Notify)
+            INotificationServices Notify)
         {
 
             _userManager = userManager;
@@ -39,16 +44,18 @@ namespace SafeTrace.Application.Services.UserProfileServices
 
             return _mapper.Map<List<GetAllDTO>>(users);
         }
+
+
         #endregion
 
         public async Task<GetUserInfoDTO?> GetProfileInfoAsync(string userId)
         {
-            _logger.LogInformation($"Get User Info with Id: {userId} in {DateTime.Now}");
+            _logger.LogInformation("Fetching profile for UserId: {userId} at {Time}", userId, DateTime.UtcNow);
             var user = await _userManager.FindByIdAsync(userId);
             if (user == null)
             {
-                _logger.LogWarning($"User With Id{userId} Not Found in {DateTime.Now}");
-                throw new KeyNotFoundException($"User With Id{userId} Not Found");
+                _logger.LogWarning("User With Id : {UserId} Not Found at {Time}", userId, DateTime.UtcNow);
+                throw new NotFoundException($"User Not Found");
             }
             else
             {
@@ -58,13 +65,14 @@ namespace SafeTrace.Application.Services.UserProfileServices
 
         public async Task<bool> UpdateProfileInfoAsync(string userId, UpdateProfileInfoDTO dto)
         {
-            _logger.LogInformation($"Update User Info with Id: {userId} in {DateTime.Now}");
+            _logger.LogInformation("Update User Info with Id: {UserId} at {Time}", userId, DateTime.UtcNow);
             var user = await _userManager.FindByIdAsync(userId);
             if (user == null)
             {
-                _logger.LogWarning($"User With Id{userId} Not Found in {DateTime.Now}");
-                throw new KeyNotFoundException("User not found");
+                _logger.LogWarning("User With Id :{UserId} Not Found at {Time}", userId, DateTime.UtcNow);
+                throw new NotFoundException("User not found");
             }
+
             #region Email
             //var originalEmail = user.Email;
             //if (!string.Equals(user.Email, dto.Email, StringComparison.OrdinalIgnoreCase))
@@ -108,22 +116,24 @@ namespace SafeTrace.Application.Services.UserProfileServices
 
             //src dest
             _mapper.Map(dto, user);
+
             #region Id Image
+
             if (dto.IdentificationImage is not null)
             {
-                if (user.IsVerified)
+                if (user.VerificationStatus == VerificationStatus.Verified)
                 {
-                    throw new InvalidOperationException(
-                        "Identification image has already been approved.");
+                    throw new BadRequestException("Identification image has already been approved.");
                 }
-
+                var newIdImage =
+                 await _Image.SaveFileAsync(dto.IdentificationImage, "Identification");
                 if (!string.IsNullOrEmpty(user.IdentificationImage))
                 {
                     _Image.DeleteFile(user.IdentificationImage);
                 }
 
-                user.IdentificationImage =
-                    await _Image.SaveFileAsync(dto.IdentificationImage, "Identification");
+                user.IdentificationImage = newIdImage;
+                user.VerificationStatus = VerificationStatus.Pending;
             }
 
             #endregion
@@ -132,15 +142,16 @@ namespace SafeTrace.Application.Services.UserProfileServices
 
             if (dto.ProfileImage is not null)
             {
+                var NewImg = await _Image.SaveFileAsync(dto.ProfileImage, "Profile");
+
                 if (!string.IsNullOrEmpty(user.ProfileImage))
                 {
                     _Image.DeleteFile(user.ProfileImage);
                 }
-                user.ProfileImage =
-                    await _Image.SaveFileAsync(dto.ProfileImage, "Profile");
+                user.ProfileImage = NewImg;
             }
             #endregion
-            
+
             var result = await _userManager.UpdateAsync(user);
 
             #region EMAIL
@@ -152,10 +163,19 @@ namespace SafeTrace.Application.Services.UserProfileServices
             #endregion
 
             if (!result.Succeeded)
-                throw new InvalidOperationException("Failed to update profile.");
+            {
+                _logger.LogError("Failed to update profile for UserId: {UserId}. Errors: {Errors}",
+                userId,
+                string.Join(", ", result.Errors.Select(e => e.Description)));
 
+                throw new BadRequestException("Failed to update profile.");
+            }
+
+            _logger.LogInformation("Profile updated successfully for UserId: {UserId}", userId);
             return result.Succeeded;
+
         }
+
     }
 
 }

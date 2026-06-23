@@ -1,6 +1,9 @@
-﻿using SafeTrace.Domain.Specifications;
-using SafeTrace.Infrastructure.DataAccess;
-using System.Linq.Expressions;
+﻿using System.Linq.Expressions;
+using System.Security.Claims;
+using Microsoft.AspNetCore.Mvc;
+using SafeTrace.Application.DTOs.Responses;
+using SafeTrace.Application.Interfaces.IServices.INotificationSewrvice;
+using SafeTrace.Domain.Common;
 
 namespace SafeTrace.Infrastructure.Repositories.Repository
 {
@@ -66,20 +69,7 @@ namespace SafeTrace.Infrastructure.Repositories.Repository
         }
 
 
-        public async Task<T?> GetOneAsync(Expression<Func<T, bool>> predicate, bool tracked = true, params Expression<Func<T, object>>[] includes)
-        {
-            IQueryable<T> query = _db;
 
-            if (!tracked)
-                query = query.AsNoTracking();
-
-            foreach (var include in includes)
-            {
-                query = query.Include(include);
-            }
-
-            return await query.FirstOrDefaultAsync(predicate);
-        }
 
         public async Task<T?> GetByIdAsync(object id)
         {
@@ -116,7 +106,12 @@ namespace SafeTrace.Infrastructure.Repositories.Repository
             return await _db.AnyAsync();
         }
 
-        public async Task<bool> AnyAsync(ISpecification<T> spec)
+        //public async Task<bool> AnyAsync(ISpecification<T> spec)
+        //{
+        //    return await _db.CountAsync();
+        //}
+
+        public async Task<int> CountAsync()
         {
             return await _db.CountAsync();
         }

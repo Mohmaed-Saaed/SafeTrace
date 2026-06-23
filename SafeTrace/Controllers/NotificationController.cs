@@ -2,6 +2,8 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using SafeTrace.Application.DTOs.NotificationDTOS;
+using SafeTrace.Application.DTOs.Responses;
 using SafeTrace.Application.Interfaces.IServices.INotificationSewrvice;
 using SafeTrace.Domain.Interfaces.IRepositories;
 
@@ -22,22 +24,48 @@ namespace SafeTrace.API.Controllers
 
         #region test
         [HttpGet("Test")]
-        public async Task<IActionResult> GetAllNotifications()
+        public async Task<ActionResult<ApiResponse<IEnumerable<Notification>>>> GetAllNotifications()
         {
-            var notifies = await _notificationService.GetAllrNotificationsAsync();
-            if (notifies == null) return NotFound();
-            return Ok(notifies);
+            var notifications = await _notificationService.GetAllrNotificationsAsync();
+
+            if (notifications == null || !notifications.Any())
+            {
+                return NotFound(
+                    ApiResponse<IEnumerable<Notification>>
+                        .Fail("No notifications found"));
+            }
+
+            return Ok(
+                ApiResponse<IEnumerable<Notification>>
+                    .Ok(notifications, "Notifications retrieved successfully"));
+        }
+
+        [HttpPost("send")]
+        public async Task<IActionResult> SendNotification([FromBody] SendNotificationDTO dto)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
+            await _notificationService.SendNotificationAsync(dto);
+            return Ok();
         }
 
         #endregion
-
+        //test
         [HttpGet("my-Notifications")]
-        public async Task<IActionResult> GetMyNotifications()
+        public async Task<IActionResult> GetMyNotifications([FromQuery] string userId)
         {
-            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            var notifications = await _notificationService.GetUserNotificationsAsync(userId!);
+            var notifications = await _notificationService.GetUserNotificationsAsync(userId);
             return Ok(notifications);
         }
+
+        //[HttpGet("my-Notifications")]
+        //public async Task<IActionResult> GetMyNotifications()
+        //{
+        //    var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        //    var notifications = await _notificationService.GetUserNotificationsAsync(userId!);
+        //    return Ok(notifications);
+        //}
 
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteNotification(long id)

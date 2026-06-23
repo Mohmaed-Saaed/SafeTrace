@@ -45,14 +45,17 @@ namespace SafeTrace.Application.Mapping
 
             CreateMap<SendNotificationDTO, Notification>()
                 .ForMember(dest => dest.UserId, opt => opt.MapFrom(src => src.UserId))
-                .ForMember(dest => dest.Content, opt => opt.MapFrom(src => src.Content))
-                .ForMember(dest => dest.Type, opt => opt.MapFrom(src => src.Type)).ReverseMap();
+                .ForMember(dest => dest.Content, opt => opt.MapFrom(src => src.Content));
+            //.ForMember(dest => dest.Type, opt => opt.MapFrom(src => src.Type)).ReverseMap();
 
             CreateMap<GetUserNotificationsDTO, Notification>()
-                .ForMember(dest => dest.UserId, opt => opt.MapFrom(src => src.UserId))
                 .ForMember(dest => dest.Content, opt => opt.MapFrom(src => src.Content))
                 .ForMember(dest => dest.IsRead, opt => opt.MapFrom(src => src.IsRead))
                 .ForMember(dest => dest.CreatedAt, opt => opt.MapFrom(src => src.CreatedAt))
+                .ForMember(dest => dest.Type, opt => opt.MapFrom(src => src.Type)).ReverseMap();
+
+            CreateMap<SendToAllNotificationDTO, Notification>()
+                .ForMember(dest => dest.Content, opt => opt.MapFrom(src => src.Content))
                 .ForMember(dest => dest.Type, opt => opt.MapFrom(src => src.Type)).ReverseMap();
 
 

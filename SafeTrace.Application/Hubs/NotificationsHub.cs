@@ -1,21 +1,29 @@
-﻿using Microsoft.AspNetCore.SignalR;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.SignalR;
+using Microsoft.Extensions.Logging;
 using SafeTrace.Application.Interfaces.IServices.INotificationSewrvice;
 using SafeTrace.Domain.Interfaces.IRepositories;
 
 namespace SafeTrace.Application.Hubs
 {
+
+    //[AllowAnonymous]
     public class NotificationsHub : Hub
     {
         private readonly INotificationServices _notificationService;
         private readonly INotificationRepository _notificationRepo;
+        private readonly ILogger<NotificationsHub> _logger;
 
         public NotificationsHub(
             INotificationServices notificationService,
-            INotificationRepository notificationRepo)
+            INotificationRepository notificationRepo,
+            ILogger<NotificationsHub> logger)
         {
             _notificationService = notificationService;
             _notificationRepo = notificationRepo;
+            _logger = logger;
         }
+
 
         public override async Task OnConnectedAsync()
         {
@@ -29,6 +37,45 @@ namespace SafeTrace.Application.Hubs
             }
             await base.OnConnectedAsync();
         }
+
+        //public override async Task OnConnectedAsync()
+        //{
+        //    var userId = Context.GetHttpContext()?.Request.Query["userId"].ToString();
+
+        //    _logger.LogInformation("Connected User: {UserId}", userId);
+
+        //    if (!string.IsNullOrEmpty(userId))
+        //    {
+        //        await Groups.AddToGroupAsync(Context.ConnectionId, $"user_{userId}");
+
+        //        _logger.LogInformation("Added to group: user_{UserId}", userId);
+        //    }
+
+        //    await base.OnConnectedAsync();
+        //}
+        // Add inside NotificationsHub
+
+
+
+        public async Task JoinAsUser(string userId)
+        {
+            await Groups.AddToGroupAsync(Context.ConnectionId, $"user_{userId}");
+            var unreadCount = await _notificationRepo.GetUnreadCountAsync(userId);
+            await Clients.Caller.SendAsync("UnreadCount", unreadCount);
+        }
+
+        //public override async Task OnDisconnectedAsync(Exception? exception)
+        //{
+        //    var userId = Context.GetHttpContext()?.Request.Query["userId"].ToString();
+
+        //    if (!string.IsNullOrEmpty(userId))
+        //    {
+        //        await Groups.RemoveFromGroupAsync(Context.ConnectionId, $"user_{userId}");
+        //    }
+
+        //    await base.OnDisconnectedAsync(exception);
+        //}
+
 
         public override async Task OnDisconnectedAsync(Exception? exception)
         {
@@ -80,3 +127,4 @@ namespace SafeTrace.Application.Hubs
     }
 
 }
+//3755d80b-3da8-46d7-8029-64b4520d6b73
