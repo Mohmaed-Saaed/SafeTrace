@@ -53,7 +53,7 @@ namespace SafeTrace.Infrastructure.DependencyInjection
             .AddEntityFrameworkStores<ApplicationDbContext>()
             .AddDefaultTokenProviders();
 
-            var jwtOptions = configuration.GetSection("JwtOptions").Get<JwtOptions>();
+            var jwtOptions = configuration.GetSection("Jwt").Get<JwtOptions>();
 
             services.AddAuthentication(options =>
             {
@@ -72,7 +72,7 @@ namespace SafeTrace.Infrastructure.DependencyInjection
                     ValidateLifetime = true,
                     ValidIssuer = jwtOptions?.Issuer,
                     ValidAudience = jwtOptions?.Audience,
-                    IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtOptions?.SecretKey ?? "FallbackSecretKeyForSecurityFrameworkLong")),
+                    IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtOptions?.SecretKey!)),
                     ClockSkew = TimeSpan.Zero
                 };
             });
