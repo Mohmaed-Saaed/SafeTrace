@@ -65,7 +65,7 @@ namespace SafeTrace.API.Controllers
             return Ok(response);
         }
 
-        [HttpGet("GetPermissions")]
+        [HttpGet("GetPermissions/{userId}")]
         [HasPermission(Permissions.Users.GetPermissions)]
         public async Task<IActionResult> GetUserPermissions(string userId)
         {
