@@ -109,11 +109,7 @@ namespace SafeTrace.Infrastructure.Services
                 throw new ForbiddenException("Please verify your identity via email confirmation before attempting access.");
             }
 
-            if (user.LockoutEnd.HasValue && user.LockoutEnd.Value > DateTimeOffset.UtcNow)
-            {
-                _logger.LogWarning("Blocked user {Email} attempted to login.", user.Email);
-                throw new ForbiddenException("This account has been Blocked by the administration.");
-            }
+            CheckIfUserIsBlocked(user);
 
             await _unitOfWork.BeginTransactionAsync();
             try
@@ -169,6 +165,8 @@ namespace SafeTrace.Infrastructure.Services
             var user = await _userManager.FindByEmailAsync(email);
             if (user == null) throw new NotFoundException("Target identity target not structured within current persistence contexts.");
 
+            CheckIfUserIsBlocked(user);
+
             var otp = await _otpService.GenerateAndSaveOtpAsync(user.Id, OtpType.PasswordReset);
             var mailBody = EmailTemplates.BuildArabicOtpEmailTemplate($"{user.FName} {user.LName}", otp, "طلب إعادة تعيين كلمة المرور", "لقد تلقينا طلباً لإعادة تعيين كلمة المرور الخاصة بحسابك. يرجى استخدام الرمز السري التالي لإتمام عملية التعيين بنجاح.");
 
@@ -183,6 +181,8 @@ namespace SafeTrace.Infrastructure.Services
         {
             var user = await _userManager.FindByEmailAsync(resetPasswordDto.Email);
             if (user == null) throw new NotFoundException("User account not found.");
+
+            CheckIfUserIsBlocked(user);
 
             await _unitOfWork.BeginTransactionAsync();
             try
@@ -398,6 +398,10 @@ namespace SafeTrace.Infrastructure.Services
 
                     await _userManager.AddToRoleAsync(user, "User");
                 }
+                else
+                {
+                    CheckIfUserIsBlocked(user);
+                }
 
                 var userLoginInfo = await _userManager.GetLoginsAsync(user);
                 if (userLoginInfo.All(l => l.LoginProvider != provider))
@@ -416,6 +420,15 @@ namespace SafeTrace.Infrastructure.Services
             {
                 await _unitOfWork.RollbackTransactionAsync();
                 throw;
+            }
+        }
+
+        private void CheckIfUserIsBlocked(ApplicationUser user)
+        {
+            if (user.LockoutEnd.HasValue && user.LockoutEnd.Value > DateTimeOffset.UtcNow)
+            {
+                _logger.LogWarning("Action denied. Blocked user {Email} attempted an account mutation operation.", user.Email);
+                throw new ForbiddenException("This account has been suspended by the administration. Action denied.");
             }
         }
     }

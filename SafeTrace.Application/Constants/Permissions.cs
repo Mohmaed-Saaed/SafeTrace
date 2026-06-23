@@ -100,6 +100,10 @@
             public const string SendMessage = "Chat.SendMessage";
             public const string Create = "Chat.Create";
             public const string MarkAsRead = "Chat.MarkAsRead";
+            public const string HardDelete = "Chat.HardDelete";
+            public const string SoftDelete = "Chat.SoftDelete";
+            public const string DeleteMessage = "Chat.DeleteMessage";
+            public const string DeleteMessageForEveryone = "Chat.DeleteMessageForEveryone";
         }
     }
 }
