@@ -200,9 +200,11 @@ namespace SafeTrace.Infrastructure.Services
                     throw new BadRequestException("حدث خطأ غير متوقع أثناء إعادة تعيين كلمة المرور.");
                 }
 
+                await RevokeAllActiveSessionsAsync(user.Id);
+
                 await _unitOfWork.CommitTransactionAsync();
 
-                _logger.LogInformation("User {Email} has successfully reset their password.", user.Email);
+                _logger.LogInformation("User {Email} has successfully reset their password and all sessions were revoked.", user.Email);
 
                 return ApiResponse<string>.Ok(null, "تم إعادة تعيين كلمة المرور بنجاح.");
             }
@@ -218,18 +220,31 @@ namespace SafeTrace.Infrastructure.Services
             var user = await _userManager.FindByIdAsync(userId);
             if (user == null) throw new NotFoundException("هذا الحساب غير موجود.");
 
-            var result = await _userManager.ChangePasswordAsync(user, dto.CurrentPassword, dto.NewPassword);
-
-            if (!result.Succeeded)
+            await _unitOfWork.BeginTransactionAsync();
+            try
             {
-                var errors = string.Join(", ", result.Errors.Select(e => e.Description));
-                _logger.LogWarning("Failed password change attempt for user {Email}. Errors: {Errors}", user.Email, errors);
-                throw new BadRequestException("حدث خطأ غير متوقع أثناء تغيير كلمة المرور.");
+                var result = await _userManager.ChangePasswordAsync(user, dto.CurrentPassword, dto.NewPassword);
+
+                if (!result.Succeeded)
+                {
+                    var errors = string.Join(", ", result.Errors.Select(e => e.Description));
+                    _logger.LogWarning("Failed password change attempt for user {Email}. Errors: {Errors}", user.Email, errors);
+                    throw new BadRequestException("حدث خطأ غير متوقع أثناء تغيير كلمة المرور.");
+                }
+
+                await RevokeAllActiveSessionsAsync(userId, dto.CurrentRefreshToken);
+
+                await _unitOfWork.CommitTransactionAsync();
+
+                _logger.LogInformation("User {Email} successfully changed their password and other sessions were revoked.", user.Email);
+
+                return ApiResponse<string>.Ok(null, "تم تغيير كلمة المرور بنجاح وتسجيل الخروج من جميع الأجهزة الأخرى.");
             }
-
-            _logger.LogInformation("User {Email} successfully changed their password.", user.Email);
-
-            return ApiResponse<string>.Ok(null, "تم تغيير كلمة المرور بنجاح.");
+            catch
+            {
+                await _unitOfWork.RollbackTransactionAsync();
+                throw;
+            }
         }
 
         public async Task<ApiResponse<AuthResponseDto>> GoogleLoginAsync(ExternalLoginDto externalLoginDto)
@@ -429,6 +444,30 @@ namespace SafeTrace.Infrastructure.Services
             {
                 _logger.LogWarning("Action denied. Blocked user {Email} attempted an account mutation operation.", user.Email);
                 throw new ForbiddenException("هذا الحساب محظور من قبل الإدارة.");
+            }
+        }
+
+        private async Task RevokeAllActiveSessionsAsync(string userId, string? currentRefreshToken = null)
+        {
+            var query = _unitOfWork.Repository<RefreshToken>().Query()
+                .Where(rt => rt.UserId == userId &&
+                             rt.RevokedAt == null &&
+                             rt.ExpiresAt > DateTime.UtcNow);
+
+            if (!string.IsNullOrEmpty(currentRefreshToken))
+            {
+                query = query.Where(rt => rt.Token != currentRefreshToken);
+            }
+
+            var activeTokens = await query.ToListAsync();
+
+            if (activeTokens.Any())
+            {
+                foreach (var token in activeTokens)
+                {
+                    token.RevokedAt = DateTime.UtcNow;
+                    _unitOfWork.Repository<RefreshToken>().Update(token);
+                }
             }
         }
     }
