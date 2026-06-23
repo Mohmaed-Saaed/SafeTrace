@@ -12,7 +12,6 @@
     <Folder Include="Helpers\" />
     <Folder Include="Mapping/" />
     <Folder Include="Services/" />
-    <Folder Include="Specifications/CasesSpecifications/" />
   </ItemGroup>
 
   <ItemGroup>
