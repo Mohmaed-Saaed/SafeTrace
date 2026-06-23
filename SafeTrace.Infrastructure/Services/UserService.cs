@@ -75,15 +75,15 @@ namespace SafeTrace.Infrastructure.Services
             return ApiResponse<PaginationResponseDto<GetUserDto>>.Ok(paginatedResult, "Users retrieved successfully with current filter criteria.");
         }
 
-        public async Task<ApiResponse<GetUserDto>> GetUserByIdAsync(string userId)
+        public async Task<ApiResponse<GetUserByIdDto>> GetUserByIdAsync(string userId)
         {
             var user = await _userManager.FindByIdAsync(userId);
 
             if (user == null) throw new NotFoundException("User account not found in the system.");
 
-            var userDto = _mapper.Map<GetUserDto>(user);
+            var userDto = _mapper.Map<GetUserByIdDto>(user);
 
-            return ApiResponse<GetUserDto>.Ok(userDto);
+            return ApiResponse<GetUserByIdDto>.Ok(userDto);
         }
 
         public async Task<ApiResponse<string>> ChangeUserRoleAsync(ChangeUserRoleDto dto)

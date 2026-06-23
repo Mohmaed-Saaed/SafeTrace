@@ -75,12 +75,11 @@ namespace SafeTrace.API.Controllers
             return Ok(response);
         }
 
-        [HttpPost("change-password/{userId}")]
-        public async Task<IActionResult> ChangePassword(string userId, [FromBody] ChangePasswordDto dto)
+        [HttpPost("change-password")]
+        public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordDto dto)
         {
-            //var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-
-            //if (string.IsNullOrEmpty(userId)) throw new UnauthorizedException("User identity could not be verified from token.");
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrEmpty(userId)) throw new UnauthorizedException("User identity could not be verified from token.");
 
             var response = await _accountService.ChangePasswordAsync(userId, dto);
             return Ok(response);

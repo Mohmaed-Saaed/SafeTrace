@@ -18,6 +18,10 @@ namespace SafeTrace.Application.Mapping
             CreateMap<ApplicationUser, GetUserDto>()
                 .ForMember(dest => dest.IsBlocked, opt => opt.MapFrom(src =>
                            src.LockoutEnd.HasValue && src.LockoutEnd.Value > DateTimeOffset.UtcNow));
+
+            CreateMap<ApplicationUser, GetUserByIdDto>()
+                .ForMember(dest => dest.IsBlocked, opt => opt.MapFrom(src =>
+                           src.LockoutEnd.HasValue && src.LockoutEnd.Value > DateTimeOffset.UtcNow));
         }
     }
 }
