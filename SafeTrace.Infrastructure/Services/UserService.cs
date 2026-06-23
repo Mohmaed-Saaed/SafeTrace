@@ -1,6 +1,7 @@
 ﻿using AutoMapper;
 using AutoMapper.QueryableExtensions;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore; // Added for ToListAsync, CountAsync
 using Microsoft.Extensions.Logging;
 using SafeTrace.Application.DTOs.Responses;
 using SafeTrace.Application.DTOs.User.Request;
@@ -72,14 +73,14 @@ namespace SafeTrace.Infrastructure.Services
                 TotalCount = totalCount
             };
 
-            return ApiResponse<PaginationResponseDto<GetUserDto>>.Ok(paginatedResult, "Users retrieved successfully with current filter criteria.");
+            return ApiResponse<PaginationResponseDto<GetUserDto>>.Ok(paginatedResult, "تم جلب بيانات المستخدمين بنجاح.");
         }
 
         public async Task<ApiResponse<GetUserByIdDto>> GetUserByIdAsync(string userId)
         {
             var user = await _userManager.FindByIdAsync(userId);
 
-            if (user == null) throw new NotFoundException("User account not found in the system.");
+            if (user == null) throw new NotFoundException("لم يتم العثور على هذا الحساب في النظام.");
 
             var userDto = _mapper.Map<GetUserByIdDto>(user);
 
@@ -89,63 +90,63 @@ namespace SafeTrace.Infrastructure.Services
         public async Task<ApiResponse<string>> ChangeUserRoleAsync(ChangeUserRoleDto dto)
         {
             var user = await _userManager.FindByIdAsync(dto.UserId);
-            if (user == null) throw new NotFoundException("User account not found in the system.");
+            if (user == null) throw new NotFoundException("لم يتم العثور على هذا الحساب في النظام.");
 
             var roleExists = await _roleManager.RoleExistsAsync(dto.NewRole);
-            if (!roleExists) throw new BadRequestException("The specified role does not exist.");
+            if (!roleExists) throw new BadRequestException("الدور (Role) المحدد غير موجود.");
 
             var currentRoles = await _userManager.GetRolesAsync(user);
 
             var removeResult = await _userManager.RemoveFromRolesAsync(user, currentRoles);
-            if (!removeResult.Succeeded) throw new BadRequestException("Failed to remove existing roles.");
+            if (!removeResult.Succeeded) throw new BadRequestException("فشل في إزالة الأدوار الحالية للمستخدم.");
 
             var addResult = await _userManager.AddToRoleAsync(user, dto.NewRole);
-            if (!addResult.Succeeded) throw new BadRequestException("Failed to assign the new role.");
+            if (!addResult.Succeeded) throw new BadRequestException("فشل في تعيين الدور الجديد للمستخدم.");
 
             _logger.LogWarning($"Role changed for User with ID: {dto.UserId} from {string.Join(",", currentRoles)} to {dto.NewRole}");
-            return ApiResponse<string>.Ok(null, "User role has been successfully updated.");
+            return ApiResponse<string>.Ok(null, "تم تحديث دور المستخدم بنجاح.");
         }
 
         public async Task<ApiResponse<string>> ApproveUserAsync(string userId)
         {
             var user = await _userManager.FindByIdAsync(userId);
-            if (user == null) throw new NotFoundException("User account not found in the system.");
+            if (user == null) throw new NotFoundException("لم يتم العثور على هذا الحساب في النظام.");
 
-            if (user.IdentificationImage == null) throw new BadRequestException("There is no identification image for this user to approve.");
+            if (user.IdentificationImage == null) throw new BadRequestException("لا توجد صورة هوية (بطاقة) لهذا المستخدم للموافقة عليها.");
 
             user.VerificationStatus = VerificationStatus.Verified;
-            
+
             var currentRoles = await _userManager.GetRolesAsync(user);
 
             var removeResult = await _userManager.RemoveFromRolesAsync(user, currentRoles);
-            if (!removeResult.Succeeded) throw new BadRequestException("Failed to remove existing roles to this user.");
+            if (!removeResult.Succeeded) throw new BadRequestException("فشل في إزالة الدور الحالي للمستخدم.");
 
             var addResult = await _userManager.AddToRoleAsync(user, "VerifiedUser");
-            if (!addResult.Succeeded) throw new BadRequestException("Failed to assign the new role to this user.");
+            if (!addResult.Succeeded) throw new BadRequestException("فشل في ترقية حساب المستخدم إلى 'مستخدم موثق'.");
 
             _logger.LogWarning($"Role changed for User with ID: {userId} from {string.Join(",", currentRoles)} to VerifiedUser");
-            return ApiResponse<string>.Ok(null, "User Approved successfully");
+            return ApiResponse<string>.Ok(null, "تمت الموافقة على توثيق المستخدم بنجاح.");
         }
 
         public async Task<ApiResponse<string>> RejectUserAsync(string userId)
         {
             var user = await _userManager.FindByIdAsync(userId);
-            if (user == null) throw new NotFoundException("User account not found in the system.");
+            if (user == null) throw new NotFoundException("لم يتم العثور على هذا الحساب في النظام.");
 
-            if (user.IdentificationImage == null) throw new BadRequestException("There is no identification image for this user to reject.");
+            if (user.IdentificationImage == null) throw new BadRequestException("لا توجد صورة هوية (بطاقة) لهذا المستخدم لرفضها.");
 
             user.VerificationStatus = VerificationStatus.Unverified;
 
             var DeletedResult = _fileStorageService.DeleteFile(user.IdentificationImage);
-            if (!DeletedResult) throw new BadRequestException("Failed to remove IdentificationImage for this user.");
+            if (!DeletedResult) throw new BadRequestException("فشل في مسح صورة الهوية الخاصة بالمستخدم من الخادم.");
 
-            return ApiResponse<string>.Ok(null, "User Rejected successfully");
+            return ApiResponse<string>.Ok(null, "تم رفض طلب توثيق المستخدم بنجاح.");
         }
 
         public async Task<ApiResponse<string>> ToggleUserBlockStatusAsync(string userId)
         {
             var user = await _userManager.FindByIdAsync(userId);
-            if (user == null) throw new NotFoundException("User account not found.");
+            if (user == null) throw new NotFoundException("لم يتم العثور على هذا الحساب.");
 
             bool isCurrentlyBlocked = user.LockoutEnd.HasValue && user.LockoutEnd.Value > DateTimeOffset.UtcNow;
 
@@ -154,15 +155,15 @@ namespace SafeTrace.Infrastructure.Services
                 await _userManager.SetLockoutEndDateAsync(user, null);
 
                 _logger.LogInformation("User {Email} has been unblocked by Admin.", user.Email);
-                return ApiResponse<string>.Ok(user.Id, "User account has been successfully unblocked.");
+                return ApiResponse<string>.Ok(user.Id, "تم فك الحظر عن المستخدم بنجاح.");
             }
             else
             {
                 await _userManager.SetLockoutEndDateAsync(user, DateTimeOffset.MaxValue);
 
                 var activeTokens = await _unitOfWork.Repository<RefreshToken>().Query()
-                                                                               .Where(rt => rt.UserId == userId && 
-                                                                                            rt.RevokedAt == null && 
+                                                                               .Where(rt => rt.UserId == userId &&
+                                                                                            rt.RevokedAt == null &&
                                                                                             rt.ExpiresAt > DateTime.UtcNow)
                                                                                .ToListAsync();
 
@@ -174,14 +175,14 @@ namespace SafeTrace.Infrastructure.Services
                 await _unitOfWork.SaveAsync();
 
                 _logger.LogInformation("User {Email} has been blocked and all active sessions revoked.", user.Email);
-                return ApiResponse<string>.Ok(null, "User has been blocked and all active sessions terminated.");
+                return ApiResponse<string>.Ok(null, "تم حظر المستخدم وإنهاء جميع جلساته النشطة بنجاح.");
             }
         }
 
         public async Task<ApiResponse<UserPermissionsResponseDto>> GetUserPermissionsAsync(string userId)
         {
             var user = await _userManager.FindByIdAsync(userId);
-            if (user == null) throw new NotFoundException("User account not found.");
+            if (user == null) throw new NotFoundException("لم يتم العثور على هذا الحساب.");
 
             var existingClaims = await _userManager.GetClaimsAsync(user);
             var assignedPermissions = existingClaims.Where(c => c.Type == "Permission")
@@ -218,7 +219,7 @@ namespace SafeTrace.Infrastructure.Services
         public async Task<ApiResponse<string>> AssignUserPermissionsAsync(AssignUserPermissionsDto dto)
         {
             var user = await _userManager.FindByIdAsync(dto.UserId);
-            if (user == null) throw new NotFoundException("User account not found.");
+            if (user == null) throw new NotFoundException("لم يتم العثور على هذا الحساب.");
 
             var existingClaims = await _userManager.GetClaimsAsync(user);
             var permissionClaims = existingClaims.Where(c => c.Type == "Permission");
@@ -226,17 +227,17 @@ namespace SafeTrace.Infrastructure.Services
             foreach (var claim in permissionClaims)
             {
                 var removeResult = await _userManager.RemoveClaimAsync(user, claim);
-                if (!removeResult.Succeeded) throw new BadRequestException("Failed to clear current permission policies.");
+                if (!removeResult.Succeeded) throw new BadRequestException("فشل في مسح الصلاحيات الحالية للمستخدم.");
             }
 
             foreach (var permission in dto.SelectedPermissions)
             {
                 var addResult = await _userManager.AddClaimAsync(user, new Claim("Permission", permission));
-                if (!addResult.Succeeded) throw new BadRequestException("Failed to assign the new permission policies.");
+                if (!addResult.Succeeded) throw new BadRequestException("فشل في تعيين الصلاحيات الجديدة للمستخدم.");
             }
 
             _logger.LogWarning($"New permissions assigned for User with ID: {dto.UserId}");
-            return ApiResponse<string>.Ok(null, "User specific permissions updated successfully.");
+            return ApiResponse<string>.Ok(null, "تم تحديث الصلاحيات الخاصة بالمستخدم بنجاح.");
         }
     }
 }

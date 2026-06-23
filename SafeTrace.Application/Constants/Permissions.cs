@@ -72,11 +72,11 @@
             public const string MarkAsSolved = "Complaints.MarkAsSolved";
         }
 
-        public static class RolePermission
+        public static class Roles
         {
-            public const string GetAllRoles = "RolePermission.GetAllRoles";
-            public const string GetPermissionsByRole = "RolePermission.GetPermissionsByRole";
-            public const string UpdateRolePermissions = "RolePermission.UpdateRolePermissions";
+            public const string GetAll = "Roles.GetAll";
+            public const string GetPermissionsByRoleId = "Roles.GetPermissionsByRoleId";
+            public const string UpdateRolePermissions = "Roles.UpdateRolePermissions";
         }
 
         public static class Users

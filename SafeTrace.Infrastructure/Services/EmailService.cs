@@ -22,10 +22,10 @@ namespace SafeTrace.Infrastructure.Services
         public async Task SendEmailAsync(string toEmail, string subject, string body)
         {
             if (string.IsNullOrWhiteSpace(toEmail))
-                throw new BadRequestException("Recipient address payload is missing or invalid.");
+                throw new BadRequestException("البريد الإلكتروني للمستلم غير صالح أو مفقود.");
 
             if (string.IsNullOrWhiteSpace(_mailSettings.Host) || string.IsNullOrWhiteSpace(_mailSettings.Email))
-                throw new InvalidOperationException("SMTP runtime infrastructure configurations are incomplete.");
+                throw new BadRequestException("إعدادات خادم إرسال البريد الإلكتروني (SMTP) غير مكتملة. يرجى مراجعة الدعم الفني.");
 
             var email = new MimeMessage();
             email.Sender = MailboxAddress.Parse(_mailSettings.Email);
@@ -51,23 +51,23 @@ namespace SafeTrace.Infrastructure.Services
             }
             catch (AuthenticationException)
             {
-                throw new UnauthorizedException("Mail gateway authentication rejected. Verification credentials mismatched.");
+                throw new UnauthorizedException("فشلت عملية المصادقة مع خادم البريد الإلكتروني. يرجى التأكد من إعدادات الإرسال.");
             }
             catch (SmtpCommandException ex)
             {
-                throw new BadRequestException($"Mail gateway refused the operational command. Status Code: {ex.StatusCode}");
+                throw new BadRequestException("رفض خادم البريد الإلكتروني إرسال الرسالة.");
             }
             catch (SmtpProtocolException)
             {
-                throw new BadRequestException("Mail gateway communication protocol sequence failed.");
+                throw new BadRequestException("حدث خطأ في بروتوكول الاتصال بخادم البريد الإلكتروني.");
             }
             catch (SocketException)
             {
-                throw new BadRequestException("Mail gateway is unreachable. Connection timed out.");
+                throw new BadRequestException("تعذر الوصول إلى خادم البريد الإلكتروني. يرجى التحقق من اتصالك بالإنترنت.");
             }
             catch (Exception)
             {
-                throw new BadRequestException("Critical network interruption during secure mail dispatch.");
+                throw new BadRequestException("حدث خطأ غير متوقع أثناء محاولة إرسال البريد الإلكتروني.");
             }
             finally
             {

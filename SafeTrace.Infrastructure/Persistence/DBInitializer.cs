@@ -34,7 +34,7 @@ namespace SafeTrace.Infrastructure.Persistence
                                          "Notifications.GetMyNotifications", "Notifications.DeleteNotification", "Notifications.MarkAsRead", "Notifications.MarkAllAsRead",
                                          "Profile.GetUserInfo", "Profile.UpdateUserInfo",
                                          "Complaints.GetAll", "Complaints.GetById", "Complaints.Create", "Complaints.HardDelete", "Complaints.MarkAsSolved",
-                                         "RolePermission.GetAllRoles", "RolePermission.GetPermissionsByRole", "RolePermission.UpdateRolePermissions",
+                                         "Roles.GetAll", "Roles.GetPermissionsByRoleId", "Roles.UpdateRolePermissions",
                                          "Users.GetAll", "Users.GetById",  "Users.ChangeRole", "Users.GetPermissions", "Users.AssignPermissions", "Users.Approve", "Users.Reject", "Users.ToggleBlock",
                                          "Chat.GetAll", "Chat.GetById", "Chat.GetMyChats",  "Chat.GetMessages", "Chat.SendMessage", "Chat.Create", "Chat.MarkAsRead", "Chat.HardDelete", "Chat.SoftDelete", "Chat.DeleteMessage", "Chat.DeleteMessageForEveryone",
                                          "Dashboard.GetStatistics"};

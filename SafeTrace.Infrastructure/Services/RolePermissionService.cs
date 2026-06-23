@@ -1,4 +1,5 @@
 ﻿using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using SafeTrace.Application.DTOs.Responses;
 using SafeTrace.Application.DTOs.RolePermission.Request;
@@ -24,10 +25,10 @@ namespace SafeTrace.Infrastructure.Services
         public async Task<ApiResponse<List<RoleDto>>> GetAllRolesAsync()
         {
             var roles = await _roleManager.Roles.Select(r => new RoleDto
-                                                {
-                                                    Id = r.Id,
-                                                    Name = r.Name!
-                                                })
+            {
+                Id = r.Id,
+                Name = r.Name!
+            })
                                                 .ToListAsync();
 
             return ApiResponse<List<RoleDto>>.Ok(roles);
@@ -36,7 +37,7 @@ namespace SafeTrace.Infrastructure.Services
         public async Task<ApiResponse<RolePermissionsResponseDto>> GetPermissionsByRoleAsync(string roleId)
         {
             var role = await _roleManager.FindByIdAsync(roleId);
-            if (role == null) throw new NotFoundException("Role not found.");
+            if (role == null) throw new NotFoundException("لم يتم العثور على هذا الدور (Role).");
 
             var existingClaims = await _roleManager.GetClaimsAsync(role);
             var assignedPermissions = existingClaims.Where(c => c.Type == "Permission")
@@ -72,7 +73,7 @@ namespace SafeTrace.Infrastructure.Services
         public async Task<ApiResponse<string>> UpdateRolePermissionsAsync(UpdateRolePermissionsDto dto)
         {
             var role = await _roleManager.FindByIdAsync(dto.RoleId);
-            if (role == null) throw new NotFoundException("Role not found.");
+            if (role == null) throw new NotFoundException("لم يتم العثور على هذا الدور (Role).");
 
             var claims = await _roleManager.GetClaimsAsync(role);
             var permissionClaims = claims.Where(c => c.Type == "Permission");
@@ -86,7 +87,7 @@ namespace SafeTrace.Infrastructure.Services
                 await _roleManager.AddClaimAsync(role, new Claim("Permission", permission));
             }
 
-            return ApiResponse<string>.Ok(role.Id, "Role permissions updated successfully.");
+            return ApiResponse<string>.Ok(role.Id, "تم تحديث صلاحيات الدور بنجاح.");
         }
     }
 }
