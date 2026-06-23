@@ -1,7 +1,9 @@
 ﻿using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using SafeTrace.Application.Constants;
 using SafeTrace.Application.DTOs.RolePermission.Request;
 using SafeTrace.Application.Interfaces.IServices;
+using SafeTrace.Infrastructure.Authorization;
 
 namespace SafeTrace.API.Controllers
 {
@@ -17,6 +19,7 @@ namespace SafeTrace.API.Controllers
         }
 
         [HttpGet("roles")]
+        [HasPermission(Permissions.RolePermission.GetAllRoles)]
         public async Task<IActionResult> GetAllRoles()
         {
             var response = await _rolePermissionService.GetAllRolesAsync();
@@ -24,6 +27,7 @@ namespace SafeTrace.API.Controllers
         }
 
         [HttpGet("{roleId}")]
+        [HasPermission(Permissions.RolePermission.GetPermissionsByRole)]
         public async Task<IActionResult> GetRolePermissions(string roleId)
         {
             var response = await _rolePermissionService.GetPermissionsByRoleAsync(roleId);
@@ -31,6 +35,7 @@ namespace SafeTrace.API.Controllers
         }
 
         [HttpPost("update")]
+        [HasPermission(Permissions.RolePermission.UpdateRolePermissions)]
         public async Task<IActionResult> UpdateRolePermissions([FromBody] UpdateRolePermissionsDto dto)
         {
             var response = await _rolePermissionService.UpdateRolePermissionsAsync(dto);

@@ -1,6 +1,8 @@
 ﻿using Microsoft.AspNetCore.Mvc;
+using SafeTrace.Application.Constants;
 using SafeTrace.Application.DTOs.User.Request;
 using SafeTrace.Application.Interfaces.IServices;
+using SafeTrace.Infrastructure.Authorization;
 
 namespace SafeTrace.API.Controllers
 {
@@ -16,6 +18,7 @@ namespace SafeTrace.API.Controllers
         }
 
         [HttpGet]
+        [HasPermission(Permissions.Users.GetAll)]
         public async Task<IActionResult> GetAllUsers([FromQuery] UserFilterDto filterDto)
         {
             var response = await _userService.GetAllUsersAsync(filterDto);
@@ -23,6 +26,7 @@ namespace SafeTrace.API.Controllers
         }
 
         [HttpGet("{userId}")]
+        [HasPermission(Permissions.Users.GetById)]
         public async Task<IActionResult> GetUserById(string userId)
         {
             var response = await _userService.GetUserByIdAsync(userId);
@@ -30,6 +34,7 @@ namespace SafeTrace.API.Controllers
         }
 
         [HttpPost("ChangeRole")]
+        [HasPermission(Permissions.Users.ChangeRole)]
         public async Task<IActionResult> ChangeUserRole([FromBody] ChangeUserRoleDto dto)
         {
             var response = await _userService.ChangeUserRoleAsync(dto);
@@ -37,6 +42,7 @@ namespace SafeTrace.API.Controllers
         }
 
         [HttpPost("approve/{userId}")]
+        [HasPermission(Permissions.Users.Approve)]
         public async Task<IActionResult> ApproveUser(string userId)
         {
             var response = _userService.ApproveUserAsync(userId);
@@ -44,6 +50,7 @@ namespace SafeTrace.API.Controllers
         }
 
         [HttpPost("reject/{userId}")]
+        [HasPermission(Permissions.Users.Reject)]
         public async Task<IActionResult> RejectUser(string userId)
         {
             var response = _userService.RejectUserAsync(userId);
@@ -51,6 +58,7 @@ namespace SafeTrace.API.Controllers
         }
 
         [HttpPost("toggle-block/{userId}")]
+        [HasPermission(Permissions.Users.ToggleBlock)]
         public async Task<IActionResult> ToggleBlockStatus(string userId)
         {
             var response = await _userService.ToggleUserBlockStatusAsync(userId);
@@ -58,6 +66,7 @@ namespace SafeTrace.API.Controllers
         }
 
         [HttpGet("GetPermissions")]
+        [HasPermission(Permissions.Users.GetPermissions)]
         public async Task<IActionResult> GetUserPermissions(string userId)
         {
             var response = await _userService.GetUserPermissionsAsync(userId);
@@ -65,6 +74,7 @@ namespace SafeTrace.API.Controllers
         }
 
         [HttpPost("AssignPermissions")]
+        [HasPermission(Permissions.Users.AssignPermissions)]
         public async Task<IActionResult> AssignUserPermissions([FromBody] AssignUserPermissionsDto dto)
         {
             var response = await _userService.AssignUserPermissionsAsync(dto);

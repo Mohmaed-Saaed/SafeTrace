@@ -19,6 +19,7 @@ namespace SafeTrace.API.Controllers
             _accountService = accountService;
         }
 
+        [AllowAnonymous]
         [HttpPost("register")]
         public async Task<IActionResult> Register([FromBody] RegisterDto registerDto)
         {
@@ -26,6 +27,7 @@ namespace SafeTrace.API.Controllers
             return Ok(response);
         }
 
+        [AllowAnonymous]
         [HttpPost("login")]
         public async Task<IActionResult> Login([FromBody] LoginDto loginDto)
         {
@@ -33,6 +35,7 @@ namespace SafeTrace.API.Controllers
             return Ok(response);
         }
 
+        [AllowAnonymous]
         [HttpPost("google-login")]
         public async Task<IActionResult> GoogleLogin([FromBody] ExternalLoginDto externalLoginDto)
         {
@@ -40,6 +43,7 @@ namespace SafeTrace.API.Controllers
             return Ok(response);
         }
 
+        [AllowAnonymous]
         [HttpPost("facebook-login")]
         public async Task<IActionResult> FacebookLogin([FromBody] ExternalLoginDto externalLoginDto)
         {
@@ -47,6 +51,7 @@ namespace SafeTrace.API.Controllers
             return Ok(response);
         }
 
+        [AllowAnonymous]
         [HttpPost("confirm-email")]
         public async Task<IActionResult> ConfirmEmail([FromQuery] string email, [FromQuery] string otpCode)
         {
@@ -54,6 +59,7 @@ namespace SafeTrace.API.Controllers
             return Ok(response);
         }
 
+        [AllowAnonymous]
         [HttpPost("resend-otp")]
         public async Task<IActionResult> ResendOtp([FromQuery] string email, [FromQuery] OtpType type)
         {
@@ -61,6 +67,7 @@ namespace SafeTrace.API.Controllers
             return Ok(response);
         }
 
+        [AllowAnonymous]
         [HttpPost("forget-password")]
         public async Task<IActionResult> ForgetPassword([FromQuery] string email)
         {
@@ -68,6 +75,7 @@ namespace SafeTrace.API.Controllers
             return Ok(response);
         }
 
+        [AllowAnonymous]
         [HttpPost("reset-password")]
         public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordDto resetPasswordDto)
         {
@@ -75,6 +83,7 @@ namespace SafeTrace.API.Controllers
             return Ok(response);
         }
 
+        [Authorize]
         [HttpPost("change-password")]
         public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordDto dto)
         {
@@ -85,6 +94,7 @@ namespace SafeTrace.API.Controllers
             return Ok(response);
         }
 
+        [AllowAnonymous]
         [HttpPost("refresh-token")]
         public async Task<IActionResult> RefreshToken([FromBody] RefreshTokenRequestDto requestDto)
         {
@@ -92,6 +102,7 @@ namespace SafeTrace.API.Controllers
             return Ok(response);
         }
 
+        [AllowAnonymous]
         [HttpPost("revoke-token")]
         public async Task<IActionResult> RevokeToken([FromQuery] string token)
         {

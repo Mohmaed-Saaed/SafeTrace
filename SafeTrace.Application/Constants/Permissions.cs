@@ -7,9 +7,6 @@
             public const string GetAll = "UrgentCases.GetAll";
             public const string GetById = "UrgentCases.GetById";
             public const string GetMyCases = "UrgentCases.GetMyCases";
-            public const string GetFounded = "UrgentCases.GetFounded";
-            public const string GetDeleted = "UrgentCases.GetDeleted";
-            public const string GetPending = "UrgentCases.GetPending";
             public const string Create = "UrgentCases.Create";
             public const string Update = "UrgentCases.Update";
             public const string SoftDelete = "UrgentCases.SoftDelete";
@@ -24,9 +21,6 @@
             public const string GetAll = "LongTermCases.GetAll";
             public const string GetById = "LongTermCases.GetById";
             public const string GetMyCases = "LongTermCases.GetMyCases";
-            public const string GetFounded = "LongTermCases.GetFounded";
-            public const string GetDeleted = "LongTermCases.GetDeleted";
-            public const string GetPending = "LongTermCases.GetPending";
             public const string Create = "LongTermCases.Create";
             public const string Update = "LongTermCases.Update";
             public const string SoftDelete = "LongTermCases.SoftDelete";
@@ -41,9 +35,6 @@
             public const string GetAll = "UnkownCases.GetAll";
             public const string GetById = "UnkownCases.GetById";
             public const string GetMyCases = "UnkownCases.GetMyCases";
-            public const string GetFounded = "UnkownCases.GetFounded";
-            public const string GetDeleted = "UnkownCases.GetDeleted";
-            public const string GetPending = "UnkownCases.GetPending";
             public const string Create = "UnkownCases.Create";
             public const string Update = "UnkownCases.Update";
             public const string SoftDelete = "UnkownCases.SoftDelete";
@@ -53,22 +44,12 @@
             public const string MarkAsFounded = "UnkownCases.MarkAsFounded";
         }
 
-        public static class FoundedCases
-        {
-            public const string GetAll = "FoundedCases.GetAll";
-        }
-
         public static class Notifications
         {
             public const string GetMyNotifications = "Notifications.GetMyNotifications";
             public const string DeleteNotification = "Notifications.DeleteNotification";
             public const string MarkAsRead = "Notifications.MarkAsRead";
             public const string MarkAllAsRead = "Notifications.MarkAllAsRead";
-        }
-
-        public static class AiMatching
-        {
-            public const string Search = "AiSearch.Search";
         }
 
         public static class Profile
@@ -88,6 +69,7 @@
             public const string GetById = "Complaints.GetById";
             public const string Create = "Complaints.Create";
             public const string HardDelete = "Complaints.HardDelete";
+            public const string MarkAsSolved = "Complaints.MarkAsSolved";
         }
 
         public static class RolePermission
@@ -106,13 +88,13 @@
             public const string AssignPermissions = "Users.AssignPermissions";
             public const string Approve = "Users.Approve";
             public const string Reject = "Users.Reject";
-            public const string Block = "Users.Block";
-            public const string UnBlock = "Users.UnBlock";
+            public const string ToggleBlock = "Users.ToggleBlock";
         }
 
         public static class Chat
         {
             public const string GetAll = "Chat.GetAll";
+            public const string GetMyChats = "Chat.GetMyChats";
             public const string GetById = "Chat.GetById";
             public const string GetMessages  = "Chat.GetMessages";
             public const string SendMessage = "Chat.SendMessage";
