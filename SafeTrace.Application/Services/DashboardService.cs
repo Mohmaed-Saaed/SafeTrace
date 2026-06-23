@@ -1,4 +1,5 @@
 ﻿using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 using SafeTrace.Application.DTOs.Dashboard.Response;
 using SafeTrace.Application.DTOs.Responses;
 using SafeTrace.Application.Interfaces.IServices;
@@ -22,58 +23,40 @@ namespace SafeTrace.Application.Services
             _userManager = userManager;
 
         }
-
         async Task<ApiResponse<DashboardDto>> IDashboardService.GetDashboardAsync()
         {
-
-            var cases = await _unitOfWork.CaseRepository.GetAllAsync();
-
-            var urgentCases = cases.Where(e => e.CaseType == CaseType.Urgent);
-            var longTermCases = cases.Where(e => e.CaseType == CaseType.LongTerm);
-            var unknownCases = cases.Where(e => e.CaseType == CaseType.Unknown);
-            //var urgentCases = await _unitOfWork.UrgentCaseRepository.GetAllAsync();
-            
-            //var longTermCases = await _unitOfWork.LongTermMissingCaseRepository.GetAllAsync();
-            //var unknownCases = await _unitOfWork.UnknownCaseRepository.GetAllAsync();
-
-            //var cases = urgentCases.Cast<BaseCase>()
-            //    .Concat(longTermCases)
-            //    .Concat(unknownCases)
-            //    .ToList();
+            var casesQuery = _unitOfWork.Repository<Case>()
+                .Query(tracked: false);
 
             var users = await _userManager.GetUsersInRoleAsync("User");
 
-                var totalFounded = cases.Count(x => x.Status == CaseStatus.Found);
-                var totalActive = cases.Count(x => x.Status == CaseStatus.Active);
-                var totalDeleted = cases.Count(x => x.Status == CaseStatus.Deleted);
-                var totalPending = cases.Count(x => x.Status == CaseStatus.Pending);
+            var totalCases = await casesQuery.CountAsync();
+            var totalFounded = await casesQuery.CountAsync(x => x.Status == CaseStatus.Found);
+            var totalActive = await casesQuery.CountAsync(x => x.Status == CaseStatus.Active);
+            var totalDeleted = await casesQuery.CountAsync(x => x.Status == CaseStatus.Deleted);
+            var totalPending = await casesQuery.CountAsync(x => x.Status == CaseStatus.Pending);
 
-            //var totalFounded = cases.Count(x => x.Status == CaseStatus.Found);
-            //var totalActive = cases.Count(x => x.Status == CaseStatus.Active);
-            //var totalDeleted = cases.Count(x => x.Status == CaseStatus.Deleted);
-            //var totalPending = cases.Count(x => x.Status == CaseStatus.Pending);
-
-            var caseTypes = cases
+            var caseTypes = await casesQuery
                 .GroupBy(x => x.CaseType)
                 .Select(g => new CaseTypeStatsDto
                 {
                     CaseType = g.Key.ToString(),
                     Total = g.Count(),
                     Active = g.Count(x => x.Status == CaseStatus.Active),
-                    Founded = g.Count(x => x.Status == CaseStatus.Found),
+                    Deleted = g.Count(x => x.Status == CaseStatus.Deleted),
                     Closed = g.Count(x => x.Status == CaseStatus.Deleted)
                 })
-                .ToList();
+                .ToListAsync();
 
             return ApiResponse<DashboardDto>.Ok(
                 new DashboardDto
                 {
                     TotalUsers = users.Count,
-                    TotalCases = cases.Count(),
+                    TotalCases = totalCases,
                     TotalFoundedCases = totalFounded,
                     TotalActiveCases = totalActive,
                     TotalDeletedCases = totalDeleted,
-                    TotalPendingCases = totalPending, 
+                    TotalPendingCases = totalPending,
                     CaseTypes = caseTypes
                 });
         }

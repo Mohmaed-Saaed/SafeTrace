@@ -22,6 +22,7 @@ namespace SafeTrace.Infrastructure.DependencyInjection
             services.AddScoped<IDBInitializer, DBInitializer>();
             services.AddScoped<IUnitOfWork, UnitOfWork>();
             services.AddScoped<IFileStorageService, FileStorageService>();
+            services.AddScoped<IDashboardService, DashboardService>();
             
             services.AddIdentity<ApplicationUser, IdentityRole>(options =>
             {
