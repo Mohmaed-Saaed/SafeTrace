@@ -1,6 +1,11 @@
+using System.Security.Claims;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using SafeTrace.Application.Constants;
 using SafeTrace.Application.DTOs.UrgentMissingCase.Request;
+using SafeTrace.Application.Exceptions;
 using SafeTrace.Application.Interfaces.IServices;
+using SafeTrace.Infrastructure.Authorization;
 
 namespace SafeTrace.API.Controllers
 {
@@ -16,58 +21,71 @@ namespace SafeTrace.API.Controllers
         }
 
         [HttpGet("Cases")]
+        [AllowAnonymous]
         public async Task<IActionResult> GetAll([FromQuery] UrgentCaseFilterDto filter)
         {
-            return Ok(await _urgentCaseService.GetAllAsync(filter));
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrEmpty(userId)) throw new UnauthorizedException("User identity could not be verified from token.");
+            return Ok(await _urgentCaseService.GetAllAsync(userId, filter));
         }
 
         [HttpGet("admin/Cases")]
+        [HasPermission(Permissions.UrgentCases.GetAll)]
+
         public async Task<IActionResult> AdminGetAll([FromQuery] UrgentCaseFilterDto filter)
         {
-            return Ok(await _urgentCaseService.AdminGetAllAsync(filter));
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrEmpty(userId)) throw new UnauthorizedException("User identity could not be verified from token.");
+
+            return Ok(await _urgentCaseService.AdminGetAllAsync(userId, filter));
         }
 
         [HttpGet("Detail")]
+        [AllowAnonymous]
         public async Task<IActionResult> GetById(long id)
         {
             return Ok(await _urgentCaseService.GetByIdAsync(id));
         }
 
-        [HttpGet("myCases")]
-        public async Task<IActionResult> GetMyCases([FromQuery] UrgentCaseFilterDto filter)
-        {
-            return Ok(await _urgentCaseService.GetMyCasesAsync(filter));
-        }
-
         [HttpPost]
+        [HasPermission(Permissions.UrgentCases.Create)]
         public async Task<IActionResult> Create([FromBody] UrgentCaseCreateDto dto)
         {
-            return Ok(await _urgentCaseService.CreateAsync(dto));
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrEmpty(userId)) throw new UnauthorizedException("User identity could not be verified from token.");
+
+            return Ok(await _urgentCaseService.CreateAsync(userId, dto));
         }
 
-        // [HttpPut]
-        // public async Task<IActionResult> Update([FromBody] UrgentCaseUpdateDto dto)
-        //     => Ok(await _urgentCaseService.UpdateAsync(dto));
+        [HttpPut]
+        [HasPermission(Permissions.UrgentCases.Update)]
+        public async Task<IActionResult> Update([FromBody] UrgentCaseUpdateDto dto)
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrEmpty(userId)) throw new UnauthorizedException("User identity could not be verified from token.");
 
-        // [HttpDelete("{id}")]
-        // public async Task<IActionResult> Delete(long id)
-        //     => Ok(await _urgentCaseService.DeleteAsync(id));
+            return Ok(await _urgentCaseService.UpdateAsync(userId, dto));
+        }
 
-        // [HttpDelete("permanent/{id}")]
-        // public async Task<IActionResult> PermanentDelete(long id)
-        //     => Ok(await _urgentCaseService.PermanentDeleteAsync(id));
+        [HttpDelete("{id}")]
+        [HasPermission(Permissions.UrgentCases.SoftDelete)]
+        public async Task<IActionResult> Delete(long id)
+        {
+            return Ok(await _urgentCaseService.DeleteAsync(id));
+        }
 
-        // [HttpPost("{id}/approve")]
-        // public async Task<IActionResult> Approve(long id)
-        //     => Ok(await _urgentCaseService.ApproveAsync(id));
+        [HttpDelete("permanent/{id}")]
+        [HasPermission(Permissions.UrgentCases.HardDelete)]
+        public async Task<IActionResult> PermanentDelete(long id)
+        {
+            return Ok(await _urgentCaseService.PermanentDeleteAsync(id));
+        }
 
-        // [HttpPost("{id}/reject")]
-        // public async Task<IActionResult> Reject(long id)
-        //     => Ok(await _urgentCaseService.RejectAsync(id));
-
-        // [HttpPost("{id}/mark-founded")]
-        // public async Task<IActionResult> MarkAsFounded(long id)
-        //     => Ok(await _urgentCaseService.MarkAsFoundedAsync(id)); 
-        
+        [HttpPost("{id}/mark-founded")]
+        [HasPermission(Permissions.UrgentCases.MarkAsFounded)]
+        public async Task<IActionResult> MarkAsFounded(long id)
+        {
+            return Ok(await _urgentCaseService.MarkAsFoundedAsync(id)); 
+        }
     }
 }

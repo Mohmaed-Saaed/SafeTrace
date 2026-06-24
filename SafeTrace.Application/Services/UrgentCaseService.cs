@@ -1,4 +1,5 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using System.Linq.Expressions;
+using Microsoft.EntityFrameworkCore;
 using NetTopologySuite.Geometries;
 using SafeTrace.Application.Common.Enums;
 using SafeTrace.Application.DTOs.UrgentMissingCase;
@@ -13,8 +14,8 @@ namespace SafeTrace.Application.Services
         private readonly ILogger<UrgentCaseService> _logger;
         private readonly IUnitOfWork _unitOfWork;
         private readonly IMapper _mapper;
-
-        // private readonly ICurrentUserService _currentUserService;
+        private const int RateLimitDays    = 14;
+        private const int ExpirationHours  = 48;
 
         public UrgentCaseService(ILogger<UrgentCaseService> logger, IUnitOfWork unitOfWork, IMapper mapper)
         {
@@ -23,64 +24,28 @@ namespace SafeTrace.Application.Services
             _mapper = mapper;
         }
 
-        public async Task<ApiResponse<PaginationResponseDto<UrgentCaseListItemDto>>> GetAllAsync(UrgentCaseFilterDto filter)
+        public async Task<ApiResponse<PaginationResponseDto<UrgentCaseListItemDto>>> GetAllAsync(string userId, UrgentCaseFilterDto filter)
         {
-            var query = _unitOfWork.Repository<UrgentCase>().Query(tracked: false, includes: [x => x.Photos, x => x.AgeCategory]);
-
-            query = ApplyFilter(query, filter, includeDeleted: false, includeExpired: false);
-
-            var totalCount = await query.CountAsync();
-
-            query = ApplySorting(query, filter);
-
-            query = ApplyPagination(query, filter);
-
-            var items = await query.ToListAsync();
-
-            var data = _mapper.Map<List<UrgentCaseListItemDto>>(items);
-
-            var response = new PaginationResponseDto<UrgentCaseListItemDto>
-            {
-                Items = data,
-                PageNumber = filter.Page,
-                PageSize = filter.PageSize,
-                TotalCount = totalCount
-            };
-
-            return ApiResponse<PaginationResponseDto<UrgentCaseListItemDto>>.Ok(
-                data: response,
-                message: "Urgent cases retrieved successfully"
-            );
+            return await GetAllInternalAsync<UrgentCaseListItemDto>(
+                userId,
+                filter,
+                includeDeleted: false,
+                includeExpired: false,
+                x => x.Photos,
+                x => x.AgeCategory);
         }
-        public async Task<ApiResponse<PaginationResponseDto<UrgentCaseAdminDto>>> AdminGetAllAsync(UrgentCaseFilterDto filter)
+
+        public async Task<ApiResponse<PaginationResponseDto<UrgentCaseAdminDto>>> AdminGetAllAsync(string userId, UrgentCaseFilterDto filter)
         {
-            var query = _unitOfWork.Repository<UrgentCase>().Query(tracked: false, includes: [x => x.Photos, x => x.AgeCategory, x =>  x.FoundPersonInfo]);
-            
-            query = ApplyFilter(query, filter, includeDeleted: true, includeExpired: true);
-            
-            query = ApplySorting(query, filter);
-
-            query = ApplyPagination(query, filter);
-
-            var totalCount = await query.CountAsync();
-
-            var items = await query.ToListAsync();
-
-            var data = _mapper.Map<List<UrgentCaseAdminDto>>(items);
-
-            var response = new PaginationResponseDto<UrgentCaseAdminDto>
-            {
-                Items = data,
-                PageNumber = filter.Page,
-                PageSize = filter.PageSize,
-                TotalCount = totalCount
-            };
-
-            return ApiResponse<PaginationResponseDto<UrgentCaseAdminDto>>.Ok(
-                data: response,
-                message: "Urgent cases retrieved successfully"
+            return await GetAllInternalAsync<UrgentCaseAdminDto>(
+                userId,
+                filter,
+                includeDeleted: true,
+                includeExpired: true,
+                x => x.Photos,
+                x => x.AgeCategory,
+                x => x.FoundPersonInfo
             );
-
         }
         public async Task<ApiResponse<UrgentCaseDetailDto>> GetByIdAsync(long id)
         {
@@ -98,334 +63,155 @@ namespace SafeTrace.Application.Services
             );
         }
 
-        public async Task<ApiResponse<PaginationResponseDto<UrgentCaseListItemDto>>> GetMyCasesAsync(UrgentCaseFilterDto filter)
+        public async Task<ApiResponse<UrgentCaseDetailDto>> CreateAsync(string userId, UrgentCaseCreateDto createDto)
         {
-            var userId = filter.UserId;
 
-            var query = _unitOfWork.Repository<UrgentCase>().Query(tracked: false, includes: [x => x.Photos, x => x.AgeCategory]);
+            // ── Rate-limit: one urgent case per 14 days ───────────────────────
+            var cutoff = DateTime.UtcNow.AddDays(RateLimitDays);
+ 
+            bool hasRecent = await _unitOfWork.Repository<UrgentCase>().Query(tracked: false)
+                .AnyAsync(x => x.UserId == userId && x.Status != CaseStatus.Deleted && x.CreatedAt >= cutoff);
+ 
+            if (hasRecent)
+            {
+                _logger.LogWarning("User {UserId} hit the {Days}-day rate limit for urgent case creation.", userId, RateLimitDays);
+ 
+                return ApiResponse<UrgentCaseDetailDto>.Fail($"You can only create one urgent case every {RateLimitDays} days.");
+            }
+ 
+            var entity = _mapper.Map<UrgentCase>(createDto);
+ 
+            entity.CaseType       = CaseType.Urgent;
+            entity.Status         = CaseStatus.Active;
+            entity.CreatedAt      = DateTime.UtcNow;
+            entity.LimitReachDate = DateTime.UtcNow.AddDays(RateLimitDays);
+            entity.EndDate        = DateTime.UtcNow.AddHours(ExpirationHours);
+            entity.CaseCode       = Generators.GenerateCaseCode();
+ 
+            await _unitOfWork.Repository<UrgentCase>().CreateAsync(entity);
+            await _unitOfWork.SaveAsync();
+ 
+            _logger.LogInformation("Urgent case {CaseCode} created by user {UserId}.", entity.CaseCode, entity.UserId);
+ 
+            return ApiResponse<UrgentCaseDetailDto>.Ok(message: "Urgent case created successfully.");
+        }
+        
 
-            query = ApplyFilter(query, filter, includeDeleted: false, includeExpired: false).Where(x => x.UserId == userId);
+        public async Task<ApiResponse<UrgentCaseDetailDto>> UpdateAsync(string userId, UrgentCaseUpdateDto updateDto)
+        {
+            var entity = await _unitOfWork.Repository<UrgentCase>()
+                .GetOneAsync(x => x.Id == updateDto.Id && x.Status != CaseStatus.Deleted, tracked: true);
+ 
+            if (entity is null)
+                return ApiResponse<UrgentCaseDetailDto>.Fail("Urgent case not found.");
+ 
+            if (entity.UserId != userId)
+                return ApiResponse<UrgentCaseDetailDto>.Fail("You are not authorized to update this case.");
+ 
+            if (entity.Status is CaseStatus.Found or CaseStatus.Expired)
+                return ApiResponse<UrgentCaseDetailDto>.Fail($"Cannot update a case with status '{entity.Status}'.");
+ 
+            _mapper.Map(updateDto, entity);
+            entity.UpdatedAt = DateTime.UtcNow;  
+ 
+            _unitOfWork.Repository<UrgentCase>().Update(entity);
+            await _unitOfWork.SaveAsync();
+ 
+            _logger.LogInformation("Urgent case {CaseId} updated by user {UserId}.", entity.Id, updateDto.UserId);
+ 
+            return ApiResponse<UrgentCaseDetailDto>.Ok(message: "Urgent case updated successfully.");
+        }
 
-            query = ApplySorting(query, filter);
+        public async Task<ApiResponse<string>> DeleteAsync(long id)
+        {
+            var entity = await _unitOfWork.Repository<UrgentCase>()
+                .GetOneAsync(x => x.Id == id && x.Status != CaseStatus.Deleted, tracked: true);
+ 
+            if (entity is null)
+                return ApiResponse<string>.Fail("Urgent case not found.");
+ 
+            if (entity.Status == CaseStatus.Found)
+                return ApiResponse<string>.Fail("Cannot delete a case that is already marked as Founded.");
+ 
+            entity.PreviousStatus = entity.Status;
+            entity.Status         = CaseStatus.Deleted;
+            entity.DeletedAt      = DateTime.UtcNow;         
+ 
+            _unitOfWork.Repository<UrgentCase>().Update(entity);
+            await _unitOfWork.SaveAsync();
+ 
+            _logger.LogInformation("Urgent case {CaseId} soft-deleted.", id);
+ 
+            return ApiResponse<string>.Ok("Urgent case deleted successfully.");
+        }
+
+        public async Task<ApiResponse<string>> MarkAsFoundedAsync(long id)
+        {
+            var entity = await _unitOfWork.Repository<UrgentCase>().GetOneAsync(x => x.Id == id && x.Status != CaseStatus.Deleted, tracked: true);
+ 
+            if (entity is null)
+                return ApiResponse<string>.Fail("Urgent case not found.");
+ 
+            if (entity.Status == CaseStatus.Found)
+                return ApiResponse<string>.Fail("Case is already marked as Founded.");
+ 
+            entity.PreviousStatus = entity.Status;
+            entity.Status         = CaseStatus.Found;
+            entity.EndDate        = DateTime.UtcNow;
+ 
+            _unitOfWork.Repository<UrgentCase>().Update(entity);
+            await _unitOfWork.SaveAsync();
+ 
+            _logger.LogInformation("Urgent case {CaseId} marked as Founded.", id);
+ 
+            return ApiResponse<string>.Ok("Case marked as Founded.");
+        }
+
+        public async Task<ApiResponse<string>> PermanentDeleteAsync(long id)
+        {
+            var entity = await _unitOfWork.Repository<UrgentCase>()
+                .GetOneAsync(x => x.Id == id, tracked: true);
+ 
+            if (entity is null)
+                return ApiResponse<string>.Fail("Urgent case not found.");
+ 
+            if (entity.Status == CaseStatus.Found)
+                return ApiResponse<string>.Fail("Cannot permanently delete a case marked as Founded.");
+ 
+            _unitOfWork.Repository<UrgentCase>().Remove(entity);
+            await _unitOfWork.SaveAsync();
+ 
+            _logger.LogInformation("Urgent case {CaseId} permanently deleted.", id);
+ 
+            return ApiResponse<string>.Ok("Urgent case permanently deleted.");
+        }
+
+        private async Task<ApiResponse<PaginationResponseDto<TDto>>> GetAllInternalAsync<TDto>(string userId, UrgentCaseFilterDto filter, bool includeDeleted, bool includeExpired, params Expression<Func<UrgentCase, object>>[] includes)
+        {
+            var query = _unitOfWork.Repository<UrgentCase>().Query(tracked: false, includes: includes);
+
+            query = ApplyFilter(query, userId, filter, includeDeleted, includeExpired);
 
             var totalCount = await query.CountAsync();
 
+            query = ApplySorting(query, userId, filter);
             query = ApplyPagination(query, filter);
 
             var items = await query.ToListAsync();
 
-            var data = _mapper.Map<List<UrgentCaseListItemDto>>(items);
-
-            var response = new PaginationResponseDto<UrgentCaseListItemDto>
+            var response = new PaginationResponseDto<TDto>
             {
-                Items = data,
+                Items = _mapper.Map<List<TDto>>(items),
                 PageNumber = filter.Page,
                 PageSize = filter.PageSize,
                 TotalCount = totalCount
             };
 
-            return ApiResponse<PaginationResponseDto<UrgentCaseListItemDto>>.Ok(
-                data: response,
-                message: "Your urgent cases retrieved successfully"
-            );
+            return ApiResponse<PaginationResponseDto<TDto>>.Ok(
+                response,
+                "Urgent cases retrieved successfully");
         }
-
-        public async Task<ApiResponse<UrgentCaseDetailDto>> CreateAsync(UrgentCaseCreateDto createDto)
-        {
-            var userId = createDto.UserId;
-
-            var lastUrgent = await _unitOfWork.Repository<UrgentCase>().Query(tracked: false)
-                .Where(x => x.UserId == userId && x.Status != CaseStatus.Deleted)
-                .OrderByDescending(x => x.CreatedAt)
-                .FirstOrDefaultAsync();
-
-            if (lastUrgent != null && (DateTime.UtcNow - lastUrgent.CreatedAt).TotalDays < 14)
-            {
-                return ApiResponse<UrgentCaseDetailDto>.Fail(message: "You can only create one urgent case every 14 days");
-            }
-
-            var entity = _mapper.Map<UrgentCase>(createDto);
-
-            entity.UserId = userId;
-            entity.CaseType = CaseType.Urgent;
-            entity.Status = CaseStatus.Active;
-            entity.CreatedAt = DateTime.UtcNow;
-            entity.LimitReachDate = DateTime.UtcNow.AddHours(48);
-            entity.CaseCode = Generators.GenerateCaseCode();
-
-            await _unitOfWork.Repository<UrgentCase>().CreateAsync(entity);
-            await _unitOfWork.SaveAsync();
-
-            var dto = _mapper.Map<UrgentCaseDetailDto>(entity);
-
-            return ApiResponse<UrgentCaseDetailDto>.Ok(
-                data: dto,
-                message: "Urgent case created successfully");
-        }
-
-        public async Task<ApiResponse<UrgentCaseDetailDto>> UpdateAsync(UrgentCaseUpdateDto updateDto)
-        {
-            var userId = updateDto;
-            // var isAdmin = _currentUserService.IsAdmin();
-
-            var entity = await _unitOfWork.Repository<UrgentCase>()
-                .GetOneAsync(x => x.Id == updateDto.Id && x.Status != CaseStatus.Deleted);
-
-            if (entity == null)
-                return new ApiResponse<UrgentCaseDetailDto>
-                {
-                    Success = false,
-                    Message = "Urgent case not found"
-                };
-
-            // Only owner or admin can update
-            // if (entity.UserId != userId && !isAdmin)
-            //     return new ApiResponse<UrgentCaseDetailDto>
-            //     {
-            //         Success = false,
-            //         Message = "You are not authorized to update this case"
-            //     };
-
-            // Cannot update a found or expired case? (business decision)
-            if (entity.Status == CaseStatus.Found || entity.Status == CaseStatus.Expired)
-                return new ApiResponse<UrgentCaseDetailDto>
-                {
-                    Success = false,
-                    Message = $"Cannot update a case that is {entity.Status}"
-                };
-
-            _mapper.Map(updateDto, entity);
-            entity.UpdatedAt = DateTime.Now;
-
-            _unitOfWork.Repository<UrgentCase>().Update(entity);
-            await _unitOfWork.SaveAsync();
-
-            var dto = _mapper.Map<UrgentCaseDetailDto>(entity);
-            return new ApiResponse<UrgentCaseDetailDto>
-            {
-                Success = true,
-                Data = dto,
-                Message = "Urgent case updated successfully"
-            };
-        }
-
-        // // ------------------------- SOFT DELETE -------------------------
-        // public async Task<ApiResponse<string>> DeleteAsync(long id)
-        // {
-        //     // var userId = _currentUserService.GetUserId();
-        //     // var isAdmin = _currentUserService.IsAdmin();
-
-        //     var entity = await _unitOfWork.Repository<UrgentCase>()
-        //         .GetOneAsync(x => x.Id == id && x.Status != CaseStatus.Deleted);
-
-        //     if (entity == null)
-        //         return new ApiResponse<string>
-        //         {
-        //             Success = false,
-        //             Message = "Urgent case not found"
-        //         };
-
-        //     // Only owner or admin can delete
-        //     // if (entity.UserId != userId && !isAdmin)
-        //     //     return new ApiResponse<string>
-        //     //     {
-        //     //         Success = false,
-        //     //         Message = "You are not authorized to delete this case"
-        //     //     };
-
-        //     // FR‑16: Cannot delete if already marked as Found
-        //     if (entity.Status == CaseStatus.Found)
-        //         return new ApiResponse<string>
-        //         {
-        //             Success = false,
-        //             Message = "Cannot delete a case that is already marked as Founded"
-        //         };
-
-        //     // Soft delete: set status to Deleted
-        //     entity.Status = CaseStatus.Deleted;
-        //     entity.DeletedAt = DateTime.Now;
-        //     // entity.DeletedByUserId = userId;
-
-        //     _unitOfWork.Repository<UrgentCase>().Update(entity);
-        //     await _unitOfWork.SaveAsync();
-
-        //     return new ApiResponse<string>
-        //     {
-        //         Success = true,
-        //         Message = "Urgent case deleted successfully"
-        //     };
-        // }
-
-        // // ------------------------- PERMANENT DELETE (hard delete) -------------------------
-        // public async Task<ApiResponse<string>> PermanentDeleteAsync(long id)
-        // {
-        //     // var userId = _currentUserService.GetUserId();
-        //     // var isAdmin = _currentUserService.IsAdmin();
-
-        //     var entity = await _unitOfWork.Repository<UrgentCase>()
-        //         .GetOneAsync(x => x.Id == id);
-
-        //     if (entity == null)
-        //         return new ApiResponse<string>
-        //         {
-        //             Success = false,
-        //             Message = "Urgent case not found"
-        //         };
-
-        //     // Only admin can permanently delete
-        //     // if (!isAdmin)
-        //     //     return new ApiResponse<string>
-        //     //     {
-        //     //         Success = false,
-        //     //         Message = "Only admins can permanently delete cases"
-        //     //     };
-
-        //     // Cannot permanently delete a Found case (FR‑16)
-        //     if (entity.Status == CaseStatus.Found)
-        //         return new ApiResponse<string>
-        //         {
-        //             Success = false,
-        //             Message = "Cannot permanently delete a case that is marked as Founded"
-        //         };
-
-        //     _unitOfWork.Repository<UrgentCase>().Remove(entity);
-        //     await _unitOfWork.SaveAsync();
-
-        //     return new ApiResponse<string>
-        //     {
-        //         Success = true,
-        //         Message = "Urgent case permanently deleted"
-        //     };
-        // }
-
-        // // ------------------------- APPROVE (admin only) -------------------------
-        // public async Task<ApiResponse<string>> ApproveAsync(long id)
-        // {
-        //     // if (!_currentUserService.IsAdmin())
-        //     //     return new ApiResponse<string>
-        //     //     {
-        //     //         Success = false,
-        //     //         Message = "Only admins can approve cases"
-        //     //     };
-
-        //     var entity = await _unitOfWork.Repository<UrgentCase>()
-        //         .GetOneAsync(x => x.Id == id && x.Status != CaseStatus.Deleted);
-
-        //     if (entity == null)
-        //         return new ApiResponse<string>
-        //         {
-        //             Success = false,
-        //             Message = "Urgent case not found"
-        //         };
-
-        //     // Already active or found? Cannot approve.
-        //     if (entity.Status == CaseStatus.Active || entity.Status == CaseStatus.Found)
-        //         return new ApiResponse<string>
-        //         {
-        //             Success = false,
-        //             Message = $"Case is already {entity.Status}"
-        //         };
-
-        //     // For urgent cases, approval might move from Pending to Active
-        //     if (entity.Status == CaseStatus.Pending)
-        //     {
-        //         entity.Status = CaseStatus.Active;
-        //         entity.PreviousStatus = CaseStatus.Pending;
-        //         _unitOfWork.Repository<UrgentCase>().Update(entity);
-        //         await _unitOfWork.SaveAsync();
-
-        //         return new ApiResponse<string>
-        //         {
-        //             Success = true,
-        //             Message = "Urgent case approved and activated"
-        //         };
-        //     }
-
-        //     return new ApiResponse<string>
-        //     {
-        //         Success = false,
-        //         Message = "Case cannot be approved in its current state"
-        //     };
-        // }
-
-        // // ------------------------- REJECT (admin only) -------------------------
-        // public async Task<ApiResponse<string>> RejectAsync(long id)
-        // {
-        //     // if (!_currentUserService.IsAdmin())
-        //     //     return new ApiResponse<string>
-        //     //     {
-        //     //         Success = false,
-        //     //         Message = "Only admins can reject cases"
-        //     //     };
-
-        //     var entity = await _unitOfWork.Repository<UrgentCase>()
-        //         .GetOneAsync(x => x.Id == id && x.Status != CaseStatus.Deleted && x.Status != CaseStatus.Found);
-
-        //     if (entity == null)
-        //         return new ApiResponse<string>
-        //         {
-        //             Success = false,
-        //             Message = "Urgent case not found or cannot be rejected"
-        //         };
-
-        //     // Change status to Rejected
-        //     entity.Status = CaseStatus.Rejected;
-        //     entity.PreviousStatus = entity.Status;
-        //     _unitOfWork.Repository<UrgentCase>().Update(entity);
-        //     await _unitOfWork.SaveAsync();
-
-        //     return new ApiResponse<string>
-        //     {
-        //         Success = true,
-        //         Message = "Urgent case rejected"
-        //     };
-        // }
-
-        // // ------------------------- MARK AS FOUNDED -------------------------
-        // public async Task<ApiResponse<string>> MarkAsFoundedAsync(long id)
-        // {
-        //     // var userId = _currentUserService.GetUserId();
-        //     // var isAdmin = _currentUserService.IsAdmin();
-
-        //     var entity = await _unitOfWork.Repository<UrgentCase>()
-        //         .GetOneAsync(x => x.Id == id && x.Status != CaseStatus.Deleted);
-
-        //     if (entity == null)
-        //         return new ApiResponse<string>
-        //         {
-        //             Success = false,
-        //             Message = "Urgent case not found"
-        //         };
-
-        //     // Only owner or admin can mark as found
-        //     // if (entity.UserId != userId && !isAdmin)
-        //     //     return new ApiResponse<string>
-        //     //     {
-        //     //         Success = false,
-        //     //         Message = "You are not authorized to mark this case as founded"
-        //     //     };
-
-        //     if (entity.Status == CaseStatus.Found)
-        //         return new ApiResponse<string>
-        //         {
-        //             Success = false,
-        //             Message = "Case is already marked as Founded"
-        //         };
-
-        //     entity.Status = CaseStatus.Found;
-        //     entity.EndDate = DateTime.Now; // set the end date
-        //     entity.PreviousStatus = entity.Status;
-        //     _unitOfWork.Repository<UrgentCase>().Update(entity);
-        //     await _unitOfWork.SaveAsync();
-
-        //     return new ApiResponse<string>
-        //     {
-        //         Success = true,
-        //         Message = "Case marked as Founded"
-        //     };
-        // }
-
-        private static IQueryable<UrgentCase> ApplyFilter(IQueryable<UrgentCase> query, UrgentCaseFilterDto filter, bool includeDeleted = false, bool includeExpired = false)
+        private IQueryable<UrgentCase> ApplyFilter(IQueryable<UrgentCase> query, string userId, UrgentCaseFilterDto filter, bool includeDeleted = false, bool includeExpired = false)
         {
             #region Basic Filters
 
@@ -467,32 +253,62 @@ namespace SafeTrace.Application.Services
 
             #region Location
 
-            if (filter.Latitude.HasValue && filter.Longitude.HasValue && filter.RadiusInMeters.HasValue)
+            var user = _unitOfWork.Repository<ApplicationUser>().Query().FirstOrDefault(x => x.Id == userId);
+
+
+            Point? userLocation = null;
+
+            if (user?.CurrentLocationLatitude.HasValue == true && user.CurrentLocationLongitude.HasValue)
             {
-                var userLocation = new Point(filter.Longitude.Value, filter.Latitude.Value)
+                userLocation = new Point(user.CurrentLocationLongitude.Value, user.CurrentLocationLatitude.Value)
                 {
                     SRID = 4326
                 };
+            }
+            else if (user?.HomeLocationLatitude.HasValue == true && user.HomeLocationLongitude.HasValue)
+            {
+                userLocation = new Point(user.HomeLocationLongitude.Value, user.HomeLocationLatitude.Value)
+                {
+                    SRID = 4326
+                };
+            }
 
-                query = query.Where(x => x.Location != null && x.Location.Distance(userLocation) <= filter.RadiusInMeters.Value);
+            if (userLocation != null)
+            {
+                query = query.Where(x => x.Location != null && x.Location.Distance(userLocation) <= filter.RadiusInMeters);
             }
 
             #endregion
 
             return query;
         }
-        private static IQueryable<UrgentCase> ApplySorting(IQueryable<UrgentCase> query, UrgentCaseFilterDto filter)
+        private IQueryable<UrgentCase> ApplySorting(IQueryable<UrgentCase> query, string userId, UrgentCaseFilterDto filter)
         {
             IOrderedQueryable<UrgentCase>? orderedQuery = null;
 
+            var user =  _unitOfWork.Repository<ApplicationUser>().Query().Where(x => x.Id == userId).FirstOrDefault();
+
+
             // Distance Sort
-            if (filter.Latitude.HasValue && filter.Longitude.HasValue)
+            Point? userLocation = null;
+
+            if (user.CurrentLocationLatitude.HasValue && user.CurrentLocationLongitude.HasValue)
             {
-                var userLocation = new Point(filter.Longitude.Value, filter.Latitude.Value)
+                userLocation = new Point(user.CurrentLocationLongitude.Value, user.CurrentLocationLatitude.Value)
                 {
                     SRID = 4326
                 };
+            }
+            else if (user.HomeLocationLatitude.HasValue && user.HomeLocationLongitude.HasValue)
+            {
+                userLocation = new Point(user.HomeLocationLongitude.Value, user.HomeLocationLatitude.Value)
+                {
+                    SRID = 4326
+                };
+            }
 
+            if (userLocation != null)
+            {
                 orderedQuery = query.OrderBy(x => x.Location.Distance(userLocation));
             }
 
@@ -526,6 +342,6 @@ namespace SafeTrace.Application.Services
         {
             return query.Skip((filter.Page - 1) * filter.PageSize).Take(filter.PageSize);
         }
-    
+
     }
 }
