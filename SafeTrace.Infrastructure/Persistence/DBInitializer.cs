@@ -40,7 +40,7 @@ namespace SafeTrace.Infrastructure.Persistence
             }
 
             string[] AdminPermissions = { "UrgentCases.GetAll", "UrgentCases.GetById", "UrgentCases.GetMyCases", "UrgentCases.Create", "UrgentCases.Update", "UrgentCases.SoftDelete", "UrgentCases.HardDelete", "UrgentCases.Reject", "UrgentCases.Approve", "UrgentCases.MarkAsFounded",
-                                         "UnkownCases.GetAll", "UnkownCases.GetById", "UnkownCases.GetMyCases", "UnkownCases.Create", "UnkownCases.Update", "UnkownCases.SoftDelete", "UnkownCases.HardDelete", "UnkownCases.Reject", "UnkownCases.Approve", "UnkownCases.MarkAsFounded",
+                                         "UnknownCases.GetAll", "UnknownCases.GetById", "UnknownCases.GetMyCases", "UnknownCases.Create", "UnknownCases.Update", "UnknownCases.SoftDelete", "UnknownCases.HardDelete", "UnknownCases.Reject", "UnknownCases.Approve", "UnknownCases.MarkAsFounded",
                                          "LongTermCases.GetAll", "LongTermCases.GetById", "LongTermCases.GetMyCases", "LongTermCases.Create", "LongTermCases.Update", "LongTermCases.SoftDelete", "LongTermCases.HardDelete", "LongTermCases.Reject", "LongTermCases.Approve", "LongTermCases.MarkAsFounded",
                                          "Notifications.GetMyNotifications", "Notifications.DeleteNotification", "Notifications.MarkAsRead", "Notifications.MarkAllAsRead",
                                          "Profile.GetUserInfo", "Profile.UpdateUserInfo",
@@ -52,7 +52,7 @@ namespace SafeTrace.Infrastructure.Persistence
 
 
             string[] VerifiedUserPermissions = { "UrgentCases.GetById", "UrgentCases.GetMyCases", "UrgentCases.Create", "UrgentCases.Update", "UrgentCases.SoftDelete", "UrgentCases.MarkAsFounded",
-                                                 "UnkownCases.GetById", "UnkownCases.GetMyCases", "UnkownCases.Create", "UnkownCases.Update", "UnkownCases.SoftDelete", "UnkownCases.MarkAsFounded",
+                                                 "UnknownCases.GetById", "UnknownCases.GetMyCases", "UnknownCases.Create", "UnknownCases.Update", "UnknownCases.SoftDelete", "UnknownCases.MarkAsFounded",
                                                  "LongTermCases.GetById", "LongTermCases.GetMyCases", "LongTermCases.Create", "LongTermCases.Update", "LongTermCases.SoftDelete", "LongTermCases.MarkAsFounded",
                                                  "Notifications.GetMyNotifications", "Notifications.DeleteNotification", "Notifications.MarkAsRead", "Notifications.MarkAllAsRead",
                                                  "Profile.GetUserInfo", "Profile.UpdateUserInfo",
@@ -61,7 +61,7 @@ namespace SafeTrace.Infrastructure.Persistence
                                                  "Chat.GetById", "Chat.GetMyChats",  "Chat.GetMessages", "Chat.SendMessage", "Chat.Create", "Chat.MarkAsRead", "Chat.SoftDelete", "Chat.DeleteMessage"};
 
             string[] UserPermissions = { "UrgentCases.GetById", "UrgentCases.GetMyCases", "UrgentCases.Create", "UrgentCases.Update", "UrgentCases.SoftDelete", "UrgentCases.MarkAsFounded",
-                                         "UnkownCases.GetMyCases",
+                                         "UnknownCases.GetMyCases",
                                          "LongTermCases.GetMyCases",
                                          "Notifications.GetMyNotifications", "Notifications.DeleteNotification", "Notifications.MarkAsRead", "Notifications.MarkAllAsRead",
                                          "Profile.GetUserInfo", "Profile.UpdateUserInfo",
