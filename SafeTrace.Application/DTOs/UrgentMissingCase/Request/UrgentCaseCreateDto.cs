@@ -22,7 +22,6 @@ namespace SafeTrace.Application.DTOs.UrgentMissingCase.Request
         public double Latitude { get; set; }
         [Required]
         public double Longitude { get; set; }
-        [Required]
         public List<IFormFile>? Photos { get; set; }
     }
 }
