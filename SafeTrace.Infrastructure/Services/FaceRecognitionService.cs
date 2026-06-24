@@ -136,7 +136,7 @@ namespace SafeTrace.Infrastructure.Services
                 {
                     CollectionId = _collectionId,
                     Image = awsImage,
-                    FaceMatchThreshold = 85F,
+                    FaceMatchThreshold = 75F,
                     MaxFaces = 4096
                 };
 
