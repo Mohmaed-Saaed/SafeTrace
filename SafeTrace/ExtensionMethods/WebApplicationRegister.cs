@@ -39,7 +39,7 @@ namespace SafeTrace.API.ExtensionMethods
 
             var faceRecognitionService = scope.ServiceProvider.GetRequiredService<IFaceRecognitionService>();
 
-            await faceRecognitionService.CreateCollectionAsync("SafeTraceMissingPersonsCollection");
+            await faceRecognitionService.CreateCollectionAsync();
             
             return app;
         }
