@@ -8,20 +8,19 @@ namespace SafeTrace.Application.DTOs.User_Profiel_DTOS
     public class GetUserInfoDTO
     {
 
-        ////As Full Name
-        public string FName { get; set; } = string.Empty;
-        public string LName { get; set; } = string.Empty;
-        public string? IdentificationImage { get; set; }
-        public VerificationStatus VerificationStatus { get; set; }
+        public string FullName { get; set; } = string.Empty;
         public string Email { get; set; } = string.Empty;
         public bool EmailConfirmed { get; set; }
+        public string? HomeLocation { get; set; }
+        public string? ProfileImage { get; set; }
+        public VerificationStatus VerificationStatus { get; set; } = VerificationStatus.Unverified;
+        public string? IdentificationImage { get; set; }
 
         //As Home Location (in Angular )
-        public double? HomeLocationLatitude { get; set; }
-        public double? HomeLocationLongitude { get; set; }
-        public string? ProfileImage { get; set; }
 
         //Reports api to get Count (Optional)
         //Founded Cases For User Count (Optional)
     }
 }
+//"email": "faroukyousef0@gmail.com",
+//  "password": "Aa@12345678"

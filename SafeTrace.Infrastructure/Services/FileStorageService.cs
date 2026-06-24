@@ -84,8 +84,12 @@ namespace SafeTrace.Infrastructure.Services
 
             string baseFolder = isVideo ? "Videos" : "Images";
 
-            string wwwRootPath = _environment.WebRootPath;
+            //From chat
+            string wwwRootPath = Path.Combine(_environment.ContentRootPath, "wwwroot");
             string contentPath = Path.Combine(wwwRootPath, baseFolder, folderName);
+
+            //string wwwRootPath = _environment.WebRootPath;
+            //string contentPath = Path.Combine(wwwRootPath, baseFolder, folderName);
 
             if (!Directory.Exists(contentPath))
                 Directory.CreateDirectory(contentPath);
@@ -107,11 +111,32 @@ namespace SafeTrace.Infrastructure.Services
             return $"/{baseFolder}/{folderName}/{uniqueFileName}";
         }
 
+        //public bool DeleteFile(string fileUrl)
+        //{
+        //    if (string.IsNullOrEmpty(fileUrl)) return false;
+
+        //    string wwwRootPath = _environment.WebRootPath;
+
+        //    string cleanedPath = fileUrl.TrimStart('/');
+        //    string fullPath = Path.Combine(wwwRootPath, cleanedPath);
+
+        //    if (File.Exists(fullPath))
+        //    {
+        //        File.Delete(fullPath);
+        //        return true;
+        //    }
+
+        //    return false;
+        //}
+
+        //From Chat
+
         public bool DeleteFile(string fileUrl)
         {
-            if (string.IsNullOrEmpty(fileUrl)) return false;
+            if (string.IsNullOrWhiteSpace(fileUrl))
+                return false;
 
-            string wwwRootPath = _environment.WebRootPath;
+            string wwwRootPath = Path.Combine(_environment.ContentRootPath, "wwwroot");
 
             string cleanedPath = fileUrl.TrimStart('/');
             string fullPath = Path.Combine(wwwRootPath, cleanedPath);

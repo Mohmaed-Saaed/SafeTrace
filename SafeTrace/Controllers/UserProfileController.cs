@@ -1,12 +1,14 @@
 ﻿using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using SafeTrace.Application.Constants;
 using SafeTrace.Application.DTOs.User_Profiel_DTOS;
 using SafeTrace.Application.Interfaces.IServices;
 using SafeTrace.Application.Interfaces.IServices.IUserProfile;
+using SafeTrace.Infrastructure.Authorization;
 namespace SafeTrace.API.Controllers
 {
-    //[Authorize]
+
     [Route("api/[controller]")]
     [ApiController]
     public class UserProfileController : ControllerBase
@@ -17,7 +19,8 @@ namespace SafeTrace.API.Controllers
             _user = userProfileService;
         }
 
-        [HttpGet]
+        [HttpGet("GetInfo")]
+        [HasPermission(Permissions.Profile.GetUserInfo)]
         public async Task<IActionResult> GetUserInfo()
         {
             var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
@@ -27,7 +30,8 @@ namespace SafeTrace.API.Controllers
         }
 
         [HttpPut("UpdateInfo")]
-        public async Task<IActionResult> UpdateUserInfo(UpdateProfileInfoDTO dTO)
+        [HasPermission(Permissions.Profile.UpdateUserInfo)]
+        public async Task<IActionResult> UpdateUserInfo([FromForm] UpdateProfileInfoDTO dTO)
         {
             var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             var UpdateProfile = await _user.UpdateProfileInfoAsync(userId, dTO);

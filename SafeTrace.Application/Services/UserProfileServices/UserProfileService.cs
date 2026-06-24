@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Identity;
+﻿using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -11,6 +12,7 @@ using SafeTrace.Application.Interfaces.IServices.IUserProfile;
 using SafeTrace.Application.Services.NotificationServices;
 using SafeTrace.Domain.Entities;
 using SafeTrace.Domain.Enums;
+using static System.Net.Mime.MediaTypeNames;
 
 namespace SafeTrace.Application.Services.UserProfileServices
 {
@@ -21,19 +23,24 @@ namespace SafeTrace.Application.Services.UserProfileServices
         private readonly ILogger<UserProfileService> _logger;
         private readonly IFileStorageService _Image;
         private readonly INotificationServices _Notify;
+        private readonly IHttpContextAccessor _httpContextAccessor;
+
 
         public UserProfileService(UserManager<ApplicationUser> userManager,
             IMapper mapper,
             ILogger<UserProfileService> logger,
             IFileStorageService Image,
-            INotificationServices Notify)
+            INotificationServices Notify,
+            IHttpContextAccessor httpContextAccessor
+            )
         {
 
             _userManager = userManager;
             _mapper = mapper;
             _logger = logger;
             _Image = Image;
-            Notify = _Notify;
+            _Notify = Notify;
+            _httpContextAccessor = httpContextAccessor;
         }
 
         #region Test
@@ -59,7 +66,19 @@ namespace SafeTrace.Application.Services.UserProfileServices
             }
             else
             {
-                return _mapper.Map<GetUserInfoDTO>(user);
+                var dto = _mapper.Map<GetUserInfoDTO>(user);
+                // to return full path of image 
+                var request = _httpContextAccessor.HttpContext.Request;
+                string baseUrl = $"{request.Scheme}://{request.Host}";
+
+                dto.ProfileImage = string.IsNullOrEmpty(dto.ProfileImage)
+                    ? null
+                    : $"{baseUrl}{dto.ProfileImage}";
+
+                dto.IdentificationImage = string.IsNullOrEmpty(dto.IdentificationImage)
+                    ? null
+                    : $"{baseUrl}{dto.IdentificationImage}";
+                return dto;
             }
         }
 
@@ -179,3 +198,4 @@ namespace SafeTrace.Application.Services.UserProfileServices
     }
 
 }
+

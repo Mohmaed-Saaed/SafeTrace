@@ -9,15 +9,9 @@ namespace SafeTrace.Application.DTOs.User_Profiel_DTOS
 {
     public class UpdateProfileInfoDTO
     {
-        public string FName { get; set; } = string.Empty;
-        public string LName { get; set; } = string.Empty;
-
-        public VerificationStatus VerificationStatus { get; set; }
-        public string Email { get; set; } = string.Empty;
-
-        public bool EmailConfirmed { get; set; }
-        public double? HomeLocationLatitude { get; set; }
-        public double? HomeLocationLongitude { get; set; }
+        public string FirstName { get; set; } = string.Empty;
+        public string LastName { get; set; } = string.Empty;
+        public string? HomeLocation { get; set; }
         public IFormFile? IdentificationImage { get; set; }
 
         public IFormFile? ProfileImage { get; set; }
