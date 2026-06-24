@@ -16,6 +16,13 @@ namespace SafeTrace.Infrastructure.DataAccess.Configurations
                 .WithMany(u => u.Complaints)
                 .HasForeignKey(c => c.UserId)
                 .OnDelete(DeleteBehavior.Cascade);
+
+
+            builder.Property(c => c.SolutionMessage).HasMaxLength(2000);
+
+            builder.Property(c => c.ComplaintStatus)
+                .HasConversion<int>()
+                .IsRequired();
         }
     }
 }
