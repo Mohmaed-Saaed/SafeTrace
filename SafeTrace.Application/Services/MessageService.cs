@@ -69,16 +69,17 @@ namespace SafeTrace.Application.Services
                 if (string.IsNullOrEmpty(request.File.FileName))
                     throw new BadRequestException("Invalid file.");
 
-                var extension = Path.GetExtension(request.File.FileName).ToLower();
+                var extension = Path.GetExtension(request.File.FileName).ToLowerInvariant();
 
-                if (extension is not (".jpg" or ".jpeg" or ".png" or ".webp"))
+                fileType = extension switch
                 {
-                    throw new BadRequestException("Only image files are allowed.");
-                }
+                    ".jpg" or ".jpeg" or ".png" or ".webp" => FileType.Image,
+                    ".mp4" or ".mov" or ".webm" => FileType.Video,
+                    _ => throw new BadRequestException("Unsupported file type.")
+                };
+
                 filePath = await _fileStorageService
-                    .SaveFileAsync(request.File, "chat");
-                fileType = FileType.Image;
-                
+                    .SaveFileAsync(request.File, "chat");                
             }
 
             var message = new Message
