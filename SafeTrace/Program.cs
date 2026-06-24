@@ -86,6 +86,7 @@ namespace SafeTrace
 
             await app.SeedDataAsync();
             await app.ApplyPendingMigrationsAsync();
+            await app.SetupAwsResourcesAsync();
 
             app.UseHttpsRedirection();
             app.UseStaticFiles();
