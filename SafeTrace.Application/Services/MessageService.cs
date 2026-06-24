@@ -1,12 +1,15 @@
 ﻿using Microsoft.AspNetCore.SignalR;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using SafeTrace.Application.DTOs.Message;
 using SafeTrace.Application.DTOs.Responses;
 using SafeTrace.Application.Exceptions;
 using SafeTrace.Application.Interfaces.IServices;
 using SafeTrace.Domain.Entities;
+using Chat = SafeTrace.Domain.Entities.Chat;
 using SafeTrace.Domain.Enums;
 using SafeTrace.Domain.Interfaces.IUnitOfWork;
+using static SafeTrace.Application.Constants.Permissions;
 
 
 namespace SafeTrace.Application.Services
@@ -46,8 +49,12 @@ namespace SafeTrace.Application.Services
                 throw new BadRequestException("A message must contain either text content or a file attachment.");
             }
 
-            var chat = await _unitOfWork.ChatRepository
-                .GetChatWithDetailsAsync(request.ChatId)
+            var chat = await _unitOfWork.Repository<Chat>()
+                .GetOneAsync(
+                    c => c.Id == request.ChatId,
+                    tracked: false,
+                    c => c.Case,
+                    chatId => chatId.Messages)
                 ?? throw new NotFoundException($"Chat with id {request.ChatId} was not found.");
 
             if(chat.SenderId!= senderId && chat.ReceiverId!= senderId)
@@ -94,7 +101,7 @@ namespace SafeTrace.Application.Services
                 SendAt = DateTime.UtcNow,
             };
 
-            await _unitOfWork.MessageRepository.CreateAsync(message);
+            await _unitOfWork.Repository<Message>().CreateAsync(message);
             await _unitOfWork.SaveAsync();
 
             _logger.LogInformation(
@@ -118,8 +125,12 @@ namespace SafeTrace.Application.Services
             userId,
             chatId);
 
-            var chat = await _unitOfWork.ChatRepository
-                .GetChatWithDetailsAsync(chatId)
+            var chat = await _unitOfWork.Repository<Chat>()
+                .GetOneAsync(
+                    c => c.Id == chatId,
+                    tracked: false,
+                    c => c.Case,
+                    chatId => chatId.Messages)
                 ?? throw new NotFoundException($"Chat with id {chatId} was not found.");
 
             if(chat.SenderId != userId && chat.ReceiverId != userId)
@@ -134,8 +145,22 @@ namespace SafeTrace.Application.Services
 
             }
 
-            var updatedCount = await _unitOfWork.MessageRepository
-                .MarkMessagesAsReadAsync(chatId, userId);
+            var messages = await _unitOfWork.Repository<Message>()
+                .Query()
+                .Where(m =>
+                 m.ChatId == chatId &&
+                m.ReceiverId == userId &&
+                !m.IsRead)
+                .ToListAsync();
+
+            foreach (var message in messages)
+            {
+                message.IsRead = true;
+            }
+
+            await _unitOfWork.SaveAsync();
+
+            var updatedCount = messages.Count;
 
             _logger.LogInformation(
             "User {UserId} marked {Count} messages as read in Chat {ChatId}.",

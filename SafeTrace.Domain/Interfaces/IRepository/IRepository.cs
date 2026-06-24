@@ -30,5 +30,6 @@ namespace SafeTrace.Domain.Interfaces.IRepository
         Task<bool> AnyAsync();
 
         Task<int> CountAsync();
+
     }
 }

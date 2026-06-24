@@ -7,11 +7,13 @@ using SafeTrace.Application.Exceptions;
 using SafeTrace.Application.Interfaces.IServices;
 using SafeTrace.Domain.Common;
 using SafeTrace.Domain.Entities;
+using Chat = SafeTrace.Domain.Entities.Chat;
 using SafeTrace.Domain.Interfaces.IUnitOfWork;
 using Serilog.Core;
 using System;
 using System.Collections.Generic;
 using System.Text;
+using static SafeTrace.Application.Constants.Permissions;
 
 namespace SafeTrace.Application.Services
 {
@@ -83,7 +85,7 @@ namespace SafeTrace.Application.Services
                 CreatedAt = DateTime.UtcNow,
             };
 
-            await _unitOfWork.ChatRepository.CreateAsync(chat);
+            await _unitOfWork.Repository<Chat>().CreateAsync(chat);
             await _unitOfWork.SaveAsync();
 
             _logger.LogInformation(
@@ -103,13 +105,21 @@ namespace SafeTrace.Application.Services
             "Fetching chats for user {UserId}.",
             currentUserId);
 
-            var chats = await _unitOfWork.ChatRepository.GetUserChatsAsync(currentUserId);
+            //var chats = await _unitOfWork.ChatRepository.GetUserChatsAsync(currentUserId);
 
+            var chats = await _unitOfWork.Repository<Chat>()
+                .Query(
+                    tracked : false,
+                    includes: c => c.Messages)
+                    .Where(c =>
+                (c.SenderId == currentUserId && !c.DeletedBySender) ||
+                (c.ReceiverId == currentUserId && !c.DeletedByReceiver)).ToListAsync();
             var result = chats.Select(c => new ChatSummaryDto
             {
                 ChatId = c.Id,
                 CaseId = c.CaseId,
                 OtherUserId = c.SenderId == currentUserId ? c.ReceiverId : c.SenderId,
+
                 LastMessage = c.Messages
                 .OrderByDescending(m => m.SendAt)
                 .Select(m => m.Content)
@@ -122,7 +132,8 @@ namespace SafeTrace.Application.Services
 
                 UnreadCount = c.Messages.Count(m =>
                 !m.IsRead && m.ReceiverId == currentUserId)
-            });
+            })
+            .OrderByDescending(x => x.LastMessageDate);
 
             _logger.LogInformation(
             "User {UserId} has {Count} chats.",
@@ -139,7 +150,12 @@ namespace SafeTrace.Application.Services
             currentUserId,
             chatId);
 
-            var chat = await _unitOfWork.ChatRepository.GetChatWithDetailsAsync(chatId)
+            var chat = await _unitOfWork.Repository<Chat>()
+                .GetOneAsync(
+                    c => c.Id == chatId,
+                    tracked: false,
+                    c => c.Case,
+                    chatId => chatId.Messages)
                 ?? throw new NotFoundException($"Chat with id {chatId} was not found.");
             EnsureParticipant(chat, currentUserId);
 
@@ -162,12 +178,35 @@ namespace SafeTrace.Application.Services
             page,
             pageSize);
 
-            var chat = await _unitOfWork.ChatRepository.GetChatWithDetailsAsync(chatId)
+            var chat = await _unitOfWork.Repository<Chat>()
+                .GetOneAsync(
+                    c => c.Id == chatId,
+                    tracked: false,
+                    c => c.Case,
+                    chatId => chatId.Messages)
                ?? throw new NotFoundException($"Chat with id {chatId} was not found.");
             EnsureParticipant(chat, currentUserId);
 
-            var (messages, totalCount) = await _unitOfWork.MessageRepository
-                .GetPagedMessagesAsync(chatId,currentUserId, page, pageSize);
+            //var (messages, totalCount) = await _unitOfWork.MessageRepository
+            //    .GetPagedMessagesAsync(chatId,currentUserId, page, pageSize);
+
+            var query = _unitOfWork.Repository<Message>()
+                .Query(tracked: false)
+                .Where(m => m.ChatId == chatId &&
+                    (
+                        (m.SenderId == currentUserId && !m.DeletedBySender)
+                        ||
+                        (m.ReceiverId == currentUserId && !m.DeletedByReceiver)
+                    ));
+
+            var totalCount = await query.CountAsync();
+
+            var messages = await query
+            .OrderBy(m => m.SendAt)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync();
+
 
             _logger.LogInformation(
             "Returned {Count} messages out of {Total} for Chat {ChatId}.",
