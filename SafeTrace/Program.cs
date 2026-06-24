@@ -36,7 +36,6 @@ namespace SafeTrace
 
             builder.Services.AddInfrastructure(builder.Configuration);
             builder.Services.AddApplication();
-            builder.Services.AddSingleton<IUserIdProvider, QueryStringUserIdProvider>();
             builder.Services.AddSignalR();
 
 
@@ -45,7 +44,7 @@ namespace SafeTrace
                 options.AddPolicy("CorsPolicy", builder =>
                 {
                     builder
-                        .WithOrigins("http://localhost:5500", "http://127.0.0.1:5500",
+                        .WithOrigins("http://localhost:5500", "http://127.0.0.1:5500", "http://localhost:50461",
                                     "http://localhost:5501", "http://127.0.0.1:5501", "https://localhost:7204", "https://localhost:5173", "https://localhost:7126",
                                     "http://localhost:3000", "http://localhost:44334", "http://localhost:8080") // Add common dev ports
                         .AllowAnyHeader()
@@ -87,7 +86,6 @@ namespace SafeTrace
             }
 
             app.UseCors("CorsPolicy");
-
             app.MapHub<NotificationsHub>("/SafeTrace.Application/Hubs/notifications");
 
 
