@@ -1,6 +1,7 @@
 ﻿using Amazon.Rekognition;
 using Amazon.Rekognition.Model;
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using SafeTrace.Application.Exceptions;
 using SafeTrace.Application.Interfaces.IServices;
@@ -12,39 +13,44 @@ namespace SafeTrace.Infrastructure.Services
     {
         private readonly IAmazonRekognition _rekognitionClient;
         private readonly ILogger<FaceRecognitionService> _logger;
+        private readonly string _collectionId;
 
         private static readonly string[] AllowedImageExtensions = { ".jpg", ".jpeg", ".png", ".webp" };
         private static readonly string[] AllowedImageContentTypes = { "image/jpeg", "image/png", "image/webp", "image/jpg" };
 
-        public FaceRecognitionService(IAmazonRekognition rekognitionClient, ILogger<FaceRecognitionService> logger)
+        public FaceRecognitionService(
+            IAmazonRekognition rekognitionClient,
+            ILogger<FaceRecognitionService> logger,
+            IConfiguration configuration)
         {
             _rekognitionClient = rekognitionClient;
             _logger = logger;
+            _collectionId = configuration["AWS:CollectionId"]!;
         }
 
-        public async Task<bool> CreateCollectionAsync(string collectionId)
+        public async Task<bool> CreateCollectionAsync()
         {
             try
             {
-                var request = new CreateCollectionRequest { CollectionId = collectionId };
+                var request = new CreateCollectionRequest { CollectionId = _collectionId };
                 var response = await _rekognitionClient.CreateCollectionAsync(request);
 
-                _logger.LogInformation("Collection {CollectionId} created successfully.", collectionId);
+                _logger.LogInformation("Collection {CollectionId} created successfully.", _collectionId);
                 return response.StatusCode == (int)HttpStatusCode.OK;
             }
             catch (ResourceAlreadyExistsException)
             {
-                _logger.LogInformation("Collection {CollectionId} already exists.", collectionId);
+                _logger.LogInformation("Collection {CollectionId} already exists.", _collectionId);
                 return true;
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error occurred while creating collection {CollectionId}", collectionId);
+                _logger.LogError(ex, "Error occurred while creating collection {CollectionId}", _collectionId);
                 throw new BadRequestException("حدث خطأ أثناء الاتصال بخدمة التعرف على الوجوه.");
             }
         }
 
-        public async Task<string> IndexFaceAsync(IFormFile image, string collectionId)
+        public async Task<string> IndexFaceAsync(IFormFile image)
         {
             ValidateIsImage(image);
 
@@ -55,7 +61,7 @@ namespace SafeTrace.Infrastructure.Services
 
                 var request = new IndexFacesRequest
                 {
-                    CollectionId = collectionId,
+                    CollectionId = _collectionId,
                     Image = new Image { Bytes = memoryStream },
                     DetectionAttributes = new List<string> { "DEFAULT" },
                     MaxFaces = 2
@@ -71,12 +77,12 @@ namespace SafeTrace.Infrastructure.Services
 
                 if (response.FaceRecords.Count > 1)
                 {
-                    _logger.LogWarning("IndexFace failed: Multiple faces detected. Rolling back indexed faces from AWS.");
+                    _logger.LogWarning("IndexFace failed: Multiple faces detected. Rolling back.");
 
                     var faceIdsToDelete = response.FaceRecords.Select(f => f.Face.FaceId).ToList();
                     await _rekognitionClient.DeleteFacesAsync(new DeleteFacesRequest
                     {
-                        CollectionId = collectionId,
+                        CollectionId = _collectionId,
                         FaceIds = faceIdsToDelete
                     });
 
@@ -84,19 +90,18 @@ namespace SafeTrace.Infrastructure.Services
                 }
 
                 var faceId = response.FaceRecords.First().Face.FaceId;
-
-                _logger.LogInformation("Successfully indexed face {FaceId} in AWS for collection {CollectionId}.", faceId, collectionId);
+                _logger.LogInformation("Successfully indexed face {FaceId} in AWS.", faceId);
 
                 return faceId;
             }
             catch (Exception ex) when (!(ex is BadRequestException))
             {
-                _logger.LogError(ex, "Error indexing face in collection {CollectionId}", collectionId);
+                _logger.LogError(ex, "Error indexing face in collection {CollectionId}", _collectionId);
                 throw new BadRequestException("حدث خطأ أثناء معالجة الصورة في خوادم الذكاء الاصطناعي.");
             }
         }
 
-        public async Task<List<string>> SearchByImageAsync(IFormFile image, string collectionId)
+        public async Task<List<string>> SearchByImageAsync(IFormFile image)
         {
             ValidateIsImage(image);
 
@@ -111,13 +116,11 @@ namespace SafeTrace.Infrastructure.Services
 
                 if (detectResponse.FaceDetails.Count == 0)
                 {
-                    _logger.LogWarning("Search attempt failed: No faces detected in the uploaded image.");
                     throw new BadRequestException("عذراً، لم يتم التعرف على أي وجه في الصورة. يرجى رفع صورة واضحة.");
                 }
 
                 if (detectResponse.FaceDetails.Count > 1)
                 {
-                    _logger.LogWarning("Search attempt failed: Multiple faces ({Count}) detected in the uploaded image.", detectResponse.FaceDetails.Count);
                     throw new BadRequestException("عذراً، الصورة تحتوي على أكثر من شخص. يرجى رفع صورة تحتوي على شخص واحد فقط للبحث.");
                 }
             }
@@ -131,7 +134,7 @@ namespace SafeTrace.Infrastructure.Services
             {
                 var searchRequest = new SearchFacesByImageRequest
                 {
-                    CollectionId = collectionId,
+                    CollectionId = _collectionId,
                     Image = awsImage,
                     FaceMatchThreshold = 85F,
                     MaxFaces = 4096
@@ -140,7 +143,7 @@ namespace SafeTrace.Infrastructure.Services
                 var searchResponse = await _rekognitionClient.SearchFacesByImageAsync(searchRequest);
                 var matchedFaceIds = searchResponse.FaceMatches.Select(m => m.Face.FaceId).ToList();
 
-                _logger.LogInformation("Search completed. Found {Count} matching faces.", matchedFaceIds.Count);
+                _logger.LogInformation("Search completed. Found {Count} matches.", matchedFaceIds.Count);
 
                 return matchedFaceIds;
             }
@@ -151,18 +154,49 @@ namespace SafeTrace.Infrastructure.Services
             }
         }
 
+        public async Task<bool> DeleteFaceAsync(string faceId)
+        {
+            if (string.IsNullOrWhiteSpace(faceId)) return true;
+
+            return await DeleteFacesAsync(new List<string> { faceId });
+        }
+
+        public async Task<bool> DeleteFacesAsync(List<string> faceIds)
+        {
+            if (faceIds == null || !faceIds.Any()) return true;
+
+            try
+            {
+                var request = new DeleteFacesRequest
+                {
+                    CollectionId = _collectionId,
+                    FaceIds = faceIds
+                };
+
+                var response = await _rekognitionClient.DeleteFacesAsync(request);
+
+                _logger.LogInformation("Successfully deleted {Count} faces from AWS collection.", response.DeletedFaces.Count);
+
+                return response.HttpStatusCode == HttpStatusCode.OK;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error occurred while deleting faces from collection {CollectionId}", _collectionId);
+                throw new BadRequestException("حدث خطأ أثناء محاولة مسح بيانات الوجوه.");
+            }
+        }
+
         private void ValidateIsImage(IFormFile file)
         {
             if (file == null || file.Length == 0)
                 throw new BadRequestException("لم يتم رفع أي ملف أو أن الملف فارغ.");
 
             string extension = Path.GetExtension(file.FileName).ToLowerInvariant();
-
             bool isImage = AllowedImageExtensions.Contains(extension) && AllowedImageContentTypes.Contains(file.ContentType);
 
             if (!isImage)
             {
-                _logger.LogWarning("Attempted to process a non-image file: {FileName} with ContentType: {ContentType}", file.FileName, file.ContentType);
+                _logger.LogWarning("Attempted to process a non-image file: {FileName}", file.FileName);
                 throw new BadRequestException("الملف المرفوع ليس صورة. يرجى التأكد من رفع صور فقط.");
             }
         }
