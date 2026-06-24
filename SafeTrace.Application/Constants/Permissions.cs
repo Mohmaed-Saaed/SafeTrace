@@ -30,18 +30,18 @@
             public const string MarkAsFounded = "LongTermCases.MarkAsFounded";
         }
 
-        public static class UnkownCases
+        public static class UnknownCases
         {
-            public const string GetAll = "UnkownCases.GetAll";
-            public const string GetById = "UnkownCases.GetById";
-            public const string GetMyCases = "UnkownCases.GetMyCases";
-            public const string Create = "UnkownCases.Create";
-            public const string Update = "UnkownCases.Update";
-            public const string SoftDelete = "UnkownCases.SoftDelete";
-            public const string HardDelete = "UnkownCases.HardDelete";
-            public const string Reject = "UnkownCases.Reject";
-            public const string Approve = "UnkownCases.Approve";
-            public const string MarkAsFounded = "UnkownCases.MarkAsFounded";
+            public const string GetAll = "UnknownCases.GetAll";
+            public const string GetById = "UnknownCases.GetById";
+            public const string GetMyCases = "UnknownCases.GetMyCases";
+            public const string Create = "UnknownCases.Create";
+            public const string Update = "UnknownCases.Update";
+            public const string SoftDelete = "UnknownCases.SoftDelete";
+            public const string HardDelete = "UnknownCases.HardDelete";
+            public const string Reject = "UnknownCases.Reject";
+            public const string Approve = "UnknownCases.Approve";
+            public const string MarkAsFounded = "UnknownCases.MarkAsFounded";
         }
 
         public static class Notifications
