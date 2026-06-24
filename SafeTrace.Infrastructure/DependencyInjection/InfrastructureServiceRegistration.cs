@@ -56,6 +56,10 @@ namespace SafeTrace.Infrastructure.DependencyInjection
             .AddEntityFrameworkStores<ApplicationDbContext>()
             .AddDefaultTokenProviders();
 
+            var awsOptions = configuration.GetAWSOptions("AWS");
+            services.AddDefaultAWSOptions(awsOptions);
+            services.AddAWSService<Amazon.Rekognition.IAmazonRekognition>();
+
             var jwtOptions = configuration.GetSection("Jwt").Get<JwtOptions>();
 
             services.AddAuthentication(options =>
