@@ -84,7 +84,7 @@ namespace SafeTrace.Infrastructure.Services
 
             string baseFolder = isVideo ? "Videos" : "Images";
 
-            string wwwRootPath = _environment.WebRootPath;
+            string wwwRootPath = Path.Combine(_environment.ContentRootPath, "wwwroot");
             string contentPath = Path.Combine(wwwRootPath, baseFolder, folderName);
 
             if (!Directory.Exists(contentPath))
@@ -109,9 +109,10 @@ namespace SafeTrace.Infrastructure.Services
 
         public bool DeleteFile(string fileUrl)
         {
-            if (string.IsNullOrEmpty(fileUrl)) return false;
+            if (string.IsNullOrWhiteSpace(fileUrl))
+                return false;
 
-            string wwwRootPath = _environment.WebRootPath;
+            string wwwRootPath = Path.Combine(_environment.ContentRootPath, "wwwroot");
 
             string cleanedPath = fileUrl.TrimStart('/');
             string fullPath = Path.Combine(wwwRootPath, cleanedPath);
