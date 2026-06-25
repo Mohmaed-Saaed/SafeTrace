@@ -469,6 +469,7 @@ namespace SafeTrace.Application.Services
 
             return query.Skip((filter.Page - 1) * filter.PageSize).Take(filter.PageSize);
         }
+        
         private static Point? GetUserLocation(ApplicationUser? user)
         {
             if (user?.CurrentLocationLatitude.HasValue == true && user.CurrentLocationLongitude.HasValue)
