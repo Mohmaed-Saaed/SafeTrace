@@ -19,7 +19,6 @@ namespace SafeTrace.Domain.Entities
         public ApplicationUser User { get; set; } = null!;
         public string? CommunicationPhone{ get; set; }
         public string CaseCode { get; set; } = null!;
-        public Point Location { get; set; } = default!;
         public CaseStatus Status { get; set; }
         public RelationType Relation { get; set; }
         public DateTime CreatedAt { get; set; } = DateTime.Now;
