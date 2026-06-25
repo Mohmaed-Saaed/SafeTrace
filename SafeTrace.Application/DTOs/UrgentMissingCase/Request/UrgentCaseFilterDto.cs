@@ -10,7 +10,7 @@ namespace SafeTrace.Application.DTOs.UrgentMissingCase.Request
         public CaseStatus? Status { get; set; }
         public int? MinAge { get; set; }
         public int? MaxAge { get; set; }
-        public double RadiusInMeters { get; set; } = 5;
+        public double RadiusInMeters { get; set; } = 50000;
         public string? Government { get; set; }
         public string? City { get; set; }
         public DateTime? FromDate { get; set; }

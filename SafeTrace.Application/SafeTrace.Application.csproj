@@ -24,4 +24,8 @@
     <ProjectReference Include="..\SafeTrace.Domain\SafeTrace.Domain.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="DTOs/CasesMissing/Request/" />
+  </ItemGroup>
+
 </Project>

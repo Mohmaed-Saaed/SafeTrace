@@ -9,6 +9,8 @@ namespace SafeTrace.Application.DependencyInjection
             services.AddAutoMapper(cfg => { }, typeof(ApplicationServiceRegistration).Assembly);
 
             services.AddScoped<IUrgentCaseService, UrgentCaseService>();
+            services.AddScoped<ICasesService, CasesService>();
+            
             return services;
         }
     }

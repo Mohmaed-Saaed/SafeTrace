@@ -18,9 +18,7 @@ namespace SafeTrace.Application.DTOs.UrgentMissingCase.Request
         public RelationType Relation { get; set; }
         public DateTime EventDate { get; set; }
         public string? Description { get; set; }
-        [Required]
         public double Latitude { get; set; }
-        [Required]
         public double Longitude { get; set; }
         public List<IFormFile>? Photos { get; set; }
     }

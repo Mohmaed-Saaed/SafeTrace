@@ -30,14 +30,15 @@ namespace SafeTrace.API.Controllers
         }
 
         [HttpGet("admin/Cases")]
-        [HasPermission(Permissions.UrgentCases.GetAll)]
+        // [HasPermission(Permissions.UrgentCases.GetAll)]
+        [AllowAnonymous]
 
         public async Task<IActionResult> AdminGetAll([FromQuery] UrgentCaseFilterDto filter)
         {
-            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            if (string.IsNullOrEmpty(userId)) throw new UnauthorizedException("User identity could not be verified from token.");
+            // var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            // if (string.IsNullOrEmpty(userId)) throw new UnauthorizedException("User identity could not be verified from token.");
 
-            return Ok(await _urgentCaseService.AdminGetAllAsync(userId, filter));
+            return Ok(await _urgentCaseService.AdminGetAllAsync(filter));
         }
 
         [HttpGet("Detail")]
@@ -49,44 +50,55 @@ namespace SafeTrace.API.Controllers
 
         [HttpPost]
         [Consumes("multipart/form-data")]
-        [HasPermission(Permissions.UrgentCases.Create)]
+        // [HasPermission(Permissions.UrgentCases.Create)]
+        [AllowAnonymous]
         public async Task<IActionResult> Create([FromForm] UrgentCaseCreateDto dto)
         {
-            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            if (string.IsNullOrEmpty(userId)) throw new UnauthorizedException("User identity could not be verified from token.");
+            // var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            // if (string.IsNullOrEmpty(userId)) throw new UnauthorizedException("User identity could not be verified from token.");
 
-            return Ok(await _urgentCaseService.CreateAsync(userId, dto));
+            return Ok(await _urgentCaseService.CreateAsync("User1", dto));
         }
 
         [HttpPut]
-        [HasPermission(Permissions.UrgentCases.Update)]
-        public async Task<IActionResult> Update([FromBody] UrgentCaseUpdateDto dto)
+        // [HasPermission(Permissions.UrgentCases.Update)]
+        [AllowAnonymous]
+        public async Task<IActionResult> Update([FromForm] UrgentCaseUpdateDto dto)
         {
-            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            if (string.IsNullOrEmpty(userId)) throw new UnauthorizedException("User identity could not be verified from token.");
+            // var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            // if (string.IsNullOrEmpty(userId)) throw new UnauthorizedException("User identity could not be verified from token.");
 
-            return Ok(await _urgentCaseService.UpdateAsync(userId, dto));
+            return Ok(await _urgentCaseService.UpdateAsync("User1", dto));
         }
 
         [HttpDelete("{id}")]
-        [HasPermission(Permissions.UrgentCases.SoftDelete)]
+        // [HasPermission(Permissions.UrgentCases.SoftDelete)]
+        [AllowAnonymous]
         public async Task<IActionResult> Delete(long id)
         {
-            return Ok(await _urgentCaseService.DeleteAsync(id));
+            // var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            // if (string.IsNullOrEmpty(userId)) throw new UnauthorizedException("User identity could not be verified from token.");
+
+            return Ok(await _urgentCaseService.DeleteAsync("User1", id));
         }
 
         [HttpDelete("permanent/{id}")]
-        [HasPermission(Permissions.UrgentCases.HardDelete)]
+        // [HasPermission(Permissions.UrgentCases.HardDelete)]
+        [AllowAnonymous]
         public async Task<IActionResult> PermanentDelete(long id)
         {
             return Ok(await _urgentCaseService.PermanentDeleteAsync(id));
         }
 
         [HttpPost("{id}/mark-founded")]
-        [HasPermission(Permissions.UrgentCases.MarkAsFounded)]
+        // [HasPermission(Permissions.UrgentCases.MarkAsFounded)]
+        [AllowAnonymous]
         public async Task<IActionResult> MarkAsFounded(long id)
         {
-            return Ok(await _urgentCaseService.MarkAsFoundedAsync(id)); 
+            // var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            // if (string.IsNullOrEmpty(userId)) throw new UnauthorizedException("User identity could not be verified from token.");
+
+            return Ok(await _urgentCaseService.MarkAsFoundedAsync("User1", id)); 
         }
     }
 }
