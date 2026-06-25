@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using SafeTrace.Application.DTOs.NotificationDTOS;
+using SafeTrace.Application.DTOs.Responses;
 using SafeTrace.Application.DTOs.User_Profiel_DTOS;
 using SafeTrace.Application.Exceptions;
 using SafeTrace.Application.Interfaces.IServices;
@@ -43,26 +44,35 @@ namespace SafeTrace.Application.Services.UserProfileServices
             _httpContextAccessor = httpContextAccessor;
         }
 
-        #region Test
-        public async Task<List<GetAllDTO>> GetAllUsersAsync()
+        #region 
+
+        //public static ApiResponse<T> Ok(T? data = default, string message = "Success")
+        //    => new() { Success = true, Message = message, Data = data };
+
+        //public static ApiResponse<T> Fail(string message = "Failed")
+        //    => new() { Success = false, Message = message };
+
+        //Task<ApiResponse<string>>
+        public async Task<ApiResponse<List<GetAllDTO>>> GetAllUsersAsync()
         {
             _logger.LogInformation("Get All Users Info Test" + DateTime.Now);
             var users = await _userManager.Users.ToListAsync();
 
-            return _mapper.Map<List<GetAllDTO>>(users);
+            var mapp = _mapper.Map<List<GetAllDTO>>(users);
+            return ApiResponse<List<GetAllDTO>>.Ok(mapp, "كل بيانات المستخدمين");
         }
 
 
         #endregion
 
-        public async Task<GetUserInfoDTO?> GetProfileInfoAsync(string userId)
+        public async Task<ApiResponse<GetUserInfoDTO?>> GetProfileInfoAsync(string userId)
         {
             _logger.LogInformation("Fetching profile for UserId: {userId} at {Time}", userId, DateTime.UtcNow);
             var user = await _userManager.FindByIdAsync(userId);
             if (user == null)
             {
                 _logger.LogWarning("User With Id : {UserId} Not Found at {Time}", userId, DateTime.UtcNow);
-                throw new NotFoundException($"User Not Found");
+                throw new NotFoundException($"المستخدم غير موجود");
             }
             else
             {
@@ -78,18 +88,18 @@ namespace SafeTrace.Application.Services.UserProfileServices
                 dto.IdentificationImage = string.IsNullOrEmpty(dto.IdentificationImage)
                     ? null
                     : $"{baseUrl}{dto.IdentificationImage}";
-                return dto;
+                return ApiResponse<GetUserInfoDTO?>.Ok(dto, ".اليك بيانات المستخدم");
             }
         }
 
-        public async Task<bool> UpdateProfileInfoAsync(string userId, UpdateProfileInfoDTO dto)
+        public async Task<ApiResponse<bool>> UpdateProfileInfoAsync(string userId, UpdateProfileInfoDTO dto)
         {
             _logger.LogInformation("Update User Info with Id: {UserId} at {Time}", userId, DateTime.UtcNow);
             var user = await _userManager.FindByIdAsync(userId);
             if (user == null)
             {
                 _logger.LogWarning("User With Id :{UserId} Not Found at {Time}", userId, DateTime.UtcNow);
-                throw new NotFoundException("User not found");
+                throw new NotFoundException("المستخدم غير موجود.");
             }
 
             #region Email
@@ -142,7 +152,7 @@ namespace SafeTrace.Application.Services.UserProfileServices
             {
                 if (user.VerificationStatus == VerificationStatus.Verified)
                 {
-                    throw new BadRequestException("Identification image has already been approved.");
+                    throw new BadRequestException("صورة البطاقة موجودة بالفعل .");
                 }
                 var newIdImage =
                  await _Image.SaveFileAsync(dto.IdentificationImage, "Identification");
@@ -187,11 +197,11 @@ namespace SafeTrace.Application.Services.UserProfileServices
                 userId,
                 string.Join(", ", result.Errors.Select(e => e.Description)));
 
-                throw new BadRequestException("Failed to update profile.");
+                throw new BadRequestException("خطأ في تعديل بيانات المستخدم.");
             }
 
             _logger.LogInformation("Profile updated successfully for UserId: {UserId}", userId);
-            return result.Succeeded;
+            return ApiResponse<bool>.Ok(true, "تم تعديل البيانات بنجاح");
 
         }
 

@@ -4,7 +4,6 @@ using SafeTrace.Application.Interfaces.IServices.IUserProfile;
 using SafeTrace.Application.Mapping;
 using SafeTrace.Application.Services.NotificationServices;
 using SafeTrace.Application.Services.UserProfileServices;
-using SafeTrace.Domain.Interfaces.IRepositories;
 
 using SafeTrace.Application.Interfaces;
 namespace SafeTrace.Application.DependencyInjection

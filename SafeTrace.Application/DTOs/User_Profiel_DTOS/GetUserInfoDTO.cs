@@ -23,4 +23,5 @@ namespace SafeTrace.Application.DTOs.User_Profiel_DTOS
     }
 }
 //"email": "faroukyousef0@gmail.com",
-//  "password": "Aa@12345678"
+// "password": "Aa@12345678"
+//19482e1b-ff37-4f18-9408-5f2db81b8771

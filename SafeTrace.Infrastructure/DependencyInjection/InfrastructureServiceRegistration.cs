@@ -9,7 +9,6 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.IdentityModel.Tokens;
 using SafeTrace.Application.Interfaces;
 using SafeTrace.Application.Interfaces.IServices;
-using SafeTrace.Domain.Interfaces.IRepositories;
 using SafeTrace.Domain.Interfaces.IUnitOfWork;
 using SafeTrace.Infrastructure.Authorization;
 using SafeTrace.Infrastructure.DataAccess;

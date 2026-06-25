@@ -1,8 +1,10 @@
-﻿using Microsoft.AspNetCore.Identity;
+﻿using Azure;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using SafeTrace.Application.DTOs.NotificationDTOS;
+using SafeTrace.Application.DTOs.Responses;
 using SafeTrace.Application.Exceptions;
 using SafeTrace.Application.Hubs;
 using SafeTrace.Application.Interfaces.IServices.INotificationSewrvice;
@@ -35,14 +37,14 @@ namespace SafeTrace.Application.Services.NotificationServices
         }
 
         #region test
-        public async Task<IEnumerable<Notification>> GetAllrNotificationsAsync()
+        public async Task<ApiResponse<IEnumerable<Notification>>> GetAllrNotificationsAsync()
         {
             var notifications = await _UNIT.Repository<Notification>()
 
     .Query(
         tracked: false)
     .ToListAsync();
-            return notifications;
+            return ApiResponse<IEnumerable<Notification>>.Ok(notifications, "كل اشعارات النظام .");
         }
         #endregion
         public async Task SendNotificationAsync(SendNotificationDTO dto)
@@ -129,20 +131,20 @@ namespace SafeTrace.Application.Services.NotificationServices
         //    _logger.LogInformation("Broadcast notification sent successfully");
         //}
         #endregion
-        public async Task<bool> RemoveNotificationAsync(long id)
+        public async Task<ApiResponse<bool>> RemoveNotificationAsync(long id)
         {
             _logger.LogInformation("Removing notification. NotificationId: {Id} at: {date} ", id, DateTime.UtcNow);
             var notification = await _UNIT.Repository<Notification>().GetByIdAsync(id);
             if (notification is null)
             {
                 _logger.LogWarning("Notification not found. NotificationId: {Id}  at: {date} ", id, DateTime.UtcNow);
-                throw new NotFoundException($"Notification with Id '{id}' was not found.");
+                throw new NotFoundException("هذا الاشعار غير موجود");
             }
             _UNIT.Repository<Notification>().Remove(notification);
             await _UNIT.SaveAsync();
 
             _logger.LogInformation("Notification removed. NotificationId: {Id} at: {date} ", id, DateTime.UtcNow);
-            return true;
+            return ApiResponse<bool>.Ok(true, "تم حذف الاشعار .");
         }
 
         public async Task MarkAsReadAsync(long id)
@@ -158,7 +160,7 @@ namespace SafeTrace.Application.Services.NotificationServices
             if (affected == 0)
             {
                 _logger.LogWarning("Notification not found or already read. NotificationId: {Id}", id);
-                throw new NotFoundException($"Notification with Id '{id}' was not found.");
+                throw new NotFoundException($"هذا الاشعار غير موجوداو هي مقرؤة بالفعل.");
             }
             //await _UNIT.SaveAsync();
             _logger.LogInformation("Notification marked as read. NotificationId: {Id}", id);
@@ -183,7 +185,7 @@ namespace SafeTrace.Application.Services.NotificationServices
             _logger.LogInformation("Marked {Count} notifications as read for UserId: {UserId}", affected, userId);
         }
 
-        public async Task<IEnumerable<GetUserNotificationsDTO>> GetUserNotificationsAsync(string userId, int page = 1, int pageSize = 10)
+        public async Task<ApiResponse<IEnumerable<GetUserNotificationsDTO>>> GetUserNotificationsAsync(string userId, int page = 1, int pageSize = 10)
         {
             _logger.LogInformation("Fetching notifications for UserId: {UserId}, Page: {Page}, PageSize: {PageSize}", userId, page, pageSize);
 
@@ -197,7 +199,8 @@ namespace SafeTrace.Application.Services.NotificationServices
                 .Take(pageSize)
                 .ToListAsync();
 
-            return _mapper.Map<IEnumerable<GetUserNotificationsDTO>>(notifications);
+            var res = _mapper.Map<IEnumerable<GetUserNotificationsDTO>>(notifications);
+            return ApiResponse<IEnumerable<GetUserNotificationsDTO>>.Ok(res, "تم جلب الاشعارات بنجاح.");
         }
 
 

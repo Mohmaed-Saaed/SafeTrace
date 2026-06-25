@@ -14,7 +14,6 @@ namespace SafeTrace.Application.DTOs.NotificationDTOS
 
         public NotificationType Type { get; set; }
 
-
         public string Content { get; set; } = null!;
 
     }

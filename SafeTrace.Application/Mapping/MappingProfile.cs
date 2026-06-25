@@ -21,9 +21,8 @@ namespace SafeTrace.Application.Mapping
 
             #region test method dto
             CreateMap<ApplicationUser, GetAllDTO>()
-                 .ForMember(dest => dest.id, opt => opt.MapFrom(src => src.Id))
-                            .ForMember(dest => dest.FullName, opt => opt.MapFrom(src => $"{src.FName},{src.LName}"))
-
+                 .ForMember(dest => dest.Id, opt => opt.MapFrom(src => src.Id))
+                 .ForMember(dest => dest.FullName, opt => opt.MapFrom(src => $"{src.FName},{src.LName}"))
                  .ForMember(dest => dest.Email, opt => opt.MapFrom(src => src.Email))
                  .ForMember(dest => dest.EmailConfirmed, opt => opt.MapFrom(src => src.EmailConfirmed))
                  .ForMember(dest => dest.IdentificationImage, opt => opt.MapFrom(src => src.IdentificationImage))

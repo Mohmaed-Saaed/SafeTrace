@@ -2,10 +2,11 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using SafeTrace.Application.Constants;
 using SafeTrace.Application.DTOs.NotificationDTOS;
 using SafeTrace.Application.DTOs.Responses;
 using SafeTrace.Application.Interfaces.IServices.INotificationSewrvice;
-using SafeTrace.Domain.Interfaces.IRepositories;
+using SafeTrace.Infrastructure.Authorization;
 
 namespace SafeTrace.API.Controllers
 {
@@ -24,20 +25,18 @@ namespace SafeTrace.API.Controllers
 
         #region test
         [HttpGet("Test")]
-        public async Task<ActionResult<ApiResponse<IEnumerable<Notification>>>> GetAllNotifications()
+        public async Task<ActionResult> GetAllNotifications()
         {
             var notifications = await _notificationService.GetAllrNotificationsAsync();
 
-            if (notifications == null || !notifications.Any())
+            if (notifications == null || !notifications.Data.Any())
             {
                 return NotFound(
                     ApiResponse<IEnumerable<Notification>>
                         .Fail("No notifications found"));
             }
 
-            return Ok(
-                ApiResponse<IEnumerable<Notification>>
-                    .Ok(notifications, "Notifications retrieved successfully"));
+            return Ok(notifications);
         }
 
         [HttpPost("send")]
@@ -51,31 +50,29 @@ namespace SafeTrace.API.Controllers
         }
 
         #endregion
-        //test
+
+
+
         [HttpGet("my-Notifications")]
-        public async Task<IActionResult> GetMyNotifications([FromQuery] string userId)
+        [HasPermission(Permissions.Notifications.GetMyNotifications)]
+        public async Task<IActionResult> GetMyNotifications()
         {
-            var notifications = await _notificationService.GetUserNotificationsAsync(userId);
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            var notifications = await _notificationService.GetUserNotificationsAsync(userId!);
             return Ok(notifications);
         }
 
-        //[HttpGet("my-Notifications")]
-        //public async Task<IActionResult> GetMyNotifications()
-        //{
-        //    var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-        //    var notifications = await _notificationService.GetUserNotificationsAsync(userId!);
-        //    return Ok(notifications);
-        //}
-
         [HttpDelete("{id}")]
+        [HasPermission(Permissions.Notifications.DeleteNotification)]
         public async Task<IActionResult> DeleteNotification(long id)
         {
             var result = await _notificationService.RemoveNotificationAsync(id);
-            if (!result) return NotFound();
-            return Ok();
+            if (!result.Data) return NotFound();
+            return Ok(result);
         }
 
         [HttpPut("{id}/MarkAsRead")]
+        [HasPermission(Permissions.Notifications.MarkAsRead)]
         public async Task<IActionResult> MarkAsRead(long id)
         {
             await _notificationService.MarkAsReadAsync(id);
@@ -83,6 +80,7 @@ namespace SafeTrace.API.Controllers
         }
 
         [HttpPut("MarkAllAsRead")]
+        [HasPermission(Permissions.Notifications.MarkAllAsRead)]
         public async Task<IActionResult> MarkAllAsRead()
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);

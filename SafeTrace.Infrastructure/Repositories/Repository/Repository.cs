@@ -106,14 +106,15 @@ namespace SafeTrace.Infrastructure.Repositories.Repository
             return await _db.AnyAsync();
         }
 
-        //public async Task<bool> AnyAsync(ISpecification<T> spec)
-        //{
-        //    return await _db.CountAsync();
-        //}
 
         public async Task<int> CountAsync()
         {
             return await _db.CountAsync();
+        }
+
+        public async Task<int> CountAsync(Expression<Func<T, bool>> predicate)
+        {
+            return await _db.CountAsync(predicate);
         }
     }
 }

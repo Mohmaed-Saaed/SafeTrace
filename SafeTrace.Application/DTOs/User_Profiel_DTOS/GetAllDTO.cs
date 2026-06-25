@@ -7,7 +7,7 @@ namespace SafeTrace.Application.DTOs.User_Profiel_DTOS
 {
     public class GetAllDTO
     {
-        public string id;
+        public string Id;
         public string FullName { get; set; } = string.Empty;
 
         public string? IdentificationImage { get; set; }
