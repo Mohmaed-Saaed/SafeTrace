@@ -106,10 +106,10 @@ namespace SafeTrace.Application.Services
 
             #region Location
 
-            if (userLocation != null)
-            {
-                query = query.Where(x => x.Location != null && x.Location.Distance(userLocation) <= filter.RadiusInMeters);
-            }
+            // if (userLocation != null)
+            // {
+            //     query = query.Where(x => x.Location != null && x.Location.Distance(userLocation) <= filter.RadiusInMeters);
+            // }
 
             #endregion
 
@@ -120,10 +120,10 @@ namespace SafeTrace.Application.Services
             IOrderedQueryable<Case>? orderedQuery = null;
 
             // Distance Sort
-            if (userLocation != null)
-            {
-                orderedQuery = query.OrderBy(x => x.Location.Distance(userLocation));
-            }
+            // if (userLocation != null)
+            // {
+            //     orderedQuery = query.OrderBy(x => x.Location.Distance(userLocation));
+            // }
 
             // Age Sort
             if (filter.AgeSort.HasValue)
