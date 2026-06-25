@@ -9,12 +9,22 @@ namespace SafeTrace.API.Controllers
     public class AiMatchingController : ControllerBase
     {
         private readonly IFaceRecognitionService _faceRecognitionService;
-        public AiMatchingController(IFaceRecognitionService faceRecognitionService)
+        private readonly IAIMatchingService _aiMatchingService;
+        public AiMatchingController(IFaceRecognitionService faceRecognitionService, IAIMatchingService aiMatchingService)
         {
             _faceRecognitionService = faceRecognitionService;
+            _aiMatchingService = aiMatchingService;
         }
 
         [HttpPost("search")]
+        public async Task<IActionResult> SearchMatchingCases([FromForm] AiMatchingDto aiMatchingDto)
+        {
+            var response = await _aiMatchingService.GetMatchingCasesAsync(aiMatchingDto.Image);
+            return Ok(response);
+        }
+
+        //test
+        [HttpPost("searchtest")]
         public async Task<IActionResult> Get([FromForm] test t)
         {
             var response = await _faceRecognitionService.SearchByImageAsync(t.Image);

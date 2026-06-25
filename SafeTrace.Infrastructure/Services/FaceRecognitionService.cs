@@ -3,8 +3,11 @@ using Amazon.Rekognition.Model;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using SafeTrace.Application.DTOs.AiMatching.Response;
 using SafeTrace.Application.Exceptions;
 using SafeTrace.Application.Interfaces.IServices;
+using SixLabors.ImageSharp.Formats.Jpeg;
+using SixLabors.ImageSharp.Processing;
 using System.Net;
 
 namespace SafeTrace.Infrastructure.Services
@@ -56,13 +59,12 @@ namespace SafeTrace.Infrastructure.Services
 
             try
             {
-                using var memoryStream = new MemoryStream();
-                await image.CopyToAsync(memoryStream);
+                using var memoryStream = await CompressAndResizeImageAsync(image);
 
                 var request = new IndexFacesRequest
                 {
                     CollectionId = _collectionId,
-                    Image = new Image { Bytes = memoryStream },
+                    Image = new Amazon.Rekognition.Model.Image { Bytes = memoryStream },
                     DetectionAttributes = new List<string> { "DEFAULT" },
                     MaxFaces = 2
                 };
@@ -101,13 +103,12 @@ namespace SafeTrace.Infrastructure.Services
             }
         }
 
-        public async Task<List<string>> SearchByImageAsync(IFormFile image)
+        public async Task<List<FaceMatchResult>> SearchByImageAsync(IFormFile image)
         {
             ValidateIsImage(image);
 
-            using var memoryStream = new MemoryStream();
-            await image.CopyToAsync(memoryStream);
-            var awsImage = new Image { Bytes = memoryStream };
+            using var memoryStream = await CompressAndResizeImageAsync(image);
+            var awsImage = new Amazon.Rekognition.Model.Image { Bytes = memoryStream };
 
             try
             {
@@ -141,11 +142,16 @@ namespace SafeTrace.Infrastructure.Services
                 };
 
                 var searchResponse = await _rekognitionClient.SearchFacesByImageAsync(searchRequest);
-                var matchedFaceIds = searchResponse.FaceMatches.Select(m => m.Face.FaceId).ToList();
 
-                _logger.LogInformation("Search completed. Found {Count} matches.", matchedFaceIds.Count);
+                var matchedFaces = searchResponse.FaceMatches.Select(m => new FaceMatchResult
+                {
+                    FaceId = m.Face.FaceId,
+                    Similarity = m.Similarity
+                }).ToList();
 
-                return matchedFaceIds;
+                _logger.LogInformation("Search completed. Found {Count} matches.", matchedFaces.Count);
+
+                return matchedFaces;
             }
             catch (Exception ex)
             {
@@ -199,6 +205,28 @@ namespace SafeTrace.Infrastructure.Services
                 _logger.LogWarning("Attempted to process a non-image file: {FileName}", file.FileName);
                 throw new BadRequestException("الملف المرفوع ليس صورة. يرجى التأكد من رفع صور فقط.");
             }
+        }
+
+        private async Task<MemoryStream> CompressAndResizeImageAsync(IFormFile imageFile)
+        {
+            var outputStream = new MemoryStream();
+
+            using var img = await SixLabors.ImageSharp.Image.LoadAsync(imageFile.OpenReadStream());
+
+            var resizeOptions = new ResizeOptions
+            {
+                Size = new SixLabors.ImageSharp.Size(800, 800),
+                Mode = ResizeMode.Max
+            };
+
+            img.Mutate(x => x.Resize(resizeOptions));
+
+            var encoder = new JpegEncoder { Quality = 75 };
+            await img.SaveAsync(outputStream, encoder);
+
+            outputStream.Position = 0;
+
+            return outputStream;
         }
     }
 }
