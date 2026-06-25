@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Http;
+﻿using AutoMapper;
+using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using SafeTrace.Application.DTOs.AiMatching.Response;
@@ -53,23 +54,28 @@ namespace SafeTrace.Application.Services
 
             var matchedPhotos = await EntityFrameworkQueryableExtensions.ToListAsync(query);
 
-            var resultList = new List<MatchedCaseDto>();
+            var photosWithSimilarity = matchedPhotos.Select(p => new
+            {
+                Photo = p,
+                Similarity = faceMatches.First(f => f.FaceId == p.FaceId).Similarity
+            });
 
-            var uniqueCasesWithPhoto = matchedPhotos
-                .GroupBy(p => p.CaseId)
-                .Select(group => group.First())
-                .OrderByDescending(p => p.Case.CreatedAt)
+            var topMatchedPhotos = photosWithSimilarity
+                .GroupBy(x => x.Photo.CaseId)
+                .Select(group => group.OrderByDescending(x => x.Similarity).First())
+                .OrderByDescending(x => x.Photo.Case.CreatedAt)
                 .ToList();
 
-            foreach (var photo in uniqueCasesWithPhoto)
-            {
-                var caseEntity = photo.Case;
+            var resultList = new List<MatchedCaseDto>();
 
-                var similarityVal = faceMatches.First(f => f.FaceId == photo.FaceId).Similarity;
+            foreach (var item in topMatchedPhotos)
+            {
+                var caseEntity = item.Photo.Case;
 
                 var dto = _mapper.Map<MatchedCaseDto>(caseEntity);
 
-                dto.Similarity = (float)Math.Round((double)(similarityVal ?? 0), 2);
+                dto.Similarity = (float)Math.Round((double)(item.Similarity ?? 0), 2);
+                dto.MainPhotoPath = item.Photo.ImagePath;
 
                 resultList.Add(dto);
             }
