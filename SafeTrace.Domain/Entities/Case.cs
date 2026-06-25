@@ -20,7 +20,7 @@ namespace SafeTrace.Domain.Entities
         public string? CommunicationPhone{ get; set; }
         public CaseStatus Status { get; set; }
         public string CaseCode { get; set; } = null!;
-        public Point Location { get; set; } = default!;
+        public Point? Location { get; set; }
         public RelationType Relation { get; set; }
         public DateTime CreatedAt { get; set; } = DateTime.Now;
         public DateTime? UpdatedAt { get; set; }

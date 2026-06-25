@@ -345,10 +345,6 @@ namespace SafeTrace.Infrastructure.Migrations
                     b.Property<string>("LName")
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<Point>("Location")
-                        .IsRequired()
-                        .HasColumnType("geography");
-
                     b.Property<int?>("PreviousStatus")
                         .HasColumnType("int");
 
@@ -683,7 +679,7 @@ namespace SafeTrace.Infrastructure.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("RefreshTokens");
+                    b.ToTable("RefreshTokens", (string)null);
                 });
 
             modelBuilder.Entity("SafeTrace.Domain.Entities.UserOtp", b =>
@@ -718,7 +714,7 @@ namespace SafeTrace.Infrastructure.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("UserOtps");
+                    b.ToTable("UserOtps", (string)null);
                 });
 
             modelBuilder.Entity("SafeTrace.Domain.Entities.LongTermMissingCase", b =>
@@ -747,6 +743,10 @@ namespace SafeTrace.Infrastructure.Migrations
 
                     b.Property<DateTime>("LimitReachDate")
                         .HasColumnType("datetime2");
+
+                    b.Property<Point>("Location")
+                        .IsRequired()
+                        .HasColumnType("geography");
 
                     b.HasDiscriminator().HasValue("UrgentCase");
                 });
