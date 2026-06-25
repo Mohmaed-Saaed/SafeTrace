@@ -1,4 +1,5 @@
-﻿using SafeTrace.Domain.Enums;
+﻿using NetTopologySuite.Geometries;
+using SafeTrace.Domain.Enums;
 
 namespace SafeTrace.Domain.Entities
 {
@@ -19,6 +20,7 @@ namespace SafeTrace.Domain.Entities
         public string? CommunicationPhone{ get; set; }
         public CaseStatus Status { get; set; }
         public string CaseCode { get; set; } = null!;
+        public Point Location { get; set; } = default!;
         public RelationType Relation { get; set; }
         public DateTime CreatedAt { get; set; } = DateTime.Now;
         public DateTime? UpdatedAt { get; set; }
