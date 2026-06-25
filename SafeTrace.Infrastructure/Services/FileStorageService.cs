@@ -84,7 +84,6 @@ namespace SafeTrace.Infrastructure.Services
 
             string baseFolder = isVideo ? "Videos" : "Images";
 
-            //From chat
             string wwwRootPath = Path.Combine(_environment.ContentRootPath, "wwwroot");
             string contentPath = Path.Combine(wwwRootPath, baseFolder, folderName);
 
