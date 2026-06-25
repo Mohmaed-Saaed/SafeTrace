@@ -1,7 +1,6 @@
 ﻿using AutoMapper;
 using AutoMapper.QueryableExtensions;
 using Microsoft.AspNetCore.Identity;
-using Microsoft.EntityFrameworkCore; // Added for ToListAsync, CountAsync
 using Microsoft.Extensions.Logging;
 using SafeTrace.Application.DTOs.Responses;
 using SafeTrace.Application.DTOs.User.Request;
