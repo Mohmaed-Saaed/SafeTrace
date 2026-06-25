@@ -6,9 +6,9 @@ namespace SafeTrace.Application.DTOs.UrgentMissingCase.Request
     public class UrgentCaseCreateDto
     {
         public Gender Gender { get; set; }
-        public string Government { get; set; } = null!;
-        public string City { get; set; } = null!;
-        public string Street { get; set; } = null!;
+        public string? Government { get; set; }
+        public string? City { get; set; }
+        public string? Street { get; set; }
         public string? FName { get; set; }
         public string? SName { get; set; }
         public string? TName { get; set; }

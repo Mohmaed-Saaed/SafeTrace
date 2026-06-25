@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using Microsoft.AspNetCore.Http;
 
 namespace SafeTrace.Application.DTOs.UrgentMissingCase.Request{
     public class UrgentCaseUpdateDto
@@ -21,5 +22,7 @@ namespace SafeTrace.Application.DTOs.UrgentMissingCase.Request{
         public int? AgeCategoryId { get; set; }
         public double? Latitude { get; set; }
         public double? Longitude { get; set; }
+        public List<IFormFile>? Photos { get; set; }
+        public List<long>? DeletedPhotoIds { get; set; }
     }
 }

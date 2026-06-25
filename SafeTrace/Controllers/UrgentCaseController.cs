@@ -48,8 +48,9 @@ namespace SafeTrace.API.Controllers
         }
 
         [HttpPost]
+        [Consumes("multipart/form-data")]
         [HasPermission(Permissions.UrgentCases.Create)]
-        public async Task<IActionResult> Create([FromBody] UrgentCaseCreateDto dto)
+        public async Task<IActionResult> Create([FromForm] UrgentCaseCreateDto dto)
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             if (string.IsNullOrEmpty(userId)) throw new UnauthorizedException("User identity could not be verified from token.");

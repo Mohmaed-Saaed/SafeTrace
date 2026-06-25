@@ -14,14 +14,16 @@ namespace SafeTrace.Application.Services
         private readonly ILogger<UrgentCaseService> _logger;
         private readonly IUnitOfWork _unitOfWork;
         private readonly IMapper _mapper;
+        private readonly IFileStorageService _fileStorageService;
         private const int RateLimitDays    = 14;
         private const int ExpirationHours  = 48;
 
-        public UrgentCaseService(ILogger<UrgentCaseService> logger, IUnitOfWork unitOfWork, IMapper mapper)
+        public UrgentCaseService(ILogger<UrgentCaseService> logger, IUnitOfWork unitOfWork, IMapper mapper, IFileStorageService fileStorageService)
         {
             _logger = logger;
             _unitOfWork = unitOfWork;
             _mapper = mapper;
+            _fileStorageService = fileStorageService;
         }
 
         public async Task<ApiResponse<PaginationResponseDto<UrgentCaseListItemDto>>> GetAllAsync(string userId, UrgentCaseFilterDto filter)
@@ -67,7 +69,7 @@ namespace SafeTrace.Application.Services
         {
 
             // ── Rate-limit: one urgent case per 14 days ───────────────────────
-            var cutoff = DateTime.UtcNow.AddDays(RateLimitDays);
+            var cutoff = DateTime.UtcNow.AddDays(-RateLimitDays);
  
             bool hasRecent = await _unitOfWork.Repository<UrgentCase>().Query(tracked: false)
                 .AnyAsync(x => x.UserId == userId && x.Status != CaseStatus.Deleted && x.CreatedAt >= cutoff);
@@ -80,27 +82,68 @@ namespace SafeTrace.Application.Services
             }
  
             var entity = _mapper.Map<UrgentCase>(createDto);
- 
+
+            entity.UserId         = userId;
             entity.CaseType       = CaseType.Urgent;
             entity.Status         = CaseStatus.Active;
             entity.CreatedAt      = DateTime.UtcNow;
             entity.LimitReachDate = DateTime.UtcNow.AddDays(RateLimitDays);
             entity.EndDate        = DateTime.UtcNow.AddHours(ExpirationHours);
             entity.CaseCode       = Generators.GenerateCaseCode();
- 
-            await _unitOfWork.Repository<UrgentCase>().CreateAsync(entity);
-            await _unitOfWork.SaveAsync();
- 
-            _logger.LogInformation("Urgent case {CaseCode} created by user {UserId}.", entity.CaseCode, entity.UserId);
- 
-            return ApiResponse<UrgentCaseDetailDto>.Ok(message: "Urgent case created successfully.");
+            entity.AgeCategoryId  = await AgeCategoryHelper.ResolveAgeCategoryIdAsync(_unitOfWork, entity.Age);
+
+            List<string> uploadedFiles = new();
+
+            await _unitOfWork.BeginTransactionAsync();
+
+            try
+            {
+                if (createDto.Photos?.Any() == true)
+                {
+                    uploadedFiles = await _fileStorageService.SaveFilesAsync(createDto.Photos, "UrgentCases");
+
+                    entity.Photos = uploadedFiles.Select(path => new CasePhoto
+                    {
+                        ImagePath = path,
+                        CreatedAt = DateTime.UtcNow
+                    }).ToList();
+                }
+
+                await _unitOfWork.Repository<UrgentCase>().CreateAsync(entity);
+                await _unitOfWork.SaveAsync();
+
+                await _unitOfWork.CommitTransactionAsync();
+
+                _logger.LogInformation("Urgent case {CaseCode} created successfully by user {UserId}.", entity.CaseCode, userId);
+                
+                return ApiResponse<UrgentCaseDetailDto>.Ok(message: "Urgent case created successfully.");
+            }
+            catch (Exception ex)
+            {
+                await _unitOfWork.RollbackTransactionAsync();
+
+                foreach (var file in uploadedFiles)
+                {
+                    try
+                    {
+                        _fileStorageService.DeleteFile(file);
+                    }
+                    catch (Exception deleteEx)
+                    {
+                        _logger.LogError(deleteEx, "Failed to cleanup uploaded file {FilePath}", file);
+                    }
+                }
+
+
+                _logger.LogError(ex, "Failed to create urgent case for user {UserId}", userId);
+
+                throw;
+            }
         }
-        
 
         public async Task<ApiResponse<UrgentCaseDetailDto>> UpdateAsync(string userId, UrgentCaseUpdateDto updateDto)
         {
-            var entity = await _unitOfWork.Repository<UrgentCase>()
-                .GetOneAsync(x => x.Id == updateDto.Id && x.Status != CaseStatus.Deleted, tracked: true);
+            var entity = await _unitOfWork.Repository<UrgentCase>().GetOneAsync(x => x.Id == updateDto.Id && x.Status != CaseStatus.Deleted, tracked: true, includes: x => x.Photos);
  
             if (entity is null)
                 return ApiResponse<UrgentCaseDetailDto>.Fail("Urgent case not found.");
@@ -110,16 +153,89 @@ namespace SafeTrace.Application.Services
  
             if (entity.Status is CaseStatus.Found or CaseStatus.Expired)
                 return ApiResponse<UrgentCaseDetailDto>.Fail($"Cannot update a case with status '{entity.Status}'.");
- 
-            _mapper.Map(updateDto, entity);
-            entity.UpdatedAt = DateTime.UtcNow;  
- 
-            _unitOfWork.Repository<UrgentCase>().Update(entity);
-            await _unitOfWork.SaveAsync();
- 
-            _logger.LogInformation("Urgent case {CaseId} updated by user {UserId}.", entity.Id, updateDto.UserId);
- 
-            return ApiResponse<UrgentCaseDetailDto>.Ok(message: "Urgent case updated successfully.");
+
+            var uploadedFiles = new List<string>();
+            var filesToDelete = new List<string>();
+
+            await _unitOfWork.BeginTransactionAsync();
+
+            try
+            {
+                // Update scalar properties
+                _mapper.Map(updateDto, entity);
+
+                entity.UpdatedAt = DateTime.UtcNow;
+
+                // Upload new photos
+                if (updateDto.Photos?.Any() == true)
+                {
+                    uploadedFiles = await _fileStorageService.SaveFilesAsync(updateDto.Photos, "UrgentCases");
+
+                    foreach (var file in uploadedFiles)
+                    {
+                        entity.Photos.Add(new CasePhoto
+                        {
+                            ImagePath = file,
+                            CreatedAt = DateTime.UtcNow
+                        });
+                    }
+                }
+
+                // Remove selected photos
+                if (updateDto.DeletedPhotoIds?.Any() == true)
+                {
+                    var photos = entity.Photos.Where(x => updateDto.DeletedPhotoIds.Contains(x.Id)).ToList();
+
+                    filesToDelete.AddRange(photos.Select(x => x.ImagePath));
+
+                    foreach (var photo in photos)
+                    {
+                        entity.Photos.Remove(photo);
+                    }
+                }
+                _unitOfWork.Repository<UrgentCase>().Update(entity);
+                await _unitOfWork.SaveAsync();
+
+                await _unitOfWork.CommitTransactionAsync();
+
+                // Delete physical files after successful commit
+                foreach (var file in filesToDelete)
+                {
+                    try
+                    {
+                        _fileStorageService.DeleteFile(file);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "Failed to delete file {FilePath} after updating urgent case {CaseId}", file, entity.Id);
+                    }
+                }
+
+                _logger.LogInformation("Urgent case {CaseId} updated successfully by user {UserId}.", entity.Id, userId);
+
+                return ApiResponse<UrgentCaseDetailDto>.Ok(message: "Urgent case updated successfully.");
+            }
+            catch (Exception ex)
+            {
+                await _unitOfWork.RollbackTransactionAsync();
+
+                // Remove uploaded files if DB operation fails
+                foreach (var file in uploadedFiles)
+                {
+                    try
+                    {
+                        _fileStorageService.DeleteFile(file);
+                    }
+                    catch (Exception deleteEx)
+                    {
+                        _logger.LogError(deleteEx, "Failed to cleanup uploaded file {FilePath}", file);
+                    }
+                }
+
+                _logger.LogError(ex, "Failed to update urgent case {CaseId} for user {UserId}", updateDto.Id, userId);
+
+                throw;
+            }
         }
 
         public async Task<ApiResponse<string>> DeleteAsync(long id)
@@ -131,13 +247,13 @@ namespace SafeTrace.Application.Services
                 return ApiResponse<string>.Fail("Urgent case not found.");
  
             if (entity.Status == CaseStatus.Found)
-                return ApiResponse<string>.Fail("Cannot delete a case that is already marked as Founded.");
+                return ApiResponse<string>.Fail("Cannot delete a case that is already marked as Found.");
  
             entity.PreviousStatus = entity.Status;
-            entity.Status         = CaseStatus.Deleted;
-            entity.DeletedAt      = DateTime.UtcNow;         
+            entity.Status = CaseStatus.Deleted;
+            entity.DeletedAt = DateTime.UtcNow;
+            entity.UpdatedAt = DateTime.UtcNow;      
  
-            _unitOfWork.Repository<UrgentCase>().Update(entity);
             await _unitOfWork.SaveAsync();
  
             _logger.LogInformation("Urgent case {CaseId} soft-deleted.", id);
@@ -153,24 +269,26 @@ namespace SafeTrace.Application.Services
                 return ApiResponse<string>.Fail("Urgent case not found.");
  
             if (entity.Status == CaseStatus.Found)
-                return ApiResponse<string>.Fail("Case is already marked as Founded.");
+                return ApiResponse<string>.Fail("Case is already marked as Found.");
+            
+            if (entity.Status == CaseStatus.Expired)
+                return ApiResponse<string>.Fail("Cannot mark an expired case as found.");
  
             entity.PreviousStatus = entity.Status;
-            entity.Status         = CaseStatus.Found;
-            entity.EndDate        = DateTime.UtcNow;
- 
-            _unitOfWork.Repository<UrgentCase>().Update(entity);
+            entity.Status = CaseStatus.Found;
+            entity.EndDate = DateTime.UtcNow;
+            entity.UpdatedAt = DateTime.UtcNow;
+             
             await _unitOfWork.SaveAsync();
  
-            _logger.LogInformation("Urgent case {CaseId} marked as Founded.", id);
+            _logger.LogInformation("Urgent case {CaseId} marked as Found.", id);
  
-            return ApiResponse<string>.Ok("Case marked as Founded.");
+            return ApiResponse<string>.Ok("Case marked as Found.");
         }
 
         public async Task<ApiResponse<string>> PermanentDeleteAsync(long id)
         {
-            var entity = await _unitOfWork.Repository<UrgentCase>()
-                .GetOneAsync(x => x.Id == id, tracked: true);
+            var entity = await _unitOfWork.Repository<UrgentCase>().GetOneAsync(x => x.Id == id, tracked: true, includes: x => x.Photos);
  
             if (entity is null)
                 return ApiResponse<string>.Fail("Urgent case not found.");
@@ -178,8 +296,39 @@ namespace SafeTrace.Application.Services
             if (entity.Status == CaseStatus.Found)
                 return ApiResponse<string>.Fail("Cannot permanently delete a case marked as Founded.");
  
-            _unitOfWork.Repository<UrgentCase>().Remove(entity);
-            await _unitOfWork.SaveAsync();
+            var filesToDelete = entity.Photos.Select(x => x.ImagePath).ToList();
+
+            await _unitOfWork.BeginTransactionAsync();
+
+            try
+            {
+                _unitOfWork.Repository<UrgentCase>().Remove(entity);
+
+                await _unitOfWork.SaveAsync();
+
+                await _unitOfWork.CommitTransactionAsync();
+            }
+            catch (Exception ex)
+            {
+                await _unitOfWork.RollbackTransactionAsync();
+
+                _logger.LogError(ex, "Failed to permanently delete urgent case {CaseId}", id);
+
+                throw;
+            }
+
+            // Delete physical files AFTER successful commit
+            foreach (var file in filesToDelete)
+            {
+                try
+                {
+                    _fileStorageService.DeleteFile(file);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Failed to delete file {FilePath} for urgent case {CaseId}", file, id);
+                }
+            }
  
             _logger.LogInformation("Urgent case {CaseId} permanently deleted.", id);
  
@@ -188,13 +337,18 @@ namespace SafeTrace.Application.Services
 
         private async Task<ApiResponse<PaginationResponseDto<TDto>>> GetAllInternalAsync<TDto>(string userId, UrgentCaseFilterDto filter, bool includeDeleted, bool includeExpired, params Expression<Func<UrgentCase, object>>[] includes)
         {
+            var user = await _unitOfWork.Repository<ApplicationUser>().Query(tracked: false).FirstOrDefaultAsync(x => x.Id == userId);
+            
+            var userLocation = GetUserLocation(user);
+            
             var query = _unitOfWork.Repository<UrgentCase>().Query(tracked: false, includes: includes);
 
-            query = ApplyFilter(query, userId, filter, includeDeleted, includeExpired);
+            query = ApplyFilter(query, userLocation, filter, includeDeleted, includeExpired);
 
             var totalCount = await query.CountAsync();
 
-            query = ApplySorting(query, userId, filter);
+            query = ApplySorting(query, userLocation, filter);
+
             query = ApplyPagination(query, filter);
 
             var items = await query.ToListAsync();
@@ -211,7 +365,7 @@ namespace SafeTrace.Application.Services
                 response,
                 "Urgent cases retrieved successfully");
         }
-        private IQueryable<UrgentCase> ApplyFilter(IQueryable<UrgentCase> query, string userId, UrgentCaseFilterDto filter, bool includeDeleted = false, bool includeExpired = false)
+        private static IQueryable<UrgentCase> ApplyFilter(IQueryable<UrgentCase> query, Point? userLocation, UrgentCaseFilterDto filter, bool includeDeleted = false, bool includeExpired = false)
         {
             #region Basic Filters
 
@@ -253,26 +407,6 @@ namespace SafeTrace.Application.Services
 
             #region Location
 
-            var user = _unitOfWork.Repository<ApplicationUser>().Query().FirstOrDefault(x => x.Id == userId);
-
-
-            Point? userLocation = null;
-
-            if (user?.CurrentLocationLatitude.HasValue == true && user.CurrentLocationLongitude.HasValue)
-            {
-                userLocation = new Point(user.CurrentLocationLongitude.Value, user.CurrentLocationLatitude.Value)
-                {
-                    SRID = 4326
-                };
-            }
-            else if (user?.HomeLocationLatitude.HasValue == true && user.HomeLocationLongitude.HasValue)
-            {
-                userLocation = new Point(user.HomeLocationLongitude.Value, user.HomeLocationLatitude.Value)
-                {
-                    SRID = 4326
-                };
-            }
-
             if (userLocation != null)
             {
                 query = query.Where(x => x.Location != null && x.Location.Distance(userLocation) <= filter.RadiusInMeters);
@@ -282,31 +416,11 @@ namespace SafeTrace.Application.Services
 
             return query;
         }
-        private IQueryable<UrgentCase> ApplySorting(IQueryable<UrgentCase> query, string userId, UrgentCaseFilterDto filter)
+        private static IQueryable<UrgentCase> ApplySorting(IQueryable<UrgentCase> query, Point? userLocation, UrgentCaseFilterDto filter)
         {
             IOrderedQueryable<UrgentCase>? orderedQuery = null;
 
-            var user =  _unitOfWork.Repository<ApplicationUser>().Query().Where(x => x.Id == userId).FirstOrDefault();
-
-
             // Distance Sort
-            Point? userLocation = null;
-
-            if (user.CurrentLocationLatitude.HasValue && user.CurrentLocationLongitude.HasValue)
-            {
-                userLocation = new Point(user.CurrentLocationLongitude.Value, user.CurrentLocationLatitude.Value)
-                {
-                    SRID = 4326
-                };
-            }
-            else if (user.HomeLocationLatitude.HasValue && user.HomeLocationLongitude.HasValue)
-            {
-                userLocation = new Point(user.HomeLocationLongitude.Value, user.HomeLocationLatitude.Value)
-                {
-                    SRID = 4326
-                };
-            }
-
             if (userLocation != null)
             {
                 orderedQuery = query.OrderBy(x => x.Location.Distance(userLocation));
@@ -340,8 +454,32 @@ namespace SafeTrace.Application.Services
         }
         private static IQueryable<UrgentCase> ApplyPagination(IQueryable<UrgentCase> query, UrgentCaseFilterDto filter)
         {
+            filter.Page = filter.Page <= 0 ? 1 : filter.Page;
+
+            filter.PageSize = filter.PageSize <= 0 ? 10 : filter.PageSize > 100 ? 100 : filter.PageSize;
+
             return query.Skip((filter.Page - 1) * filter.PageSize).Take(filter.PageSize);
         }
+        private static Point? GetUserLocation(ApplicationUser? user)
+        {
+            if (user?.CurrentLocationLatitude.HasValue == true && user.CurrentLocationLongitude.HasValue)
+            {
+                return new Point(user.CurrentLocationLongitude.Value, user.CurrentLocationLatitude.Value)
+                {
+                    SRID = 4326
+                };
+            }
 
+            if (user?.HomeLocationLatitude.HasValue == true && user.HomeLocationLongitude.HasValue)
+            {
+                return new Point(user.HomeLocationLongitude.Value, user.HomeLocationLatitude.Value)
+                {
+                    SRID = 4326
+                };
+            }
+
+            return null;
+        }
+    
     }
 }
