@@ -679,7 +679,7 @@ namespace SafeTrace.Infrastructure.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("RefreshTokens");
+                    b.ToTable("RefreshTokens", (string)null);
                 });
 
             modelBuilder.Entity("SafeTrace.Domain.Entities.UserOtp", b =>
@@ -714,7 +714,7 @@ namespace SafeTrace.Infrastructure.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("UserOtps");
+                    b.ToTable("UserOtps", (string)null);
                 });
 
             modelBuilder.Entity("SafeTrace.Domain.Entities.LongTermMissingCase", b =>
