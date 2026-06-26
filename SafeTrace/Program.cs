@@ -69,7 +69,7 @@ namespace SafeTrace
                     {
                         Status = 404,
                         Title = "Not Found",
-                        Detail = "The requested endpoint was not found.",
+                        Detail = "لم يتم العثور على المسار المطلوب.",
                         Instance = context.HttpContext.Request.Path
                     });
                 }
@@ -86,10 +86,12 @@ namespace SafeTrace
 
             await app.SeedDataAsync();
             await app.ApplyPendingMigrationsAsync();
+            await app.SetupAwsResourcesAsync();
 
             app.UseHttpsRedirection();
             app.UseStaticFiles();
 
+            app.UseAuthentication();
             app.UseAuthorization();
 
             app.MapControllers();

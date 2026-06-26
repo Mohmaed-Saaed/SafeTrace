@@ -1,4 +1,5 @@
 ﻿using SafeTrace.Application.Interfaces;
+using SafeTrace.Application.Interfaces.IServices;
 
 namespace SafeTrace.API.ExtensionMethods
 {
@@ -29,6 +30,17 @@ namespace SafeTrace.API.ExtensionMethods
                 await dbContext.Database.MigrateAsync();
             }
 
+            return app;
+        }
+
+        public static async Task<WebApplication> SetupAwsResourcesAsync(this WebApplication app)
+        {
+            await using var scope = app.Services.CreateAsyncScope();
+
+            var faceRecognitionService = scope.ServiceProvider.GetRequiredService<IFaceRecognitionService>();
+
+            await faceRecognitionService.CreateCollectionAsync();
+            
             return app;
         }
     }

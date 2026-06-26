@@ -6,17 +6,33 @@ namespace SafeTrace.Domain.Entities
     {
         public long Id { get; set; }
 
-        public string Content { get; set; } = null!;
+        public string? Content { get; set; } = null!;
 
         public string SenderId { get; set; } = null!;
 
+        public ApplicationUser Sender { get; set; } = null!;
+
         public string ReceiverId { get; set; } = null!;
+
+        public ApplicationUser Receiver { get; set; } = null!;
+
+        public bool DeletedBySender { get; set; } = false;
+
+        public bool DeletedByReceiver { get; set; } = false;
+
+        public bool IsDeletedForEveryone { get; set; } = false;
+
+        public DateTime? ForEveryoneDeletedAt { get; set; } = null!;
+
+        public DateTime? SenderDeletedAt { get; set; }
+
+        public DateTime? ReceiverDeletedAt { get; set; }
 
         public FileType? FileType { get; set; }
 
         public string? FilePath { get; set; }
 
-        public bool IsRead { get; set; }
+        public bool IsRead { get; set; } = false;
 
         public DateTime SendAt { get; set; }
 

@@ -392,6 +392,9 @@ namespace SafeTrace.Infrastructure.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
 
+                    b.Property<string>("FaceId")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<string>("ImagePath")
                         .IsRequired()
                         .HasMaxLength(1000)
@@ -421,17 +424,33 @@ namespace SafeTrace.Infrastructure.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
 
+                    b.Property<bool>("DeletedByReceiver")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("DeletedBySender")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime?>("ReceiverDeletedAt")
+                        .HasColumnType("datetime2");
+
                     b.Property<string>("ReceiverId")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<DateTime?>("SenderDeletedAt")
+                        .HasColumnType("datetime2");
 
                     b.Property<string>("SenderId")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("nvarchar(450)");
 
                     b.HasKey("Id");
 
                     b.HasIndex("CaseId");
+
+                    b.HasIndex("ReceiverId");
+
+                    b.HasIndex("SenderId");
 
                     b.ToTable("Chats", (string)null);
                 });
@@ -447,10 +466,18 @@ namespace SafeTrace.Infrastructure.Migrations
                     b.Property<string>("CaseCode")
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<int>("ComplaintStatus")
+                        .HasColumnType("int");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
 
                     b.Property<string>("Message")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
+                    b.Property<string>("SolutionMessage")
                         .IsRequired()
                         .HasMaxLength(2000)
                         .HasColumnType("nvarchar(2000)");
@@ -525,9 +552,14 @@ namespace SafeTrace.Infrastructure.Migrations
                         .HasColumnType("bigint");
 
                     b.Property<string>("Content")
-                        .IsRequired()
                         .HasMaxLength(2000)
                         .HasColumnType("nvarchar(2000)");
+
+                    b.Property<bool>("DeletedByReceiver")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("DeletedBySender")
+                        .HasColumnType("bit");
 
                     b.Property<string>("FilePath")
                         .HasColumnType("nvarchar(max)");
@@ -535,23 +567,39 @@ namespace SafeTrace.Infrastructure.Migrations
                     b.Property<string>("FileType")
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<DateTime?>("ForEveryoneDeletedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsDeletedForEveryone")
+                        .HasColumnType("bit");
+
                     b.Property<bool>("IsRead")
                         .HasColumnType("bit");
 
+                    b.Property<DateTime?>("ReceiverDeletedAt")
+                        .HasColumnType("datetime2");
+
                     b.Property<string>("ReceiverId")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("nvarchar(450)");
 
                     b.Property<DateTime>("SendAt")
                         .HasColumnType("datetime2");
 
+                    b.Property<DateTime?>("SenderDeletedAt")
+                        .HasColumnType("datetime2");
+
                     b.Property<string>("SenderId")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("nvarchar(450)");
 
                     b.HasKey("Id");
 
                     b.HasIndex("ChatId");
+
+                    b.HasIndex("ReceiverId");
+
+                    b.HasIndex("SenderId");
 
                     b.ToTable("Messages", (string)null);
                 });
@@ -627,7 +675,7 @@ namespace SafeTrace.Infrastructure.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("RefreshTokens");
+                    b.ToTable("RefreshTokens", (string)null);
                 });
 
             modelBuilder.Entity("SafeTrace.Domain.Entities.UserOtp", b =>
@@ -662,7 +710,7 @@ namespace SafeTrace.Infrastructure.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("UserOtps");
+                    b.ToTable("UserOtps", (string)null);
                 });
 
             modelBuilder.Entity("SafeTrace.Domain.Entities.LongTermMissingCase", b =>
@@ -788,7 +836,23 @@ namespace SafeTrace.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("SafeTrace.Domain.Entities.ApplicationUser", "Receiver")
+                        .WithMany()
+                        .HasForeignKey("ReceiverId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.HasOne("SafeTrace.Domain.Entities.ApplicationUser", "Sender")
+                        .WithMany()
+                        .HasForeignKey("SenderId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
                     b.Navigation("Case");
+
+                    b.Navigation("Receiver");
+
+                    b.Navigation("Sender");
                 });
 
             modelBuilder.Entity("SafeTrace.Domain.Entities.Complaint", b =>
@@ -829,7 +893,23 @@ namespace SafeTrace.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("SafeTrace.Domain.Entities.ApplicationUser", "Receiver")
+                        .WithMany()
+                        .HasForeignKey("ReceiverId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.HasOne("SafeTrace.Domain.Entities.ApplicationUser", "Sender")
+                        .WithMany()
+                        .HasForeignKey("SenderId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
                     b.Navigation("Chat");
+
+                    b.Navigation("Receiver");
+
+                    b.Navigation("Sender");
                 });
 
             modelBuilder.Entity("SafeTrace.Domain.Entities.Notification", b =>
