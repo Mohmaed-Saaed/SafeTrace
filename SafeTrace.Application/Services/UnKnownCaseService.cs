@@ -42,7 +42,7 @@ namespace SafeTrace.Application.Services
                 throw new NotFoundException("User was not found.");
             }
 
-            if (!user.IsVerified)
+            if (user.VerificationStatus != VerificationStatus.Verified)
             {
                 logger.LogWarning("User is not verified. UserId: {UserId}", userId);
                 throw new UnauthorizedException("You must verify your account before creating a case.");
@@ -51,6 +51,11 @@ namespace SafeTrace.Application.Services
             logger.LogInformation("User validated successfully. UserId: {UserId}", userId);
 
             var unknownCase = _mapper.Map<UnknownCase>(dto);
+
+            unknownCase.AgeCategoryId =
+             await AgeCategoryHelper.ResolveAgeCategoryIdAsync(
+             _unitOfWork,
+              dto.Age);
 
             unknownCase.UserId = userId;
             unknownCase.CreatedAt = DateTime.UtcNow;
@@ -85,7 +90,7 @@ namespace SafeTrace.Application.Services
 
             logger.LogInformation("Unknown case saved successfully. CaseCode: {CaseCode}", unknownCase.CaseCode);
 
-            return ApiResponse<string>.Ok("Unknown case created successfully");
+            return ApiResponse<string>.Ok(message:"تم إنشاء حالة مجهول الهوية بنجاح");
         }
 
         public async Task<ApiResponse<string>> ApproveAsync(long id)
@@ -94,16 +99,16 @@ namespace SafeTrace.Application.Services
                 .GetOneAsync(x => x.Id == id);
 
             if (unknownCase == null)
-                throw new NotFoundException("Unknown case not found.");
+                throw new NotFoundException("حاله المجهول غبر موجوده.");
 
             if (unknownCase.Status == CaseStatus.Active)
-                throw new BadRequestException("This case has already been approved.");
+                throw new BadRequestException("الحاله متوافق عليها مسبقا.");
 
             if (unknownCase.Status == CaseStatus.Rejected)
-                throw new BadRequestException("Rejected cases cannot be approved.");
+                throw new BadRequestException("الحالات المرفوضه لا يتم الموافقه عليها.");
 
             if (unknownCase.Status != CaseStatus.Pending)
-                throw new BadRequestException("Only pending cases can be approved.");
+                throw new BadRequestException("فقط حالات قيد الانتظار التى يتم الموافقه عليها");
 
             unknownCase.Status = CaseStatus.Active;
 
@@ -111,29 +116,42 @@ namespace SafeTrace.Application.Services
             await _unitOfWork.SaveAsync();
 
             return ApiResponse<string>.Ok(
-                message: "Unknown case approved successfully.");
+                message: "تمت الموافقة على حالة مجهول الهوية بالنشر بنجاح");
         }
 
-        public async Task<ApiResponse<IEnumerable<GetUnknownDto>>> GetAllApprovedAsync()
+        public async Task<ApiResponse<PaginationResponseDto<GetUnknownDto>>>
+    GetAllApprovedAsync(int pageNumber = 1, int pageSize = 10)
         {
-            var unknownCases = await _unitOfWork
+            var query = _unitOfWork
                 .Repository<UnknownCase>()
                 .Query(
                     tracked: false,
                     includes: x => x.Photos)
                 .Where(x =>
                     x.Status == CaseStatus.Active &&
-                    x.CaseType == CaseType.Unknown)
+                    x.CaseType == CaseType.Unknown);
+
+            var totalCount = await query.CountAsync();
+
+            var unknownCases = await query
+                .OrderByDescending(x => x.CreatedAt)
+                .Skip((pageNumber - 1) * pageSize)
+                .Take(pageSize)
                 .ToListAsync();
 
-            var result =
-                _mapper.Map<IEnumerable<GetUnknownDto>>(
-                    unknownCases);
+            var result = _mapper.Map<List<GetUnknownDto>>(unknownCases);
 
-            return ApiResponse<IEnumerable<GetUnknownDto>>
-                .Ok(
-                    result,
-                    "Approved unknown cases retrieved successfully.");
+            var response = new PaginationResponseDto<GetUnknownDto>
+            {
+                Items = result,
+                PageNumber = pageNumber,
+                PageSize = pageSize,
+                TotalCount = totalCount
+            };
+
+            return ApiResponse<PaginationResponseDto<GetUnknownDto>>
+                .Ok(response,
+                    "تم استرجاع حالات مجهولي الهوية المعتمدة بنجاح");
         }
         public async Task<ApiResponse<string>> RejectAsync(long id)
         {
@@ -141,16 +159,16 @@ namespace SafeTrace.Application.Services
                 .Repository<UnknownCase>().GetOneAsync(x => x.Id == id);
 
             if (unknownCase == null)
-                throw new NotFoundException("Unknown case not found.");
+                throw new NotFoundException("حاله المجهول غير موجوده");
 
             if (unknownCase.Status == CaseStatus.Rejected)
-                throw new BadRequestException("This case has already been rejected.");
+                throw new BadRequestException("الحاله مرفوضه مسبقا ");
 
             if (unknownCase.Status == CaseStatus.Active)
-                throw new BadRequestException("Approved cases cannot be rejected.");
+                throw new BadRequestException("الحاله المتوافق عليها لا ينبغي ان يتم رفضها");
 
             if (unknownCase.Status != CaseStatus.Pending)
-                throw new BadRequestException("Only pending cases can be rejected.");
+                throw new BadRequestException("فقط حالات قيد الانتظار ما يتم التوافق عليها");
 
             unknownCase.Status = CaseStatus.Rejected;
 
@@ -158,25 +176,22 @@ namespace SafeTrace.Application.Services
             await _unitOfWork.SaveAsync();
 
             return ApiResponse<string>.Ok(
-                message: "Unknown case rejected successfully.");
+                message: "تم رفض حالة مجهول الهوية ");
         }
-        public async Task<ApiResponse<PagedResponse<GetUnknownDto>>> GetCasesAsync(
-            UnKnownCaseFilterDto filter)
+        public async Task<ApiResponse<PaginationResponseDto<GetUnknownDto>>>
+            GetCasesAsync(UnknownFilterUsingbyUserDto filter)
         {
             var query = _unitOfWork
                 .Repository<UnknownCase>()
-                .Query(tracked: false);
+                .Query(tracked: false, includes: x => x.Photos)
+                .Where(x =>
+                    x.CaseType == CaseType.Unknown &&
+                    x.Status == CaseStatus.Active);
 
-
-            query = query.Where(x =>
-                x.CaseType == CaseType.Unknown &&
-                x.Status == CaseStatus.Active);
-
-
-           
-            if (!string.IsNullOrWhiteSpace(filter.Name))
+            // Search By Name
+            if (!string.IsNullOrWhiteSpace(filter.FullName))
             {
-                var name = filter.Name.Trim().ToLower();
+                var name = filter.FullName.Trim().ToLower();
 
                 query = query.Where(x =>
                     (
@@ -189,57 +204,43 @@ namespace SafeTrace.Application.Services
                     .Contains(name));
             }
 
-
-            
+            // Filter By Gender
             if (filter.Gender.HasValue)
             {
                 query = query.Where(x =>
-                    x.Gender == filter.Gender);
+                    x.Gender == filter.Gender.Value);
             }
 
-
-            
-            if (filter.AgeCategoryId.HasValue)
+            // Filter By Age Category
+            if (filter.AgeCategory.HasValue)
             {
+                var range = AgeCategoryHelper
+                    .GetRange(filter.AgeCategory.Value);
+
                 query = query.Where(x =>
-                    x.AgeCategoryId == filter.AgeCategoryId);
+                    x.Age >= range.Min &&
+                    x.Age <= range.Max);
             }
 
-
-            if (filter.SortDirection?.ToLower() == "asc")
-            {
-                query = query.OrderBy(x => x.CreatedAt);
-            }
-            else
-            {
-                query = query.OrderByDescending(x => x.CreatedAt);
-            }
-
-
-        
             var totalCount = await query.CountAsync();
 
-
-            
             var data = await query
                 .Skip((filter.PageNumber - 1) * filter.PageSize)
                 .Take(filter.PageSize)
                 .ToListAsync();
 
-
             var result = _mapper.Map<List<GetUnknownDto>>(data);
 
-
-            return ApiResponse<PagedResponse<GetUnknownDto>>
+            return ApiResponse<PaginationResponseDto<GetUnknownDto>>
                 .Ok(
-                    new PagedResponse<GetUnknownDto>
+                    new PaginationResponseDto<GetUnknownDto>
                     {
                         Items = result,
                         TotalCount = totalCount,
                         PageNumber = filter.PageNumber,
                         PageSize = filter.PageSize
                     },
-                    "Unknown cases retrieved successfully");
+                    "تم استرجاع حالات مجهولي الهوية بنجاح");
         }
         public async Task<ApiResponse<string>> UpdateUnknownCaseAsync(
             long id,
@@ -262,7 +263,7 @@ namespace SafeTrace.Application.Services
                     "Unknown case not found. CaseId: {CaseId}",
                     id);
 
-                throw new NotFoundException("Case not found.");
+                throw new NotFoundException("الحاله غير موجوده");
             }
 
             if (unknownCase.UserId != userId)
@@ -271,7 +272,7 @@ namespace SafeTrace.Application.Services
                     "Unauthorized update attempt. CaseId: {CaseId}, UserId: {UserId}",
                     id, userId);
 
-                throw new UnauthorizedException("You are not allowed to update this case.");
+                throw new UnauthorizedException("انت غير مسموح لك ان تحدث هذه الحاله");
             }
 
             if (unknownCase.Status != CaseStatus.Pending &&
@@ -281,7 +282,7 @@ namespace SafeTrace.Application.Services
                     "Update rejected because of invalid status. CaseId: {CaseId}, Status: {Status}",
                     id, unknownCase.Status);
 
-                throw new BadRequestException("This case cannot be updated.");
+                throw new BadRequestException("هذه الحاله لا يتم تحديثها");
             }
 
             if (unknownCase.Status == CaseStatus.Active)
@@ -310,10 +311,14 @@ namespace SafeTrace.Application.Services
                     id);
 
                 throw new BadRequestException(
-                    "Case must have at least one photo. You must replace the existing photo if you want to remove it.");
+                    "يجب ان تضع صوره واحده علي الاقل وان تم حذف جميع الصوره يجب استبدال اول صوره علي الاقل ");
             }
 
             _mapper.Map(dto, unknownCase);
+            unknownCase.AgeCategoryId =
+             await AgeCategoryHelper.ResolveAgeCategoryIdAsync(
+              _unitOfWork,
+                 unknownCase.Age);
 
             if (dto.DeletedPhotoIds != null)
             {
@@ -372,7 +377,7 @@ namespace SafeTrace.Application.Services
                 "Unknown case updated successfully. CaseId: {CaseId}, UserId: {UserId}",
                 id, userId);
 
-            return ApiResponse<string>.Ok("Unknown case updated successfully.");
+            return ApiResponse<string>.Ok(message:"تم تحديث حالة مجهول الهوية بنجاح");
         }
         public async Task<ApiResponse<GetUnknownDto>> GetDetailsAsync(long id)
         {
@@ -380,10 +385,12 @@ namespace SafeTrace.Application.Services
                 .Repository<UnknownCase>()
                 .GetOneAsync(
                     x => x.Id == id,
-                    includes: x => x.Photos);
+                    includes: x => x.Photos
+              
+                   );
 
             if (unknownCase == null)
-                throw new NotFoundException("Case not found.");
+                throw new NotFoundException("هذه الحاله غير موجوده");
 
             var result = _mapper.Map<GetUnknownDto>(unknownCase);
 
@@ -405,7 +412,7 @@ namespace SafeTrace.Application.Services
                     "Unknown case not found. CaseId: {CaseId}",
                     id);
 
-                throw new NotFoundException("Unknown case not found.");
+                throw new NotFoundException("هذه الحاله غير موجوده");
             }
 
             if (unknownCase.UserId != userId)
@@ -414,7 +421,7 @@ namespace SafeTrace.Application.Services
                     "Unauthorized delete attempt. CaseId: {CaseId}, UserId: {UserId}",
                     id, userId);
 
-                throw new UnauthorizedException("You are not allowed to delete this case.");
+                throw new UnauthorizedException("انت غير مسموح لك ان تحذه هذه الحاله .");
             }
 
             if (unknownCase.Status != CaseStatus.Pending &&
@@ -425,7 +432,7 @@ namespace SafeTrace.Application.Services
                     id, unknownCase.Status);
 
                 throw new BadRequestException(
-                    "Only Pending or Active cases can be deleted.");
+                    "حالات قيد الانتظار والمتوافق عليها فقط ما تحذف");
             }
 
             unknownCase.Status = CaseStatus.Deleted;
@@ -444,7 +451,7 @@ namespace SafeTrace.Application.Services
                 id);
 
             return ApiResponse<string>.Ok(
-                message: "Unknown case deleted successfully.");
+                message: "تم حذف حالة مجهول الهوية بنجاح");
         }
 
         public async Task<ApiResponse<string>> FoundUnKnownCase(long id, string userId)
@@ -454,29 +461,114 @@ namespace SafeTrace.Application.Services
                 .GetOneAsync(x => x.Id == id);
 
             if (unknownCase == null)
-                throw new NotFoundException("Unknown case not found.");
+                throw new NotFoundException("هذه الحاله غير موجوده");
 
 
             if (unknownCase.UserId != userId)
-                throw new UnauthorizedException("You are not allowed to Update this case .");
+                throw new UnauthorizedException("غير مسموح لك بتحديث هذه الحاله ");
 
 
             if (unknownCase.Status != CaseStatus.Pending &&
                 unknownCase.Status != CaseStatus.Active)
             {
                 throw new BadRequestException(
-                    "Only Pending or Active cases can be Updated to be found.");
+                    "فقط حالات قيد الانتظار والمتوافق عليها ما تحدث");
             }
 
 
             unknownCase.Status = CaseStatus.Found;
-     
+
 
             _unitOfWork.Repository<UnknownCase>().Update(unknownCase);
             await _unitOfWork.SaveAsync();
 
             return ApiResponse<string>.Ok(
-                message: "Unknown case deleted successfully.");
+                message: "تم تحديث هذه الحاله بنجاح لتكون حاله تم العثور عليها");
         }
+
+        public async Task<ApiResponse<PaginationResponseDto<UnKnownCaseFilterDto>>>
+            GetAllWithFilteration(UnKnownCaseFilterStatusDto filter)
+        {
+            var query = _unitOfWork
+                .Repository<UnknownCase>()
+                .Query(tracked: false,
+                includes: x => x.Photos);
+
+            if (filter.Status.HasValue)
+            {
+                query = query.Where(x =>
+                    x.Status == filter.Status.Value);
+            }
+
+            var totalCount = await query.CountAsync();
+
+            var cases = await query
+                .Skip((filter.PageNumber - 1) * filter.PageSize)
+                .Take(filter.PageSize)
+                .ToListAsync();
+
+            var result = _mapper
+                .Map<List<UnKnownCaseFilterDto>>(cases);
+
+            var response = new PaginationResponseDto<UnKnownCaseFilterDto>
+            {
+                Items = result,
+                PageNumber = filter.PageNumber,
+                PageSize = filter.PageSize,
+                TotalCount = totalCount
+            };
+
+            return ApiResponse<
+                PaginationResponseDto<UnKnownCaseFilterDto>>
+                .Ok(response);
+        }
+
+        public async Task<ApiResponse<List<GetMyUnknownnCasesDto>>> GetMyCasesAsync(string userId)
+        {
+            var cases = await _unitOfWork
+                .Repository<UnknownCase>()
+                .Query(
+                    tracked: false,
+                    includes: x => x.Photos)
+                .Where(x =>
+                    x.UserId == userId &&
+                    x.Status != CaseStatus.Deleted)
+                .OrderByDescending(x => x.CreatedAt)
+                .ToListAsync();
+
+            var result = _mapper.Map<List<GetMyUnknownnCasesDto>>(cases);
+
+            return ApiResponse<List<GetMyUnknownnCasesDto>>
+                .Ok(result);
+        }
+
+        public async Task<ApiResponse<string>> HardDeleteUnknownCase(long id)
+        {
+            var unknownCase = await _unitOfWork
+                .Repository<UnknownCase>()
+                .GetOneAsync(x => x.Id == id, includes: x => x.Photos);
+
+            if (unknownCase == null)
+                throw new NotFoundException("هذه الحاله غير موجوده ");
+
+
+            if (unknownCase.Photos != null && unknownCase.Photos.Any())
+            {
+                foreach (var photo in unknownCase.Photos)
+                {
+                    if (!string.IsNullOrEmpty(photo.ImagePath))
+                    {
+                        _fileStorageService.DeleteFile(photo.ImagePath);
+                    }
+                }
+            }
+
+            _unitOfWork.Repository<UnknownCase>().Remove(unknownCase);
+
+            await _unitOfWork.SaveAsync();
+
+            return ApiResponse<string>.Ok("تم حذف حالة مجهول الهوية بنجاح");
+        }
+
     }
 }

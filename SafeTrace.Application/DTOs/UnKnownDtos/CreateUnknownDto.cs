@@ -28,7 +28,6 @@ namespace SafeTrace.Application.DTOs.UnKnownDtos
         public string? Description { get; set; }
 
         public List<IFormFile> Photos { get; set; } = new();
-        public int AgeCategoryId { get; set; }
 
         public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
         {

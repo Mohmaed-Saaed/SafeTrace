@@ -21,7 +21,7 @@ namespace SafeTrace.Application.DTOs.UnKnownDtos
         public string? CommunicationPhone { get; set; }
         public string? Description { get; set; }
 
-        public List<string> Photos { get; set; } = new();
-        public int AgeCategoryId { get; set; }
+        public List<UnknownPhotoDto> Photos { get; set; } = new();
+        public AgeCategoryEnum AgeCategory { get; set; }
     }
 }

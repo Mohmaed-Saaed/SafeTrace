@@ -5,7 +5,7 @@ using System.Text;
 
 namespace SafeTrace.Application.DTOs.UnKnownDtos
 {
-    public class UnKnownCaseFilterDto
+    public class GetMyUnknownnCasesDto
     {
         public Gender Gender { get; set; }
         public string FullName { get; set; }
@@ -21,7 +21,7 @@ namespace SafeTrace.Application.DTOs.UnKnownDtos
 
         public List<string> Photos { get; set; } = new();
 
+        public CaseStatus Status { get; set; }
 
     }
 }
-

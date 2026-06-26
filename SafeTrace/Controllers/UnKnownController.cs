@@ -5,6 +5,7 @@ using SafeTrace.Application.DTOs.UnKnownDtos;
 using SafeTrace.Application.Exceptions;
 using SafeTrace.Application.Interfaces.IServices;
 using SafeTrace.Application.Services;
+using SafeTrace.Domain.Enums;
 using System.Security.Claims;
 
 namespace SafeTrace.API.Controllers
@@ -19,39 +20,39 @@ namespace SafeTrace.API.Controllers
         {
             _unKnownServiceCase = unKnownServiceCase;
         }
-        //[HttpPost]
-        //[Consumes("multipart/form-data")]
-        //public async Task<IActionResult> CreateUnknown([FromForm] CreateUnknownDto dto)
-        //{
-        //    var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-
-        //    if (string.IsNullOrEmpty(userId))
-        //        throw new UnauthorizedException("User is not authenticated.");
-
-        //    var result = await _unKnownServiceCase.CreateUnknownCaseAsync(dto, userId);
-
-        //    return Ok(result);
-        //}
-        //Test-Create-EndPoint
-
         [HttpPost]
-        public async Task<IActionResult> CreateUnknownCase(
-            [FromForm] CreateUnknownDto dto,
-           [FromQuery] string userId)
+        [Consumes("multipart/form-data")]
+        public async Task<IActionResult> CreateUnknown([FromForm] CreateUnknownDto dto)
         {
-            var result = await _unKnownServiceCase
-                .CreateUnknownCaseAsync(dto, userId);
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+            if (string.IsNullOrEmpty(userId))
+                throw new UnauthorizedException("User is not authenticated.");
+
+            var result = await _unKnownServiceCase.CreateUnknownCaseAsync(dto, userId);
 
             return Ok(result);
         }
-        //[Authorize(Roles = "Admin")]
+        //Test-Create-EndPoint
+
+        //[HttpPost]
+        //public async Task<IActionResult> CreateUnknownCase(
+        //    [FromForm] CreateUnknownDto dto,
+        //   [FromQuery] string userId)
+        //{
+        //    var result = await _unKnownServiceCase
+        //        .CreateUnknownCaseAsync(dto, userId);
+
+        //    return Ok(result);
+        //}
+        [Authorize(Roles = "Admin")]
         [HttpPut("{id:long}/approve")]
         public async Task<IActionResult> Approve(long id)
         {
             var response = await _unKnownServiceCase.ApproveAsync(id);
             return Ok(response);
         }
-        //[Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Admin")]
         [HttpPut("{id:long}/reject")]
         public async Task<IActionResult> Reject(long id)
         {
@@ -59,36 +60,44 @@ namespace SafeTrace.API.Controllers
             return Ok(response);
         }
         [HttpGet("GetAllapproved")]
-        public async Task<IActionResult> GetAllApproved()
+      
+        public async Task<IActionResult> GetAllApproved(
+        int pageNumber = 1,
+        int pageSize = 10)
         {
-            var response = await _unKnownServiceCase.GetAllApprovedAsync();
-            return Ok(response);
-        }
-        [HttpGet("Filter")]
-        public async Task<IActionResult> GetCases([FromQuery] UnKnownCaseFilterDto filter)
-        {
-            var result = await _unKnownServiceCase.GetCasesAsync(filter);
+            var result = await _unKnownServiceCase
+                .GetAllApprovedAsync(pageNumber, pageSize);
+
             return Ok(result);
         }
-        //[HttpPut("{id}/UpdateUnKnownCase")]
-        //public async Task<IActionResult> UpdateUnknownCase(long id,[FromForm] UpdateUnkownCaseDto dto)
+
+        //[HttpGet("Filter")]
+        //public async Task<IActionResult> GetCases([FromQuery] UnKnownCaseFilterDto filter)
         //{
-        //    var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-
-        //    var result = await _unKnownServiceCase
-        //        .UpdateUnknownCaseAsync(id, dto, userId);
-
+        //    var result = await _unKnownServiceCase.GetCasesAsync(filter);
         //    return Ok(result);
         //}
-        //testing 
-        [HttpPut("{id}")]
-        public async Task<IActionResult> UpdateUnknownCase(long id,[FromForm] UpdateUnkownCaseDto dto,[FromQuery] string userId)
+
+
+        [HttpPut("{id}/UpdateUnKnownCase")]
+        public async Task<IActionResult> UpdateUnknownCase(long id, [FromForm] UpdateUnkownCaseDto dto)
         {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
             var result = await _unKnownServiceCase
                 .UpdateUnknownCaseAsync(id, dto, userId);
 
             return Ok(result);
         }
+        //testing 
+        //[HttpPut("{id}")]
+        //public async Task<IActionResult> UpdateUnknownCase(long id,[FromForm] UpdateUnkownCaseDto dto,[FromQuery] string userId)
+        //{
+        //    var result = await _unKnownServiceCase
+        //        .UpdateUnknownCaseAsync(id, dto, userId);
+
+        //    return Ok(result);
+        //}
 
         [HttpGet("{id}/GetDetails")]
         public async Task<IActionResult> GetDetails(long id)
@@ -97,28 +106,83 @@ namespace SafeTrace.API.Controllers
             return Ok(result);
         }
 
-        //[HttpDelete("{id}")]
-        //public async Task<IActionResult> DeleteUnknownCase(long id)
-        //{
-        //    var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-
-        //    var result = await _unKnownServiceCase.DeleteUnKnownCase(id, userId);
-
-        //    return Ok(result);
-        //}
-        //testing 
         [HttpDelete("{id}")]
-        public async Task<IActionResult> DeleteUnknownCase(long id ,[FromQuery] string userId)
+        public async Task<IActionResult> DeleteUnknownCase(long id)
         {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
             var result = await _unKnownServiceCase.DeleteUnKnownCase(id, userId);
 
             return Ok(result);
         }
+        //testing 
+        //[HttpDelete("{id}")]
+        //public async Task<IActionResult> DeleteUnknownCase(long id ,[FromQuery] string userId)
+        //{
+        //    var result = await _unKnownServiceCase.DeleteUnKnownCase(id, userId);
+
+        //    return Ok(result);
+        //}
 
         [HttpPut("{id}/UpdateTobeFound")]
         public async Task<IActionResult> FoundUnknownCase(long id, [FromQuery] string userId)
         {
             var result = await _unKnownServiceCase.FoundUnKnownCase(id, userId);
+
+            return Ok(result);
+        }
+
+        [HttpGet("status/{status}")]
+        public async Task<IActionResult> GetByStatus(
+        CaseStatus status,
+        [FromQuery] int pageNumber = 1,
+        [FromQuery] int pageSize = 10)
+        {
+            var filter = new UnKnownCaseFilterStatusDto
+            {
+                Status = status,
+                PageNumber = pageNumber,
+                PageSize = pageSize
+            };
+
+            var result = await _unKnownServiceCase
+                .GetAllWithFilteration(filter);
+
+            return Ok(result);
+        }
+
+        [HttpGet("my-cases")]
+        [Authorize]
+        public async Task<IActionResult> GetMyCases()
+        {
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+            var result = await _unKnownServiceCase.GetMyCasesAsync(userId!);
+
+            return Ok(result);
+        }
+        //[HttpGet("my-cases")]
+        //public async Task<IActionResult> GetMyCases([FromQuery] string userId)
+        //{
+        //    var result = await _unKnownServiceCase
+        //        .GetMyCasesAsync(userId);
+
+        //    return Ok(result);
+        //}
+
+        [Authorize(Roles = "Admin")]
+        [HttpDelete("hard-delete/{id}")]
+        public async Task<IActionResult> HardDelete(long id)
+        {
+            var result = await _unKnownServiceCase.HardDeleteUnknownCase(id);
+            return Ok(result);
+        }
+        [HttpGet("GetCasebyFilteration")]
+        public async Task<IActionResult> GetCases(
+             [FromQuery] UnknownFilterUsingbyUserDto filter)
+        {
+            var result = await _unKnownServiceCase
+               .GetCasesAsync(filter);
 
             return Ok(result);
         }

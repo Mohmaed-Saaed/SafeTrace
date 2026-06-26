@@ -17,18 +17,18 @@ namespace SafeTrace.Application.DTOs.UnKnownDtos
         public int Age { get; set; }
 
         
-        public string Government { get; set; } = null!;
+        public string Government { get; set; } 
 
-        public string City { get; set; } = null!;
+        public string City { get; set; } 
 
 
-        public string Street { get; set; } = null!;
+        public string Street { get; set; }
 
         public string CommunicationPhone { get; set; }
         public string Description { get; set; }
         public List<IFormFile> NewPhotos { get; set; } = new();
 
         public List<long> DeletedPhotoIds { get; set; } = new();
-        public int AgeCategoryId { get; set; }
+
     }
 }

@@ -5,23 +5,17 @@ using System.Text;
 
 namespace SafeTrace.Application.DTOs.UnKnownDtos
 {
-    public class UnKnownCaseFilterDto
+    public  class CaseAdminFilterationDto
     {
         public Gender Gender { get; set; }
         public string FullName { get; set; }
         public int Age { get; set; }
-
         public string Government { get; set; } = null!;
-
         public string City { get; set; } = null!;
-
         public string Street { get; set; } = null!;
         public string? CommunicationPhone { get; set; }
         public string? Description { get; set; }
 
         public List<string> Photos { get; set; } = new();
-
-
     }
 }
-
