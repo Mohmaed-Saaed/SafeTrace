@@ -1,8 +1,8 @@
 ﻿using System.ComponentModel.DataAnnotations;
 
-namespace SafeTrace.Application.DTOs.Auth.Request
+namespace SafeTrace.Application.DTOs.User.Request
 {
-    public class RegisterDto
+    public class RegisterByAdminDto
     {
         [Required(ErrorMessage = "الاسم الأول مطلوب.")]
         [MaxLength(100, ErrorMessage = "يجب ألا يزيد الاسم الأول عن 100 حرف.")]
@@ -28,5 +28,8 @@ namespace SafeTrace.Application.DTOs.Auth.Request
             ErrorMessage = "يجب أن تحتوي كلمة المرور على حرف كبير، وحرف صغير، ورقم، ورمز خاص."
         )]
         public string Password { get; set; } = null!;
+
+        [Required(ErrorMessage = "يجب تحديد دور (Role) للمستخدم.")]
+        public string Role { get; set; } = null!;
     }
 }

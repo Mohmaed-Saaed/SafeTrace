@@ -40,15 +40,16 @@ namespace SafeTrace.Infrastructure.Persistence
             }
 
             string[] AdminPermissions = { "UrgentCases.GetAll", "UrgentCases.GetById", "UrgentCases.GetMyCases", "UrgentCases.Create", "UrgentCases.Update", "UrgentCases.SoftDelete", "UrgentCases.HardDelete", "UrgentCases.Reject", "UrgentCases.Approve", "UrgentCases.MarkAsFounded",
-                                         "UnknownCases.GetAll", "UnknownCases.GetById", "UnknownCases.GetMyCases", "UnknownCases.Create", "UnknownCases.Update", "UnknownCases.SoftDelete", "UnknownCases.HardDelete", "UnknownCases.Reject", "UnknownCases.Approve", "UnknownCases.MarkAsFounded",
-                                         "LongTermCases.GetAll", "LongTermCases.GetById", "LongTermCases.GetMyCases", "LongTermCases.Create", "LongTermCases.Update", "LongTermCases.SoftDelete", "LongTermCases.HardDelete", "LongTermCases.Reject", "LongTermCases.Approve", "LongTermCases.MarkAsFounded",
-                                         "Notifications.GetMyNotifications", "Notifications.DeleteNotification", "Notifications.MarkAsRead", "Notifications.MarkAllAsRead",
-                                         "Profile.GetUserInfo", "Profile.UpdateUserInfo",
-                                         "Complaints.GetAll", "Complaints.GetById", "Complaints.Create", "Complaints.HardDelete", "Complaints.MarkAsSolved",
-                                         "Roles.GetAll", "Roles.GetPermissionsByRoleId", "Roles.UpdateRolePermissions",
-                                         "Users.GetAll", "Users.GetById",  "Users.ChangeRole", "Users.GetPermissions", "Users.AssignPermissions", "Users.Approve", "Users.Reject", "Users.ToggleBlock",
-                                         "Chat.GetAll", "Chat.GetById", "Chat.GetMyChats",  "Chat.GetMessages", "Chat.SendMessage", "Chat.Create", "Chat.MarkAsRead", "Chat.HardDelete", "Chat.SoftDelete", "Chat.DeleteMessage", "Chat.DeleteMessageForEveryone",
-                                         "Dashboard.GetStatistics"};
+                                          "UnknownCases.GetAll", "UnknownCases.GetById", "UnknownCases.GetMyCases", "UnknownCases.Create", "UnknownCases.Update", "UnknownCases.SoftDelete", "UnknownCases.HardDelete", "UnknownCases.Reject", "UnknownCases.Approve", "UnknownCases.MarkAsFounded",
+                                          "LongTermCases.GetAll", "LongTermCases.GetById", "LongTermCases.GetMyCases", "LongTermCases.Create", "LongTermCases.Update", "LongTermCases.SoftDelete", "LongTermCases.HardDelete", "LongTermCases.Reject", "LongTermCases.Approve", "LongTermCases.MarkAsFounded",
+                                          "Notifications.GetMyNotifications", "Notifications.DeleteNotification", "Notifications.MarkAsRead", "Notifications.MarkAllAsRead",
+                                          "Profile.GetUserInfo", "Profile.UpdateUserInfo",
+                                          "Complaints.GetAll", "Complaints.GetById", "Complaints.Create", "Complaints.HardDelete", "Complaints.MarkAsSolved",
+                                          "Account.ChangePassword",
+                                          "Roles.GetAll", "Roles.Create", "Roles.Delete", "Roles.GetPermissionsByRoleId", "Roles.UpdateRolePermissions",
+                                          "Users.GetAll", "Users.GetById", "Users.RegisterByAdmin",  "Users.ChangeRole", "Users.GetPermissions", "Users.AssignPermissions", "Users.Approve", "Users.Reject", "Users.ToggleBlock",
+                                          "Chat.GetAll", "Chat.GetById", "Chat.GetMyChats",  "Chat.GetMessages", "Chat.SendMessage", "Chat.Create", "Chat.MarkAsRead", "Chat.HardDelete", "Chat.SoftDelete", "Chat.DeleteMessage", "Chat.DeleteMessageForEveryone",
+                                          "Dashboard.GetStatistics"};
 
 
             string[] VerifiedUserPermissions = { "UrgentCases.GetById", "UrgentCases.GetMyCases", "UrgentCases.Create", "UrgentCases.Update", "UrgentCases.SoftDelete", "UrgentCases.MarkAsFounded",
@@ -57,7 +58,7 @@ namespace SafeTrace.Infrastructure.Persistence
                                                  "Notifications.GetMyNotifications", "Notifications.DeleteNotification", "Notifications.MarkAsRead", "Notifications.MarkAllAsRead",
                                                  "Profile.GetUserInfo", "Profile.UpdateUserInfo",
                                                  "Complaints.Create",
-                                                 "Dashboard.GetStatistics",
+                                                 "Account.ChangePassword",
                                                  "Chat.GetById", "Chat.GetMyChats",  "Chat.GetMessages", "Chat.SendMessage", "Chat.Create", "Chat.MarkAsRead", "Chat.SoftDelete", "Chat.DeleteMessage"};
 
             string[] UserPermissions = { "UrgentCases.GetById", "UrgentCases.GetMyCases", "UrgentCases.Create", "UrgentCases.Update", "UrgentCases.SoftDelete", "UrgentCases.MarkAsFounded",
@@ -66,6 +67,7 @@ namespace SafeTrace.Infrastructure.Persistence
                                          "Notifications.GetMyNotifications", "Notifications.DeleteNotification", "Notifications.MarkAsRead", "Notifications.MarkAllAsRead",
                                          "Profile.GetUserInfo", "Profile.UpdateUserInfo",
                                          "Complaints.Create",
+                                         "Account.ChangePassword",
                                          "Chat.GetById", "Chat.GetMyChats",  "Chat.GetMessages", "Chat.SendMessage", "Chat.Create", "Chat.MarkAsRead", "Chat.SoftDelete", "Chat.DeleteMessage"};
 
             await AssignPermissionsToRoleAsync("Admin", AdminPermissions);
