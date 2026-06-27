@@ -364,6 +364,6 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
-/SafeTrace.Infrastructure/DependencyInjection/InfrastructureServiceRegistration.cs
-/SafeTrace.Application/DTOs/User_Profiel_DTOS/GetUserInfoDTO.cs
-/SafeTrace/Program.cs
+
+# SixLabors License Key
+sixlabors.lic
