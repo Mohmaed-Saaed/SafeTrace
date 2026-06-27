@@ -1,7 +1,6 @@
 ﻿using AutoMapper;
 using AutoMapper.QueryableExtensions;
 using Microsoft.AspNetCore.Identity;
-using Microsoft.EntityFrameworkCore; // Added for ToListAsync, CountAsync
 using Microsoft.Extensions.Logging;
 using SafeTrace.Application.DTOs.Responses;
 using SafeTrace.Application.DTOs.User.Request;
@@ -10,6 +9,7 @@ using SafeTrace.Application.Exceptions;
 using SafeTrace.Application.Interfaces.IServices;
 using SafeTrace.Domain.Enums;
 using SafeTrace.Domain.Interfaces.IUnitOfWork;
+using SafeTrace.Infrastructure.DataAccess;
 using System.Reflection;
 using System.Security.Claims;
 
@@ -20,6 +20,7 @@ namespace SafeTrace.Infrastructure.Services
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly RoleManager<IdentityRole> _roleManager;
         private readonly IUnitOfWork _unitOfWork;
+        private readonly ApplicationDbContext _context;
         private readonly IMapper _mapper;
         private readonly IFileStorageService _fileStorageService;
         private readonly ILogger<UserService> _logger;
@@ -28,6 +29,7 @@ namespace SafeTrace.Infrastructure.Services
             UserManager<ApplicationUser> userManager,
             RoleManager<IdentityRole> roleManager,
             IUnitOfWork unitOfWork,
+            ApplicationDbContext context,
             IMapper mapper,
             IFileStorageService fileStorageService,
             ILogger<UserService> logger)
@@ -35,6 +37,7 @@ namespace SafeTrace.Infrastructure.Services
             _userManager = userManager;
             _roleManager = roleManager;
             _unitOfWork = unitOfWork;
+            _context = context;
             _mapper = mapper;
             _fileStorageService = fileStorageService;
             _logger = logger;
@@ -58,23 +61,33 @@ namespace SafeTrace.Infrastructure.Services
                 query = query.Where(u => u.VerificationStatus == filterDto.VerificationStatus.Value);
             }
 
+            if (!string.IsNullOrWhiteSpace(filterDto.RoleId))
+            {
+                var userIdsInRole = _context.UserRoles
+                    .Where(ur => ur.RoleId == filterDto.RoleId)
+                    .Select(ur => ur.UserId);
+
+                query = query.Where(u => userIdsInRole.Contains(u.Id));
+            }
+
             var totalCount = await query.CountAsync();
 
             var users = await query.Skip((filterDto.PageNumber - 1) * filterDto.PageSize)
                                    .Take(filterDto.PageSize)
-                                   .ProjectTo<GetUserDto>(_mapper.ConfigurationProvider)
                                    .ToListAsync();
 
-            foreach (var dto in users)
+            var userDtos = _mapper.Map<List<GetUserDto>>(users);
+
+            foreach (var dto in userDtos)
             {
-                var userEntity = await _userManager.FindByEmailAsync(dto.Email);
-                var roles = await _userManager.GetRolesAsync(userEntity!);
+                var userEntity = users.First(u => u.Id == dto.Id);
+                var roles = await _userManager.GetRolesAsync(userEntity);
                 dto.Role = roles.FirstOrDefault()!;
             }
 
             var paginatedResult = new PaginationResponseDto<GetUserDto>
             {
-                Items = users,
+                Items = userDtos,
                 PageNumber = filterDto.PageNumber,
                 PageSize = filterDto.PageSize,
                 TotalCount = totalCount
@@ -115,6 +128,52 @@ namespace SafeTrace.Infrastructure.Services
 
             _logger.LogWarning($"Role changed for User with ID: {dto.UserId} from {string.Join(",", currentRoles)} to {dto.NewRole}");
             return ApiResponse<string>.Ok(null, "تم تحديث دور المستخدم بنجاح.");
+        }
+
+        public async Task<ApiResponse<string>> RegisterByAdminAsync(RegisterByAdminDto dto)
+        {
+            var userExists = await _userManager.FindByEmailAsync(dto.Email);
+            if (userExists != null) throw new ConflictException("هذا البريد الإلكتروني مسجل لدينا بالفعل.");
+
+            var roleExists = await _roleManager.RoleExistsAsync(dto.Role);
+            if (!roleExists) throw new NotFoundException($"الدور المسمى '{dto.Role}' غير موجود في النظام.");
+
+            await _unitOfWork.BeginTransactionAsync();
+            try
+            {
+                var user = new ApplicationUser
+                {
+                    UserName = dto.Email,
+                    Email = dto.Email,
+                    FName = dto.FName,
+                    LName = dto.LName,
+                    PhoneNumber = dto.PhoneNumber,
+                    EmailConfirmed = true,
+                    VerificationStatus = VerificationStatus.Verified
+                };
+
+                var result = await _userManager.CreateAsync(user, dto.Password);
+
+                if (!result.Succeeded)
+                {
+                    var errors = string.Join(", ", result.Errors.Select(e => e.Description));
+                    _logger.LogWarning("Failed to register user {Email} by Admin. Errors: {Errors}", dto.Email, errors);
+                    throw new BadRequestException("فشلت عملية إنشاء الحساب. تأكد من استيفاء كلمة المرور للشروط.");
+                }
+
+                await _userManager.AddToRoleAsync(user, dto.Role);
+
+                await _unitOfWork.CommitTransactionAsync();
+
+                _logger.LogInformation("Admin successfully created user {Email} and assigned role {Role}.", user.Email, dto.Role);
+
+                return ApiResponse<string>.Ok(null, "تم إنشاء الحساب وتعيين الصلاحيات بنجاح.");
+            }
+            catch
+            {
+                await _unitOfWork.RollbackTransactionAsync();
+                throw;
+            }
         }
 
         public async Task<ApiResponse<string>> ApproveUserAsync(string userId)

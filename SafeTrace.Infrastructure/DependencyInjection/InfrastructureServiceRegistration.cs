@@ -36,6 +36,19 @@ namespace SafeTrace.Infrastructure.DependencyInjection
             services.AddScoped<IOtpService, OtpService>();
             services.AddScoped<IRolePermissionService, RolePermissionService>();
             services.AddScoped<IUserService, UserService>();
+            services.AddScoped<IFaceRecognitionService, FaceRecognitionService>();
+
+            var awsOptions = configuration.GetAWSOptions("AWS");
+            var accessKey = configuration["AWS:AccessKey"];
+            var secretKey = configuration["AWS:SecretKey"];
+
+            if (!string.IsNullOrEmpty(accessKey) && !string.IsNullOrEmpty(secretKey))
+            {
+                awsOptions.Credentials = new Amazon.Runtime.BasicAWSCredentials(accessKey, secretKey);
+            }
+
+            services.AddDefaultAWSOptions(awsOptions);
+            services.AddAWSService<Amazon.Rekognition.IAmazonRekognition>();
 
             services.Configure<JwtOptions>(configuration.GetSection("Jwt"));
             services.Configure<MailSettingsOptions>(configuration.GetSection("MailSettings"));

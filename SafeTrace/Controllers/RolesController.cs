@@ -1,5 +1,4 @@
-﻿using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 using SafeTrace.Application.Constants;
 using SafeTrace.Application.DTOs.RolePermission.Request;
 using SafeTrace.Application.Interfaces.IServices;
@@ -23,6 +22,22 @@ namespace SafeTrace.API.Controllers
         public async Task<IActionResult> GetAllRoles()
         {
             var response = await _rolePermissionService.GetAllRolesAsync();
+            return Ok(response);
+        }
+
+        [HttpPost("create")]
+        [HasPermission(Permissions.Roles.Create)]
+        public async Task<IActionResult> CreateRole([FromBody] CreateRoleDto dto)
+        {
+            var response = await _rolePermissionService.CreateRoleAsync(dto);
+            return Ok(response);
+        }
+
+        [HttpDelete("delete/{roleId}")]
+        [HasPermission(Permissions.Roles.Delete)]
+        public async Task<IActionResult> DeleteRole(string roleId)
+        {
+            var response = await _rolePermissionService.DeleteRoleAsync(roleId);
             return Ok(response);
         }
 
