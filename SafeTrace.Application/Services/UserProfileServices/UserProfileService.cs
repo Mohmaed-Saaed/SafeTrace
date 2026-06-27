@@ -45,14 +45,6 @@ namespace SafeTrace.Application.Services.UserProfileServices
         }
 
         #region 
-
-        //public static ApiResponse<T> Ok(T? data = default, string message = "Success")
-        //    => new() { Success = true, Message = message, Data = data };
-
-        //public static ApiResponse<T> Fail(string message = "Failed")
-        //    => new() { Success = false, Message = message };
-
-        //Task<ApiResponse<string>>
         public async Task<ApiResponse<List<GetAllDTO>>> GetAllUsersAsync()
         {
             _logger.LogInformation("Get All Users Info Test" + DateTime.Now);

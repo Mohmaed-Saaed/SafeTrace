@@ -1,4 +1,5 @@
 ﻿using Azure;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
@@ -13,6 +14,8 @@ using SafeTrace.Domain.Entities;
 using SafeTrace.Domain.Interfaces.IUnitOfWork;
 namespace SafeTrace.Application.Services.NotificationServices
 {
+
+
     public class NotificationService : INotificationServices
     {
         private readonly IUnitOfWork _UNIT;
@@ -62,13 +65,17 @@ namespace SafeTrace.Application.Services.NotificationServices
                .CountAsync(n => n.UserId == dto.UserId && !n.IsRead);
 
             var responseDto = _mapper.Map<GetUserNotificationsDTO>(notification);
+            responseDto.CreatedAt = DateTime.UtcNow;
+            responseDto.IsRead = false;
 
             var payload = new
             {
                 Notification = responseDto,
                 UnreadCount = unreadCount
             };
-
+            _logger.LogWarning(
+    "Sending notification to group: user_{UserId}",
+    dto.UserId);
             await _hubContext.Clients
                 .Group($"user_{dto.UserId}")
                 .SendAsync("ReceiveNotification", responseDto);
@@ -131,6 +138,14 @@ namespace SafeTrace.Application.Services.NotificationServices
         //    _logger.LogInformation("Broadcast notification sent successfully");
         //}
         #endregion
+
+        public async Task<ApiResponse<int>> GetUnreadCountAsync(string userId)
+        {
+            var UnReadCount = await _UNIT.Repository<Notification>()
+                  .Query(false)
+                  .CountAsync(n => n.UserId == userId && !n.IsRead);
+            return ApiResponse<int>.Ok(UnReadCount, "عدد الاشعارات غير المقرؤة.");
+        }
         public async Task<ApiResponse<bool>> RemoveNotificationAsync(long id)
         {
             _logger.LogInformation("Removing notification. NotificationId: {Id} at: {date} ", id, DateTime.UtcNow);

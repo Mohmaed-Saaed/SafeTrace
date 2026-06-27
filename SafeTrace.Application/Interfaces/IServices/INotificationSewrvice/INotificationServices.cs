@@ -11,6 +11,7 @@ namespace SafeTrace.Application.Interfaces.IServices.INotificationSewrvice
         Task SendNotificationAsync(SendNotificationDTO dto);
         //Task SendNotificationToAllAsync(SendToAllNotificationDTO dto);
         Task<ApiResponse<bool>> RemoveNotificationAsync(long id);
+        Task<ApiResponse<int>> GetUnreadCountAsync(string userId);
         Task MarkAsReadAsync(long id);
         Task<ApiResponse<IEnumerable<GetUserNotificationsDTO>>> GetUserNotificationsAsync(
           string userId,
