@@ -44,18 +44,6 @@ namespace SafeTrace.Application.Services.UserProfileServices
             _httpContextAccessor = httpContextAccessor;
         }
 
-        #region 
-        public async Task<ApiResponse<List<GetAllDTO>>> GetAllUsersAsync()
-        {
-            _logger.LogInformation("Get All Users Info Test" + DateTime.Now);
-            var users = await _userManager.Users.ToListAsync();
-
-            var mapp = _mapper.Map<List<GetAllDTO>>(users);
-            return ApiResponse<List<GetAllDTO>>.Ok(mapp, "كل بيانات المستخدمين");
-        }
-
-
-        #endregion
 
         public async Task<ApiResponse<GetUserInfoDTO?>> GetProfileInfoAsync(string userId)
         {

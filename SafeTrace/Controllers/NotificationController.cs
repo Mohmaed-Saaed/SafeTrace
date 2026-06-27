@@ -22,33 +22,6 @@ namespace SafeTrace.API.Controllers
         }
 
 
-        #region test
-        [HttpGet("Test")]
-        public async Task<ActionResult> GetAllNotifications()
-        {
-            var notifications = await _notificationService.GetAllrNotificationsAsync();
-
-            if (notifications == null || !notifications.Data.Any())
-            {
-                return NotFound(
-                    ApiResponse<IEnumerable<Notification>>
-                        .Fail("No notifications found"));
-            }
-
-            return Ok(notifications);
-        }
-
-        [HttpPost("send")]
-        public async Task<IActionResult> SendNotification([FromBody] SendNotificationDTO dto)
-        {
-            if (!ModelState.IsValid)
-                return BadRequest(ModelState);
-
-            await _notificationService.SendNotificationAsync(dto);
-            return Ok();
-        }
-
-        #endregion
 
 
 

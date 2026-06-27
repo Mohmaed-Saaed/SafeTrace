@@ -40,22 +40,5 @@ namespace SafeTrace.API.Controllers
             return Ok(UpdateProfile);
         }
 
-        #region  Test Before Jwt
-
-        [HttpGet("TestAll")]
-        public async Task<IActionResult> GetAllUsers()
-        {
-            try
-            {
-                var users = await _user.GetAllUsersAsync();
-                return Ok(users);
-
-            }
-            catch (Exception ex)
-            {
-                return BadRequest(ex.Message);
-            }
-        }
-        #endregion
     }
 }

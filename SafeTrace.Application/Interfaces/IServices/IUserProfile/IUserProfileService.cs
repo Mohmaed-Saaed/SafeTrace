@@ -6,7 +6,7 @@ namespace SafeTrace.Application.Interfaces.IServices.IUserProfile
     public interface IUserProfileService
     {
         Task<ApiResponse<GetUserInfoDTO?>> GetProfileInfoAsync(string userId);
-        Task<ApiResponse<List<GetAllDTO>>> GetAllUsersAsync();
+        //Task<ApiResponse<List<GetAllDTO>>> GetAllUsersAsync();
         Task<ApiResponse<bool>> UpdateProfileInfoAsync(string userId, UpdateProfileInfoDTO dto);
     }
 }

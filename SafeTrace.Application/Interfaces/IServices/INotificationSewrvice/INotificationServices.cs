@@ -7,7 +7,7 @@ namespace SafeTrace.Application.Interfaces.IServices.INotificationSewrvice
     public interface INotificationServices
     {
         //test 
-        Task<ApiResponse<IEnumerable<Notification>>> GetAllrNotificationsAsync();
+        //Task<ApiResponse<IEnumerable<Notification>>> GetAllrNotificationsAsync();
         Task SendNotificationAsync(SendNotificationDTO dto);
         //Task SendNotificationToAllAsync(SendToAllNotificationDTO dto);
         Task<ApiResponse<bool>> RemoveNotificationAsync(long id);

@@ -39,17 +39,7 @@ namespace SafeTrace.Application.Services.NotificationServices
 
         }
 
-        #region test
-        public async Task<ApiResponse<IEnumerable<Notification>>> GetAllrNotificationsAsync()
-        {
-            var notifications = await _UNIT.Repository<Notification>()
 
-    .Query(
-        tracked: false)
-    .ToListAsync();
-            return ApiResponse<IEnumerable<Notification>>.Ok(notifications, "كل اشعارات النظام .");
-        }
-        #endregion
         public async Task SendNotificationAsync(SendNotificationDTO dto)
         {
             _logger.LogInformation("Sending notification to UserId: {UserId} at {date}", dto.UserId, DateTime.UtcNow);
