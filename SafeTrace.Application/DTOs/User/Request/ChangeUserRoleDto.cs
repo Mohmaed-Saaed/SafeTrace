@@ -7,7 +7,8 @@ namespace SafeTrace.Application.DTOs.User.Request
         [Required]
         public string UserId { get; set; } = null!;
 
-        [Required(ErrorMessage = "New role name is required.")]
+        [Required(ErrorMessage = "اسم الدور الجديد مطلوب.")]
+        [MaxLength(100, ErrorMessage = "اسم الدور لا يمكن أن يتجاوز 100 حرف.")]
         public string NewRole { get; set; } = null!;
     }
 }

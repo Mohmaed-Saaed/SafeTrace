@@ -4,11 +4,11 @@ namespace SafeTrace.Application.DTOs.Auth.Request
 {
     public class LoginDto
     {
-        [Required(ErrorMessage = "Email is required.")]
-        [EmailAddress(ErrorMessage = "Invalid email format.")]
+        [Required(ErrorMessage = "البريد الإلكتروني مطلوب.")]
+        [EmailAddress(ErrorMessage = "صيغة البريد الإلكتروني غير صحيحة.")]
         public string Email { get; set; } = null!;
 
-        [Required(ErrorMessage = "Password is required.")]
+        [Required(ErrorMessage = "كلمة المرور مطلوبة.")]
         public string Password { get; set; } = null!;
     }
 }

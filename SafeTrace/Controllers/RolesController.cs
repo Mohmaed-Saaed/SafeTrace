@@ -26,6 +26,22 @@ namespace SafeTrace.API.Controllers
             return Ok(response);
         }
 
+        [HttpPost("create")]
+        [HasPermission(Permissions.Roles.Create)]
+        public async Task<IActionResult> CreateRole([FromBody] CreateRoleDto dto)
+        {
+            var response = await _rolePermissionService.CreateRoleAsync(dto);
+            return Ok(response);
+        }
+
+        [HttpDelete("delete/{roleId}")]
+        [HasPermission(Permissions.Roles.Delete)]
+        public async Task<IActionResult> DeleteRole(string roleId)
+        {
+            var response = await _rolePermissionService.DeleteRoleAsync(roleId);
+            return Ok(response);
+        }
+
         [HttpGet("GetPermissionsBy/{roleId}")]
         [HasPermission(Permissions.Roles.GetPermissionsByRoleId)]
         public async Task<IActionResult> GetRolePermissions(string roleId)

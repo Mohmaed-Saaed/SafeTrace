@@ -4,12 +4,15 @@ namespace SafeTrace.Application.DTOs.Auth.Request
 {
     public class ChangePasswordDto
     {
-        [Required(ErrorMessage = "Current Password is required.")]
+        [Required(ErrorMessage = "كلمة المرور الحالية مطلوبة.")]
         public string CurrentPassword { get; set; } = null!;
 
-        [Required(ErrorMessage = "New Password is required.")]
-        [StringLength(100, MinimumLength = 8, ErrorMessage = "New Password must be at least 8 characters long.")]
-        [RegularExpression(@"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[\W_]).+$", ErrorMessage = "New Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character.")]
+        [Required(ErrorMessage = "كلمة المرور الجديدة مطلوبة.")]
+        [StringLength(100, MinimumLength = 8, ErrorMessage = "يجب أن تتكون كلمة المرور من 8 أحرف على الأقل.")]
+        [RegularExpression(
+            @"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[\W_]).+$",
+            ErrorMessage = "يجب أن تحتوي كلمة المرور على حرف كبير، وحرف صغير، ورقم، ورمز خاص."
+        )]
         public string NewPassword { get; set; } = null!;
 
         public string? CurrentRefreshToken { get; set; }
