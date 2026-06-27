@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using SafeTrace.API.ExceptionHandlers;
 using SafeTrace.API.ExtensionMethods;
 using SafeTrace.Application.DependencyInjection;
+using SafeTrace.Application.Hubs;
 using SafeTrace.Infrastructure.DependencyInjection;
 using Serilog;
 using System.Text.Json.Serialization;
@@ -35,6 +36,7 @@ namespace SafeTrace
 
             builder.Services.AddInfrastructure(builder.Configuration);
             builder.Services.AddApplication();
+            builder.Services.AddSignalR();
 
             builder.Services.AddCors(options =>
             {
@@ -83,6 +85,8 @@ namespace SafeTrace
             }
 
             app.UseCors("CorsPolicy");
+            app.MapHub<NotificationsHub>("SafeTrace.Application/Hubs/notifications");
+
 
             await app.SeedDataAsync();
             await app.ApplyPendingMigrationsAsync();
@@ -95,7 +99,7 @@ namespace SafeTrace
             app.UseAuthorization();
 
             app.MapControllers();
-            
+
             app.Run();
         }
     }
