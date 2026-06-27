@@ -45,35 +45,7 @@ namespace SafeTrace.Application.Hubs
 
             await base.OnConnectedAsync();
         }
-        #region test
-        //public async Task JoinAsUser(string userId)
-        //{
-        //    _logger.LogWarning(
-        //               "JoinAsUser => ConnectionId={ConnectionId}, UserId={UserId}",
-        //               Context.ConnectionId,
-        //               userId);
 
-        //    await Groups.AddToGroupAsync(
-        //        Context.ConnectionId,
-        //        $"user_{userId}"); //done
-
-        //    _logger.LogWarning(
-        //        "Added To Group => user_{UserId}",
-        //        userId);
-
-        //    var unreadCount = await _unit.Repository<Notification>()
-        //        .Query(false)
-        //        .CountAsync(n => n.UserId == userId && !n.IsRead);//done
-
-        //    await Clients.Caller.SendAsync(
-        //        "UnreadCount",
-        //        unreadCount);
-
-        //    _logger.LogWarning(
-        //        "UnreadCount Sent => {Count}",
-        //        unreadCount);
-        //}
-        #endregion
         public override async Task OnDisconnectedAsync(Exception? exception)
         {
             var userId = Context.UserIdentifier;
