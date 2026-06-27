@@ -55,6 +55,7 @@ namespace SafeTrace
 
             builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
             builder.Services.AddProblemDetails();
+            builder.Services.AddSignalR();
 
             var app = builder.Build();
 
