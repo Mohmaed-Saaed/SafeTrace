@@ -7,7 +7,6 @@ using SafeTrace.Application.Services;
 using SafeTrace.Application.Services.NotificationServices;
 using SafeTrace.Application.Services.UserProfileServices;
 
-using SafeTrace.Application.Services;
 namespace SafeTrace.Application.DependencyInjection
 {
     public static class ApplicationServiceRegistration
