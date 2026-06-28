@@ -15,7 +15,8 @@ namespace SafeTrace.Infrastructure.Migrations
                 table: "Cases",
                 type: "nvarchar(60)",
                 maxLength: 60,
-                nullable: true,
+                nullable: false,
+                defaultValue: "",
                 oldClrType: typeof(string),
                 oldType: "nvarchar(max)",
                 oldNullable: true);
@@ -33,7 +34,8 @@ namespace SafeTrace.Infrastructure.Migrations
                 table: "Cases",
                 type: "nvarchar(60)",
                 maxLength: 60,
-                nullable: true,
+                nullable: false,
+                defaultValue: "",
                 oldClrType: typeof(string),
                 oldType: "nvarchar(max)",
                 oldNullable: true);
@@ -60,7 +62,8 @@ namespace SafeTrace.Infrastructure.Migrations
                 table: "Cases",
                 type: "nvarchar(60)",
                 maxLength: 60,
-                nullable: true,
+                nullable: false,
+                defaultValue: "",
                 oldClrType: typeof(string),
                 oldType: "nvarchar(max)",
                 oldNullable: true);
@@ -78,7 +81,8 @@ namespace SafeTrace.Infrastructure.Migrations
                 table: "Cases",
                 type: "nvarchar(60)",
                 maxLength: 60,
-                nullable: true,
+                nullable: false,
+                defaultValue: "",
                 oldClrType: typeof(string),
                 oldType: "nvarchar(max)",
                 oldNullable: true);
@@ -137,25 +141,25 @@ namespace SafeTrace.Infrastructure.Migrations
                 columns: new[] { "UserId", "LimitReachDate" });
 
             migrationBuilder.CreateIndex(
-                name: "UIX_UrgentCases_CaseCode",
+                name: "UIX_Cases_CaseCode",
                 table: "Cases",
                 column: "CaseCode",
                 unique: true);
 
             migrationBuilder.AddCheckConstraint(
-                name: "CK_UrgentCase_Age",
+                name: "CK_Cases_Age",
                 table: "Cases",
                 sql: "[Age] BETWEEN 0 AND 120");
 
             migrationBuilder.AddCheckConstraint(
                 name: "CK_UrgentCase_EndDate",
                 table: "Cases",
-                sql: "[EndDate] > [CreatedAt]");
+                sql: "([Discriminator] <> 'UrgentCase') OR ([EndDate] > [CreatedAt])");
 
             migrationBuilder.AddCheckConstraint(
                 name: "CK_UrgentCase_LimitReachDate",
                 table: "Cases",
-                sql: "[LimitReachDate] > [CreatedAt]");
+                sql: "([Discriminator] <> 'UrgentCase') OR ([LimitReachDate] > [CreatedAt])");
         }
 
         /// <inheritdoc />
@@ -174,11 +178,11 @@ namespace SafeTrace.Infrastructure.Migrations
                 table: "Cases");
 
             migrationBuilder.DropIndex(
-                name: "UIX_UrgentCases_CaseCode",
+                name: "UIX_Cases_CaseCode",
                 table: "Cases");
 
             migrationBuilder.DropCheckConstraint(
-                name: "CK_UrgentCase_Age",
+                name: "CK_Cases_Age",
                 table: "Cases");
 
             migrationBuilder.DropCheckConstraint(
@@ -196,8 +200,7 @@ namespace SafeTrace.Infrastructure.Migrations
                 nullable: true,
                 oldClrType: typeof(string),
                 oldType: "nvarchar(60)",
-                oldMaxLength: 60,
-                oldNullable: true);
+                oldMaxLength: 60);
 
             migrationBuilder.AlterColumn<int>(
                 name: "Status",
@@ -214,8 +217,7 @@ namespace SafeTrace.Infrastructure.Migrations
                 nullable: true,
                 oldClrType: typeof(string),
                 oldType: "nvarchar(60)",
-                oldMaxLength: 60,
-                oldNullable: true);
+                oldMaxLength: 60);
 
             migrationBuilder.AlterColumn<int>(
                 name: "Relation",
@@ -241,8 +243,7 @@ namespace SafeTrace.Infrastructure.Migrations
                 nullable: true,
                 oldClrType: typeof(string),
                 oldType: "nvarchar(60)",
-                oldMaxLength: 60,
-                oldNullable: true);
+                oldMaxLength: 60);
 
             migrationBuilder.AlterColumn<int>(
                 name: "Gender",
@@ -259,8 +260,7 @@ namespace SafeTrace.Infrastructure.Migrations
                 nullable: true,
                 oldClrType: typeof(string),
                 oldType: "nvarchar(60)",
-                oldMaxLength: 60,
-                oldNullable: true);
+                oldMaxLength: 60);
 
             migrationBuilder.AlterColumn<string>(
                 name: "Description",

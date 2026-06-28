@@ -334,6 +334,7 @@ namespace SafeTrace.Infrastructure.Migrations
                         .HasColumnType("datetime2");
 
                     b.Property<string>("FName")
+                        .IsRequired()
                         .HasMaxLength(60)
                         .HasColumnType("nvarchar(60)");
 
@@ -347,6 +348,7 @@ namespace SafeTrace.Infrastructure.Migrations
                         .HasColumnType("nvarchar(100)");
 
                     b.Property<string>("LName")
+                        .IsRequired()
                         .HasMaxLength(60)
                         .HasColumnType("nvarchar(60)");
 
@@ -358,6 +360,7 @@ namespace SafeTrace.Infrastructure.Migrations
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("SName")
+                        .IsRequired()
                         .HasMaxLength(60)
                         .HasColumnType("nvarchar(60)");
 
@@ -371,6 +374,7 @@ namespace SafeTrace.Infrastructure.Migrations
                         .HasColumnType("nvarchar(200)");
 
                     b.Property<string>("TName")
+                        .IsRequired()
                         .HasMaxLength(60)
                         .HasColumnType("nvarchar(60)");
 
@@ -387,13 +391,13 @@ namespace SafeTrace.Infrastructure.Migrations
 
                     b.HasIndex("CaseCode")
                         .IsUnique()
-                        .HasDatabaseName("UIX_UrgentCases_CaseCode");
+                        .HasDatabaseName("UIX_Cases_CaseCode");
 
                     b.HasIndex("UserId");
 
                     b.ToTable("Cases", null, t =>
                         {
-                            t.HasCheckConstraint("CK_UrgentCase_Age", "[Age] BETWEEN 0 AND 120");
+                            t.HasCheckConstraint("CK_Cases_Age", "[Age] BETWEEN 0 AND 120");
                         });
 
                     b.HasDiscriminator<string>("Discriminator").HasValue("Case");
@@ -748,7 +752,7 @@ namespace SafeTrace.Infrastructure.Migrations
 
                     b.ToTable(t =>
                         {
-                            t.HasCheckConstraint("CK_UrgentCase_Age", "[Age] BETWEEN 0 AND 120");
+                            t.HasCheckConstraint("CK_Cases_Age", "[Age] BETWEEN 0 AND 120");
                         });
 
                     b.HasDiscriminator().HasValue("LongTermMissingCase");
@@ -760,7 +764,7 @@ namespace SafeTrace.Infrastructure.Migrations
 
                     b.ToTable(t =>
                         {
-                            t.HasCheckConstraint("CK_UrgentCase_Age", "[Age] BETWEEN 0 AND 120");
+                            t.HasCheckConstraint("CK_Cases_Age", "[Age] BETWEEN 0 AND 120");
                         });
 
                     b.HasDiscriminator().HasValue("UnknownCase");
@@ -791,11 +795,11 @@ namespace SafeTrace.Infrastructure.Migrations
 
                     b.ToTable("Cases", t =>
                         {
-                            t.HasCheckConstraint("CK_UrgentCase_Age", "[Age] BETWEEN 0 AND 120");
+                            t.HasCheckConstraint("CK_Cases_Age", "[Age] BETWEEN 0 AND 120");
 
-                            t.HasCheckConstraint("CK_UrgentCase_EndDate", "[EndDate] > [CreatedAt]");
+                            t.HasCheckConstraint("CK_UrgentCase_EndDate", "([Discriminator] <> 'UrgentCase') OR ([EndDate] > [CreatedAt])");
 
-                            t.HasCheckConstraint("CK_UrgentCase_LimitReachDate", "[LimitReachDate] > [CreatedAt]");
+                            t.HasCheckConstraint("CK_UrgentCase_LimitReachDate", "([Discriminator] <> 'UrgentCase') OR ([LimitReachDate] > [CreatedAt])");
                         });
 
                     b.HasDiscriminator().HasValue("UrgentCase");
