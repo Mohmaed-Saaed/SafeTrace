@@ -1,9 +1,11 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using SafeTrace.Application.Constants;
 using SafeTrace.Application.DTOs.LongTermCases;
 using SafeTrace.Application.Exceptions;
 using SafeTrace.Application.Interfaces.IServices;
 using SafeTrace.Domain.Enums;
+using SafeTrace.Infrastructure.Authorization;
 using System.Security.Claims;
 
 namespace SafeTrace.API.Controllers
@@ -19,12 +21,16 @@ namespace SafeTrace.API.Controllers
             _service = service;
         }
 
-        //private string? CurrentUserId => User.FindFirstValue(ClaimTypes.NameIdentifier);
-        //private bool IsAdmin => User.IsInRole("Admin");
-        private string CurrentUserId => "1dcc168b-80da-4909-8438-4e177016be76";
-        private bool IsAdmin => true;
+        private string? CurrentUserId => User.FindFirstValue(ClaimTypes.NameIdentifier);
+        private bool IsAdmin => User.IsInRole("Admin");
 
+        // ─────────────────────────────────────────────────────────────
+        // PUBLIC ENDPOINTS (AllowAnonymous)
+        // ─────────────────────────────────────────────────────────────
 
+        /// <summary>
+        /// جلب الحالات النشطة مع الفلترة والـ pagination — متاح للجميع
+        /// </summary>
         [HttpGet]
         [AllowAnonymous]
         public async Task<IActionResult> GetAll([FromQuery] LongTermCaseFilterDto filter)
@@ -33,7 +39,9 @@ namespace SafeTrace.API.Controllers
             return Ok(result);
         }
 
-
+        /// <summary>
+        /// جلب الحالات التي تم إيجادها — متاح للجميع
+        /// </summary>
         [HttpGet("founded")]
         [AllowAnonymous]
         public async Task<IActionResult> GetFounded()
@@ -42,7 +50,9 @@ namespace SafeTrace.API.Controllers
             return Ok(result);
         }
 
-
+        /// <summary>
+        /// جلب حالة بالـ ID — متاح للجميع (الأدمن يشوف المحذوفة أيضًا)
+        /// </summary>
         [HttpGet("{id:long}")]
         [AllowAnonymous]
         public async Task<IActionResult> GetById(long id)
@@ -51,101 +61,122 @@ namespace SafeTrace.API.Controllers
             return Ok(result);
         }
 
+        // ─────────────────────────────────────────────────────────────
+        // USER ENDPOINTS (Authenticated)
+        // ─────────────────────────────────────────────────────────────
 
-        //[Authorize]
+        /// <summary>
+        /// جلب حالات المستخدم الحالي — يتطلب تسجيل الدخول
+        /// </summary>
         [HttpGet("my-cases")]
+        [HasPermission(Permissions.LongTermCases.GetMyCases)]
         public async Task<IActionResult> GetMyCases()
         {
-            if (CurrentUserId == null) throw new UnauthorizedException("User identity not found.");
+            if (CurrentUserId == null) throw new UnauthorizedException("لم يتم التعرف على هوية المستخدم.");
 
             var result = await _service.GetMyCasesAsync(CurrentUserId);
             return Ok(result);
         }
 
-
         /// <summary>
-        /// Admin-only: filter by status=Pending (review queue) or status=Deleted (trash).
-        /// GET /api/LongTermMissingCases/admin-cases?status=Pending
-        /// GET /api/LongTermMissingCases/admin-cases?status=Deleted
+        /// إنشاء حالة جديدة — يتطلب صلاحية Create
         /// </summary>
-        //[Authorize(Roles = "Admin")]
-        [HttpGet("admin-cases")]
-        public async Task<IActionResult> GetAdminCases([FromQuery] CaseStatus status)
-        {
-            var result = await _service.GetAdminCasesAsync(status);
-            return Ok(result);
-        }
-
-
-        //[Authorize(Roles = "Verified,Admin")]
         [HttpPost]
         [Consumes("multipart/form-data")]
+        [HasPermission(Permissions.LongTermCases.Create)]
         public async Task<IActionResult> Create([FromForm] CreateLongTermCaseDto dto)
         {
-            if (CurrentUserId == null) throw new UnauthorizedException("User identity not found.");
+            if (CurrentUserId == null) throw new UnauthorizedException("لم يتم التعرف على هوية المستخدم.");
 
             var id = await _service.CreateAsync(dto, CurrentUserId);
             return CreatedAtAction(nameof(GetById), new { id }, new { id });
         }
 
-
-        //[Authorize]
+        /// <summary>
+        /// تعديل حالة — المستخدم يعدل حالته، الأدمن يعدل أي حالة
+        /// </summary>
         [HttpPut("{id:long}")]
         [Consumes("multipart/form-data")]
+        [HasPermission(Permissions.LongTermCases.Update)]
         public async Task<IActionResult> Update(long id, [FromForm] UpdateLongTermCaseDto dto)
         {
-            if (CurrentUserId == null) throw new UnauthorizedException("User identity not found.");
+            if (CurrentUserId == null) throw new UnauthorizedException("لم يتم التعرف على هوية المستخدم.");
 
             await _service.UpdateAsync(id, dto, CurrentUserId, IsAdmin);
             return NoContent();
         }
 
-
-        //[Authorize]
+        /// <summary>
+        /// حذف مؤقت — المستخدم يحذف حالته، الأدمن يحذف أي حالة
+        /// </summary>
         [HttpDelete("{id:long}")]
+        [HasPermission(Permissions.LongTermCases.SoftDelete)]
         public async Task<IActionResult> Delete(long id)
         {
-            if (CurrentUserId == null) throw new UnauthorizedException("User identity not found.");
+            if (CurrentUserId == null) throw new UnauthorizedException("لم يتم التعرف على هوية المستخدم.");
 
             await _service.DeleteAsync(id, CurrentUserId, IsAdmin);
             return NoContent();
         }
 
+        /// <summary>
+        /// تحديد الحالة كـ "تم إيجاده" — المستخدم صاحب الحالة أو الأدمن
+        /// </summary>
+        [HttpPut("{id:long}/mark-as-founded")]
+        [HasPermission(Permissions.LongTermCases.MarkAsFounded)]
+        public async Task<IActionResult> MarkAsFounded(long id, [FromBody] MarkAsFoundedDto dto)
+        {
+            if (CurrentUserId == null) throw new UnauthorizedException("لم يتم التعرف على هوية المستخدم.");
 
-        //[Authorize(Roles = "Admin")]
+            await _service.MarkAsFoundedAsync(id, dto, CurrentUserId, IsAdmin);
+            return NoContent();
+        }
+
+        // ─────────────────────────────────────────────────────────────
+        // ADMIN ENDPOINTS
+        // ─────────────────────────────────────────────────────────────
+
+        /// <summary>
+        /// جلب الحالات للأدمن — فلتر اختياري بالحالة (بدون فلتر = كل الحالات)
+        /// </summary>
+        [HttpGet("admin-cases")]
+        [HasPermission(Permissions.LongTermCases.GetAll)]
+        public async Task<IActionResult> GetAdminCases([FromQuery] CaseStatus? status)
+        {
+            var result = await _service.GetAdminCasesAsync(status);
+            return Ok(result);
+        }
+
+        /// <summary>
+        /// حذف نهائي — للأدمن فقط، يشتغل على الحالات المحذوفة مؤقتًا بس
+        /// </summary>
         [HttpDelete("{id:long}/permanent")]
+        [HasPermission(Permissions.LongTermCases.HardDelete)]
         public async Task<IActionResult> PermanentDelete(long id)
         {
             await _service.PermanentDeleteAsync(id);
             return NoContent();
         }
 
-
-        //[Authorize(Roles = "Admin")]
+        /// <summary>
+        /// الموافقة على حالة — للأدمن فقط
+        /// </summary>
         [HttpPut("{id:long}/approve")]
+        [HasPermission(Permissions.LongTermCases.Approve)]
         public async Task<IActionResult> Approve(long id)
         {
             await _service.ApproveAsync(id);
             return NoContent();
         }
 
-
-        //[Authorize(Roles = "Admin")]
+        /// <summary>
+        /// رفض حالة — للأدمن فقط
+        /// </summary>
         [HttpPut("{id:long}/reject")]
+        [HasPermission(Permissions.LongTermCases.Reject)]
         public async Task<IActionResult> Reject(long id)
         {
             await _service.RejectAsync(id);
-            return NoContent();
-        }
-
-
-        //[Authorize]
-        [HttpPut("{id:long}/mark-as-founded")]
-        public async Task<IActionResult> MarkAsFounded(long id, [FromBody] MarkAsFoundedDto dto)
-        {
-            if (CurrentUserId == null) throw new UnauthorizedException("User identity not found.");
-
-            await _service.MarkAsFoundedAsync(id, dto, CurrentUserId, IsAdmin);
             return NoContent();
         }
     }

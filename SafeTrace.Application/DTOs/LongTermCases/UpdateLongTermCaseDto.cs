@@ -48,5 +48,8 @@ namespace SafeTrace.Application.DTOs.LongTermCases
 
         /// <summary>Ids of existing CasePhoto records to delete.</summary>
         public List<long>? RemovedPhotoIds { get; set; }
+
+        public long? PrimaryPhotoId { get; set; }
+
     }
 }

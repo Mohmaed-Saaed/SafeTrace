@@ -51,5 +51,6 @@ namespace SafeTrace.Application.DTOs.LongTermCases
 
         /// <summary>Photos of the missing person.</summary>
         public List<IFormFile>? Photos { get; set; }
+        public int  PrimaryPhotoIndex { get; set; }
     }
 }

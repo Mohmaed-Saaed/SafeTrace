@@ -19,17 +19,20 @@ namespace SafeTrace.Application.Services
         private readonly IUnitOfWork _unitOfWork;
         private readonly IMapper _mapper;
         private readonly IFileStorageService _fileStorage;
+        private readonly IFaceRecognitionService _faceRecognition;
         private readonly ILogger<LongTermCaseService> _logger;
 
         public LongTermCaseService(
             IUnitOfWork unitOfWork,
             IMapper mapper,
             IFileStorageService fileStorage,
+            IFaceRecognitionService faceRecognition,
             ILogger<LongTermCaseService> logger)
         {
             _unitOfWork = unitOfWork;
             _mapper = mapper;
             _fileStorage = fileStorage;
+            _faceRecognition = faceRecognition;
             _logger = logger;
         }
 
@@ -88,7 +91,7 @@ namespace SafeTrace.Application.Services
                     c => c.User);
 
             if (entity is null)
-                throw new NotFoundException($"Long-term case with id {id} was not found.");
+                throw new NotFoundException($"لم يتم العثور على الحالة رقم {id}.");
 
             return _mapper.Map<LongTermCaseDetailsDto>(entity);
         }
@@ -114,26 +117,32 @@ namespace SafeTrace.Application.Services
         }
 
         /// <summary>
-        /// Admin-only: returns Pending or Deleted cases based on the requested status.
-        /// Replaces the old GetPendingCasesAsync / GetDeletedCasesAsync pair.
+        /// Admin-only: يرجع الحالات بناءً على الحالة المطلوبة (Pending, Deleted, Active, Found, Rejected, أو الكل).
         /// </summary>
-        public async Task<IEnumerable<LongTermCaseCardDto>> GetAdminCasesAsync(CaseStatus status)
+        public async Task<IEnumerable<LongTermCaseCardDto>> GetAdminCasesAsync(CaseStatus? status)
         {
-            // Only Pending and Deleted are valid admin-filter statuses
-            if (status != CaseStatus.Pending && status != CaseStatus.Deleted)
-                throw new BadRequestException("Admin case filter only supports 'Pending' or 'Deleted' statuses.");
+            var baseQuery = _unitOfWork.Repository<LongTermMissingCase>()
+                .Query(tracked: false, includes: c => c.Photos);
 
-            // Deleted cases are sorted by when they were deleted (most recent first)
-            // Pending cases are sorted by creation date (oldest first — review queue order)
-            var query = status == CaseStatus.Deleted
-                ? _unitOfWork.Repository<LongTermMissingCase>()
-                    .Query(tracked: false, orderBy: c => c.DeletedAt!, orderByDirection: OrderBy.Descending, includes: c => c.Photos)
-                    .Where(c => c.Status == CaseStatus.Deleted)
-                : _unitOfWork.Repository<LongTermMissingCase>()
-                    .Query(tracked: false, orderBy: c => c.CreatedAt, orderByDirection: OrderBy.Ascending, includes: c => c.Photos)
-                    .Where(c => c.Status == CaseStatus.Pending);
+            IQueryable<LongTermMissingCase> filteredQuery;
 
-            var items = await query.ToListAsync();
+            if (status.HasValue)
+            {
+                filteredQuery = status.Value == CaseStatus.Deleted
+                    ? baseQuery
+                        .Where(c => c.Status == CaseStatus.Deleted)
+                        .OrderByDescending(c => c.DeletedAt)
+                    : baseQuery
+                        .Where(c => c.Status == status.Value)
+                        .OrderBy(c => c.CreatedAt);
+            }
+            else
+            {
+                // بدون فلتر: يرجع كل الحالات مرتبة بالأحدث
+                filteredQuery = baseQuery.OrderByDescending(c => c.CreatedAt);
+            }
+
+            var items = await filteredQuery.ToListAsync();
             return _mapper.Map<IEnumerable<LongTermCaseCardDto>>(items);
         }
 
@@ -156,13 +165,40 @@ namespace SafeTrace.Application.Services
             if (dto.PoliceReportImage is not null)
                 entity.PoliceReportImage = await _fileStorage.SaveFileAsync(dto.PoliceReportImage, "long-term/police-reports");
 
-            if (dto.Photos is not null)
+            // حفظ الصور وربطها بـ AI (Face Indexing)
+            if (dto.Photos is not null && dto.Photos.Any())
             {
-                foreach (var photo in dto.Photos)
+                var photoList = dto.Photos.ToList();
+
+                for (int i = 0; i < photoList.Count; i++)
                 {
+                    var photo = photoList[i];
                     var path = await _fileStorage.SaveFileAsync(photo, "long-term");
-                    entity.Photos.Add(new CasePhoto { ImagePath = path });
+
+                    bool isPrimary = dto.PrimaryPhotoIndex == i;
+                    // محاولة Index الوجه على AWS Rekognition
+                    string? faceId = null;
+                    try
+                    {
+                        faceId = await _faceRecognition.IndexFaceAsync(photo);
+                    }
+                    catch (Exception ex)
+                    {
+                        // لو فشل الـ indexing مش هنوقف العملية كلها
+                        _logger.LogWarning(ex,
+                            "تعذّر تسجيل الوجه في AWS للصورة {Index} أثناء إنشاء الحالة للمستخدم {UserId}.", i, userId);
+                    }
+
+                    entity.Photos.Add(new CasePhoto
+                    {
+                        ImagePath = path,
+                        FaceId = faceId,
+                        IsPrimary = isPrimary
+                    });
                 }
+
+                // ضمان وجود صورة رئيسية واحدة بس
+                EnsureSinglePrimary(entity.Photos);
             }
 
             await _unitOfWork.BeginTransactionAsync();
@@ -173,7 +209,7 @@ namespace SafeTrace.Application.Services
                 await _unitOfWork.CommitTransactionAsync();
 
                 _logger.LogInformation(
-                    "Long-term case created. CaseId={CaseId}, CaseCode={CaseCode}, UserId={UserId}",
+                    "تم إنشاء حالة مفقود طويل الأمد. CaseId={CaseId}, CaseCode={CaseCode}, UserId={UserId}",
                     entity.Id, entity.CaseCode, userId);
 
                 return entity.Id;
@@ -181,7 +217,15 @@ namespace SafeTrace.Application.Services
             catch (Exception ex)
             {
                 await _unitOfWork.RollbackTransactionAsync();
-                _logger.LogError(ex, "Failed to create long-term case for UserId={UserId}", userId);
+
+                // حذف الملفات المحفوظة لو فشلت العملية
+                foreach (var photo in entity.Photos)
+                    _fileStorage.DeleteFile(photo.ImagePath);
+
+                if (!string.IsNullOrEmpty(entity.PoliceReportImage))
+                    _fileStorage.DeleteFile(entity.PoliceReportImage);
+
+                _logger.LogError(ex, "فشل إنشاء الحالة للمستخدم {UserId}", userId);
                 throw;
             }
         }
@@ -200,14 +244,14 @@ namespace SafeTrace.Application.Services
 
             if (entity is null)
             {
-                _logger.LogWarning("Update failed - LongTermCase {CaseId} not found. UserId={UserId}", id, userId);
-                throw new NotFoundException($"Long-term case with id {id} was not found.");
+                _logger.LogWarning("فشل التعديل - الحالة {CaseId} غير موجودة. UserId={UserId}", id, userId);
+                throw new NotFoundException($"لم يتم العثور على الحالة رقم {id}.");
             }
 
             if (entity.UserId != userId && !isAdmin)
             {
-                _logger.LogWarning("Unauthorized update on LongTermCase {CaseId} by UserId={UserId}", id, userId);
-                throw new ForbiddenException("You are not allowed to update this case.");
+                _logger.LogWarning("محاولة تعديل غير مصرح بها على الحالة {CaseId} من المستخدم {UserId}", id, userId);
+                throw new ForbiddenException("غير مسموح لك بتعديل هذه الحالة.");
             }
 
             if (dto.Age.HasValue)
@@ -235,25 +279,74 @@ namespace SafeTrace.Application.Services
                 entity.PoliceReportImage = await _fileStorage.SaveFileAsync(dto.PoliceReportImage, "long-term/police-reports");
             }
 
+            // حذف الصور المطلوب حذفها مع وجوههم من AWS
             if (dto.RemovedPhotoIds is { Count: > 0 })
             {
                 var toRemove = entity.Photos.Where(p => dto.RemovedPhotoIds.Contains(p.Id)).ToList();
                 foreach (var photo in toRemove)
                 {
                     _fileStorage.DeleteFile(photo.ImagePath);
+
+                    if (!string.IsNullOrEmpty(photo.FaceId))
+                    {
+                        try
+                        {
+                            await _faceRecognition.DeleteFaceAsync(photo.FaceId);
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.LogWarning(ex,
+                                "تعذّر حذف الوجه {FaceId} من AWS عند تعديل الحالة {CaseId}.", photo.FaceId, id);
+                        }
+                    }
+
                     entity.Photos.Remove(photo);
                     _unitOfWork.Repository<CasePhoto>().Remove(photo);
                 }
             }
 
-            if (dto.NewPhotos is not null)
+            // إضافة صور جديدة مع Face Indexing
+            if (dto.NewPhotos is not null && dto.NewPhotos.Any())
             {
-                foreach (var photo in dto.NewPhotos)
+                var newPhotoList = dto.NewPhotos.ToList();
+                for (int i = 0; i < newPhotoList.Count; i++)
                 {
+                    var photo = newPhotoList[i];
                     var path = await _fileStorage.SaveFileAsync(photo, "long-term");
-                    entity.Photos.Add(new CasePhoto { ImagePath = path });
+
+                    string? faceId = null;
+                    try
+                    {
+                        faceId = await _faceRecognition.IndexFaceAsync(photo);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex,
+                            "تعذّر تسجيل الوجه في AWS للصورة الجديدة {Index} عند تعديل الحالة {CaseId}.", i, id);
+                    }
+
+                    entity.Photos.Add(new CasePhoto
+                    {
+                        ImagePath = path,
+                        FaceId = faceId,
+                        IsPrimary = false
+                    });
                 }
             }
+
+            // تحديث الصورة الرئيسية لو المستخدم اختار واحدة
+            if (dto.PrimaryPhotoId.HasValue)
+            {
+                var targetPhoto = entity.Photos.FirstOrDefault(p => p.Id == dto.PrimaryPhotoId.Value);
+                if (targetPhoto is null)
+                    throw new BadRequestException("الصورة الرئيسية المحددة غير موجودة في هذه الحالة.");
+
+                foreach (var p in entity.Photos)
+                    p.IsPrimary = p.Id == dto.PrimaryPhotoId.Value;
+            }
+
+            // ضمان وجود صورة رئيسية دايمًا
+            EnsureSinglePrimary(entity.Photos);
 
             if (!isAdmin && entity.Status != CaseStatus.Pending)
             {
@@ -265,7 +358,7 @@ namespace SafeTrace.Application.Services
             await _unitOfWork.SaveAsync();
 
             _logger.LogInformation(
-                "Long-term case {CaseId} updated by UserId={UserId} (IsAdmin={IsAdmin})", id, userId, isAdmin);
+                "تم تعديل الحالة {CaseId} بواسطة المستخدم {UserId} (IsAdmin={IsAdmin})", id, userId, isAdmin);
         }
 
         // ─────────────────────────────────────────────────────────────
@@ -281,14 +374,14 @@ namespace SafeTrace.Application.Services
 
             if (entity is null)
             {
-                _logger.LogWarning("Delete failed - LongTermCase {CaseId} not found. UserId={UserId}", id, userId);
-                throw new NotFoundException($"Long-term case with id {id} was not found.");
+                _logger.LogWarning("فشل الحذف - الحالة {CaseId} غير موجودة. UserId={UserId}", id, userId);
+                throw new NotFoundException($"لم يتم العثور على الحالة رقم {id}.");
             }
 
             if (entity.UserId != userId && !isAdmin)
             {
-                _logger.LogWarning("Unauthorized delete on LongTermCase {CaseId} by UserId={UserId}", id, userId);
-                throw new ForbiddenException("You are not allowed to delete this case.");
+                _logger.LogWarning("محاولة حذف غير مصرح بها على الحالة {CaseId} من المستخدم {UserId}", id, userId);
+                throw new ForbiddenException("غير مسموح لك بحذف هذه الحالة.");
             }
 
             entity.PreviousStatus = entity.Status;
@@ -300,7 +393,7 @@ namespace SafeTrace.Application.Services
             await _unitOfWork.SaveAsync();
 
             _logger.LogWarning(
-                "LongTermCase {CaseId} soft-deleted (was {PrevStatus}) by UserId={UserId} (IsAdmin={IsAdmin})",
+                "تم الحذف المؤقت للحالة {CaseId} (كانت {PrevStatus}) بواسطة {UserId} (IsAdmin={IsAdmin})",
                 id, entity.PreviousStatus, userId, isAdmin);
         }
 
@@ -319,9 +412,29 @@ namespace SafeTrace.Application.Services
 
             if (entity is null)
             {
-                _logger.LogWarning("PermanentDelete failed - LongTermCase {CaseId} not found or not soft-deleted.", id);
+                _logger.LogWarning("فشل الحذف النهائي - الحالة {CaseId} غير موجودة أو غير محذوفة مؤقتًا.", id);
                 throw new NotFoundException(
-                    $"Soft-deleted long-term case with id {id} was not found. Only deleted cases can be permanently removed.");
+                    $"لم يتم العثور على الحالة رقم {id} أو أنها لم تُحذف مؤقتًا بعد. الحذف النهائي يتطلب حذفًا مؤقتًا أولًا.");
+            }
+
+            // حذف الوجوه من AWS وملفاتها من wwwroot
+            var faceIdsToDelete = entity.Photos
+                .Where(p => !string.IsNullOrEmpty(p.FaceId))
+                .Select(p => p.FaceId!)
+                .ToList();
+
+            if (faceIdsToDelete.Any())
+            {
+                try
+                {
+                    await _faceRecognition.DeleteFacesAsync(faceIdsToDelete);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex,
+                        "تعذّر حذف {Count} وجه من AWS عند الحذف النهائي للحالة {CaseId}.",
+                        faceIdsToDelete.Count, id);
+                }
             }
 
             foreach (var photo in entity.Photos)
@@ -333,7 +446,7 @@ namespace SafeTrace.Application.Services
             _unitOfWork.Repository<LongTermMissingCase>().Remove(entity);
             await _unitOfWork.SaveAsync();
 
-            _logger.LogWarning("LongTermCase {CaseId} permanently deleted by Admin.", id);
+            _logger.LogWarning("تم الحذف النهائي للحالة {CaseId} بواسطة الأدمن.", id);
         }
 
         // ─────────────────────────────────────────────────────────────
@@ -349,8 +462,8 @@ namespace SafeTrace.Application.Services
 
             if (entity is null)
             {
-                _logger.LogWarning("Approve failed - LongTermCase {CaseId} not found or not Pending.", id);
-                throw new NotFoundException($"Pending long-term case with id {id} was not found.");
+                _logger.LogWarning("فشل الموافقة - الحالة {CaseId} غير موجودة أو ليست في انتظار الموافقة.", id);
+                throw new NotFoundException($"لم يتم العثور على الحالة رقم {id} أو أنها ليست في حالة انتظار.");
             }
 
             entity.Status = CaseStatus.Active;
@@ -359,7 +472,7 @@ namespace SafeTrace.Application.Services
             _unitOfWork.Repository<LongTermMissingCase>().Update(entity);
             await _unitOfWork.SaveAsync();
 
-            _logger.LogInformation("LongTermCase {CaseId} approved (Pending → Active).", id);
+            _logger.LogInformation("تمت الموافقة على الحالة {CaseId} (Pending → Active).", id);
         }
 
         public async Task RejectAsync(long id)
@@ -371,8 +484,8 @@ namespace SafeTrace.Application.Services
 
             if (entity is null)
             {
-                _logger.LogWarning("Reject failed - LongTermCase {CaseId} not found or not Pending.", id);
-                throw new NotFoundException($"Pending long-term case with id {id} was not found.");
+                _logger.LogWarning("فشل الرفض - الحالة {CaseId} غير موجودة أو ليست في انتظار الموافقة.", id);
+                throw new NotFoundException($"لم يتم العثور على الحالة رقم {id} أو أنها ليست في حالة انتظار.");
             }
 
             if (entity.PreviousStatus.HasValue)
@@ -388,7 +501,7 @@ namespace SafeTrace.Application.Services
             _unitOfWork.Repository<LongTermMissingCase>().Update(entity);
             await _unitOfWork.SaveAsync();
 
-            _logger.LogInformation("LongTermCase {CaseId} rejected (Pending → {Status}).", id, entity.Status);
+            _logger.LogInformation("تم رفض الحالة {CaseId} (Pending → {Status}).", id, entity.Status);
         }
 
         // ─────────────────────────────────────────────────────────────
@@ -405,15 +518,15 @@ namespace SafeTrace.Application.Services
             if (entity is null)
             {
                 _logger.LogWarning(
-                    "MarkAsFounded failed - LongTermCase {CaseId} not found or not Active. UserId={UserId}", id, userId);
-                throw new NotFoundException($"Active long-term case with id {id} was not found.");
+                    "فشل تحديد الحالة كـ موجود - الحالة {CaseId} غير موجودة أو غير نشطة. UserId={UserId}", id, userId);
+                throw new NotFoundException($"لم يتم العثور على الحالة النشطة رقم {id}.");
             }
 
             if (entity.UserId != userId && !isAdmin)
             {
                 _logger.LogWarning(
-                    "Unauthorized MarkAsFounded on LongTermCase {CaseId} by UserId={UserId}", id, userId);
-                throw new ForbiddenException("You are not allowed to mark this case as found.");
+                    "محاولة تحديد الحالة {CaseId} كـ موجود بدون صلاحية من المستخدم {UserId}", id, userId);
+                throw new ForbiddenException("غير مسموح لك بتحديد هذه الحالة كـ تم إيجاده.");
             }
 
             var foundInfo = new FoundPersonInfo
@@ -433,7 +546,7 @@ namespace SafeTrace.Application.Services
             _unitOfWork.Repository<LongTermMissingCase>().Update(entity);
             await _unitOfWork.SaveAsync();
 
-            _logger.LogInformation("LongTermCase {CaseId} marked as Found by UserId={UserId}.", id, userId);
+            _logger.LogInformation("تم تحديد الحالة {CaseId} كـ موجود بواسطة المستخدم {UserId}.", id, userId);
         }
 
         // ─────────────────────────────────────────────────────────────
@@ -443,6 +556,26 @@ namespace SafeTrace.Application.Services
         private static string GenerateCaseCode() =>
             $"LT-{DateTime.UtcNow:yyyyMMdd}-{Guid.NewGuid().ToString("N")[..6].ToUpperInvariant()}";
 
+        /// <summary>
+        /// يضمن وجود صورة رئيسية واحدة بالظبط.
+        /// لو مفيش أي صورة معلمة كـ primary، بيعلم الأولى.
+        /// لو في أكتر من واحدة، بيسيب الأولى بس.
+        /// </summary>
+        private static void EnsureSinglePrimary(ICollection<CasePhoto> photos)
+        {
+            if (!photos.Any()) return;
 
+            var primaries = photos.Where(p => p.IsPrimary).ToList();
+
+            if (primaries.Count == 0)
+            {
+                photos.First().IsPrimary = true;
+            }
+            else if (primaries.Count > 1)
+            {
+                foreach (var p in primaries.Skip(1))
+                    p.IsPrimary = false;
+            }
+        }
     }
 }

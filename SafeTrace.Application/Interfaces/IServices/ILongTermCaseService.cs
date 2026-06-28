@@ -35,6 +35,6 @@ namespace SafeTrace.Application.Interfaces.IServices
         Task RejectAsync(long id);
 
         Task MarkAsFoundedAsync(long id, MarkAsFoundedDto dto, string userId, bool isAdmin);
-        Task<IEnumerable<LongTermCaseCardDto>> GetAdminCasesAsync(CaseStatus status);
+        Task<IEnumerable<LongTermCaseCardDto>> GetAdminCasesAsync(CaseStatus? status);
     }
 }
