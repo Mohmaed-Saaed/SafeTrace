@@ -1,11 +1,13 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using SafeTrace.Application.Constants;
 using SafeTrace.Application.DTOs.UnKnownDtos;
 using SafeTrace.Application.Exceptions;
 using SafeTrace.Application.Interfaces.IServices;
 using SafeTrace.Application.Services;
 using SafeTrace.Domain.Enums;
+using SafeTrace.Infrastructure.Authorization;
 using System.Security.Claims;
 
 namespace SafeTrace.API.Controllers
@@ -22,6 +24,7 @@ namespace SafeTrace.API.Controllers
         }
         [HttpPost]
         [Consumes("multipart/form-data")]
+        [HasPermission(Permissions.UnknownCases.Create)]
         public async Task<IActionResult> CreateUnknown([FromForm] CreateUnknownDto dto)
         {
             var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
@@ -45,14 +48,16 @@ namespace SafeTrace.API.Controllers
 
         //    return Ok(result);
         //}
-        [Authorize(Roles = "Admin")]
+
+
+        [HasPermission(Permissions.UnknownCases.Approve)]
         [HttpPut("{id:long}/approve")]
         public async Task<IActionResult> Approve(long id)
         {
             var response = await _unKnownServiceCase.ApproveAsync(id);
             return Ok(response);
         }
-        [Authorize(Roles = "Admin")]
+        [HasPermission(Permissions.UnknownCases.Reject)]
         [HttpPut("{id:long}/reject")]
         public async Task<IActionResult> Reject(long id)
         {
@@ -60,7 +65,7 @@ namespace SafeTrace.API.Controllers
             return Ok(response);
         }
         [HttpGet("GetAllapproved")]
-      
+        [AllowAnonymous]
         public async Task<IActionResult> GetAllApproved(
         int pageNumber = 1,
         int pageSize = 10)
@@ -78,8 +83,9 @@ namespace SafeTrace.API.Controllers
         //    return Ok(result);
         //}
 
-
+        
         [HttpPut("{id}/UpdateUnKnownCase")]
+        [HasPermission(Permissions.UnknownCases.Update)]
         public async Task<IActionResult> UpdateUnknownCase(long id, [FromForm] UpdateUnkownCaseDto dto)
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
@@ -100,13 +106,16 @@ namespace SafeTrace.API.Controllers
         //}
 
         [HttpGet("{id}/GetDetails")]
+        [AllowAnonymous]
         public async Task<IActionResult> GetDetails(long id)
         {
             var result = await _unKnownServiceCase.GetDetailsAsync(id);
             return Ok(result);
         }
 
-        [HttpDelete("{id}")]
+        [HttpDelete("{id}/SoftDelete")]
+
+        [HasPermission(Permissions.UnknownCases.SoftDelete)]
         public async Task<IActionResult> DeleteUnknownCase(long id)
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
@@ -125,6 +134,7 @@ namespace SafeTrace.API.Controllers
         //}
 
         [HttpPut("{id}/UpdateTobeFound")]
+        [HasPermission(Permissions.UnknownCases.MarkAsFounded)]
         public async Task<IActionResult> FoundUnknownCase(long id, [FromQuery] string userId)
         {
             var result = await _unKnownServiceCase.FoundUnKnownCase(id, userId);
@@ -133,6 +143,7 @@ namespace SafeTrace.API.Controllers
         }
 
         [HttpGet("status/{status}")]
+        [HasPermission(Permissions.UnknownCases.GetAll)]
         public async Task<IActionResult> GetByStatus(
         CaseStatus status,
         [FromQuery] int pageNumber = 1,
@@ -152,7 +163,7 @@ namespace SafeTrace.API.Controllers
         }
 
         [HttpGet("my-cases")]
-        [Authorize]
+        [HasPermission(Permissions.UnknownCases.GetMyCases)]
         public async Task<IActionResult> GetMyCases()
         {
             var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
@@ -170,7 +181,7 @@ namespace SafeTrace.API.Controllers
         //    return Ok(result);
         //}
 
-        [Authorize(Roles = "Admin")]
+        [HasPermission(Permissions.UnknownCases.HardDelete)]
         [HttpDelete("hard-delete/{id}")]
         public async Task<IActionResult> HardDelete(long id)
         {
@@ -178,6 +189,7 @@ namespace SafeTrace.API.Controllers
             return Ok(result);
         }
         [HttpGet("GetCasebyFilteration")]
+        [AllowAnonymous]
         public async Task<IActionResult> GetCases(
              [FromQuery] UnknownFilterUsingbyUserDto filter)
         {
