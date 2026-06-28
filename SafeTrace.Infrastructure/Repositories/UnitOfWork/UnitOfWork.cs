@@ -5,38 +5,29 @@ using SafeTrace.Infrastructure.Repositories.Repository;
 
 namespace SafeTrace.Infrastructure.Repositories.UnitOfWork
 {
-    public class UnitOfWork : IUnitOfWork
+    public class UnitOfWork : IUnitOfWork, IAsyncDisposable
     {
         private readonly ApplicationDbContext _context;
 
-        private IDbContextTransaction? _transaction;
+        private IDbContextTransaction? _currentTransaction;
 
-        public IRepository<RefreshToken> RefreshTokenRepository { get; private set; }
-        public IRepository<UserOtp> UserOtpRepository { get; private set; }
-        public IRepository<LongTermMissingCase> LongTermMissingCaseRepository { get; }
-        public IRepository<Case> CaseRepository { get; private set; }
-        public IRepository<CasePhoto> CasePhotoRepository { get; private set; }
-        public IRepository<Chat> ChatRepository { get; private set; }
-        public IRepository<Complaint> ComplaintRepository { get; private set; }
-        public IRepository<FoundPersonInfo> FoundPersonInfoRepository { get; private set; }
-        public IRepository<Message> MessageRepository { get; private set; }
-        public IRepository<Notification> NotificationRepository { get; private set; }
-        public IRepository<AgeCategory> AgeCategoryRepository { get; private set; }
+        private readonly Dictionary<Type, object> _repositories = new();
 
         public UnitOfWork(ApplicationDbContext context)
         {
             _context = context;
-            LongTermMissingCaseRepository = new Repository<LongTermMissingCase>(context);
-            CaseRepository = new Repository<Case>(context);
-            CasePhotoRepository = new Repository<CasePhoto>(_context);
-            ChatRepository = new Repository<Chat>(_context);
-            ComplaintRepository = new Repository<Complaint>(_context);
-            FoundPersonInfoRepository = new Repository<FoundPersonInfo>(_context);
-            MessageRepository = new Repository<Message>(_context);
-            NotificationRepository = new Repository<Notification>(_context);
-            UserOtpRepository = new Repository<UserOtp>(_context);
-            RefreshTokenRepository = new Repository<RefreshToken>(_context);
-            AgeCategoryRepository = new Repository<AgeCategory>(_context);
+        }
+
+        public IRepository<TEntity> Repository<TEntity>() where TEntity : class
+        {
+            if (_repositories.TryGetValue(typeof(TEntity), out var repository))
+                return (IRepository<TEntity>)repository;
+
+            var repo = new Repository<TEntity>(_context);
+
+            _repositories.Add(typeof(TEntity), repo);
+
+            return repo;
         }
 
         public async Task<int> SaveAsync()
@@ -46,57 +37,56 @@ namespace SafeTrace.Infrastructure.Repositories.UnitOfWork
 
         public async Task BeginTransactionAsync()
         {
-            if (_transaction is null)
+            if (_currentTransaction is not null)
             {
-                _transaction = await _context.Database.BeginTransactionAsync();
+                throw new InvalidOperationException("A transaction is already in progress.");
             }
+
+            _currentTransaction = await _context.Database.BeginTransactionAsync();
         }
 
         public async Task CommitTransactionAsync()
         {
+            if (_currentTransaction is null)
+            {
+                throw new InvalidOperationException("No transaction is currently in progress.");
+            }
+
             try
             {
-                await _context.SaveChangesAsync();
-
-                if (_transaction is not null)
-                {
-                    await _transaction.CommitAsync();
-                    await _transaction.DisposeAsync();
-
-                    _transaction = null;
-                }
+                await _currentTransaction.CommitAsync();
             }
-            catch
+            finally
             {
-                await RollbackTransactionAsync();
-                throw;
+                await _currentTransaction.DisposeAsync();
+                _currentTransaction = null;
             }
         }
 
         public async Task RollbackTransactionAsync()
         {
-            if (_transaction is not null)
-            {
-                await _transaction.RollbackAsync();
-                await _transaction.DisposeAsync();
+            if (_currentTransaction is null)
+                return;
 
-                _transaction = null;
+            try
+            {
+                await _currentTransaction.RollbackAsync();
+            }
+            finally
+            {
+                await _currentTransaction.DisposeAsync();
+                _currentTransaction = null;
             }
         }
 
-        public void Dispose()
+        public async ValueTask DisposeAsync()
         {
-            try
+            if (_currentTransaction is not null)
             {
-                _transaction?.Dispose();
+                await _currentTransaction.DisposeAsync();
             }
-            catch { }
 
-            try
-            {
-                _context.Dispose();
-            }
-            catch { }
+            await _context.DisposeAsync();
         }
     }
 }

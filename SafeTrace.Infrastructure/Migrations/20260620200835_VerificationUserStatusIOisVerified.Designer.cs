@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using NetTopologySuite.Geometries;
 using SafeTrace.Infrastructure.DataAccess;
@@ -12,9 +13,11 @@ using SafeTrace.Infrastructure.DataAccess;
 namespace SafeTrace.Infrastructure.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260620200835_VerificationUserStatusIOisVerified")]
+    partial class VerificationUserStatusIOisVerified
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -428,33 +431,17 @@ namespace SafeTrace.Infrastructure.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
 
-                    b.Property<bool>("DeletedByReceiver")
-                        .HasColumnType("bit");
-
-                    b.Property<bool>("DeletedBySender")
-                        .HasColumnType("bit");
-
-                    b.Property<DateTime?>("ReceiverDeletedAt")
-                        .HasColumnType("datetime2");
-
                     b.Property<string>("ReceiverId")
                         .IsRequired()
-                        .HasColumnType("nvarchar(450)");
-
-                    b.Property<DateTime?>("SenderDeletedAt")
-                        .HasColumnType("datetime2");
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("SenderId")
                         .IsRequired()
-                        .HasColumnType("nvarchar(450)");
+                        .HasColumnType("nvarchar(max)");
 
                     b.HasKey("Id");
 
                     b.HasIndex("CaseId");
-
-                    b.HasIndex("ReceiverId");
-
-                    b.HasIndex("SenderId");
 
                     b.ToTable("Chats", (string)null);
                 });
@@ -552,51 +539,29 @@ namespace SafeTrace.Infrastructure.Migrations
                         .HasMaxLength(2000)
                         .HasColumnType("nvarchar(2000)");
 
-                    b.Property<bool>("DeletedByReceiver")
-                        .HasColumnType("bit");
-
-                    b.Property<bool>("DeletedBySender")
-                        .HasColumnType("bit");
-
                     b.Property<string>("FilePath")
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("FileType")
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<DateTime?>("ForEveryoneDeletedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<bool>("IsDeletedForEveryone")
-                        .HasColumnType("bit");
-
                     b.Property<bool>("IsRead")
                         .HasColumnType("bit");
 
-                    b.Property<DateTime?>("ReceiverDeletedAt")
-                        .HasColumnType("datetime2");
-
                     b.Property<string>("ReceiverId")
                         .IsRequired()
-                        .HasColumnType("nvarchar(450)");
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<DateTime>("SendAt")
                         .HasColumnType("datetime2");
 
-                    b.Property<DateTime?>("SenderDeletedAt")
-                        .HasColumnType("datetime2");
-
                     b.Property<string>("SenderId")
                         .IsRequired()
-                        .HasColumnType("nvarchar(450)");
+                        .HasColumnType("nvarchar(max)");
 
                     b.HasKey("Id");
 
                     b.HasIndex("ChatId");
-
-                    b.HasIndex("ReceiverId");
-
-                    b.HasIndex("SenderId");
 
                     b.ToTable("Messages", (string)null);
                 });
@@ -833,23 +798,7 @@ namespace SafeTrace.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("SafeTrace.Domain.Entities.ApplicationUser", "Receiver")
-                        .WithMany()
-                        .HasForeignKey("ReceiverId")
-                        .OnDelete(DeleteBehavior.NoAction)
-                        .IsRequired();
-
-                    b.HasOne("SafeTrace.Domain.Entities.ApplicationUser", "Sender")
-                        .WithMany()
-                        .HasForeignKey("SenderId")
-                        .OnDelete(DeleteBehavior.NoAction)
-                        .IsRequired();
-
                     b.Navigation("Case");
-
-                    b.Navigation("Receiver");
-
-                    b.Navigation("Sender");
                 });
 
             modelBuilder.Entity("SafeTrace.Domain.Entities.Complaint", b =>
@@ -890,23 +839,7 @@ namespace SafeTrace.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("SafeTrace.Domain.Entities.ApplicationUser", "Receiver")
-                        .WithMany()
-                        .HasForeignKey("ReceiverId")
-                        .OnDelete(DeleteBehavior.NoAction)
-                        .IsRequired();
-
-                    b.HasOne("SafeTrace.Domain.Entities.ApplicationUser", "Sender")
-                        .WithMany()
-                        .HasForeignKey("SenderId")
-                        .OnDelete(DeleteBehavior.NoAction)
-                        .IsRequired();
-
                     b.Navigation("Chat");
-
-                    b.Navigation("Receiver");
-
-                    b.Navigation("Sender");
                 });
 
             modelBuilder.Entity("SafeTrace.Domain.Entities.Notification", b =>
