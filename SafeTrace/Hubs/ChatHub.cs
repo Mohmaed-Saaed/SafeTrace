@@ -75,27 +75,27 @@ namespace SafeTrace.API.Hubs
                     });
         }
 
-        //private string GetCurrentUserId()
-        //{
-        //    var userId = Context.User?.FindFirstValue(ClaimTypes.NameIdentifier);
-
-        //    if (string.IsNullOrEmpty(userId))
-        //        throw new HubException("Unauthorized");
-
-        //    return userId;
-        //}
-
         private string GetCurrentUserId()
         {
-            var userId = Context.GetHttpContext()?
-                    .Request.Query["userId"]
-                    .ToString();
+            var userId = Context.User?.FindFirstValue(ClaimTypes.NameIdentifier);
 
             if (string.IsNullOrEmpty(userId))
                 throw new HubException("Unauthorized");
 
             return userId;
         }
+
+        //private string GetCurrentUserId()
+        //{
+        //    var userId = Context.GetHttpContext()?
+        //            .Request.Query["userId"]
+        //            .ToString();
+
+        //    if (string.IsNullOrEmpty(userId))
+        //        throw new HubException("Unauthorized");
+
+        //    return userId;
+        //}
 
         private static string ChatGroupName(long chatId) => $"chat_{chatId}";
 

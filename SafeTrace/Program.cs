@@ -7,6 +7,7 @@ using SafeTrace.Application.Interfaces.IServices;
 using SafeTrace.Infrastructure.DependencyInjection;
 using Serilog;
 using System.Text.Json.Serialization;
+using SafeTrace.Application.Hubs;
 
 namespace SafeTrace
 {
@@ -92,6 +93,8 @@ namespace SafeTrace
 
             await app.SeedDataAsync();
             await app.ApplyPendingMigrationsAsync();
+            await app.SetupAwsResourcesAsync();
+
 
             app.UseHttpsRedirection();
             app.UseStaticFiles();
