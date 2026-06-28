@@ -14,6 +14,8 @@ namespace SafeTrace.Domain.Entities
 
         public string UserId { get; set; } = null!;
 
+        public string? NotificationDirectLink { get; set; }
+
         public string Content { get; set; } = null!;
 
         public ApplicationUser User { get; set; } = null!;

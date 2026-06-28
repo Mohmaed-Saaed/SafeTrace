@@ -72,9 +72,16 @@
             public const string MarkAsSolved = "Complaints.MarkAsSolved";
         }
 
+        public static class Account
+        {
+            public const string ChangePassword = "Account.ChangePassword";
+        }
+
         public static class Roles
         {
             public const string GetAll = "Roles.GetAll";
+            public const string Create = "Roles.Create";
+            public const string Delete = "Roles.Delete";
             public const string GetPermissionsByRoleId = "Roles.GetPermissionsByRoleId";
             public const string UpdateRolePermissions = "Roles.UpdateRolePermissions";
         }
@@ -83,6 +90,7 @@
         {
             public const string GetAll = "Users.GetAll";
             public const string GetById = "Users.GetById";
+            public const string RegisterByAdmin = "Users.RegisterByAdmin";
             public const string ChangeRole = "Users.ChangeRole";
             public const string GetPermissions = "Users.GetPermissions";
             public const string AssignPermissions = "Users.AssignPermissions";

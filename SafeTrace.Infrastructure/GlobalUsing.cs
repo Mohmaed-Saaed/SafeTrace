@@ -2,3 +2,11 @@
 global using Microsoft.EntityFrameworkCore;
 global using SafeTrace.Domain.Entities;
 global using SafeTrace.Domain.Interfaces.IRepository;
+global using Microsoft.AspNetCore.Identity;
+global using Microsoft.Extensions.Configuration;
+global using Microsoft.Extensions.DependencyInjection;
+global using SafeTrace.Application.Interfaces.IServices;
+global using SafeTrace.Domain.Interfaces.IUnitOfWork;
+global using SafeTrace.Infrastructure.DataAccess;
+global using SafeTrace.Infrastructure.Repositories.UnitOfWork;
+global using SafeTrace.Infrastructure.Services;
