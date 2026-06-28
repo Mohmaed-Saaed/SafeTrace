@@ -17,6 +17,16 @@ namespace SafeTrace.Application.DTOs.Message
         public bool IsRead { get; set; }
         public bool IsDeletedForEveryone { get; set; }
 
+        public bool DeletedBySender { get; set; }
+
+        public bool DeletedByReceiver { get; set; }
+
+        public DateTime? ForEveryoneDeletedAt { get; set; } = null!;
+
+        public DateTime? SenderDeletedAt { get; set; }
+
+        public DateTime? ReceiverDeletedAt { get; set; }
+
         public DateTime SendAt { get; set; }
     }
 }

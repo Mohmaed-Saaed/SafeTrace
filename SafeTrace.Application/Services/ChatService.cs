@@ -143,7 +143,7 @@ namespace SafeTrace.Application.Services
             return ApiResponse<IEnumerable<ChatSummaryDto>>.Ok(
                 result, "user chats returned");
         }
-        public async Task<ApiResponse<ChatDetailsDto>> GetChatDetailsAsync(long chatId, string currentUserId)
+        public async Task<ApiResponse<ChatDetailsDto>> GetChatDetailsAsync(long chatId, string currentUserId, bool isAdmin)
         {
             _logger.LogInformation(
             "User {UserId} requested chat details for Chat {ChatId}.",
@@ -155,9 +155,42 @@ namespace SafeTrace.Application.Services
                     c => c.Id == chatId,
                     tracked: false,
                     c => c.Case,
-                    chatId => chatId.Messages)
+                    c => c.Sender,
+                    c => c.Receiver)
                 ?? throw new NotFoundException($"Chat with id {chatId} was not found.");
-            EnsureParticipant(chat, currentUserId);
+            if (!isAdmin)
+            {
+                EnsureParticipant(chat, currentUserId);
+            }
+
+            var dto = new ChatDetailsDto
+            {
+                ChatId = chat.Id,
+                CaseId = chat.CaseId,
+                CaseTitle = chat.Case.CaseCode,
+
+                CreatedAt = chat.CreatedAt
+            };
+
+            if (isAdmin)
+            {
+                dto.SenderId = chat.SenderId;
+                dto.SenderName = $"{chat.Sender.FName} {chat.Sender.LName}";
+
+                dto.ReceiverId = chat.ReceiverId;
+                dto.ReceiverName = $"{chat.Receiver.FName} {chat.Receiver.LName}";
+
+                dto.DeletedBySender = chat.DeletedBySender;
+                dto.DeletedByReceiver = chat.DeletedByReceiver;
+                dto.SenderDeletedAt = chat.SenderDeletedAt;
+                dto.ReceiverDeletedAt = chat.ReceiverDeletedAt;
+            }
+            else
+            {
+                dto.OtherUserName = chat.SenderId == currentUserId
+                    ? $"{chat.Receiver.FName} {chat.Receiver.LName}"
+                : $"{chat.Sender.FName} {chat.Sender.LName}";
+            }
 
             _logger.LogInformation(
             "Chat {ChatId} details returned for user {UserId}.",
@@ -165,11 +198,11 @@ namespace SafeTrace.Application.Services
             currentUserId);
 
             return ApiResponse<ChatDetailsDto>.Ok(
-                _mapper.Map<ChatDetailsDto>(chat),
-                "chat detailes returned");
+               dto,
+                "Chat details returned successfully.");
 
         }
-        public async Task <ApiResponse<PaginationResponseDto<MessageDto>>> GetPaginatedMessagesAsync(long chatId, string currentUserId, int page, int pageSize)
+        public async Task <ApiResponse<PaginationResponseDto<MessageDto>>> GetPaginatedMessagesAsync(long chatId, string currentUserId,bool isAdmin, int page, int pageSize)
         {
             _logger.LogInformation(
             "User {UserId} requested messages for Chat {ChatId}. Page {Page}, PageSize {PageSize}.",
@@ -185,20 +218,32 @@ namespace SafeTrace.Application.Services
                     c => c.Case,
                     chatId => chatId.Messages)
                ?? throw new NotFoundException($"Chat with id {chatId} was not found.");
-            EnsureParticipant(chat, currentUserId);
 
+            if (!isAdmin)
+            {
+                EnsureParticipant(chat, currentUserId);
+            }
             //var (messages, totalCount) = await _unitOfWork.MessageRepository
             //    .GetPagedMessagesAsync(chatId,currentUserId, page, pageSize);
 
-            var query = _unitOfWork.Repository<Message>()
-                .Query(tracked: false)
-                .Where(m => m.ChatId == chatId &&
-                    (
-                        (m.SenderId == currentUserId && !m.DeletedBySender)
-                        ||
-                        (m.ReceiverId == currentUserId && !m.DeletedByReceiver)
-                    ));
-
+            IQueryable<Message> query;
+            if (isAdmin)
+            {
+                 query = _unitOfWork.Repository<Message>()
+                .Query(false)
+                .Where(m => m.ChatId == chatId);
+            }
+            else
+            {
+                 query = _unitOfWork.Repository<Message>()
+                    .Query(tracked: false)
+                    .Where(m => m.ChatId == chatId &&
+                        (
+                            (m.SenderId == currentUserId && !m.DeletedBySender)
+                            ||
+                            (m.ReceiverId == currentUserId && !m.DeletedByReceiver)
+                        ));
+            }
             var totalCount = await query.CountAsync();
 
             var messages = await query

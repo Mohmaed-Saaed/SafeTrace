@@ -112,7 +112,7 @@ namespace SafeTrace.Application.Services
             request.ChatId);
 
             var messageDto = _mapper.Map<MessageDto>(message);
-            await _chatNotifier.SendMessageAsync(receiverId, messageDto);
+            await _chatNotifier.SendMessageAsync(messageDto);
 
             return ApiResponse<MessageDto>.Ok(
                 messageDto, "message sended succesfully");

@@ -7,8 +7,6 @@ namespace SafeTrace.Application.Interfaces.IServices
 {
     public interface IChatNotifier
     {
-        Task SendMessageAsync(
-            string receiverId,
-            MessageDto message);
+        Task SendMessageAsync(MessageDto message);
     }
 }

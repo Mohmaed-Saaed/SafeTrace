@@ -87,7 +87,6 @@ namespace SafeTrace
             }
 
             app.UseCors("CorsPolicy");
-            app.MapHub<ChatHub>("/chatHub");
 
             app.UseHttpsRedirection();
             app.UseStaticFiles();
@@ -96,7 +95,9 @@ namespace SafeTrace
             app.UseAuthorization();
 
             app.MapControllers();
-            
+            app.MapHub<ChatHub>("/chatHub");
+
+
             app.Run();
         }
     }

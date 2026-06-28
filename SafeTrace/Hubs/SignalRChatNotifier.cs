@@ -13,9 +13,9 @@ namespace SafeTrace.API.Hubs
             _hubContext = hubContext;
         }
 
-        public async Task SendMessageAsync(string receiverId, MessageDto message)
+        public async Task SendMessageAsync(MessageDto message)
         {
-            await _hubContext.Clients.Group(receiverId)
+            await _hubContext.Clients.Group($"chat_{message.ChatId}")
                 .SendAsync("ReceiveMessage", message);
         }
     }
