@@ -1,3 +1,4 @@
+using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace SafeTrace.Infrastructure.DataAccess.Configurations
@@ -6,40 +7,47 @@ namespace SafeTrace.Infrastructure.DataAccess.Configurations
     {
         public void Configure(EntityTypeBuilder<UrgentCase> builder)
         {
-            builder.Property(u => u.EndDate)
+            // Properties
+            builder.Property(x => x.EndDate)
                 .IsRequired();
 
-            builder.Property(u => u.LimitReachDate)
-                .IsRequired();   
-            
+            builder.Property(x => x.LimitReachDate)
+                .IsRequired();
+
             builder.Property(x => x.Location)
-                .HasColumnType("geography"); 
+                .HasColumnType("geography");
 
-            builder.ToTable(t => t.HasCheckConstraint(
-                "CK_UrgentCase_EndDate",
-                "[EndDate] > [CreatedAt]"));
+            // Check Constraints (TPH-safe)
+            builder.ToTable(t =>
+            {
+                t.HasCheckConstraint(
+                    "CK_UrgentCase_EndDate",
+                    "([Discriminator] <> 'UrgentCase') OR ([EndDate] > [CreatedAt])");
 
-            builder.ToTable(t => t.HasCheckConstraint(
-                "CK_UrgentCase_LimitReachDate",
-                "[LimitReachDate] > [CreatedAt]"));
+                t.HasCheckConstraint(
+                    "CK_UrgentCase_LimitReachDate",
+                    "([Discriminator] <> 'UrgentCase') OR ([LimitReachDate] > [CreatedAt])");
+            });
 
-            // Rate-limit check: "does this user have an active window?"
-            // Partial index only on non-deleted rows for efficiency.
-            // NOTE: EF Core does not support partial indexes natively; apply via migration raw SQL.
+            // Indexes
+
+            // Rate limit
             builder.HasIndex(x => new { x.UserId, x.LimitReachDate })
-                   .HasDatabaseName("IX_UrgentCases_UserId_LimitReachDate");
+                .HasDatabaseName("IX_UrgentCases_UserId_LimitReachDate");
 
-            // Expiration job: "which active cases have passed EndDate?"
+            // Expiration
             builder.HasIndex(x => new { x.Status, x.EndDate })
-                   .HasDatabaseName("IX_UrgentCases_Status_EndDate");
+                .HasDatabaseName("IX_UrgentCases_Status_EndDate");
 
-            // Public listing: ordered by creation date
+            // Public listing
             builder.HasIndex(x => new { x.Status, x.CreatedAt })
-                   .HasDatabaseName("IX_UrgentCases_Status_CreatedAt");
+                .HasDatabaseName("IX_UrgentCases_Status_CreatedAt");
 
-            // Location spatial index — add via raw SQL in migration:
-            //   CREATE SPATIAL INDEX IX_UrgentCases_Location ON UrgentCases(Location);
-            // EF Core does not expose spatial index builder for all providers.
+            // Spatial Index
+            // Create in Database using raw SQL:
+            //
+            // CREATE SPATIAL INDEX IX_UrgentCases_Location
+            // ON Cases(Location);
         }
     }
 }

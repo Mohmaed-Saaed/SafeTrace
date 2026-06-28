@@ -15,6 +15,7 @@ using SafeTrace.Infrastructure.DataAccess;
 using SafeTrace.Infrastructure.Options;
 using SafeTrace.Infrastructure.Persistence;
 using SafeTrace.Infrastructure.Repositories.UnitOfWork;
+using SafeTrace.Infrastructure.Service.Founded;
 using SafeTrace.Infrastructure.Services;
 using System.Text;
 
@@ -56,6 +57,8 @@ namespace SafeTrace.Infrastructure.DependencyInjection
             services.AddSingleton<IAuthorizationPolicyProvider, PermissionPolicyProvider>();
             services.AddScoped<IAuthorizationHandler, PermissionHandler>();
 
+            services.AddScoped<IFoundedService, FoundedService>();
+            
             services.AddIdentity<ApplicationUser, IdentityRole>(options =>
             {
                 options.Password.RequiredLength = 8;

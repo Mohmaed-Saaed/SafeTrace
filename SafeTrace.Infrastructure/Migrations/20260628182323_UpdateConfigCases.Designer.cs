@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using NetTopologySuite.Geometries;
 using SafeTrace.Infrastructure.DataAccess;
@@ -12,9 +13,11 @@ using SafeTrace.Infrastructure.DataAccess;
 namespace SafeTrace.Infrastructure.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260628182323_UpdateConfigCases")]
+    partial class UpdateConfigCases
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -294,12 +297,12 @@ namespace SafeTrace.Infrastructure.Migrations
 
                     b.Property<string>("CaseCode")
                         .IsRequired()
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("nvarchar(max)")
-                        .HasDefaultValue("10000");
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
 
-                    b.Property<int>("CaseType")
-                        .HasColumnType("int");
+                    b.Property<string>("CaseType")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("City")
                         .IsRequired()
@@ -307,7 +310,8 @@ namespace SafeTrace.Infrastructure.Migrations
                         .HasColumnType("nvarchar(100)");
 
                     b.Property<string>("CommunicationPhone")
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
 
                     b.Property<DateTime>("CreatedAt")
                         .ValueGeneratedOnAdd()
@@ -321,7 +325,8 @@ namespace SafeTrace.Infrastructure.Migrations
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("Description")
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
 
                     b.Property<string>("Discriminator")
                         .IsRequired()
@@ -340,9 +345,6 @@ namespace SafeTrace.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<int>("Gender")
-                        .HasColumnType("int");
-
                     b.Property<string>("Government")
                         .IsRequired()
                         .HasMaxLength(100)
@@ -356,19 +358,18 @@ namespace SafeTrace.Infrastructure.Migrations
                     b.Property<string>("PreviousStatus")
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<int?>("PreviousStatus")
-                        .HasColumnType("int");
-
-                    b.Property<int>("Relation")
-                        .HasColumnType("int");
+                    b.Property<string>("Relation")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("SName")
                         .IsRequired()
                         .HasMaxLength(60)
                         .HasColumnType("nvarchar(60)");
 
-                    b.Property<int>("Status")
-                        .HasColumnType("int");
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
 
                     b.Property<string>("Street")
                         .IsRequired()
@@ -707,7 +708,7 @@ namespace SafeTrace.Infrastructure.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("RefreshTokens", (string)null);
+                    b.ToTable("RefreshTokens");
                 });
 
             modelBuilder.Entity("SafeTrace.Domain.Entities.UserOtp", b =>
@@ -742,7 +743,7 @@ namespace SafeTrace.Infrastructure.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("UserOtps", (string)null);
+                    b.ToTable("UserOtps");
                 });
 
             modelBuilder.Entity("SafeTrace.Domain.Entities.LongTermMissingCase", b =>

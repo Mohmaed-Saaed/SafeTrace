@@ -1,3 +1,4 @@
+using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace SafeTrace.Infrastructure.DataAccess.Configurations
@@ -6,24 +7,43 @@ namespace SafeTrace.Infrastructure.DataAccess.Configurations
     {
         public void Configure(EntityTypeBuilder<Case> builder)
         {
-            builder.ToTable("Cases");
+            // Table
+            builder.ToTable("Cases", t =>
+            {
+                t.HasCheckConstraint(
+                    "CK_Cases_Age",
+                    "[Age] BETWEEN 0 AND 120");
+            });
 
+            // Primary Key
             builder.HasKey(c => c.Id);
 
+            // Enums
             builder.Property(x => x.Gender)
-                   .HasConversion<string>();
+                .HasConversion<string>();
 
             builder.Property(x => x.Status)
-                   .HasConversion<string>();
+                .HasConversion<string>();
 
             builder.Property(x => x.CaseType)
-                   .HasConversion<string>();
+                .HasConversion<string>();
 
             builder.Property(x => x.Relation)
-                   .HasConversion<string>();
+                .HasConversion<string>();
 
             builder.Property(x => x.PreviousStatus)
-                   .HasConversion<string>();
+                .HasConversion<string>();
+
+            // Properties
+            builder.Property(c => c.CaseCode)
+                .IsRequired()
+                .HasMaxLength(20);
+
+            builder.Property(c => c.CreatedAt)
+                .HasDefaultValueSql("GETUTCDATE()");
+
+            builder.Property(c => c.UserId)
+                .IsRequired();
 
             builder.Property(c => c.Government)
                 .IsRequired()
@@ -37,41 +57,42 @@ namespace SafeTrace.Infrastructure.DataAccess.Configurations
                 .IsRequired()
                 .HasMaxLength(200);
 
-            builder.Property(c => c.CreatedAt)
-                .HasDefaultValueSql("GETUTCDATE()");
-
-            builder.Property(c => c.CaseCode)
+            builder.Property(c => c.FName)
                 .IsRequired()
+                .HasMaxLength(60);
+
+            builder.Property(c => c.SName)
+                .IsRequired()
+                .HasMaxLength(60);
+
+            builder.Property(c => c.TName)
+                .IsRequired()
+                .HasMaxLength(60);
+
+            builder.Property(c => c.LName)
+                .IsRequired()
+                .HasMaxLength(60);
+
+            builder.Property(c => c.CommunicationPhone)
                 .HasMaxLength(20);
 
-            builder.Property(x => x.UserId)
-                .IsRequired();
-
-            builder.Property(x => x.FName)
-                .HasMaxLength(60);
-
-            builder.Property(x => x.SName)
-                .HasMaxLength(60);
-
-            builder.Property(x => x.TName)
-                .HasMaxLength(60);
-
-            builder.Property(x => x.LName)
-                .HasMaxLength(60);
-
-            builder.Property(x => x.CommunicationPhone)
-                .HasMaxLength(20);
-
-            builder.Property(x => x.Description)
+            builder.Property(c => c.Description)
                 .HasMaxLength(2000);
 
-            builder.ToTable(t => t.HasCheckConstraint(
-                "CK_UrgentCase_Age",
-                "[Age] BETWEEN 0 AND 120"));
+            // Indexes
+            builder.HasIndex(c => c.CaseCode)
+                .IsUnique()
+                .HasDatabaseName("UIX_Cases_CaseCode");
 
+            // Relationships
             builder.HasOne(c => c.User)
                 .WithMany(u => u.Cases)
                 .HasForeignKey(c => c.UserId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            builder.HasOne(c => c.AgeCategory)
+                .WithMany(a => a.Cases)
+                .HasForeignKey(c => c.AgeCategoryId)
                 .OnDelete(DeleteBehavior.Restrict);
 
             builder.HasMany(c => c.Photos)
@@ -84,20 +105,12 @@ namespace SafeTrace.Infrastructure.DataAccess.Configurations
                 .HasForeignKey(ch => ch.CaseId)
                 .OnDelete(DeleteBehavior.Cascade);
 
-            builder.HasOne(c => c.AgeCategory)
-                .WithMany(ac => ac.Cases)
-                .HasForeignKey(c => c.AgeCategoryId)
-                .OnDelete(DeleteBehavior.Restrict);
-
+            // Table Per Hierarchy (TPH)
             builder.HasDiscriminator<string>("Discriminator")
                 .HasValue<Case>("Case")
                 .HasValue<UrgentCase>("UrgentCase")
                 .HasValue<LongTermMissingCase>("LongTermMissingCase")
                 .HasValue<UnknownCase>("UnknownCase");
-
-            builder.HasIndex(x => x.CaseCode)
-                .IsUnique()
-                .HasDatabaseName("UIX_UrgentCases_CaseCode");
         }
     }
 }
