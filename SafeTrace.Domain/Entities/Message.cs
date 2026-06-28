@@ -1,4 +1,7 @@
-﻿using SafeTrace.Domain.Enums;
+﻿using Microsoft.Extensions.Logging;
+using SafeTrace.Domain.Common;
+using SafeTrace.Domain.Enums;
+using SafeTrace.Domain.Interfaces.IUnitOfWork;
 
 namespace SafeTrace.Domain.Entities
 {
@@ -41,3 +44,5 @@ namespace SafeTrace.Domain.Entities
         public Chat Chat { get; set; } = null!;
     }
 }
+
+

@@ -1,0 +1,63 @@
+﻿using System.Security.Claims;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
+using SafeTrace.Application.Constants;
+using SafeTrace.Application.DTOs.NotificationDTOS;
+using SafeTrace.Application.DTOs.Responses;
+using SafeTrace.Application.Interfaces.IServices.INotificationSewrvice;
+using SafeTrace.Infrastructure.Authorization;
+
+namespace SafeTrace.API.Controllers
+{
+    [Route("api/[controller]")]
+    [ApiController]
+
+    public class NotificationController : ControllerBase
+    {
+        private readonly INotificationServices _notificationService;
+        public NotificationController(INotificationServices notificationService)
+        {
+            _notificationService = notificationService;
+        }
+
+
+
+
+
+        [HttpGet("my-Notifications")]
+        [HasPermission(Permissions.Notifications.GetMyNotifications)]
+        public async Task<IActionResult> GetMyNotifications()
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            var notifications = await _notificationService.GetUserNotificationsAsync(userId!);
+            return Ok(notifications);
+        }
+
+        [HttpDelete("{id}")]
+        [HasPermission(Permissions.Notifications.DeleteNotification)]
+        public async Task<IActionResult> DeleteNotification(long id)
+        {
+            var result = await _notificationService.RemoveNotificationAsync(id);
+            if (!result.Data) return NotFound();
+            return Ok(result);
+        }
+
+        [HttpPut("{id}/MarkAsRead")]
+        [HasPermission(Permissions.Notifications.MarkAsRead)]
+        public async Task<IActionResult> MarkAsRead(long id)
+        {
+            await _notificationService.MarkAsReadAsync(id);
+            return Ok();
+        }
+
+        [HttpPut("MarkAllAsRead")]
+        [HasPermission(Permissions.Notifications.MarkAllAsRead)]
+        public async Task<IActionResult> MarkAllAsRead()
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            await _notificationService.MarkAllAsReadAsync(userId!);
+            return Ok();
+        }
+    }
+}

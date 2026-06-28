@@ -33,6 +33,14 @@ namespace SafeTrace.API.Controllers
             return Ok(response);
         }
 
+        [HttpPost("register-by-admin")]
+        [HasPermission(Permissions.Users.RegisterByAdmin)]
+        public async Task<IActionResult> RegisterByAdmin([FromBody] RegisterByAdminDto dto)
+        {
+            var response = await _userService.RegisterByAdminAsync(dto);
+            return Ok(response);
+        }
+
         [HttpPost("ChangeRole")]
         [HasPermission(Permissions.Users.ChangeRole)]
         public async Task<IActionResult> ChangeUserRole([FromBody] ChangeUserRoleDto dto)

@@ -1,9 +1,11 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using SafeTrace.Application.Constants;
 using SafeTrace.Application.DTOs.Auth.Request;
 using SafeTrace.Application.Exceptions;
 using SafeTrace.Application.Interfaces.IServices;
 using SafeTrace.Domain.Enums;
+using SafeTrace.Infrastructure.Authorization;
 using System.Security.Claims;
 
 namespace SafeTrace.API.Controllers
@@ -83,12 +85,12 @@ namespace SafeTrace.API.Controllers
             return Ok(response);
         }
 
-        [Authorize]
+        [HasPermission(Permissions.Account.ChangePassword)]
         [HttpPost("change-password")]
         public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordDto dto)
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            if (string.IsNullOrEmpty(userId)) throw new UnauthorizedException("User identity could not be verified from token.");
+            if (string.IsNullOrEmpty(userId)) throw new UnauthorizedException("تعذر التحقق من هوية المستخدم.");
 
             var response = await _accountService.ChangePasswordAsync(userId, dto);
             return Ok(response);

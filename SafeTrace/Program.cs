@@ -87,6 +87,11 @@ namespace SafeTrace
             }
 
             app.UseCors("CorsPolicy");
+            app.MapHub<NotificationsHub>("SafeTrace.Application/Hubs/notifications");
+
+
+            await app.SeedDataAsync();
+            await app.ApplyPendingMigrationsAsync();
 
             app.UseHttpsRedirection();
             app.UseStaticFiles();
