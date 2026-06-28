@@ -1,9 +1,9 @@
 ﻿using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using SafeTrace.Application.DTOs.LongTermCases;
 using SafeTrace.Application.Exceptions;
 using SafeTrace.Application.Interfaces.IServices;
+using SafeTrace.Domain.Enums;
 using System.Security.Claims;
 
 namespace SafeTrace.API.Controllers
@@ -20,7 +20,6 @@ namespace SafeTrace.API.Controllers
         }
 
         //private string? CurrentUserId => User.FindFirstValue(ClaimTypes.NameIdentifier);
-
         //private bool IsAdmin => User.IsInRole("Admin");
         private string CurrentUserId => "1dcc168b-80da-4909-8438-4e177016be76";
         private bool IsAdmin => true;
@@ -44,21 +43,10 @@ namespace SafeTrace.API.Controllers
         }
 
 
-        // Admin only: cases users have soft-deleted, kept around for review (restore or permanent delete)
-        //[Authorize(Roles = "Admin")]
-        [HttpGet("deleted")]
-        public async Task<IActionResult> GetDeleted()
-        {
-            var result = await _service.GetDeletedCasesAsync();
-            return Ok(result);
-        }
-
-
         [HttpGet("{id:long}")]
         [AllowAnonymous]
         public async Task<IActionResult> GetById(long id)
         {
-            // Admins can also open soft-deleted cases, everyone else only sees non-deleted ones
             var result = await _service.GetByIdAsync(id, includeDeleted: IsAdmin);
             return Ok(result);
         }
@@ -75,11 +63,16 @@ namespace SafeTrace.API.Controllers
         }
 
 
+        /// <summary>
+        /// Admin-only: filter by status=Pending (review queue) or status=Deleted (trash).
+        /// GET /api/LongTermMissingCases/admin-cases?status=Pending
+        /// GET /api/LongTermMissingCases/admin-cases?status=Deleted
+        /// </summary>
         //[Authorize(Roles = "Admin")]
-        [HttpGet("pending")]
-        public async Task<IActionResult> GetPending()
+        [HttpGet("admin-cases")]
+        public async Task<IActionResult> GetAdminCases([FromQuery] CaseStatus status)
         {
-            var result = await _service.GetPendingCasesAsync();
+            var result = await _service.GetAdminCasesAsync(status);
             return Ok(result);
         }
 
@@ -103,7 +96,6 @@ namespace SafeTrace.API.Controllers
         {
             if (CurrentUserId == null) throw new UnauthorizedException("User identity not found.");
 
-            // If a regular user edits the case, it goes back to Pending until an Admin approves it again
             await _service.UpdateAsync(id, dto, CurrentUserId, IsAdmin);
             return NoContent();
         }
@@ -115,12 +107,10 @@ namespace SafeTrace.API.Controllers
         {
             if (CurrentUserId == null) throw new UnauthorizedException("User identity not found.");
 
-            // Soft delete: hidden from the owner/public, Admin still sees it under /deleted
             await _service.DeleteAsync(id, CurrentUserId, IsAdmin);
             return NoContent();
         }
 
-   
 
         //[Authorize(Roles = "Admin")]
         [HttpDelete("{id:long}/permanent")]

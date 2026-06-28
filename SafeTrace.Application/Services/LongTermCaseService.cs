@@ -1,4 +1,5 @@
 using AutoMapper;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using SafeTrace.Application.Common.Helpers;
 using SafeTrace.Application.Common.Models;
@@ -10,7 +11,6 @@ using SafeTrace.Domain.Common;
 using SafeTrace.Domain.Entities;
 using SafeTrace.Domain.Enums;
 using SafeTrace.Domain.Interfaces.IUnitOfWork;
-using Microsoft.EntityFrameworkCore;    
 
 namespace SafeTrace.Application.Services
 {
@@ -43,11 +43,9 @@ namespace SafeTrace.Application.Services
             var filterByAge = filter.AgeCategory.HasValue;
             var ageRange = filterByAge ? AgeCategoryHelper.GetRange(filter.AgeCategory!.Value) : (Min: 0, Max: 0);
 
-            // Build the base query — only Active, non-deleted cases visible to the public
-            var query = _unitOfWork.LongTermMissingCaseRepository
+            var query = _unitOfWork.Repository<LongTermMissingCase>()
                 .Query(tracked: false, includes: c => c.Photos)
                 .Where(c => c.Status == CaseStatus.Active)
-                // WhereIf: condition is evaluated at call-site, predicate pushed to SQL only when true
                 .WhereIf(!string.IsNullOrEmpty(name), c =>
                     (c.FName ?? "").Contains(name!) ||
                     (c.SName ?? "").Contains(name!) ||
@@ -81,14 +79,13 @@ namespace SafeTrace.Application.Services
 
         public async Task<LongTermCaseDetailsDto> GetByIdAsync(long id, bool includeDeleted = false)
         {
-            // includeDeleted = true is passed only for Admin requests (see controller)
-            var entity = await _unitOfWork.LongTermMissingCaseRepository.GetOneAsync(
-                c => c.Id == id &&
-                     (includeDeleted || c.Status != CaseStatus.Deleted),
-                tracked: false,
-                c => c.Photos,
-                c => c.FoundPersonInfo!,
-                c => c.User);
+            var entity = await _unitOfWork.Repository<LongTermMissingCase>()
+                .GetOneAsync(
+                    c => c.Id == id && (includeDeleted || c.Status != CaseStatus.Deleted),
+                    tracked: false,
+                    c => c.Photos,
+                    c => c.FoundPersonInfo!,
+                    c => c.User);
 
             if (entity is null)
                 throw new NotFoundException($"Long-term case with id {id} was not found.");
@@ -98,8 +95,7 @@ namespace SafeTrace.Application.Services
 
         public async Task<IEnumerable<LongTermCaseCardDto>> GetMyCasesAsync(string userId)
         {
-            // Deleted cases are hidden from the owner — only Admin sees them via GetDeletedCasesAsync
-            var items = await _unitOfWork.LongTermMissingCaseRepository
+            var items = await _unitOfWork.Repository<LongTermMissingCase>()
                 .Query(tracked: false, orderBy: c => c.CreatedAt, orderByDirection: OrderBy.Descending, includes: c => c.Photos)
                 .Where(c => c.UserId == userId && c.Status != CaseStatus.Deleted)
                 .ToListAsync();
@@ -109,7 +105,7 @@ namespace SafeTrace.Application.Services
 
         public async Task<IEnumerable<LongTermCaseCardDto>> GetFoundedCasesAsync()
         {
-            var items = await _unitOfWork.LongTermMissingCaseRepository
+            var items = await _unitOfWork.Repository<LongTermMissingCase>()
                 .Query(tracked: false, orderBy: c => c.CreatedAt, orderByDirection: OrderBy.Descending, includes: c => c.Photos)
                 .Where(c => c.Status == CaseStatus.Found)
                 .ToListAsync();
@@ -117,24 +113,27 @@ namespace SafeTrace.Application.Services
             return _mapper.Map<IEnumerable<LongTermCaseCardDto>>(items);
         }
 
-        public async Task<IEnumerable<LongTermCaseCardDto>> GetPendingCasesAsync()
+        /// <summary>
+        /// Admin-only: returns Pending or Deleted cases based on the requested status.
+        /// Replaces the old GetPendingCasesAsync / GetDeletedCasesAsync pair.
+        /// </summary>
+        public async Task<IEnumerable<LongTermCaseCardDto>> GetAdminCasesAsync(CaseStatus status)
         {
-            var items = await _unitOfWork.LongTermMissingCaseRepository
-                .Query(tracked: false, orderBy: c => c.CreatedAt, orderByDirection: OrderBy.Ascending, includes: c => c.Photos)
-                .Where(c => c.Status == CaseStatus.Pending)
-                .ToListAsync();
+            // Only Pending and Deleted are valid admin-filter statuses
+            if (status != CaseStatus.Pending && status != CaseStatus.Deleted)
+                throw new BadRequestException("Admin case filter only supports 'Pending' or 'Deleted' statuses.");
 
-            return _mapper.Map<IEnumerable<LongTermCaseCardDto>>(items);
-        }
+            // Deleted cases are sorted by when they were deleted (most recent first)
+            // Pending cases are sorted by creation date (oldest first — review queue order)
+            var query = status == CaseStatus.Deleted
+                ? _unitOfWork.Repository<LongTermMissingCase>()
+                    .Query(tracked: false, orderBy: c => c.DeletedAt!, orderByDirection: OrderBy.Descending, includes: c => c.Photos)
+                    .Where(c => c.Status == CaseStatus.Deleted)
+                : _unitOfWork.Repository<LongTermMissingCase>()
+                    .Query(tracked: false, orderBy: c => c.CreatedAt, orderByDirection: OrderBy.Ascending, includes: c => c.Photos)
+                    .Where(c => c.Status == CaseStatus.Pending);
 
-        // Admin-only: trash view — cases the user soft-deleted
-        public async Task<IEnumerable<LongTermCaseCardDto>> GetDeletedCasesAsync()
-        {
-            var items = await _unitOfWork.LongTermMissingCaseRepository
-                .Query(tracked: false, orderBy: c => c.DeletedAt!, orderByDirection: OrderBy.Descending, includes: c => c.Photos)
-                .Where(c => c.Status == CaseStatus.Deleted)
-                .ToListAsync();
-
+            var items = await query.ToListAsync();
             return _mapper.Map<IEnumerable<LongTermCaseCardDto>>(items);
         }
 
@@ -148,11 +147,11 @@ namespace SafeTrace.Application.Services
 
             entity.UserId = userId;
             entity.CaseType = CaseType.LongTerm;
-            entity.Status = CaseStatus.Pending; // Requires Admin approval before going public
+            entity.Status = CaseStatus.Pending;
             entity.CreatedAt = DateTime.UtcNow;
             entity.CaseCode = GenerateCaseCode();
             entity.Street ??= string.Empty;
-            entity.AgeCategoryId = await AgeCategoryHelper.ResolveAgeCategoryIdAsync(_unitOfWork, entity.Age); 
+            entity.AgeCategoryId = await AgeCategoryHelper.ResolveAgeCategoryIdAsync(_unitOfWork, entity.Age);
 
             if (dto.PoliceReportImage is not null)
                 entity.PoliceReportImage = await _fileStorage.SaveFileAsync(dto.PoliceReportImage, "long-term/police-reports");
@@ -169,7 +168,7 @@ namespace SafeTrace.Application.Services
             await _unitOfWork.BeginTransactionAsync();
             try
             {
-                await _unitOfWork.LongTermMissingCaseRepository.CreateAsync(entity);
+                await _unitOfWork.Repository<LongTermMissingCase>().CreateAsync(entity);
                 await _unitOfWork.SaveAsync();
                 await _unitOfWork.CommitTransactionAsync();
 
@@ -193,10 +192,11 @@ namespace SafeTrace.Application.Services
 
         public async Task UpdateAsync(long id, UpdateLongTermCaseDto dto, string userId, bool isAdmin)
         {
-            var entity = await _unitOfWork.LongTermMissingCaseRepository.GetOneAsync(
-                c => c.Id == id && c.Status != CaseStatus.Deleted,
-                tracked: true,
-                c => c.Photos);
+            var entity = await _unitOfWork.Repository<LongTermMissingCase>()
+                .GetOneAsync(
+                    c => c.Id == id && c.Status != CaseStatus.Deleted,
+                    tracked: true,
+                    c => c.Photos);
 
             if (entity is null)
             {
@@ -209,19 +209,18 @@ namespace SafeTrace.Application.Services
                 _logger.LogWarning("Unauthorized update on LongTermCase {CaseId} by UserId={UserId}", id, userId);
                 throw new ForbiddenException("You are not allowed to update this case.");
             }
+
             if (dto.Age.HasValue)
             {
                 entity.Age = dto.Age.Value;
                 entity.AgeCategoryId = await AgeCategoryHelper.ResolveAgeCategoryIdAsync(_unitOfWork, entity.Age);
             }
 
-            // Patch only provided fields
             if (dto.Gender.HasValue) entity.Gender = dto.Gender.Value;
             if (dto.FName is not null) entity.FName = dto.FName;
             if (dto.SName is not null) entity.SName = dto.SName;
             if (dto.TName is not null) entity.TName = dto.TName;
             if (dto.LName is not null) entity.LName = dto.LName;
-            if (dto.Age.HasValue) entity.Age = dto.Age.Value;
             if (dto.Relation.HasValue) entity.Relation = dto.Relation.Value;
             if (dto.Description is not null) entity.Description = dto.Description;
             if (dto.Government is not null) entity.Government = dto.Government;
@@ -243,7 +242,7 @@ namespace SafeTrace.Application.Services
                 {
                     _fileStorage.DeleteFile(photo.ImagePath);
                     entity.Photos.Remove(photo);
-                    _unitOfWork.CasePhotoRepository.Remove(photo);
+                    _unitOfWork.Repository<CasePhoto>().Remove(photo);
                 }
             }
 
@@ -256,14 +255,13 @@ namespace SafeTrace.Application.Services
                 }
             }
 
-            // Non-admin edits need re-approval; remember the old status so Reject can revert cleanly
             if (!isAdmin && entity.Status != CaseStatus.Pending)
             {
                 entity.PreviousStatus = entity.Status;
                 entity.Status = CaseStatus.Pending;
             }
 
-            _unitOfWork.LongTermMissingCaseRepository.Update(entity);
+            _unitOfWork.Repository<LongTermMissingCase>().Update(entity);
             await _unitOfWork.SaveAsync();
 
             _logger.LogInformation(
@@ -271,14 +269,15 @@ namespace SafeTrace.Application.Services
         }
 
         // ─────────────────────────────────────────────────────────────
-        // DELETE (soft) — user or admin
+        // DELETE (soft)
         // ─────────────────────────────────────────────────────────────
 
         public async Task DeleteAsync(long id, string userId, bool isAdmin)
         {
-            var entity = await _unitOfWork.LongTermMissingCaseRepository.GetOneAsync(
-                c => c.Id == id && c.Status != CaseStatus.Deleted,
-                tracked: true);
+            var entity = await _unitOfWork.Repository<LongTermMissingCase>()
+                .GetOneAsync(
+                    c => c.Id == id && c.Status != CaseStatus.Deleted,
+                    tracked: true);
 
             if (entity is null)
             {
@@ -292,13 +291,12 @@ namespace SafeTrace.Application.Services
                 throw new ForbiddenException("You are not allowed to delete this case.");
             }
 
-            // Save real status so Admin can see what it was before deletion
             entity.PreviousStatus = entity.Status;
             entity.Status = CaseStatus.Deleted;
             entity.DeletedAt = DateTime.UtcNow;
             entity.DeletedByUserId = userId;
 
-            _unitOfWork.LongTermMissingCaseRepository.Update(entity);
+            _unitOfWork.Repository<LongTermMissingCase>().Update(entity);
             await _unitOfWork.SaveAsync();
 
             _logger.LogWarning(
@@ -307,21 +305,21 @@ namespace SafeTrace.Application.Services
         }
 
         // ─────────────────────────────────────────────────────────────
-        // PERMANENT DELETE — Admin only, only after soft-delete
+        // PERMANENT DELETE — Admin only
         // ─────────────────────────────────────────────────────────────
 
         public async Task PermanentDeleteAsync(long id)
         {
-            var entity = await _unitOfWork.LongTermMissingCaseRepository.GetOneAsync(
-                c => c.Id == id && c.Status == CaseStatus.Deleted,
-                tracked: true,
-                c => c.Photos,
-                c => c.FoundPersonInfo!);
+            var entity = await _unitOfWork.Repository<LongTermMissingCase>()
+                .GetOneAsync(
+                    c => c.Id == id && c.Status == CaseStatus.Deleted,
+                    tracked: true,
+                    c => c.Photos,
+                    c => c.FoundPersonInfo!);
 
             if (entity is null)
             {
-                _logger.LogWarning(
-                    "PermanentDelete failed - LongTermCase {CaseId} not found or not soft-deleted.", id);
+                _logger.LogWarning("PermanentDelete failed - LongTermCase {CaseId} not found or not soft-deleted.", id);
                 throw new NotFoundException(
                     $"Soft-deleted long-term case with id {id} was not found. Only deleted cases can be permanently removed.");
             }
@@ -332,7 +330,7 @@ namespace SafeTrace.Application.Services
             if (!string.IsNullOrEmpty(entity.PoliceReportImage))
                 _fileStorage.DeleteFile(entity.PoliceReportImage);
 
-            _unitOfWork.LongTermMissingCaseRepository.Remove(entity);
+            _unitOfWork.Repository<LongTermMissingCase>().Remove(entity);
             await _unitOfWork.SaveAsync();
 
             _logger.LogWarning("LongTermCase {CaseId} permanently deleted by Admin.", id);
@@ -344,9 +342,10 @@ namespace SafeTrace.Application.Services
 
         public async Task ApproveAsync(long id)
         {
-            var entity = await _unitOfWork.LongTermMissingCaseRepository.GetOneAsync(
-                c => c.Id == id && c.Status == CaseStatus.Pending,
-                tracked: true);
+            var entity = await _unitOfWork.Repository<LongTermMissingCase>()
+                .GetOneAsync(
+                    c => c.Id == id && c.Status == CaseStatus.Pending,
+                    tracked: true);
 
             if (entity is null)
             {
@@ -357,7 +356,7 @@ namespace SafeTrace.Application.Services
             entity.Status = CaseStatus.Active;
             entity.PreviousStatus = null;
 
-            _unitOfWork.LongTermMissingCaseRepository.Update(entity);
+            _unitOfWork.Repository<LongTermMissingCase>().Update(entity);
             await _unitOfWork.SaveAsync();
 
             _logger.LogInformation("LongTermCase {CaseId} approved (Pending → Active).", id);
@@ -365,9 +364,10 @@ namespace SafeTrace.Application.Services
 
         public async Task RejectAsync(long id)
         {
-            var entity = await _unitOfWork.LongTermMissingCaseRepository.GetOneAsync(
-                c => c.Id == id && c.Status == CaseStatus.Pending,
-                tracked: true);
+            var entity = await _unitOfWork.Repository<LongTermMissingCase>()
+                .GetOneAsync(
+                    c => c.Id == id && c.Status == CaseStatus.Pending,
+                    tracked: true);
 
             if (entity is null)
             {
@@ -377,17 +377,15 @@ namespace SafeTrace.Application.Services
 
             if (entity.PreviousStatus.HasValue)
             {
-                // Came from a user edit on an already-approved case → revert the edit
                 entity.Status = entity.PreviousStatus.Value;
                 entity.PreviousStatus = null;
             }
             else
             {
-                // Brand-new case rejected on first review → close it
                 entity.Status = CaseStatus.Rejected;
             }
 
-            _unitOfWork.LongTermMissingCaseRepository.Update(entity);
+            _unitOfWork.Repository<LongTermMissingCase>().Update(entity);
             await _unitOfWork.SaveAsync();
 
             _logger.LogInformation("LongTermCase {CaseId} rejected (Pending → {Status}).", id, entity.Status);
@@ -399,9 +397,10 @@ namespace SafeTrace.Application.Services
 
         public async Task MarkAsFoundedAsync(long id, MarkAsFoundedDto dto, string userId, bool isAdmin)
         {
-            var entity = await _unitOfWork.LongTermMissingCaseRepository.GetOneAsync(
-                c => c.Id == id && c.Status == CaseStatus.Active,
-                tracked: true);
+            var entity = await _unitOfWork.Repository<LongTermMissingCase>()
+                .GetOneAsync(
+                    c => c.Id == id && c.Status == CaseStatus.Active,
+                    tracked: true);
 
             if (entity is null)
             {
@@ -430,23 +429,19 @@ namespace SafeTrace.Application.Services
 
             entity.Status = CaseStatus.Found;
 
-            await _unitOfWork.FoundPersonInfoRepository.CreateAsync(foundInfo);
-            _unitOfWork.LongTermMissingCaseRepository.Update(entity);
+            await _unitOfWork.Repository<FoundPersonInfo>().CreateAsync(foundInfo);
+            _unitOfWork.Repository<LongTermMissingCase>().Update(entity);
             await _unitOfWork.SaveAsync();
 
             _logger.LogInformation("LongTermCase {CaseId} marked as Found by UserId={UserId}.", id, userId);
         }
 
- 
         // ─────────────────────────────────────────────────────────────
         // HELPERS
         // ─────────────────────────────────────────────────────────────
 
         private static string GenerateCaseCode() =>
             $"LT-{DateTime.UtcNow:yyyyMMdd}-{Guid.NewGuid().ToString("N")[..6].ToUpperInvariant()}";
-  
-
-
 
 
     }

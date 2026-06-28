@@ -37,9 +37,10 @@ namespace SafeTrace.Application.Common.Helpers
         /// </summary>
         public static async Task<int> ResolveAgeCategoryIdAsync(IUnitOfWork unitOfWork, int age)
         {
-            var category = await unitOfWork.AgeCategoryRepository.GetOneAsync(
-                c => age >= c.MinAge && age <= c.MaxAge,
-                tracked: false);
+            var category = await unitOfWork.Repository<SafeTrace.Domain.Entities.AgeCategory>()
+                .GetOneAsync(
+                    c => age >= c.MinAge && age <= c.MaxAge,
+                    tracked: false);
 
             if (category is null)
                 throw new NotFoundException($"No age category configured for age {age}.");

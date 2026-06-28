@@ -1,5 +1,6 @@
 using SafeTrace.Application.Common.Models;
 using SafeTrace.Application.DTOs.LongTermCases;
+using SafeTrace.Domain.Enums;
 
 namespace SafeTrace.Application.Interfaces.IServices
 {
@@ -10,14 +11,12 @@ namespace SafeTrace.Application.Interfaces.IServices
         Task<IEnumerable<LongTermCaseCardDto>> GetFoundedCasesAsync();
 
         // Admin-only: soft-deleted cases kept for review
-        Task<IEnumerable<LongTermCaseCardDto>> GetDeletedCasesAsync();
 
         // includeDeleted = true lets Admins open a soft-deleted case's details
         Task<LongTermCaseDetailsDto> GetByIdAsync(long id, bool includeDeleted = false);
 
         Task<IEnumerable<LongTermCaseCardDto>> GetMyCasesAsync(string userId);
 
-        Task<IEnumerable<LongTermCaseCardDto>> GetPendingCasesAsync();
 
         Task<long> CreateAsync(CreateLongTermCaseDto dto, string userId);
 
@@ -36,5 +35,6 @@ namespace SafeTrace.Application.Interfaces.IServices
         Task RejectAsync(long id);
 
         Task MarkAsFoundedAsync(long id, MarkAsFoundedDto dto, string userId, bool isAdmin);
+        Task<IEnumerable<LongTermCaseCardDto>> GetAdminCasesAsync(CaseStatus status);
     }
 }
