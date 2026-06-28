@@ -7,7 +7,7 @@ namespace SafeTrace.Application.DTOs.UrgentMissingCase.Response
 
         public string CaseCode { get; set; } = null!;
         public CaseStatus Status { get; set; }
-        public CaseStatus? PreviousStatus { get; set; }
+        public CaseStatus PreviousStatus { get; set; }
 
         public string FullName { get; set; } = null!;
 
@@ -28,7 +28,7 @@ namespace SafeTrace.Application.DTOs.UrgentMissingCase.Response
         public DateTime EndDate { get; set; }
         public DateTime LimitReachDate { get; set; }
 
-        public string? Description { get; set; }
+        public string Description { get; set; } = null!;
 
         public DateTime CreatedAt { get; set; }
         public DateTime? UpdatedAt { get; set; }

@@ -9,8 +9,8 @@ namespace SafeTrace.Application.DTOs.UrgentMissingCase{
         public string Government { get; set; } = null!;
         public CaseStatus Status { get; set; }
         public DateTime CreatedAt { get; set; }
-        public DateTime? LimitReachDate { get; set; }
-        public string? MainPhoto { get; set; }
+        public DateTime LimitReachDate { get; set; } 
+        public string MainPhoto { get; set; } = null!;
     }
 }
 

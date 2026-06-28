@@ -8,12 +8,12 @@ namespace SafeTrace.Application.DTOs.UrgentMissingCase.Response
         public string Government { get; set; } = null!;
         public string City { get; set; } = null!;
         public string Street { get; set; } = null!;
-        public string? FName { get; set; }
-        public string? SName { get; set; }
-        public string? TName { get; set; }
-        public string? LName { get; set; }
+        public string FName { get; set; } = null!;
+        public string SName { get; set; } = null!;
+        public string TName { get; set; } = null!;
+        public string LName { get; set; } = null!;
         public int Age { get; set; }
-        public string? CommunicationPhone { get; set; }
+        public string CommunicationPhone { get; set; } = null!;
         public RelationType Relation { get; set; }
         public DateTime CreatedAt { get; set; }
         public DateTime? UpdatedAt { get; set; }
