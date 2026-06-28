@@ -1,4 +1,3 @@
-using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace SafeTrace.Infrastructure.DataAccess.Configurations
@@ -12,27 +11,32 @@ namespace SafeTrace.Infrastructure.DataAccess.Configurations
             {
                 t.HasCheckConstraint(
                     "CK_Cases_Age",
-                    "[Age] BETWEEN 0 AND 120");
+                    "[Age] >= 0 AND [Age] <= 120");
             });
 
             // Primary Key
             builder.HasKey(c => c.Id);
 
             // Enums
-            builder.Property(x => x.Gender)
-                .HasConversion<string>();
+            builder.Property(c => c.Gender)
+                .HasConversion<string>()
+                .HasMaxLength(10);
 
-            builder.Property(x => x.Status)
-                .HasConversion<string>();
+            builder.Property(c => c.Status)
+                .HasConversion<string>()
+                .HasMaxLength(30);
 
-            builder.Property(x => x.CaseType)
-                .HasConversion<string>();
+            builder.Property(c => c.PreviousStatus)
+                .HasConversion<string>()
+                .HasMaxLength(30);
 
-            builder.Property(x => x.Relation)
-                .HasConversion<string>();
+            builder.Property(c => c.CaseType)
+                .HasConversion<string>()
+                .HasMaxLength(30);
 
-            builder.Property(x => x.PreviousStatus)
-                .HasConversion<string>();
+            builder.Property(c => c.Relation)
+                .HasConversion<string>()
+                .HasMaxLength(20);
 
             // Properties
             builder.Property(c => c.CaseCode)
@@ -41,6 +45,9 @@ namespace SafeTrace.Infrastructure.DataAccess.Configurations
 
             builder.Property(c => c.CreatedAt)
                 .HasDefaultValueSql("GETUTCDATE()");
+
+            builder.Property(c => c.EventDate)
+                .IsRequired();
 
             builder.Property(c => c.UserId)
                 .IsRequired();
@@ -58,23 +65,23 @@ namespace SafeTrace.Infrastructure.DataAccess.Configurations
                 .HasMaxLength(200);
 
             builder.Property(c => c.FName)
-                .IsRequired()
+                .IsRequired(false)
                 .HasMaxLength(60);
 
             builder.Property(c => c.SName)
-                .IsRequired()
+                .IsRequired(false)
                 .HasMaxLength(60);
 
             builder.Property(c => c.TName)
-                .IsRequired()
+                .IsRequired(false)
                 .HasMaxLength(60);
 
             builder.Property(c => c.LName)
-                .IsRequired()
+                .IsRequired(false)
                 .HasMaxLength(60);
 
             builder.Property(c => c.CommunicationPhone)
-                .HasMaxLength(20);
+                .HasMaxLength(15);
 
             builder.Property(c => c.Description)
                 .HasMaxLength(2000);
@@ -84,7 +91,22 @@ namespace SafeTrace.Infrastructure.DataAccess.Configurations
                 .IsUnique()
                 .HasDatabaseName("UIX_Cases_CaseCode");
 
+            builder.HasIndex(c => c.UserId);
+
+            builder.HasIndex(c => c.Status);
+
+            builder.HasIndex(c => c.CreatedAt);
+
+            builder.HasIndex(c => c.AgeCategoryId);
+
+            builder.HasIndex(c => new
+            {
+                c.Status,
+                c.CaseType
+            });
+
             // Relationships
+
             builder.HasOne(c => c.User)
                 .WithMany(u => u.Cases)
                 .HasForeignKey(c => c.UserId)
@@ -94,6 +116,11 @@ namespace SafeTrace.Infrastructure.DataAccess.Configurations
                 .WithMany(a => a.Cases)
                 .HasForeignKey(c => c.AgeCategoryId)
                 .OnDelete(DeleteBehavior.Restrict);
+
+            builder.HasOne(c => c.FoundPersonInfo)
+                .WithOne(f => f.Case)
+                .HasForeignKey<FoundPersonInfo>(f => f.CaseId)
+                .OnDelete(DeleteBehavior.Cascade);
 
             builder.HasMany(c => c.Photos)
                 .WithOne(p => p.Case)
@@ -105,9 +132,8 @@ namespace SafeTrace.Infrastructure.DataAccess.Configurations
                 .HasForeignKey(ch => ch.CaseId)
                 .OnDelete(DeleteBehavior.Cascade);
 
-            // Table Per Hierarchy (TPH)
+            // TPH Mapping
             builder.HasDiscriminator<string>("Discriminator")
-                .HasValue<Case>("Case")
                 .HasValue<UrgentCase>("UrgentCase")
                 .HasValue<LongTermMissingCase>("LongTermMissingCase")
                 .HasValue<UnknownCase>("UnknownCase");
