@@ -41,6 +41,9 @@ namespace SafeTrace.Infrastructure.Services
 
             using var smtp = new SmtpClient();
 
+            smtp.ServerCertificateValidationCallback = (s, c, h, e) => true;
+
+
             try
             {
                 await smtp.ConnectAsync(_mailSettings.Host, _mailSettings.Port, SecureSocketOptions.StartTls);
@@ -65,10 +68,14 @@ namespace SafeTrace.Infrastructure.Services
             {
                 throw new BadRequestException("تعذر الوصول إلى خادم البريد الإلكتروني. يرجى التحقق من اتصالك بالإنترنت.");
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                throw new BadRequestException("حدث خطأ غير متوقع أثناء محاولة إرسال البريد الإلكتروني.");
+                throw new Exception(ex.ToString());
             }
+            //catch (Exception)
+            //{
+            //    throw new BadRequestException("حدث خطأ غير متوقع أثناء محاولة إرسال البريد الإلكتروني.");
+            //}
             finally
             {
                 if (smtp.IsConnected)
