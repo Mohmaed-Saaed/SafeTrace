@@ -19,7 +19,8 @@ namespace SafeTrace.Application.DTOs.User_Profiel_DTOS
         public string LastName { get; set; } = string.Empty;
 
 
-        public string? HomeLocation { get; set; }
+        public double? HomeLatitude { get; set; }
+        public double? HomeLongitude { get; set; }
 
         [Required(ErrorMessage = "IdentificationImage is required.")]
         public IFormFile? IdentificationImage { get; set; }
