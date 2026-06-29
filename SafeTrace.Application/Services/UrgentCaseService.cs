@@ -2,7 +2,7 @@
 using Microsoft.EntityFrameworkCore;
 using NetTopologySuite.Geometries;
 using SafeTrace.Application.Common.Enums;
-using SafeTrace.Application.DTOs.UrgentMissingCase;
+using SafeTrace.Application.DTOs.NotificationDTOS;
 using SafeTrace.Application.DTOs.UrgentMissingCase.Request;
 using SafeTrace.Application.DTOs.UrgentMissingCase.Response;
 using SafeTrace.Application.Helpers;
@@ -19,6 +19,7 @@ namespace SafeTrace.Application.Services
         private readonly IFileStorageService _fileStorageService;
         private const int RateLimitDays    = 14;
         private const int ExpirationHours  = 48;
+        private const double NotifyRadiusM   = 50_000; // 50 km
 
         public UrgentCaseService(ILogger<UrgentCaseService> logger, IUnitOfWork unitOfWork, IMapper mapper, INotificationServices notificationServices, IFileStorageService fileStorageService)
         {
@@ -129,19 +130,11 @@ namespace SafeTrace.Application.Services
                 throw;
             }
 
-            // // ── FR-14 Notify nearby users ─────────────────────────────────
-            // // Fire-and-forget — notification failure must not affect the response.
-            // _ = _notificationServices.NotifyNearbyUsersAsync(new NewUrgentCaseNotification(
-            //         CaseId:        entity.Id,
-            //         CaseCode:      entity.CaseCode,
-            //         Latitude:      createDto.Latitude,
-            //         Longitude:     createDto.Longitude,
-            //         RadiusInMeters: DefaultRadiusM,
-            //         Age:           entity.Age,
-            //         Gender:        entity.Gender.ToString(),
-            //         Government:    entity.Government,
-            //         City:          entity.City),
-            //     CancellationToken.None);    // separate token — don't cancel on request end
+            // ── FR-14: Notify nearby users ───────────────────────────────
+            // Runs AFTER commit so the case is visible in the DB.
+            // Fire-and-forget — notification failure must never fail the create.
+            _ = NotifyNearbyUsersAsync(entity, createDto.Latitude, createDto.Longitude);
+
 
             // ── Return populated DTO ──────────────────────────────────────
             var created = await _unitOfWork.Repository<UrgentCase>()
@@ -341,25 +334,14 @@ namespace SafeTrace.Application.Services
         
         private async Task<ApiResponse<PaginationResponseDto<TDto>>> GetAllInternalAsync<TDto>(string? userId, UrgentCaseFilterDto filter, bool includeDeleted, bool includeExpired, params Expression<Func<UrgentCase, object>>[] includes)
         {
-            // Resolve optional user location for proximity sorting / radius filtering
-            Point? userLocation = null;
+            ApplicationUser? user = null;
 
             if (!string.IsNullOrWhiteSpace(userId))
             {
-                var user = await _unitOfWork.Repository<ApplicationUser>()
-                    .Query(tracked: false)
-                    .Select(u => new
-                    {
-                        u.Id,
-                        u.CurrentLocationLatitude,
-                        u.CurrentLocationLongitude,
-                        u.HomeLocationLatitude,
-                        u.HomeLocationLongitude
-                    })
-                    .FirstOrDefaultAsync(u => u.Id == userId);
-
-                userLocation = ResolveUserLocation(user);
+                user = await _unitOfWork.Repository<ApplicationUser>().Query(tracked: false).FirstOrDefaultAsync(x => x.Id == userId);
             }
+
+            var userLocation = user is not null ? GetUserLocation(user) : null;
 
             var query = _unitOfWork.Repository<UrgentCase>().Query(tracked: false, includes: includes);
 
@@ -503,20 +485,98 @@ namespace SafeTrace.Application.Services
 
             return $"You can create a new urgent case in {remaining} day(s).";
         }
-        private static Point? ResolveUserLocation(dynamic? user)
+        private static Point? GetUserLocation(ApplicationUser? user)
         {
-            if (user is null) return null;
+            if (user?.CurrentLocationLatitude.HasValue == true && user.CurrentLocationLongitude.HasValue)
+                return new Point(user.CurrentLocationLongitude.Value, user.CurrentLocationLatitude.Value) { SRID = 4326 };
 
-            if (user.CurrentLocationLatitude is not null && user.CurrentLocationLongitude is not null)
-            {
-                return new Point((double)user.CurrentLocationLongitude, (double)user.CurrentLocationLatitude) { SRID = 4326 };
-            }
+            if (user?.HomeLocationLatitude.HasValue == true && user.HomeLocationLongitude.HasValue)
+                return new Point(user.HomeLocationLongitude.Value, user.HomeLocationLatitude.Value) { SRID = 4326 };
 
-            if (user.HomeLocationLatitude is not null && user.HomeLocationLongitude is not null)
-            {
-                return new Point((double)user.HomeLocationLongitude, (double)user.HomeLocationLatitude) { SRID = 4326 };
-            }
             return null;
+        }
+        private async Task NotifyNearbyUsersAsync(UrgentCase entity, double caseLat, double caseLng)
+        {
+            try
+            {
+                var caseLocation = new Point(caseLng, caseLat) { SRID = 4326 };
+
+                // Find all users who have a stored location within the radius.
+                // We project to a minimal anonymous type to avoid loading the full
+                // ApplicationUser entity for every nearby person.
+                var nearbyUserIds = await _unitOfWork.Repository<ApplicationUser>()
+                    .Query(tracked: false)
+                    .Where(u =>
+                        u.Id != entity.UserId &&   // don't notify the creator
+                        (
+                            // current location within radius
+                            (u.CurrentLocationLatitude  != null &&
+                             u.CurrentLocationLongitude != null &&
+                             new Point(u.CurrentLocationLongitude.Value, u.CurrentLocationLatitude.Value) { SRID = 4326 }
+                                .Distance(caseLocation) <= NotifyRadiusM)
+                            ||
+                            // fall back to home location
+                            (u.HomeLocationLatitude  != null &&
+                             u.HomeLocationLongitude != null &&
+                             new Point(u.HomeLocationLongitude.Value, u.HomeLocationLatitude.Value) { SRID = 4326 }
+                                .Distance(caseLocation) <= NotifyRadiusM)
+                        ))
+                    .Select(u => u.Id)
+                    .ToListAsync();
+
+                if (!nearbyUserIds.Any())
+                {
+                    _logger.LogInformation("No nearby users to notify for urgent case {CaseCode}.", entity.CaseCode);
+                    return;
+                }
+
+                _logger.LogInformation("Notifying {Count} nearby user(s) about urgent case {CaseCode}.", nearbyUserIds.Count, entity.CaseCode);
+
+                // Build the notification content once and send to each nearby user.
+                var notificationContent =
+                    $"🚨 New urgent case nearby: {entity.CaseCode}. " +
+                    $"Missing person aged {entity.Age}, " +
+                    $"last seen in {entity.City}, {entity.Government}.";
+
+                // Send in parallel — capped at 10 concurrent sends to avoid
+                // overwhelming the hub or hitting rate limits.
+                var semaphore = new SemaphoreSlim(10);
+
+                var tasks = nearbyUserIds.Select(async recipientId =>
+                {
+                    await semaphore.WaitAsync();
+                    try
+                    {
+                        await _notificationServices.SendNotificationAsync(new SendNotificationDTO
+                        {
+                            UserId  = recipientId,
+                            Content = notificationContent,
+                            Type    = NotificationType.Message,
+                            NotificationDirectLink = ""
+                        });
+                    }
+                    catch (Exception ex)
+                    {
+                        // Log per-user failure — don't abort the rest
+                        _logger.LogError(ex,
+                            "Failed to notify user {UserId} about case {CaseCode}.",
+                            recipientId, entity.CaseCode);
+                    }
+                    finally
+                    {
+                        semaphore.Release();
+                    }
+                });
+
+                await Task.WhenAll(tasks);
+
+                _logger.LogInformation("Finished notifying nearby users for urgent case {CaseCode}.", entity.CaseCode);
+            }
+            catch (Exception ex)
+            {
+                // Notification failure must NEVER propagate — the case is already saved.
+                _logger.LogError(ex, "NotifyNearbyUsersAsync failed for urgent case {CaseCode}.", entity.CaseCode);
+            }
         }
         private async Task CleanupUploadedFilesAsync(IEnumerable<string> paths)
         {

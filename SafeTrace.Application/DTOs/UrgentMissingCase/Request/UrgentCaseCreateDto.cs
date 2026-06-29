@@ -38,7 +38,7 @@ namespace SafeTrace.Application.DTOs.UrgentMissingCase.Request
         public int Age { get; set; }
 
         [Phone(ErrorMessage = "Invalid phone number format.")]
-        [StringLength(20, ErrorMessage = "Phone number cannot exceed 20 characters.")]
+        [StringLength(15, ErrorMessage = "Phone number cannot exceed 20 characters.")]
         public string? CommunicationPhone { get; set; }
 
         [Required(ErrorMessage = "Relation type is required.")]

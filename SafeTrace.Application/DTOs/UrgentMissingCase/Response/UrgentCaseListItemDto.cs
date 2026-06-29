@@ -1,4 +1,5 @@
-namespace SafeTrace.Application.DTOs.UrgentMissingCase{
+namespace SafeTrace.Application.DTOs.UrgentMissingCase.Response
+{
     public class UrgentCaseListItemDto
     {
         public long Id { get; set; }
