@@ -1,5 +1,4 @@
 ﻿using System.Linq.Expressions;
-using Microsoft.EntityFrameworkCore;
 using NetTopologySuite.Geometries;
 using SafeTrace.Application.Common.Enums;
 using SafeTrace.Application.DTOs.NotificationDTOS;
@@ -56,7 +55,7 @@ namespace SafeTrace.Application.Services
         {
             var entity = await _unitOfWork.Repository<UrgentCase>()
                 .Query(tracked: false, includes: [x => x.AgeCategory, x => x.Photos, x => x.User])
-                .FirstOrDefaultAsync(x => x.Id == id);
+                .FirstOrDefaultAsync(x => x.Id == id && x.Status != CaseStatus.Deleted);
 
             if (entity == null)
                 return ApiResponse<UrgentCaseDetailDto>.Fail(message: "Urgent case not found");
@@ -70,10 +69,8 @@ namespace SafeTrace.Application.Services
         }
         public async Task<ApiResponse<UrgentCaseDetailDto>> CreateAsync(string userId, UrgentCaseCreateDto createDto)
         {
-            // ── FR-18 Rate limit ─────────────────────────────────────────
-            // Intentionally includes soft-deleted cases so users cannot bypass
-            // the 14-day window by deleting their previous case.
             var rateLimitViolation = await CheckRateLimitAsync(userId);
+
             if (rateLimitViolation is not null)
                 return ApiResponse<UrgentCaseDetailDto>.Fail(rateLimitViolation);
 
@@ -130,7 +127,6 @@ namespace SafeTrace.Application.Services
                 throw;
             }
 
-            // ── FR-14: Notify nearby users ───────────────────────────────
             // Runs AFTER commit so the case is visible in the DB.
             // Fire-and-forget — notification failure must never fail the create.
             _ = NotifyNearbyUsersAsync(entity, createDto.Latitude, createDto.Longitude);

@@ -7,3 +7,4 @@ global using SafeTrace.Domain.Interfaces.IUnitOfWork;
 global using Microsoft.Extensions.Logging;
 global using System.ComponentModel.DataAnnotations;
 global using SafeTrace.Application.Common.Validators.Attributes;
+global using Microsoft.EntityFrameworkCore;
