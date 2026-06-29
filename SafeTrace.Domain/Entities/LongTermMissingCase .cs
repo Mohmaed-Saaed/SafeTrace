@@ -1,7 +1,7 @@
 ﻿namespace SafeTrace.Domain.Entities
 {
-    public class LongTermMissingCase : Case
-    {
-        public string? PoliceReportImage { get; set; }
-    }
+        public class LongTermMissingCase : Case
+        {
+            public string? PoliceReportImage { get; set; }
+        }
 }
