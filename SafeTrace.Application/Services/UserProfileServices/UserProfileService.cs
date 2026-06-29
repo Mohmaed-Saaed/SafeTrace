@@ -125,6 +125,25 @@ namespace SafeTrace.Application.Services.UserProfileServices
 
             //src dest
             _mapper.Map(dto, user);
+            if (!string.IsNullOrWhiteSpace(dto.NewPassword))
+            {
+                var changePasswordResult = await _userManager.ChangePasswordAsync(
+                    user,
+                    dto.CurrentPassword!,
+                    dto.NewPassword);
+
+                if (!changePasswordResult.Succeeded)
+                {
+                    _logger.LogWarning(
+                        "Failed to change password for UserId: {UserId}. Errors: {Errors}",
+                        userId,
+                        string.Join(", ", changePasswordResult.Errors.Select(e => e.Description)));
+
+                    throw new BadRequestException(
+                        string.Join(", ", changePasswordResult.Errors.Select(e => e.Description)));
+                }
+            }
+
 
             #region Id Image
 
