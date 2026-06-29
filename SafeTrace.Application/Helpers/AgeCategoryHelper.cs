@@ -1,7 +1,10 @@
-﻿using SafeTrace.Application.Exceptions;
+﻿using SafeTrace.Application.Common.Enums;
+using SafeTrace.Application.Exceptions;
 using SafeTrace.Domain.Entities;
 using SafeTrace.Domain.Enums;
 using SafeTrace.Domain.Interfaces.IUnitOfWork;
+using System;
+using System.Threading.Tasks;
 
 namespace SafeTrace.Application.Helpers
 {
@@ -20,23 +23,23 @@ namespace SafeTrace.Application.Helpers
 
         public static (int Min, int Max) GetRange(AgeCategoryEnum category) =>
             category switch
-            {
+        {
                 AgeCategoryEnum.Infant => (0, 2),
                 AgeCategoryEnum.Child => (3, 12),
                 AgeCategoryEnum.Teenager => (13, 17),
                 AgeCategoryEnum.YoungAdult => (18, 35),
                 AgeCategoryEnum.Adult => (36, 59),
                 AgeCategoryEnum.Senior => (60, 120),
-                _ => (0, 120)
-            };
+            _ => (0, 120)
+        };
 
         public static async Task<int> ResolveAgeCategoryIdAsync(
             IUnitOfWork unitOfWork,
             int age)
         {
             var category = await unitOfWork.Repository<AgeCategory>().GetOneAsync(
-                c => age >= c.MinAge && age <= c.MaxAge,
-                tracked: false);
+                    c => age >= c.MinAge && age <= c.MaxAge,
+                    tracked: false);
 
             if (category is null)
                 throw new NotFoundException(
