@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using SafeTrace.Application.DTOs.AiMatching.Request;
 using SafeTrace.Application.Interfaces.IServices;
 
@@ -17,6 +18,7 @@ namespace SafeTrace.API.Controllers
         }
 
         [HttpPost("search")]
+        [AllowAnonymous]
         public async Task<IActionResult> SearchMatchingCases([FromForm] AiMatchingDto aiMatchingDto)
         {
             var response = await _aiMatchingService.GetMatchingCasesAsync(aiMatchingDto.Image);

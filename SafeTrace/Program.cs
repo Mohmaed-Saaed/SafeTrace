@@ -1,10 +1,13 @@
 using Microsoft.AspNetCore.Mvc;
 using SafeTrace.API.ExceptionHandlers;
 using SafeTrace.API.ExtensionMethods;
+using SafeTrace.API.Hubs;
 using SafeTrace.Application.DependencyInjection;
 using SafeTrace.Application.Hubs;
+using SafeTrace.Application.Interfaces.IServices;
 using SafeTrace.Infrastructure.DependencyInjection;
 using Serilog;
+using System.Reflection;
 using System.Text.Json.Serialization;
 
 namespace SafeTrace
@@ -32,11 +35,18 @@ namespace SafeTrace
                                     new JsonStringEnumConverter());
                             });
 
-            builder.Services.AddSwaggerGen();
+            builder.Services.AddSwaggerGen(options =>
+            {
+                var xmlFile = $"{Assembly.GetExecutingAssembly().GetName().Name}.xml";
+                var xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFile);
+
+                options.IncludeXmlComments(xmlPath);
+            });
 
             builder.Services.AddInfrastructure(builder.Configuration);
             builder.Services.AddApplication();
             builder.Services.AddSignalR();
+            builder.Services.AddScoped<IChatNotifier,SignalRChatNotifier>();
 
             builder.Services.AddCors(options =>
             {
@@ -92,6 +102,7 @@ namespace SafeTrace
             await app.ApplyPendingMigrationsAsync();
             await app.SetupAwsResourcesAsync();
 
+
             app.UseHttpsRedirection();
             app.UseStaticFiles();
 
@@ -99,6 +110,8 @@ namespace SafeTrace
             app.UseAuthorization();
 
             app.MapControllers();
+            app.MapHub<ChatHub>("/chatHub");
+
 
             app.Run();
         }
