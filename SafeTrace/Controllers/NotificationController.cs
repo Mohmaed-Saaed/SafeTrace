@@ -22,7 +22,19 @@ namespace SafeTrace.API.Controllers
         }
 
 
+        #region test
+        [HttpPut("SendNotify")]
+        public async Task<IActionResult> SendNotify([FromBody] SendNotificationDTO dto)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
 
+            await _notificationService.SendNotificationAsync(dto);
+
+            return Ok();
+        }
+
+        #endregion
 
 
         [HttpGet("my-Notifications")]
