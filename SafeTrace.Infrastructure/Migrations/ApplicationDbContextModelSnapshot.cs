@@ -304,8 +304,8 @@ namespace SafeTrace.Infrastructure.Migrations
 
                     b.Property<string>("City")
                         .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
 
                     b.Property<string>("CommunicationPhone")
                         .HasMaxLength(15)
@@ -326,11 +326,6 @@ namespace SafeTrace.Infrastructure.Migrations
                         .HasMaxLength(2000)
                         .HasColumnType("nvarchar(2000)");
 
-                    b.Property<string>("Discriminator")
-                        .IsRequired()
-                        .HasMaxLength(21)
-                        .HasColumnType("nvarchar(21)");
-
                     b.Property<DateTime>("EventDate")
                         .HasColumnType("datetime2");
 
@@ -345,8 +340,8 @@ namespace SafeTrace.Infrastructure.Migrations
 
                     b.Property<string>("Government")
                         .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
 
                     b.Property<string>("LName")
                         .HasMaxLength(60)
@@ -372,8 +367,8 @@ namespace SafeTrace.Infrastructure.Migrations
 
                     b.Property<string>("Street")
                         .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
 
                     b.Property<string>("TName")
                         .HasMaxLength(60)
@@ -407,9 +402,7 @@ namespace SafeTrace.Infrastructure.Migrations
                             t.HasCheckConstraint("CK_Cases_Age", "[Age] >= 0 AND [Age] <= 120");
                         });
 
-                    b.HasDiscriminator<string>("Discriminator").HasValue("Case");
-
-                    b.UseTphMappingStrategy();
+                    b.UseTptMappingStrategy();
                 });
 
             modelBuilder.Entity("SafeTrace.Domain.Entities.CasePhoto", b =>
@@ -1008,6 +1001,24 @@ namespace SafeTrace.Infrastructure.Migrations
                         .IsRequired();
 
                     b.Navigation("User");
+                });
+
+            modelBuilder.Entity("SafeTrace.Domain.Entities.UnknownCase", b =>
+                {
+                    b.HasOne("SafeTrace.Domain.Entities.Case", null)
+                        .WithOne()
+                        .HasForeignKey("SafeTrace.Domain.Entities.UnknownCase", "Id")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("SafeTrace.Domain.Entities.UrgentCase", b =>
+                {
+                    b.HasOne("SafeTrace.Domain.Entities.Case", null)
+                        .WithOne()
+                        .HasForeignKey("SafeTrace.Domain.Entities.UrgentCase", "Id")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("SafeTrace.Domain.Entities.AgeCategory", b =>

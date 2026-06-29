@@ -13,6 +13,7 @@ namespace SafeTrace.Application.DependencyInjection
     {
         public static IServiceCollection AddApplication(this IServiceCollection services)
         {
+            services.AddScoped<ILongTermCaseService, LongTermCaseService>();  
             services.AddScoped<IUserProfileService, UserProfileService>();
             services.AddScoped<INotificationServices, NotificationService>();
             services.AddAutoMapper(cfg => { cfg.AddProfile<MappingProfile>(); });
@@ -22,6 +23,7 @@ namespace SafeTrace.Application.DependencyInjection
             services.AddScoped<IMessageService, MessageService>();
 
             services.AddScoped<IAIMatchingService, AIMatchingService>();
+            services.AddScoped<IUnknownCaseService,UnKnownCaseService>();
 
             return services;
         }
