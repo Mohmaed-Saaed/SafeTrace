@@ -1,5 +1,5 @@
 using AutoMapper;
-using SafeTrace.Application.Common.Helpers;
+using SafeTrace.Application.Helpers;
 using SafeTrace.Application.DTOs.LongTermCases;
 using SafeTrace.Domain.Entities;
 using System;

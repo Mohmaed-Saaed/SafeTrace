@@ -1,6 +1,4 @@
-﻿using SafeTrace.Application.Common.Enums;
-using SafeTrace.Application.Exceptions;
-using SafeTrace.Domain.Entities;
+﻿using SafeTrace.Application.Exceptions;
 using SafeTrace.Domain.Enums;
 using SafeTrace.Domain.Interfaces.IUnitOfWork;
 using System;
@@ -37,7 +35,7 @@ namespace SafeTrace.Application.Helpers
             IUnitOfWork unitOfWork,
             int age)
         {
-            var category = await unitOfWork.Repository<AgeCategory>().GetOneAsync(
+            var category = await unitOfWork.Repository<Domain.Entities.AgeCategory>().GetOneAsync(
                     c => age >= c.MinAge && age <= c.MaxAge,
                     tracked: false);
 

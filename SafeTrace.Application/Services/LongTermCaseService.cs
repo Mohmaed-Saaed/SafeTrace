@@ -1,7 +1,7 @@
 using AutoMapper;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
-using SafeTrace.Application.Common.Helpers;
+using SafeTrace.Application.Helpers;
 using SafeTrace.Application.Common.Models;
 using SafeTrace.Application.DTOs.LongTermCases;
 using SafeTrace.Application.Exceptions;
