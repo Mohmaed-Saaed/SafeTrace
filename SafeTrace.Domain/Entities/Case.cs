@@ -21,7 +21,7 @@ namespace SafeTrace.Domain.Entities
         public string CaseCode { get; set; } = null!;
         public RelationType Relation { get; set; }
         public DateTime CreatedAt { get; set; }
-        public DateTime? UpdatedAt { get; set; }
+        public DateTime? UpdatedAt { get; set; } 
         public DateTime? DeletedAt { get; set; }
         public string? DeletedByUserId { get; set; }
         public CaseStatus? PreviousStatus { get; set; }
