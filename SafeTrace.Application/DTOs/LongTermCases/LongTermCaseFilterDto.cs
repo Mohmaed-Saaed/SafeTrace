@@ -1,10 +1,5 @@
-using SafeTrace.Application.Common.Enums;
 using SafeTrace.Domain.Enums;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+
 
 namespace SafeTrace.Application.DTOs.LongTermCases
 {
@@ -22,7 +17,7 @@ namespace SafeTrace.Application.DTOs.LongTermCases
         public Gender? Gender { get; set; }
 
         /// <summary>Filter by age category (FR-24).</summary>
-        public AgeCategory? AgeCategory { get; set; }
+        public AgeCategoryEnum? AgeCategory { get; set; }
 
         /// <summary>Sort by date (FR-25). true = newest first (default).</summary>
         public bool SortDescending { get; set; } = true;

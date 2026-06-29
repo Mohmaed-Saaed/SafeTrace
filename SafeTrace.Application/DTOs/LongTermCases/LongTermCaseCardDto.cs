@@ -1,10 +1,5 @@
-using SafeTrace.Application.Common.Enums;
 using SafeTrace.Domain.Enums;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+
 
 namespace SafeTrace.Application.DTOs.LongTermCases
 {
@@ -18,7 +13,7 @@ namespace SafeTrace.Application.DTOs.LongTermCases
         public string CaseCode { get; set; } = null!;
         public string? FullName { get; set; }
         public int Age { get; set; }
-        public AgeCategory AgeCategory { get; set; }
+        public AgeCategoryEnum AgeCategory { get; set; }
         public Gender Gender { get; set; }
 
         /// <summary>Maps to BaseCase.CreatedAt (the date the case was reported/missing).</summary>

@@ -1,10 +1,5 @@
-using SafeTrace.Application.Common.Enums;
 using SafeTrace.Domain.Enums;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+
 
 namespace SafeTrace.Application.DTOs.LongTermCases
 {
@@ -24,7 +19,7 @@ namespace SafeTrace.Application.DTOs.LongTermCases
 
         public Gender Gender { get; set; }
         public int Age { get; set; }
-        public AgeCategory AgeCategory { get; set; }
+        public AgeCategoryEnum AgeCategory { get; set; }
         public RelationType Relation { get; set; }
         public CaseStatus Status { get; set; }
 
