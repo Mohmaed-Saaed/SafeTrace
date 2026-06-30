@@ -185,8 +185,6 @@ namespace SafeTrace.Infrastructure.Services
 
             if (user.VerificationStatus != VerificationStatus.Pending) throw new BadRequestException("لا يمكن قبول طلب التوثيق لأنه ليس في حالة انتظار المراجعة.");
 
-            user.VerificationStatus = VerificationStatus.Verified;
-
             var currentRoles = await _userManager.GetRolesAsync(user);
 
             var removeResult = await _userManager.RemoveFromRolesAsync(user, currentRoles);
@@ -194,6 +192,8 @@ namespace SafeTrace.Infrastructure.Services
 
             var addResult = await _userManager.AddToRoleAsync(user, "VerifiedUser");
             if (!addResult.Succeeded) throw new BadRequestException("فشل في ترقية حساب المستخدم إلى 'مستخدم موثق'.");
+
+            user.VerificationStatus = VerificationStatus.Verified;
 
             _logger.LogWarning($"Role changed for User with ID: {userId} from {string.Join(",", currentRoles)} to VerifiedUser");
             return ApiResponse<string>.Ok(null, "تمت الموافقة على توثيق المستخدم بنجاح.");
@@ -208,10 +208,11 @@ namespace SafeTrace.Infrastructure.Services
 
             if (user.VerificationStatus != VerificationStatus.Pending) throw new BadRequestException("لا يمكن رفض طلب التوثيق لأنه ليس في حالة انتظار المراجعة.");
 
-            user.VerificationStatus = VerificationStatus.Unverified;
 
             var DeletedResult = _fileStorageService.DeleteFile(user.IdentificationImage);
             if (!DeletedResult) throw new BadRequestException("فشل في مسح صورة الهوية الخاصة بالمستخدم من الخادم.");
+
+            user.VerificationStatus = VerificationStatus.Unverified;
 
             return ApiResponse<string>.Ok(null, "تم رفض طلب توثيق المستخدم بنجاح.");
         }
