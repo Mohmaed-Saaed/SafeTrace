@@ -183,6 +183,8 @@ namespace SafeTrace.Infrastructure.Services
 
             if (user.IdentificationImage == null) throw new BadRequestException("لا توجد صورة هوية (بطاقة) لهذا المستخدم للموافقة عليها.");
 
+            if (user.VerificationStatus != VerificationStatus.Pending) throw new BadRequestException("لا يمكن قبول طلب التوثيق لأنه ليس في حالة انتظار المراجعة.");
+
             user.VerificationStatus = VerificationStatus.Verified;
 
             var currentRoles = await _userManager.GetRolesAsync(user);
@@ -203,6 +205,8 @@ namespace SafeTrace.Infrastructure.Services
             if (user == null) throw new NotFoundException("لم يتم العثور على هذا الحساب في النظام.");
 
             if (user.IdentificationImage == null) throw new BadRequestException("لا توجد صورة هوية (بطاقة) لهذا المستخدم لرفضها.");
+
+            if (user.VerificationStatus != VerificationStatus.Pending) throw new BadRequestException("لا يمكن رفض طلب التوثيق لأنه ليس في حالة انتظار المراجعة.");
 
             user.VerificationStatus = VerificationStatus.Unverified;
 
