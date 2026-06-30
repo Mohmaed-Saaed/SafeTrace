@@ -25,13 +25,13 @@ namespace SafeTrace.Application.Mapping
 
             CreateMap<LongTermMissingCase, LongTermCaseCardDto>()
                 .ForMember(d => d.FullName, opt => opt.MapFrom(s => BuildFullName(s)))
-                .ForMember(d => d.AgeCategory, opt => opt.MapFrom(s => AgeCategoryHelper.GetCategory(s.Age)))
+                // .ForMember(d => d.AgeCategory, opt => opt.MapFrom(s => AgeCategoryHelper.GetCategory(s.Age)))
                 .ForMember(d => d.MissingDate, opt => opt.MapFrom(s => s.CreatedAt))
                 .ForMember(d => d.MainPhoto, opt => opt.MapFrom(s => s.Photos.Select(p => p.ImagePath).FirstOrDefault()));
 
             CreateMap<LongTermMissingCase, LongTermCaseDetailsDto>()
                 .ForMember(d => d.FullName, opt => opt.MapFrom(s => BuildFullName(s)))
-                .ForMember(d => d.AgeCategory, opt => opt.MapFrom(s => AgeCategoryHelper.GetCategory(s.Age)))
+                // .ForMember(d => d.AgeCategory, opt => opt.MapFrom(s => AgeCategoryHelper.GetCategory(s.Age)))
                 .ForMember(d => d.ReporterId, opt => opt.MapFrom(s => s.UserId))
                 .ForMember(d => d.ReporterUserName, opt => opt.MapFrom(s => s.User != null ? s.User.UserName : null));
 

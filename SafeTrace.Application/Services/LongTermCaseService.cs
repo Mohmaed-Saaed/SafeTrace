@@ -5,7 +5,7 @@ using SafeTrace.Application.Helpers;
 using SafeTrace.Application.Common.Models;
 using SafeTrace.Application.DTOs.LongTermCases;
 using SafeTrace.Application.Exceptions;
-using SafeTrace.Application.Extensions;
+// using SafeTrace.Application.Extensions;
 using SafeTrace.Application.Interfaces.IServices;
 using SafeTrace.Domain.Common;
 using SafeTrace.Domain.Entities;
@@ -40,45 +40,45 @@ namespace SafeTrace.Application.Services
         // READ
         // ─────────────────────────────────────────────────────────────
 
-        public async Task<PagedResultDto<LongTermCaseCardDto>> GetAllAsync(LongTermCaseFilterDto filter)
-        {
-            var name = filter.Name?.Trim();
-            var filterByAge = filter.AgeCategory.HasValue;
-            var ageRange = filterByAge ? AgeCategoryHelper.GetRange(filter.AgeCategory!.Value) : (Min: 0, Max: 0);
+        // public async Task<PagedResultDto<LongTermCaseCardDto>> GetAllAsync(LongTermCaseFilterDto filter)
+        // {
+        //     var name = filter.Name?.Trim();
+        //     var filterByAge = filter.AgeCategory.HasValue;
+        //     var ageRange = filterByAge ? AgeCategoryHelper.GetRange(filter.AgeCategory!.Value) : (Min: 0, Max: 0);
 
-            var query = _unitOfWork.Repository<LongTermMissingCase>()
-                .Query(tracked: false, includes: c => c.Photos)
-                .Where(c => c.Status == CaseStatus.Active)
-                .WhereIf(!string.IsNullOrEmpty(name), c =>
-                    (c.FName ?? "").Contains(name!) ||
-                    (c.SName ?? "").Contains(name!) ||
-                    (c.TName ?? "").Contains(name!) ||
-                    (c.LName ?? "").Contains(name!))
-                .WhereIf(filter.Gender.HasValue, c => c.Gender == filter.Gender!.Value)
-                .WhereIf(filterByAge, c => c.Age >= ageRange.Min && c.Age <= ageRange.Max);
+        //     var query = _unitOfWork.Repository<LongTermMissingCase>()
+        //         .Query(tracked: false, includes: c => c.Photos)
+        //         .Where(c => c.Status == CaseStatus.Active)
+        //         .WhereIf(!string.IsNullOrEmpty(name), c =>
+        //             (c.FName ?? "").Contains(name!) ||
+        //             (c.SName ?? "").Contains(name!) ||
+        //             (c.TName ?? "").Contains(name!) ||
+        //             (c.LName ?? "").Contains(name!))
+        //         .WhereIf(filter.Gender.HasValue, c => c.Gender == filter.Gender!.Value)
+        //         .WhereIf(filterByAge, c => c.Age >= ageRange.Min && c.Age <= ageRange.Max);
 
-            var totalCount = await query.CountAsync();
+        //     var totalCount = await query.CountAsync();
 
-            var pageNumber = filter.PageNumber < 1 ? 1 : filter.PageNumber;
-            var pageSize = filter.PageSize < 1 ? 12 : filter.PageSize;
+        //     var pageNumber = filter.PageNumber < 1 ? 1 : filter.PageNumber;
+        //     var pageSize = filter.PageSize < 1 ? 12 : filter.PageSize;
 
-            var items = filter.SortDescending
-                ? query.OrderByDescending(c => c.CreatedAt)
-                : query.OrderBy(c => c.CreatedAt);
+        //     var items = filter.SortDescending
+        //         ? query.OrderByDescending(c => c.CreatedAt)
+        //         : query.OrderBy(c => c.CreatedAt);
 
-            var paged = await items
-                .Skip((pageNumber - 1) * pageSize)
-                .Take(pageSize)
-                .ToListAsync();
+        //     var paged = await items
+        //         .Skip((pageNumber - 1) * pageSize)
+        //         .Take(pageSize)
+        //         .ToListAsync();
 
-            return new PagedResultDto<LongTermCaseCardDto>
-            {
-                Items = _mapper.Map<IEnumerable<LongTermCaseCardDto>>(paged),
-                TotalCount = totalCount,
-                PageNumber = pageNumber,
-                PageSize = pageSize
-            };
-        }
+        //     return new PagedResultDto<LongTermCaseCardDto>
+        //     {
+        //         Items = _mapper.Map<IEnumerable<LongTermCaseCardDto>>(paged),
+        //         TotalCount = totalCount,
+        //         PageNumber = pageNumber,
+        //         PageSize = pageSize
+        //     };
+        // }
 
         public async Task<LongTermCaseDetailsDto> GetByIdAsync(long id, bool includeDeleted = false)
         {
@@ -576,6 +576,11 @@ namespace SafeTrace.Application.Services
                 foreach (var p in primaries.Skip(1))
                     p.IsPrimary = false;
             }
+        }
+
+        public Task<PagedResultDto<LongTermCaseCardDto>> GetAllAsync(LongTermCaseFilterDto filter)
+        {
+            throw new NotImplementedException();
         }
     }
 }

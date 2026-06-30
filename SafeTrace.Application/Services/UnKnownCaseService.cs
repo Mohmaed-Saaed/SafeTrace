@@ -9,7 +9,6 @@ using Microsoft.EntityFrameworkCore;
 using SafeTrace.Domain.Entities;
 using SafeTrace.Domain.Enums;
 using SafeTrace.Domain.Interfaces.IUnitOfWork;
-using SafeTrace.Application.Extensions;
 
 namespace SafeTrace.Application.Services
 {
@@ -211,16 +210,16 @@ namespace SafeTrace.Application.Services
                     x.Gender == filter.Gender.Value);
             }
 
-            // Filter By Age Category
-            if (filter.AgeCategory.HasValue)
-            {
-                var range = AgeCategoryHelper
-                    .GetRange(filter.AgeCategory.Value);
+            // // Filter By Age Category
+            // if (filter.AgeCategory.HasValue)
+            // {
+            //     var range = AgeCategoryHelper
+            //         .GetRange(filter.AgeCategory.Value);
 
-                query = query.Where(x =>
-                    x.Age >= range.Min &&
-                    x.Age <= range.Max);
-            }
+            //     query = query.Where(x =>
+            //         x.Age >= range.Min &&
+            //         x.Age <= range.Max);
+            // }
 
             var totalCount = await query.CountAsync();
 

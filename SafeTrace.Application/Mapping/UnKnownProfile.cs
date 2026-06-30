@@ -26,13 +26,12 @@ namespace SafeTrace.Application.Mapping
                     src.LName
             }
                     .Where(x => !string.IsNullOrWhiteSpace(x))
-                )))
-              .ForMember(dest => dest.Photos,
-              opt => opt.MapFrom(src =>
-                src.Photos.Select(p => p.ImagePath).ToList())).ForMember(
-        dest => dest.AgeCategory,
-        opt => opt.MapFrom(src =>
-            AgeCategoryHelper.GetCategory(src.Age))); 
+                )));
+              // .ForMember(dest => dest.Photos,
+              // opt => opt.MapFrom(src =>
+              //   src.Photos.Select(p => p.ImagePath).ToList())).ForMember(
+              //   dest => dest.AgeCategory,
+              //   opt => opt.MapFrom(src =>AgeCategoryHelper.GetCategory(src.Age))); 
 
             CreateMap<CasePhoto, UnknownPhotoDto>()
            .ForMember(d => d.PhotoId, o => o.MapFrom(s => s.Id))

@@ -1,9 +1,10 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
-using SafeTrace.Application.Interfaces.IServices;
+using SafeTrace.Application.Interfaces.IServices.IMissingCases;
 using SafeTrace.Application.Interfaces.IServices.INotificationSewrvice;
 using SafeTrace.Application.Interfaces.IServices.IUserProfile;
 using SafeTrace.Application.Mapping;
 using SafeTrace.Application.Services;
+using SafeTrace.Application.Services.MissingCases;
 using SafeTrace.Application.Services.NotificationServices;
 using SafeTrace.Application.Services.UserProfileServices;
 

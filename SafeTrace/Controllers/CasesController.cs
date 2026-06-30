@@ -1,5 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
-using SafeTrace.Application.Interfaces.IServices;
+using SafeTrace.Application.Interfaces.IServices.IMissingCases;
 
 namespace SafeTrace.API.Controllers
 {
@@ -19,7 +19,5 @@ namespace SafeTrace.API.Controllers
         {
             return Ok(await _casesService.GetCases());
         }
-
-
     }
 }
