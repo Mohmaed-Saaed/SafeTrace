@@ -1,6 +1,7 @@
 ﻿using System.Security.Claims;
 using Microsoft.AspNetCore.Mvc;
 using SafeTrace.Application.Constants;
+using SafeTrace.Application.DTOs.NotificationDTOS;
 using SafeTrace.Application.Interfaces.IServices.INotificationSewrvice;
 using SafeTrace.Infrastructure.Authorization;
 

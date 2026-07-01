@@ -58,7 +58,7 @@ namespace SafeTrace.Infrastructure.DependencyInjection
             services.AddScoped<IAuthorizationHandler, PermissionHandler>();
 
             services.AddScoped<IFoundedService, FoundedService>();
-            
+
             services.AddScoped<IComplaintService, ComplaintService>();
 
             services.AddIdentity<ApplicationUser, IdentityRole>(options =>
@@ -106,7 +106,9 @@ namespace SafeTrace.Infrastructure.DependencyInjection
                         var path = context.HttpContext.Request.Path;
 
                         if (!string.IsNullOrEmpty(accessToken) &&
-                            path.StartsWithSegments("/chatHub"))
+                             (path.StartsWithSegments("/chatHub") ||
+     path.StartsWithSegments("/SafeTrace.Application/Hubs/notifications")))
+
                         {
                             context.Token = accessToken;
                         }
