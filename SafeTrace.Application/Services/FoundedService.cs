@@ -1,15 +1,9 @@
-﻿using Microsoft.AspNetCore.Http.HttpResults;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Logging;
 using SafeTrace.Application.DTOs.Founded.Request;
 using SafeTrace.Application.DTOs.Founded.Response;
 using SafeTrace.Application.DTOs.FoundedDTO.Response;
-using SafeTrace.Application.DTOs.Responses;
 using SafeTrace.Application.Exceptions;
 using SafeTrace.Application.Interfaces;
-using SafeTrace.Domain.Common;
-using SafeTrace.Domain.Entities;
-using SafeTrace.Domain.Interfaces.IUnitOfWork;
+
 
 namespace SafeTrace.Infrastructure.Service.Founded
 {

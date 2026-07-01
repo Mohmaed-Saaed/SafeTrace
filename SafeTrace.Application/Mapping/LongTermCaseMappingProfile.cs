@@ -1,12 +1,4 @@
-using AutoMapper;
-using SafeTrace.Application.Helpers;
-using SafeTrace.Application.DTOs.LongTermCases;
-using SafeTrace.Domain.Entities;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using SafeTrace.Application.DTOs.LongTermCases.Request;
 
 namespace SafeTrace.Application.Mapping
 {
@@ -20,21 +12,6 @@ namespace SafeTrace.Application.Mapping
     {
         public LongTermCaseMappingProfile()
         {
-            CreateMap<CasePhoto, CasePhotoDto>();
-            CreateMap<FoundPersonInfo, FoundPersonInfoDto>();
-
-            CreateMap<LongTermMissingCase, LongTermCaseCardDto>()
-                .ForMember(d => d.FullName, opt => opt.MapFrom(s => BuildFullName(s)))
-                // .ForMember(d => d.AgeCategory, opt => opt.MapFrom(s => AgeCategoryHelper.GetCategory(s.Age)))
-                .ForMember(d => d.MissingDate, opt => opt.MapFrom(s => s.CreatedAt))
-                .ForMember(d => d.MainPhoto, opt => opt.MapFrom(s => s.Photos.Select(p => p.ImagePath).FirstOrDefault()));
-
-            CreateMap<LongTermMissingCase, LongTermCaseDetailsDto>()
-                .ForMember(d => d.FullName, opt => opt.MapFrom(s => BuildFullName(s)))
-                // .ForMember(d => d.AgeCategory, opt => opt.MapFrom(s => AgeCategoryHelper.GetCategory(s.Age)))
-                .ForMember(d => d.ReporterId, opt => opt.MapFrom(s => s.UserId))
-                .ForMember(d => d.ReporterUserName, opt => opt.MapFrom(s => s.User != null ? s.User.UserName : null));
-
             CreateMap<CreateLongTermCaseDto, LongTermMissingCase>()
                 .ForMember(d => d.Id, opt => opt.Ignore())
                 .ForMember(d => d.Status, opt => opt.Ignore())
@@ -47,15 +24,6 @@ namespace SafeTrace.Application.Mapping
                 .ForMember(d => d.Chats, opt => opt.Ignore())
                 .ForMember(d => d.Photos, opt => opt.Ignore())
                 .ForMember(d => d.PoliceReportImage, opt => opt.Ignore());
-        }
-
-        private static string? BuildFullName(Case c)
-        {
-            var parts = new[] { c.FName, c.SName, c.TName, c.LName }
-                .Where(p => !string.IsNullOrWhiteSpace(p));
-
-            var full = string.Join(" ", parts);
-            return string.IsNullOrWhiteSpace(full) ? null : full;
         }
     }
 }

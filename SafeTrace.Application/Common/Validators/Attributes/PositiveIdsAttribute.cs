@@ -1,5 +1,3 @@
-using System;
-
 namespace SafeTrace.Application.Common.Validators.Attributes
 {
     /// <summary>Ensures every ID in a List&lt;long&gt; is a positive number.</summary>

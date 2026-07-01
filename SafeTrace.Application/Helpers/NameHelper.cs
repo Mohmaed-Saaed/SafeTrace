@@ -9,13 +9,9 @@
             string? fourthName = null,
             string defaultValue = "Unknown")
         {
-            var fullName = string.Join(" ",
-                new[] { firstName, secondName, thirdName, fourthName }
-                .Where(x => !string.IsNullOrWhiteSpace(x)));
+            var fullName = string.Join(" ", new[] { firstName, secondName, thirdName, fourthName }.Where(x => !string.IsNullOrWhiteSpace(x)));
 
-            return string.IsNullOrWhiteSpace(fullName)
-                ? defaultValue
-                : fullName;
+            return string.IsNullOrWhiteSpace(fullName) ? defaultValue : fullName;
         }
     }
 }
