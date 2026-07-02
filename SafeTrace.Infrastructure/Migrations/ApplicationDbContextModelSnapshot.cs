@@ -18,7 +18,7 @@ namespace SafeTrace.Infrastructure.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "10.0.8")
+                .HasAnnotation("ProductVersion", "10.0.9")
                 .HasAnnotation("Relational:MaxIdentifierLength", 128);
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
@@ -294,20 +294,22 @@ namespace SafeTrace.Infrastructure.Migrations
 
                     b.Property<string>("CaseCode")
                         .IsRequired()
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("nvarchar(max)")
-                        .HasDefaultValue("10000");
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
 
-                    b.Property<int>("CaseType")
-                        .HasColumnType("int");
+                    b.Property<string>("CaseType")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
 
                     b.Property<string>("City")
                         .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
 
                     b.Property<string>("CommunicationPhone")
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(15)
+                        .HasColumnType("nvarchar(15)");
 
                     b.Property<DateTime>("CreatedAt")
                         .ValueGeneratedOnAdd()
@@ -321,49 +323,56 @@ namespace SafeTrace.Infrastructure.Migrations
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("Description")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("Discriminator")
-                        .IsRequired()
-                        .HasMaxLength(21)
-                        .HasColumnType("nvarchar(21)");
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
 
                     b.Property<DateTime>("EventDate")
                         .HasColumnType("datetime2");
 
                     b.Property<string>("FName")
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(60)
+                        .HasColumnType("nvarchar(60)");
 
-                    b.Property<int>("Gender")
-                        .HasColumnType("int");
+                    b.Property<string>("Gender")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)");
 
                     b.Property<string>("Government")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
-
-                    b.Property<string>("LName")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<int?>("PreviousStatus")
-                        .HasColumnType("int");
-
-                    b.Property<int>("Relation")
-                        .HasColumnType("int");
-
-                    b.Property<string>("SName")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<int>("Status")
-                        .HasColumnType("int");
-
-                    b.Property<string>("Street")
                         .IsRequired()
                         .HasMaxLength(200)
                         .HasColumnType("nvarchar(200)");
 
+                    b.Property<string>("LName")
+                        .HasMaxLength(60)
+                        .HasColumnType("nvarchar(60)");
+
+                    b.Property<string>("PreviousStatus")
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<string>("Relation")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<string>("SName")
+                        .HasMaxLength(60)
+                        .HasColumnType("nvarchar(60)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<string>("Street")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
                     b.Property<string>("TName")
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(60)
+                        .HasColumnType("nvarchar(60)");
 
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("datetime2");
@@ -376,13 +385,24 @@ namespace SafeTrace.Infrastructure.Migrations
 
                     b.HasIndex("AgeCategoryId");
 
+                    b.HasIndex("CaseCode")
+                        .IsUnique()
+                        .HasDatabaseName("UIX_Cases_CaseCode");
+
+                    b.HasIndex("CreatedAt");
+
+                    b.HasIndex("Status");
+
                     b.HasIndex("UserId");
 
-                    b.ToTable("Cases", (string)null);
+                    b.HasIndex("Status", "CaseType");
 
-                    b.HasDiscriminator<string>("Discriminator").HasValue("Case");
+                    b.ToTable("Cases", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_Cases_Age", "[Age] >= 0 AND [Age] <= 120");
+                        });
 
-                    b.UseTphMappingStrategy();
+                    b.UseTptMappingStrategy();
                 });
 
             modelBuilder.Entity("SafeTrace.Domain.Entities.CasePhoto", b =>
@@ -730,12 +750,22 @@ namespace SafeTrace.Infrastructure.Migrations
                     b.Property<string>("PoliceReportImage")
                         .HasColumnType("nvarchar(max)");
 
+                    b.ToTable(t =>
+                        {
+                            t.HasCheckConstraint("CK_Cases_Age", "[Age] >= 0 AND [Age] <= 120");
+                        });
+
                     b.HasDiscriminator().HasValue("LongTermMissingCase");
                 });
 
             modelBuilder.Entity("SafeTrace.Domain.Entities.UnknownCase", b =>
                 {
                     b.HasBaseType("SafeTrace.Domain.Entities.Case");
+
+                    b.ToTable(t =>
+                        {
+                            t.HasCheckConstraint("CK_Cases_Age", "[Age] >= 0 AND [Age] <= 120");
+                        });
 
                     b.HasDiscriminator().HasValue("UnknownCase");
                 });
@@ -753,6 +783,24 @@ namespace SafeTrace.Infrastructure.Migrations
                     b.Property<Point>("Location")
                         .IsRequired()
                         .HasColumnType("geography");
+
+                    b.HasIndex("Status", "CreatedAt")
+                        .HasDatabaseName("IX_UrgentCases_Status_CreatedAt");
+
+                    b.HasIndex("Status", "EndDate")
+                        .HasDatabaseName("IX_UrgentCases_Status_EndDate");
+
+                    b.HasIndex("UserId", "LimitReachDate")
+                        .HasDatabaseName("IX_UrgentCases_UserId_LimitReachDate");
+
+                    b.ToTable("Cases", t =>
+                        {
+                            t.HasCheckConstraint("CK_Cases_Age", "[Age] >= 0 AND [Age] <= 120");
+
+                            t.HasCheckConstraint("CK_UrgentCase_EndDate", "([Discriminator] <> 'UrgentCase') OR ([EndDate] > [CreatedAt])");
+
+                            t.HasCheckConstraint("CK_UrgentCase_LimitReachDate", "([Discriminator] <> 'UrgentCase') OR ([LimitReachDate] > [CreatedAt])");
+                        });
 
                     b.HasDiscriminator().HasValue("UrgentCase");
                 });
@@ -953,6 +1001,24 @@ namespace SafeTrace.Infrastructure.Migrations
                         .IsRequired();
 
                     b.Navigation("User");
+                });
+
+            modelBuilder.Entity("SafeTrace.Domain.Entities.UnknownCase", b =>
+                {
+                    b.HasOne("SafeTrace.Domain.Entities.Case", null)
+                        .WithOne()
+                        .HasForeignKey("SafeTrace.Domain.Entities.UnknownCase", "Id")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("SafeTrace.Domain.Entities.UrgentCase", b =>
+                {
+                    b.HasOne("SafeTrace.Domain.Entities.Case", null)
+                        .WithOne()
+                        .HasForeignKey("SafeTrace.Domain.Entities.UrgentCase", "Id")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("SafeTrace.Domain.Entities.AgeCategory", b =>

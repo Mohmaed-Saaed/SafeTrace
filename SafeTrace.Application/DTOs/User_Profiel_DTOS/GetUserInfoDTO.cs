@@ -8,7 +8,8 @@ namespace SafeTrace.Application.DTOs.User_Profiel_DTOS
         public string FullName { get; set; } = string.Empty;
         public string Email { get; set; } = string.Empty;
         public bool EmailConfirmed { get; set; }
-        public string? HomeLocation { get; set; }
+        public double? HomeLatitude { get; set; }
+        public double? HomeLongitude { get; set; }
         public string? ProfileImage { get; set; }
         public VerificationStatus VerificationStatus { get; set; } = VerificationStatus.Unverified;
         public string? IdentificationImage { get; set; }
