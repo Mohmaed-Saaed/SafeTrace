@@ -1,17 +1,15 @@
 using SafeTrace.Application.Interfaces.IServices.ICases;
 using SafeTrace.Application.Common.Enums;
 using SafeTrace.Application.DTOs.LongTermCases.Request;
+using SafeTrace.Application.DTOs.LongTermCases.Response;
 
 namespace SafeTrace.Application.Services.Cases
 {
-    public class LongTermCaseService : ILongTermCaseService
+    public class LongTermCaseService
+        : BaseCasesService<LongTermMissingCase, LongTermCaseListDto, LongTermCaseDetailDto, LongTermCaseFilterDto>, ILongTermCaseService
     {
-        private readonly IUnitOfWork _unitOfWork;
-        private readonly IMapper _mapper;
         private readonly IFileStorageService _fileStorageService;
-        private readonly ICaseHelperService _caseHelper;
         private readonly IFaceRecognitionService _faceRecognition;
-        private readonly ILogger<LongTermCaseService> _logger;
 
         public LongTermCaseService(
             IUnitOfWork unitOfWork,
@@ -20,13 +18,16 @@ namespace SafeTrace.Application.Services.Cases
             ICaseHelperService caseHelper,
             IFaceRecognitionService faceRecognition,
             ILogger<LongTermCaseService> logger)
+            : base(unitOfWork, mapper, caseHelper, logger)
         {
-            _unitOfWork = unitOfWork;
-            _mapper = mapper;
             _fileStorageService = fileStorage;
-            _caseHelper = caseHelper;
             _faceRecognition = faceRecognition;
-            _logger = logger;
+        }
+
+        protected override async Task DeleteAdditionalFilesAsync(LongTermMissingCase entity)
+        {
+            if (!string.IsNullOrWhiteSpace(entity.PoliceReportImage))
+                await _caseHelper.CleanupPhysicalFilesAsync(Enumerable.Empty<string>(), entity.PoliceReportImage);
         }
 
         // CREATE
@@ -45,7 +46,6 @@ namespace SafeTrace.Application.Services.Cases
             if (dto.PoliceReportImage is not null)
                 entity.PoliceReportImage = await _fileStorageService.SaveFileAsync(dto.PoliceReportImage, "long-term/police-reports");
 
-            // حفظ الصور وربطها بـ AI (Face Indexing)
             if (dto.Photos is not null && dto.Photos.Any())
             {
                 var photoList = dto.Photos.ToList();
@@ -56,7 +56,6 @@ namespace SafeTrace.Application.Services.Cases
                     var path = await _fileStorageService.SaveFileAsync(photo, "long-term");
 
                     bool isPrimary = dto.PrimaryPhotoIndex == i;
-                    // محاولة Index الوجه على AWS Rekognition
                     string? faceId = null;
                     try
                     {
@@ -64,7 +63,6 @@ namespace SafeTrace.Application.Services.Cases
                     }
                     catch (Exception ex)
                     {
-                        // لو فشل الـ indexing مش هنوقف العملية كلها
                         _logger.LogWarning(ex,
                             "تعذّر تسجيل الوجه في AWS للصورة {Index} أثناء إنشاء الحالة للمستخدم {UserId}.", i, userId);
                     }
@@ -77,7 +75,6 @@ namespace SafeTrace.Application.Services.Cases
                     });
                 }
 
-                // ضمان وجود صورة رئيسية واحدة بس
                 _caseHelper.EnsureSinglePrimaryPhoto(entity.Photos);
             }
 
@@ -98,7 +95,6 @@ namespace SafeTrace.Application.Services.Cases
             {
                 await _unitOfWork.RollbackTransactionAsync();
 
-                // حذف الملفات المحفوظة لو فشلت العملية
                 foreach (var photo in entity.Photos)
                     _fileStorageService.DeleteFile(photo.ImagePath);
 
@@ -146,7 +142,6 @@ namespace SafeTrace.Application.Services.Cases
                 entity.PoliceReportImage = await _fileStorageService.SaveFileAsync(dto.PoliceReportImage, "long-term/police-reports");
             }
 
-            // حذف الصور المطلوب حذفها مع وجوههم من AWS
             if (dto.RemovedPhotoIds is { Count: > 0 })
             {
                 var toRemove = entity.Photos.Where(p => dto.RemovedPhotoIds.Contains(p.Id)).ToList();
@@ -172,7 +167,6 @@ namespace SafeTrace.Application.Services.Cases
                 }
             }
 
-            // إضافة صور جديدة مع Face Indexing
             if (dto.NewPhotos is not null && dto.NewPhotos.Any())
             {
                 var newPhotoList = dto.NewPhotos.ToList();
@@ -201,7 +195,6 @@ namespace SafeTrace.Application.Services.Cases
                 }
             }
 
-            // تحديث الصورة الرئيسية لو المستخدم اختار واحدة
             _caseHelper.EnsureSinglePrimaryPhoto(entity.Photos, dto.PrimaryPhotoId);
 
             if (!isAdmin && entity.Status != CaseStatus.Pending)

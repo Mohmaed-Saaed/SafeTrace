@@ -1,4 +1,4 @@
-using SafeTrace.Application.DTOs.SharedCases;
+using SafeTrace.Application.DTOs.Cases.Request;
 
 namespace SafeTrace.Application.Common.Validators.Attributes
 {
@@ -10,12 +10,12 @@ namespace SafeTrace.Application.Common.Validators.Attributes
     {
         protected override ValidationResult? IsValid(object? value, ValidationContext context)
         {
-            if (value is not CasesFilterDto filter)
+            if (value is not CasesFilterBaseDto filter)
                 return ValidationResult.Success;
 
             if (filter.FromDate.HasValue && filter.ToDate.HasValue && filter.ToDate.Value < filter.FromDate.Value)
             {
-                return new ValidationResult(ErrorMessage ?? "ToDate must be greater than or equal to FromDate.", [nameof(CasesFilterDto.ToDate)]);
+                return new ValidationResult(ErrorMessage ?? "ToDate must be greater than or equal to FromDate.", [nameof(CasesFilterBaseDto.ToDate)]);
             }
 
             return ValidationResult.Success;

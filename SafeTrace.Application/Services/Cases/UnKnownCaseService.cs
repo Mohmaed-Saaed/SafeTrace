@@ -1,18 +1,15 @@
 using Microsoft.AspNetCore.Identity;
 using SafeTrace.Application.Common.Enums;
 using SafeTrace.Application.DTOs.UnKnownCase.Request;
+using SafeTrace.Application.DTOs.UnKnownCase.Response;
 using SafeTrace.Application.Exceptions;
 using SafeTrace.Application.Interfaces.IServices.ICases;
 
 namespace SafeTrace.Application.Services.Cases
 {
-    public class UnKnownCaseService : IUnknownCaseService
+    public class UnKnownCaseService : BaseCasesService<UnknownCase, UnknownCaseListDto, UnknownCaseDetailDto, UnknownCasesFilterDto>, IUnknownCaseService
     {
-        private readonly IUnitOfWork _unitOfWork;
-        private readonly IMapper _mapper;
-        private readonly ICaseHelperService _caseHelper;
         private readonly UserManager<ApplicationUser> _userManager;
-        private readonly ILogger<UnKnownCaseService> _logger;
 
         public UnKnownCaseService(
             IUnitOfWork unitOfWork,
@@ -20,12 +17,9 @@ namespace SafeTrace.Application.Services.Cases
             ICaseHelperService caseHelper,
             UserManager<ApplicationUser> userManager,
             ILogger<UnKnownCaseService> logger)
+            : base(unitOfWork, mapper, caseHelper, logger)
         {
-            _unitOfWork = unitOfWork;
-            _mapper = mapper;
-            _caseHelper = caseHelper;
             _userManager = userManager;
-            _logger = logger;
         }
 
         public async Task<ApiResponse<string>> CreateUnknownCaseAsync(CreateUnknownDto dto, string userId)
@@ -77,10 +71,7 @@ namespace SafeTrace.Application.Services.Cases
             return ApiResponse<string>.Ok(message: "تم إنشاء حالة مجهول الهوية بنجاح");
         }
 
-        public async Task<ApiResponse<string>> UpdateUnknownCaseAsync(
-            long id,
-            UpdateUnknownCaseDto dto,
-            string userId)
+        public async Task<ApiResponse<string>> UpdateUnknownCaseAsync(long id, UpdateUnknownCaseDto dto, string userId)
         {
             _logger.LogInformation(
                 "Starting update for UnknownCase. CaseId: {CaseId}, UserId: {UserId}",

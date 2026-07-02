@@ -9,13 +9,9 @@ using SafeTrace.Application.DTOs.UrgentCase.Request;
 
 namespace SafeTrace.Application.Services.Cases
 {
-    internal class UrgentCaseService : IUrgentCaseService
+    public class UrgentCaseService : BaseCasesService<UrgentCase, UrgentCaseListDto, UrgentCaseDetailDto, UrgentCasesFilterDto>, IUrgentCaseService
     {
-        private readonly IUnitOfWork _unitOfWork;
-        private readonly IMapper _mapper;
-        private readonly ICaseHelperService _caseHelper;
         private readonly INotificationServices _notificationServices;
-        private readonly ILogger<UrgentCaseService> _logger;
 
         private const int RateLimitDays = 14;
         private const int ExpirationHours = 48;
@@ -27,13 +23,38 @@ namespace SafeTrace.Application.Services.Cases
             IMapper mapper,
             ICaseHelperService caseHelper,
             INotificationServices notificationServices)
+            : base(unitOfWork, mapper, caseHelper, logger)
         {
-            _logger = logger;
-            _unitOfWork = unitOfWork;
-            _mapper = mapper;
-            _caseHelper = caseHelper;
             _notificationServices = notificationServices;
         }
+
+        // Urgent-only: mark-as-found also closes out the expiry window.
+        protected override Task OnMarkedAsFoundAsync(UrgentCase entity)
+        {
+            entity.EndDate = DateTime.UtcNow;
+            return Task.CompletedTask;
+        }
+
+        protected override IQueryable<UrgentCase> ApplyCustomFilter(IQueryable<UrgentCase> query, UrgentCasesFilterDto filter)
+        {
+            if (!filter.Latitude.HasValue && !filter.Longitude.HasValue)
+                return query;
+
+            var location = CreateUserLocation(filter);
+
+            return query.Where(x => x.Location.Distance(location) <= filter.RadiusInMeters);
+        }
+
+        protected override IQueryable<UrgentCase> ApplyCustomSorting(IQueryable<UrgentCase> query, UrgentCasesFilterDto filter)
+        {
+            if (!filter.Latitude.HasValue && !filter.Longitude.HasValue)
+                return query;
+
+            var location = CreateUserLocation(filter);
+
+            return query.OrderBy(x => x.Location.Distance(location));
+        }
+
 
         public async Task<ApiResponse<UrgentCaseCreateResponse>> CreateAsync(string userId, UrgentCaseCreateDto createDto)
         {
@@ -42,7 +63,6 @@ namespace SafeTrace.Application.Services.Cases
             if (rateLimitViolation is not null)
                 return ApiResponse<UrgentCaseCreateResponse>.Fail(rateLimitViolation);
 
-            // ── Build entity ─────────────────────────────────────────────
             var now = DateTime.UtcNow;
             var entity = _mapper.Map<UrgentCase>(createDto);
 
@@ -56,7 +76,6 @@ namespace SafeTrace.Application.Services.Cases
             entity.AgeCategoryId = await _caseHelper.ResolveAgeCategoryIdAsync(entity.Age);
             entity.Location = new Point(createDto.Longitude, createDto.Latitude) { SRID = 4326 };
 
-            // ── Persist with file handling ────────────────────────────────
             var uploadedPhotos = new List<CasePhoto>();
 
             await _unitOfWork.BeginTransactionAsync();
@@ -88,7 +107,6 @@ namespace SafeTrace.Application.Services.Cases
             // Fire-and-forget — notification failure must never fail the create.
             _ = NotifyNearbyUsersAsync(entity, createDto.Latitude, createDto.Longitude);
 
-            // ── Return populated DTO ──────────────────────────────────────
             var created = await _unitOfWork.Repository<UrgentCase>()
                 .Query(tracked: false, includes:
                 [
@@ -131,17 +149,13 @@ namespace SafeTrace.Application.Services.Cases
 
             try
             {
-                // ── New photos ───────────────────────────────────────────
                 if (updateDto.Photos?.Count > 0)
                 {
                     uploadedPhotos = await _caseHelper.HandlePhotoUploadsAsync(updateDto.Photos, "UrgentCases", entity.Id);
                     foreach (var photo in uploadedPhotos)
-                    {
                         entity.Photos.Add(photo);
-                    }
                 }
 
-                // ── Remove selected photos ───────────────────────────────
                 if (updateDto.DeletedPhotoIds?.Count > 0)
                 {
                     var ownedIds = entity.Photos.Select(p => p.Id).ToHashSet();
@@ -150,19 +164,14 @@ namespace SafeTrace.Application.Services.Cases
                     filesToDelete.AddRange(toRemove.Select(p => p.ImagePath));
 
                     foreach (var photo in toRemove)
-                    {
                         entity.Photos.Remove(photo);
-                    }
                 }
 
-                // Ensure single primary photo if primary was deleted
                 _caseHelper.EnsureSinglePrimaryPhoto(entity.Photos);
 
-                // ── Map scalar properties ────────────────────────────────
                 _mapper.Map(updateDto, entity);
                 entity.UpdatedAt = DateTime.UtcNow;
 
-                // Re-resolve age category if age changed
                 if (updateDto.Age.HasValue)
                     entity.AgeCategoryId = await _caseHelper.ResolveAgeCategoryIdAsync(entity.Age);
 
@@ -181,10 +190,8 @@ namespace SafeTrace.Application.Services.Cases
                 throw;
             }
 
-            // Delete physical files after successful commit
             await _caseHelper.CleanupPhysicalFilesAsync(filesToDelete);
 
-            // ── Reload and return ────────────────────────────────────────
             var updated = await _unitOfWork.Repository<UrgentCase>()
                 .Query(tracked: false, includes:
                 [
@@ -197,6 +204,11 @@ namespace SafeTrace.Application.Services.Cases
             return ApiResponse<UrgentCaseUpdateResponse>.Ok(
                 data: _mapper.Map<UrgentCaseUpdateResponse>(updated),
                 message: "Urgent case updated successfully.");
+        }
+
+        private static Point CreateUserLocation(UrgentCasesFilterDto filter)
+        {
+            return new Point(filter.Longitude!.Value,filter.Latitude!.Value){ SRID = 4326 };
         }
 
         private async Task<string?> CheckRateLimitAsync(string userId)
@@ -228,21 +240,16 @@ namespace SafeTrace.Application.Services.Cases
             {
                 var caseLocation = new Point(caseLng, caseLat) { SRID = 4326 };
 
-                // Find all users who have a stored location within the radius.
-                // We project to a minimal anonymous type to avoid loading the full
-                // ApplicationUser entity for every nearby person.
                 var nearbyUserIds = await _unitOfWork.Repository<ApplicationUser>()
                     .Query(tracked: false)
                     .Where(u =>
-                        u.Id != entity.UserId &&   // don't notify the creator
+                        u.Id != entity.UserId &&
                         (
-                            // current location within radius
                             (u.CurrentLocationLatitude != null &&
                              u.CurrentLocationLongitude != null &&
                              new Point(u.CurrentLocationLongitude.Value, u.CurrentLocationLatitude.Value) { SRID = 4326 }
                                 .Distance(caseLocation) <= NotifyRadiusM)
                             ||
-                            // fall back to home location
                             (u.HomeLocationLatitude != null &&
                              u.HomeLocationLongitude != null &&
                              new Point(u.HomeLocationLongitude.Value, u.HomeLocationLatitude.Value) { SRID = 4326 }
@@ -259,14 +266,11 @@ namespace SafeTrace.Application.Services.Cases
 
                 _logger.LogInformation("Notifying {Count} nearby user(s) about urgent case {CaseCode}.", nearbyUserIds.Count, entity.CaseCode);
 
-                // Build the notification content once and send to each nearby user.
                 var notificationContent =
                     $"🚨 New urgent case nearby: {entity.CaseCode}. " +
                     $"Missing person aged {entity.Age}, " +
                     $"last seen in {entity.City}, {entity.Government}.";
 
-                // Send in parallel — capped at 10 concurrent sends to avoid
-                // overwhelming the hub or hitting rate limits.
                 var semaphore = new SemaphoreSlim(10);
 
                 var tasks = nearbyUserIds.Select(async recipientId =>
@@ -284,7 +288,6 @@ namespace SafeTrace.Application.Services.Cases
                     }
                     catch (Exception ex)
                     {
-                        // Log per-user failure — don't abort the rest
                         _logger.LogError(ex,
                             "Failed to notify user {UserId} about case {CaseCode}.",
                             recipientId, entity.CaseCode);
@@ -301,7 +304,6 @@ namespace SafeTrace.Application.Services.Cases
             }
             catch (Exception ex)
             {
-                // Notification failure must NEVER propagate — the case is already saved.
                 _logger.LogError(ex, "NotifyNearbyUsersAsync failed for urgent case {CaseCode}.", entity.CaseCode);
             }
         }

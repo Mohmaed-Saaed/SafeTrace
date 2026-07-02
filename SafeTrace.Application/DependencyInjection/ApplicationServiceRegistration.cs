@@ -16,7 +16,6 @@ namespace SafeTrace.Application.DependencyInjection
         public static IServiceCollection AddApplication(this IServiceCollection services)
         {
             services.AddScoped<ICaseHelperService, CaseHelperService>();
-            services.AddScoped<ICasesService, CasesService>();
             services.AddScoped<ILongTermCaseService, LongTermCaseService>();  
             services.AddScoped<IUnknownCaseService,UnKnownCaseService>();
             services.AddScoped<IUrgentCaseService, UrgentCaseService>();

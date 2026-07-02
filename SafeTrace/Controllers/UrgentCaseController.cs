@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SafeTrace.Application.Constants;
 using SafeTrace.Application.DTOs.UrgentCase.Request;
@@ -13,33 +14,92 @@ namespace SafeTrace.API.Controllers
     public class UrgentCaseController : ControllerBase
     {
         private readonly IUrgentCaseService _urgentCaseService;
-        private readonly ICasesService _casesService;
 
-        public UrgentCaseController(IUrgentCaseService urgentCaseService, ICasesService casesService)
+        public UrgentCaseController(IUrgentCaseService urgentCaseService)
         {
             _urgentCaseService = urgentCaseService;
-            _casesService = casesService;
         }
+
+        private string? CurrentUserId => User.FindFirstValue(ClaimTypes.NameIdentifier);
+        private bool IsAdmin => User.IsInRole("Admin");
+
+        [HttpGet]
+        [AllowAnonymous]
+        public async Task<IActionResult> GetAll([FromQuery] UrgentCasesFilterDto filter)
+        {
+            return Ok(await _urgentCaseService.GetAllAsync(filter));
+        }
+
+        [HttpGet("{id:long}")]
+        [AllowAnonymous]
+        public async Task<IActionResult> GetById(long id)
+        {
+            return Ok(await _urgentCaseService.GetByIdAsync(id));
+        }
+
+        [HttpGet("my-cases")]
+        [HasPermission(Permissions.UrgentCases.GetMyCases)]
+        public async Task<IActionResult> GetMyCases([FromQuery] UrgentCasesFilterDto filter)
+        {
+            if (string.IsNullOrEmpty(CurrentUserId))
+                throw new UnauthorizedException("User identity could not be verified from token.");
+
+            return Ok(await _urgentCaseService.GetMyCasesAsync(CurrentUserId, filter));
+        }
+
+        [HttpGet("admin")]
+        public async Task<IActionResult> AdminGetAll([FromQuery] UrgentCasesFilterDto filter)
+            => Ok(await _urgentCaseService.AdminGetAllAsync(filter));
 
         [HttpPost]
         [Consumes("multipart/form-data")]
         [HasPermission(Permissions.UrgentCases.Create)]
         public async Task<IActionResult> Create([FromForm] UrgentCaseCreateDto dto)
         {
-            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            if (string.IsNullOrEmpty(userId)) throw new UnauthorizedException("User identity could not be verified from token.");
+            if (string.IsNullOrEmpty(CurrentUserId))
+                throw new UnauthorizedException("User identity could not be verified from token.");
 
-            return Ok(await _urgentCaseService.CreateAsync(userId, dto));
+            return Ok(await _urgentCaseService.CreateAsync(CurrentUserId, dto));
         }
 
         [HttpPut]
         [HasPermission(Permissions.UrgentCases.Update)]
         public async Task<IActionResult> Update([FromForm] UrgentCaseUpdateDto dto)
         {
-            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            if (string.IsNullOrEmpty(userId)) throw new UnauthorizedException("User identity could not be verified from token.");
+            if (string.IsNullOrEmpty(CurrentUserId))
+                throw new UnauthorizedException("User identity could not be verified from token.");
 
-            return Ok(await _urgentCaseService.UpdateAsync(userId, dto));
+            return Ok(await _urgentCaseService.UpdateAsync(CurrentUserId, dto));
+        }
+
+        [HttpDelete("{id:long}")]
+        [HasPermission(Permissions.UrgentCases.SoftDelete)]
+        public async Task<IActionResult> SoftDelete(long id)
+        {
+            if (string.IsNullOrEmpty(CurrentUserId))
+                throw new UnauthorizedException("User identity could not be verified from token.");
+
+            await _urgentCaseService.SoftDeleteAsync(id, CurrentUserId, IsAdmin);
+            return NoContent();
+        }
+
+        [HttpPut("{id:long}/mark-as-found")]
+        [HasPermission(Permissions.UrgentCases.MarkAsFounded)]
+        public async Task<IActionResult> MarkAsFound(long id)
+        {
+            if (string.IsNullOrEmpty(CurrentUserId))
+                throw new UnauthorizedException("User identity could not be verified from token.");
+
+            await _urgentCaseService.MarkAsFoundAsync(id, CurrentUserId, isAdmin: IsAdmin);
+            return NoContent();
+        }
+
+        [HttpDelete("{id:long}/permanent")]
+        [HasPermission(Permissions.UrgentCases.HardDelete)]
+        public async Task<IActionResult> PermanentDelete(long id)
+        {
+            await _urgentCaseService.PermanentDeleteAsync(id);
+            return NoContent();
         }
     }
 }
