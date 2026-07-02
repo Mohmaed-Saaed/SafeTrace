@@ -56,20 +56,33 @@ namespace SafeTrace.Application.Hubs
             await base.OnDisconnectedAsync(exception);
         }
 
-        public async Task GetMyNotifications()
+        //public async Task GetMyNotifications()
+        //{
+        //    var userId = Context.UserIdentifier;
+
+        //    if (string.IsNullOrEmpty(userId))
+        //        return;
+
+        //    var notifications = await _notificationService.GetUserNotificationsAsync(userId);
+        //    await Clients.Caller.SendAsync(
+        //        "ReceiveNotifications",
+        //        notifications);
+        //}
+
+        public async Task GetMyNotifications(int page = 1, int pageSize = 10)
         {
             var userId = Context.UserIdentifier;
 
             if (string.IsNullOrEmpty(userId))
                 return;
 
-            var notifications = await _notificationService.GetUserNotificationsAsync(userId);
+            var notifications =
+                await _notificationService.GetUserNotificationsAsync(userId, page, pageSize);
+
             await Clients.Caller.SendAsync(
                 "ReceiveNotifications",
                 notifications);
         }
-
-
 
         public async Task MarkAsRead(long notificationId)
         {

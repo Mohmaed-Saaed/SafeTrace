@@ -46,7 +46,7 @@ namespace SafeTrace
             builder.Services.AddInfrastructure(builder.Configuration);
             builder.Services.AddApplication();
             builder.Services.AddSignalR();
-            builder.Services.AddScoped<IChatNotifier,SignalRChatNotifier>();
+            builder.Services.AddScoped<IChatNotifier, SignalRChatNotifier>();
 
             builder.Services.AddCors(options =>
             {
@@ -94,8 +94,6 @@ namespace SafeTrace
                 app.UseSwaggerUI();
             }
 
-            app.UseCors("CorsPolicy");
-            app.MapHub<NotificationsHub>("SafeTrace.Application/Hubs/notifications");
 
 
             await app.SeedDataAsync();
@@ -105,11 +103,13 @@ namespace SafeTrace
 
             app.UseHttpsRedirection();
             app.UseStaticFiles();
+            app.UseCors("CorsPolicy");
 
             app.UseAuthentication();
             app.UseAuthorization();
 
             app.MapControllers();
+            app.MapHub<NotificationsHub>("/SafeTrace.Application/Hubs/notifications");
             app.MapHub<ChatHub>("/chatHub");
 
 

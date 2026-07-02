@@ -13,7 +13,7 @@ namespace SafeTrace.Application.Interfaces.IServices.INotificationSewrvice
         Task<ApiResponse<bool>> RemoveNotificationAsync(long id);
         Task<ApiResponse<int>> GetUnreadCountAsync(string userId);
         Task MarkAsReadAsync(long id);
-        Task<ApiResponse<IEnumerable<GetUserNotificationsDTO>>> GetUserNotificationsAsync(
+        Task<ApiResponse<NotificationPageDto>> GetUserNotificationsAsync(
           string userId,
           int page = 1,
           int pageSize = 10);
