@@ -1,6 +1,7 @@
 using NetTopologySuite.Geometries;
 using SafeTrace.Application.DTOs.Cases.Response;
 using SafeTrace.Application.DTOs.UrgentCase.Request;
+using SafeTrace.Application.DTOs.UrgentCase.Response;
 
 
 namespace SafeTrace.Application.Mapping
@@ -9,9 +10,16 @@ namespace SafeTrace.Application.Mapping
     {
         public UrgentCaseMappingProfile()
         {
+            CreateMap<UrgentCase, UrgentCaseListDto>()
+                .IncludeBase<Case, CaseListItemBaseDto>();
 
+            CreateMap<UrgentCase, UrgentCaseDetailDto>()
+                .IncludeBase<Case, CaseDetailBaseDto>()
+                .ForMember(dest => dest.Latitude, opt => opt.MapFrom(src => src.Location == null ? (double?)null : src.Location.Y))
+                .ForMember(dest => dest.Longitude, opt => opt.MapFrom(src => src.Location == null ? (double?)null : src.Location.X));
 
-
+            CreateMap<UrgentCase, UrgentCaseCreateResponse>();
+            CreateMap<UrgentCase, UrgentCaseUpdateResponse>();
 
             CreateMap<UrgentCaseCreateDto, UrgentCase>()
                 .ForMember(dest => dest.Photos, opt => opt.Ignore())
@@ -33,9 +41,6 @@ namespace SafeTrace.Application.Mapping
                 .ForMember(dest => dest.FoundPersonInfo, opt => opt.Ignore())
                 .ForMember(dest => dest.AgeCategory, opt => opt.Ignore())
                 .ForAllMembers(opts => opts.Condition((src, dest, srcMember) => srcMember != null));
-
-
-
         }
     }
 }

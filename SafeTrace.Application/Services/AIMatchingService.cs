@@ -1,13 +1,6 @@
-﻿using AutoMapper;
-using Microsoft.AspNetCore.Http;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Logging;
+﻿using Microsoft.AspNetCore.Http;
 using SafeTrace.Application.DTOs.AiMatching.Response;
-using SafeTrace.Application.DTOs.Responses;
-using SafeTrace.Application.Interfaces.IServices;
-using SafeTrace.Domain.Entities;
-using SafeTrace.Domain.Enums;
-using SafeTrace.Domain.Interfaces.IUnitOfWork;
+
 
 namespace SafeTrace.Application.Services
 {
@@ -42,11 +35,11 @@ namespace SafeTrace.Application.Services
             var matchedFaceIds = faceMatches.Select(f => f.FaceId).ToList();
 
             var photosQuery = _unitOfWork.Repository<CasePhoto>()
-                .Query(tracked: true, includes: new System.Linq.Expressions.Expression<Func<CasePhoto, object>>[]
-                {
+                .Query(tracked: true, includes:
+                [
                     p => p.Case,
                     p => p.Case.Photos
-                });
+                ]);
 
             var query = photosQuery.Where(p => p.FaceId != null &&
                                                matchedFaceIds.Contains(p.FaceId) &&

@@ -1,4 +1,6 @@
-﻿using SafeTrace.Application.DTOs.UnKnownCase.Request;
+﻿using SafeTrace.Application.DTOs.Cases.Response;
+using SafeTrace.Application.DTOs.UnKnownCase.Request;
+using SafeTrace.Application.DTOs.UnKnownCase.Response;
 
 namespace SafeTrace.Application.Mapping
 {
@@ -6,6 +8,12 @@ namespace SafeTrace.Application.Mapping
     {
         public UnKnownProfile()
         {
+            CreateMap<UnknownCase, UnknownCaseListDto>()
+                .IncludeBase<Case, CaseListItemBaseDto>();
+
+            CreateMap<UnknownCase, UnknownCaseDetailDto>()
+                .IncludeBase<Case, CaseDetailBaseDto>();
+
             CreateMap<CreateUnknownDto, UnknownCase>()
                .ForMember(dest => dest.Photos, opt => opt.Ignore());
 

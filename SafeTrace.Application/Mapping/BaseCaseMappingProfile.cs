@@ -15,7 +15,11 @@ namespace SafeTrace.Application.Mapping
             CreateMap<ApplicationUser, UserDto>();
 
             CreateMap<Case, CaseListItemBaseDto>()
-                .ForMember(dest => dest.MainPhoto, opt => opt.MapFrom(src => src.Photos.Where(p => p.IsPrimary).Select(p => p.ImagePath).FirstOrDefault()));
+                .ForMember(dest => dest.MainPhoto, opt => opt.MapFrom(src =>
+                    src.Photos
+                        .OrderByDescending(p => p.IsPrimary)
+                        .Select(p => p.ImagePath)
+                        .FirstOrDefault()));
 
             CreateMap<Case, CaseDetailBaseDto>()
                 .ForMember(d => d.Photos, o => o.MapFrom(s => s.Photos))

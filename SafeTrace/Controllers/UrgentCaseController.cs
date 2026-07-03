@@ -48,8 +48,11 @@ namespace SafeTrace.API.Controllers
         }
 
         [HttpGet("admin")]
+        [HasPermission(Permissions.UrgentCases.GetAll)]
         public async Task<IActionResult> AdminGetAll([FromQuery] UrgentCasesFilterDto filter)
-            => Ok(await _urgentCaseService.AdminGetAllAsync(filter));
+        {
+            return Ok(await _urgentCaseService.AdminGetAllAsync(filter));
+        }
 
         [HttpPost]
         [Consumes("multipart/form-data")]

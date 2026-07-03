@@ -1,17 +1,19 @@
 using SafeTrace.Application.DTOs.LongTermCases.Request;
+using SafeTrace.Application.DTOs.Cases.Response;
+using SafeTrace.Application.DTOs.LongTermCases.Response;
 
 namespace SafeTrace.Application.Mapping
 {
-    /// <summary>
-    /// AutoMapper profile for the Long-Term Missing Cases module.
-    /// Kept in its own file/class (separate from the existing MappingProfile) to avoid merge conflicts.
-    /// NOTE: this profile must be registered once in Program.cs:
-    ///   cfg.AddProfile&lt;LongTermCaseMappingProfile&gt;();
-    /// </summary>
     public class LongTermCaseMappingProfile : Profile
     {
         public LongTermCaseMappingProfile()
         {
+            CreateMap<LongTermMissingCase, LongTermCaseListDto>()
+                .IncludeBase<Case, CaseListItemBaseDto>();
+
+            CreateMap<LongTermMissingCase, LongTermCaseDetailDto>()
+                .IncludeBase<Case, CaseDetailBaseDto>();
+
             CreateMap<CreateLongTermCaseDto, LongTermMissingCase>()
                 .ForMember(d => d.Id, opt => opt.Ignore())
                 .ForMember(d => d.Status, opt => opt.Ignore())

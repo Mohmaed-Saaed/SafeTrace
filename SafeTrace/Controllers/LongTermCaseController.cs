@@ -26,14 +26,19 @@ namespace SafeTrace.API.Controllers
         [HttpGet]
         [AllowAnonymous]
         public async Task<IActionResult> GetAll([FromQuery] LongTermCaseFilterDto filter)
-            => Ok(await _service.GetAllAsync(filter));
+        {
+            return Ok(await _service.GetAllAsync(filter));
+        }
 
         [HttpGet("{id:long}")]
         [AllowAnonymous]
         public async Task<IActionResult> GetById(long id)
-            => Ok(await _service.GetByIdAsync(id));
+        {
+            return Ok(await _service.GetByIdAsync(id));
+        }
 
         [HttpGet("my-cases")]
+        [HasPermission(Permissions.LongTermCases.GetMyCases)]
         public async Task<IActionResult> GetMyCases([FromQuery] LongTermCaseFilterDto filter)
         {
             if (CurrentUserId == null) throw new UnauthorizedException("لم يتم التعرف على هوية المستخدم.");
@@ -41,8 +46,11 @@ namespace SafeTrace.API.Controllers
         }
 
         [HttpGet("admin")]
+        [HasPermission(Permissions.LongTermCases.GetAll)]
         public async Task<IActionResult> AdminGetAll([FromQuery] LongTermCaseFilterDto filter)
-            => Ok(await _service.AdminGetAllAsync(filter));
+        {
+            return Ok(await _service.AdminGetAllAsync(filter));
+        }
 
         /// <summary>
         /// إنشاء حالة جديدة — يتطلب صلاحية Create
@@ -74,6 +82,7 @@ namespace SafeTrace.API.Controllers
         }
 
         [HttpPut("{id:long}/approve")]
+        [HasPermission(Permissions.LongTermCases.Approve)]
         public async Task<IActionResult> Approve(long id)
         {
             await _service.ApproveAsync(id);
@@ -81,6 +90,7 @@ namespace SafeTrace.API.Controllers
         }
 
         [HttpPut("{id:long}/reject")]
+        [HasPermission(Permissions.LongTermCases.Reject)]
         public async Task<IActionResult> Reject(long id)
         {
             await _service.RejectAsync(id);
@@ -88,6 +98,7 @@ namespace SafeTrace.API.Controllers
         }
 
         [HttpDelete("{id:long}")]
+        [HasPermission(Permissions.LongTermCases.SoftDelete)]
         public async Task<IActionResult> SoftDelete(long id)
         {
             if (CurrentUserId == null) throw new UnauthorizedException("لم يتم التعرف على هوية المستخدم.");
@@ -96,6 +107,7 @@ namespace SafeTrace.API.Controllers
         }
 
         [HttpPut("{id:long}/mark-as-found")]
+        [HasPermission(Permissions.LongTermCases.MarkAsFounded)]
         public async Task<IActionResult> MarkAsFound(long id)
         {
             if (CurrentUserId == null) throw new UnauthorizedException("لم يتم التعرف على هوية المستخدم.");
@@ -104,6 +116,7 @@ namespace SafeTrace.API.Controllers
         }
 
         [HttpDelete("{id:long}/permanent")]
+        [HasPermission(Permissions.LongTermCases.HardDelete)]
         public async Task<IActionResult> PermanentDelete(long id)
         {
             await _service.PermanentDeleteAsync(id);

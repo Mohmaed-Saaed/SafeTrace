@@ -26,14 +26,19 @@ namespace SafeTrace.API.Controllers
         [HttpGet]
         [AllowAnonymous]
         public async Task<IActionResult> GetAll([FromQuery] UnknownCasesFilterDto filter)
-            => Ok(await _unKnownServiceCase.GetAllAsync(filter));
+        {
+            return Ok(await _unKnownServiceCase.GetAllAsync(filter));
+        }
 
         [HttpGet("{id:long}")]
         [AllowAnonymous]
         public async Task<IActionResult> GetById(long id)
-            => Ok(await _unKnownServiceCase.GetByIdAsync(id));
+        {
+            return Ok(await _unKnownServiceCase.GetByIdAsync(id));
+        }
 
         [HttpGet("my-cases")]
+        [HasPermission(Permissions.UnknownCases.GetMyCases)]
         public async Task<IActionResult> GetMyCases([FromQuery] UnknownCasesFilterDto filter)
         {
             if (string.IsNullOrEmpty(CurrentUserId))
@@ -43,8 +48,11 @@ namespace SafeTrace.API.Controllers
         }
 
         [HttpGet("admin")]
+        [HasPermission(Permissions.UnknownCases.GetAll)]
         public async Task<IActionResult> AdminGetAll([FromQuery] UnknownCasesFilterDto filter)
-            => Ok(await _unKnownServiceCase.AdminGetAllAsync(filter));
+        {
+            return Ok(await _unKnownServiceCase.AdminGetAllAsync(filter));
+        }
 
         [HttpPost]
         [Consumes("multipart/form-data")]
