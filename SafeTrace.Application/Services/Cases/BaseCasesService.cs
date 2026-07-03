@@ -218,7 +218,7 @@ namespace SafeTrace.Application.Services.Cases
             entity.Status = CaseStatus.Found;
             entity.UpdatedAt = DateTime.UtcNow;
 
-            // Per-type extra behaviour (e.g. UrgentCase sets EndDate) — hook, not a type check.
+            // Per-type extra behavior (e.g. UrgentCase sets EndDate) — hook, not a type check.
             await OnMarkedAsFoundAsync(entity);
 
             if (foundPersonInfo != null)
