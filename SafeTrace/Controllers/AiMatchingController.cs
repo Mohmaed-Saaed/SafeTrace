@@ -27,14 +27,14 @@ namespace SafeTrace.API.Controllers
 
         //test
         [HttpPost("searchtest")]
-        public async Task<IActionResult> Get([FromForm] test t)
+        public async Task<IActionResult> Get([FromForm] AiMatchingDto t)
         {
             var response = await _faceRecognitionService.SearchByImageAsync(t.Image);
             return Ok(response);
         }
 
         [HttpPost("save")]
-        public async Task<IActionResult> save([FromForm] test t)
+        public async Task<IActionResult> save([FromForm] AiMatchingDto t)
         {
             var response = await _faceRecognitionService.IndexFaceAsync(t.Image);
             return Ok(response);

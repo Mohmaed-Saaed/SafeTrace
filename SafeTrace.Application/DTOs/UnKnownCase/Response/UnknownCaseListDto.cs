@@ -1,0 +1,8 @@
+using SafeTrace.Application.DTOs.Cases.Response;
+
+namespace SafeTrace.Application.DTOs.UnKnownCase.Response
+{
+    public class UnknownCaseListDto : CaseListItemBaseDto
+    {
+    }
+}
