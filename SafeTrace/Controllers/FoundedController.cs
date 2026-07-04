@@ -1,12 +1,7 @@
-﻿using AutoMapper;
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc;
-using SafeTrace.Application.DTOs.Founded;
+﻿using Microsoft.AspNetCore.Mvc;
 using SafeTrace.Application.DTOs.Founded.Request;
-using SafeTrace.Application.DTOs.Responses;
 using SafeTrace.Application.Interfaces;
-using SafeTrace.Domain.Common;
-using SafeTrace.Domain.Enums;
+
 
 namespace SafeTrace.API.Controllers
 {
@@ -29,7 +24,6 @@ namespace SafeTrace.API.Controllers
         }
 
         [HttpGet("{id}")]
-
         public async Task<IActionResult> PostDetail(long id)
         {
             var response = await _foundedService.GetDetailsAsync(id);

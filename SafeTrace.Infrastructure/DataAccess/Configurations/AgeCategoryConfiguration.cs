@@ -26,6 +26,4 @@ namespace SafeTrace.Infrastructure.DataAccess.Configurations
                 .OnDelete(DeleteBehavior.Restrict);
         }
     }
-
-
 }

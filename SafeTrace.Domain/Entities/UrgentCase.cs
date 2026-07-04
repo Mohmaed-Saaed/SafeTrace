@@ -1,6 +1,4 @@
 ﻿using NetTopologySuite.Geometries;
-using System.ComponentModel.DataAnnotations.Schema;
-//using System.Drawing;
 
 namespace SafeTrace.Domain.Entities
 {
