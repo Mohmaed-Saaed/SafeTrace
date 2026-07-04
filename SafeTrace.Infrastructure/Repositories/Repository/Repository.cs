@@ -1,6 +1,9 @@
-﻿using SafeTrace.Domain.Common;
-using SafeTrace.Infrastructure.DataAccess;
 using System.Linq.Expressions;
+using System.Security.Claims;
+using Microsoft.AspNetCore.Mvc;
+using SafeTrace.Application.DTOs.Responses;
+using SafeTrace.Application.Interfaces.IServices.INotificationSewrvice;
+using SafeTrace.Domain.Common;
 
 namespace SafeTrace.Infrastructure.Repositories.Repository
 {
@@ -65,6 +68,9 @@ namespace SafeTrace.Infrastructure.Repositories.Repository
             return await query.FirstOrDefaultAsync(predicate);
         }
 
+
+
+
         public async Task<T?> GetByIdAsync(object id)
         {
             return await _db.FindAsync(id);
@@ -99,6 +105,7 @@ namespace SafeTrace.Infrastructure.Repositories.Repository
         {
             return await _db.AnyAsync();
         }
+
 
         public async Task<int> CountAsync()
         {

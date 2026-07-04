@@ -1,21 +1,12 @@
 ﻿using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.IdentityModel.Tokens;
 using SafeTrace.Application.Interfaces;
-using SafeTrace.Application.Interfaces.IServices;
-using SafeTrace.Domain.Interfaces.IUnitOfWork;
 using SafeTrace.Infrastructure.Authorization;
-using SafeTrace.Infrastructure.DataAccess;
 using SafeTrace.Infrastructure.Options;
 using SafeTrace.Infrastructure.Persistence;
-using SafeTrace.Infrastructure.Repositories.UnitOfWork;
-using SafeTrace.Infrastructure.Services;
 using System.Text;
 
 namespace SafeTrace.Infrastructure.DependencyInjection
@@ -56,6 +47,9 @@ namespace SafeTrace.Infrastructure.DependencyInjection
             services.AddSingleton<IAuthorizationPolicyProvider, PermissionPolicyProvider>();
             services.AddScoped<IAuthorizationHandler, PermissionHandler>();
 
+            
+            services.AddScoped<IComplaintService, ComplaintService>();
+
             services.AddIdentity<ApplicationUser, IdentityRole>(options =>
             {
                 options.Password.RequiredLength = 8;
@@ -94,6 +88,20 @@ namespace SafeTrace.Infrastructure.DependencyInjection
 
                 o.Events = new JwtBearerEvents
                 {
+                    OnMessageReceived = context =>
+                    {
+                        var accessToken = context.Request.Query["access_token"];
+
+                        var path = context.HttpContext.Request.Path;
+
+                        if (!string.IsNullOrEmpty(accessToken) &&
+                            path.StartsWithSegments("/chatHub"))
+                        {
+                            context.Token = accessToken;
+                        }
+                        return Task.CompletedTask;
+                    },
+
                     OnChallenge = async context =>
                     {
                         context.HandleResponse();
