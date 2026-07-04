@@ -4,6 +4,5 @@ namespace SafeTrace.Application.DTOs.LongTermCases.Request
 {
     public class LongTermCaseFilterDto : CasesFilterBaseDto
     {
-
     }
 }

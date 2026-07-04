@@ -75,7 +75,7 @@ namespace SafeTrace.Application.Services.Cases
 
             return category.Id;
         }
-
+        // use task Lock
         public async Task<string> GenerateCaseCodeAsync(CaseCodePrefix prefix)
         {
             var repository = _unitOfWork.Repository<Case>();
@@ -97,7 +97,7 @@ namespace SafeTrace.Application.Services.Cases
             return $"{prefix}-{number + 1}";
         }
         
-        // PHOTO HELPERS
+        // PHOTO HELPERS // Handel More Files
         public async Task<List<CasePhoto>> HandlePhotoUploadsAsync(IEnumerable<IFormFile> files, string folderName, long caseId = 0)
         {
             var uploadedPhotos = new List<CasePhoto>();
@@ -151,7 +151,7 @@ namespace SafeTrace.Application.Services.Cases
             }
         }
 
-        public async Task CleanupPhysicalFilesAsync(IEnumerable<string> filePaths, string? policeReportImage = null)
+        public async Task CleanupPhysicalFilesAsync(IEnumerable<string> filePaths)
         {
             foreach (var path in filePaths.Where(p => !string.IsNullOrWhiteSpace(p)))
             {
@@ -162,18 +162,6 @@ namespace SafeTrace.Application.Services.Cases
                 catch (Exception ex)
                 {
                     _logger.LogError(ex, "Failed to delete physical file {FilePath}", path);
-                }
-            }
-
-            if (!string.IsNullOrWhiteSpace(policeReportImage))
-            {
-                try
-                {
-                    _fileStorageService.DeleteFile(policeReportImage);
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "Failed to delete police report image {FilePath}", policeReportImage);
                 }
             }
 

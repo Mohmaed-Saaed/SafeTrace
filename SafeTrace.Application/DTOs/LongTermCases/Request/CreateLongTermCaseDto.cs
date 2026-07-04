@@ -13,7 +13,7 @@ namespace SafeTrace.Application.DTOs.LongTermCases.Request
         public Gender Gender { get; set; }
         
         [Required, MaxLength(100)]
-        public string FName { get; set; }
+        public string FName { get; set; } = null!;
         public string? SName { get; set; }
         public string? TName { get; set; }
 

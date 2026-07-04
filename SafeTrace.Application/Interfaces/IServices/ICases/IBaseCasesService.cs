@@ -13,7 +13,7 @@ namespace SafeTrace.Application.Interfaces.IServices.ICases
         Task ApproveAsync(long caseId);
         Task RejectAsync(long caseId);
         Task SoftDeleteAsync(long caseId, string userId, bool isAdmin = false, bool checkOwnership = true);
-        Task MarkAsFoundAsync(long caseId, string userId, FoundPersonInfo? foundPersonInfo = null, bool isAdmin = false, bool checkOwnership = true);
+        Task MarkAsFoundAsync(long caseId, string userId, FoundPersonInfoRequestDto foundPersonInfo, bool isAdmin = false, bool checkOwnership = true);
         Task PermanentDeleteAsync(long caseId);
     }
 }

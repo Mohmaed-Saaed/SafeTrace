@@ -6,6 +6,7 @@ using SafeTrace.Infrastructure.Authorization;
 using System.Security.Claims;
 using SafeTrace.Application.Interfaces.IServices.ICases;
 using SafeTrace.Application.DTOs.LongTermCases.Request;
+using SafeTrace.Application.DTOs.Cases.Request;
 
 namespace SafeTrace.API.Controllers
 {
@@ -108,10 +109,10 @@ namespace SafeTrace.API.Controllers
 
         [HttpPut("{id:long}/mark-as-found")]
         [HasPermission(Permissions.LongTermCases.MarkAsFounded)]
-        public async Task<IActionResult> MarkAsFound(long id)
+        public async Task<IActionResult> MarkAsFound(long id, FoundPersonInfoRequestDto foundPersonInfo)
         {
             if (CurrentUserId == null) throw new UnauthorizedException("لم يتم التعرف على هوية المستخدم.");
-            await _service.MarkAsFoundAsync(id, CurrentUserId, isAdmin: IsAdmin);
+            await _service.MarkAsFoundAsync(id, CurrentUserId, foundPersonInfo, isAdmin: IsAdmin);
             return NoContent();
         }
 

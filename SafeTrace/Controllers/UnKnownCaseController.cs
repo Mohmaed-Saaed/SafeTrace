@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SafeTrace.Application.Constants;
+using SafeTrace.Application.DTOs.Cases.Request;
 using SafeTrace.Application.DTOs.UnKnownCase.Request;
 using SafeTrace.Application.Exceptions;
 using SafeTrace.Application.Interfaces.IServices.ICases;
@@ -106,12 +107,12 @@ namespace SafeTrace.API.Controllers
         }
 
         [HttpPut("{id:long}/mark-as-found")]
-        public async Task<IActionResult> MarkAsFound(long id)
+        public async Task<IActionResult> MarkAsFound(long id, FoundPersonInfoRequestDto foundPersonInfo)
         {
             if (string.IsNullOrEmpty(CurrentUserId))
                 throw new UnauthorizedException("User identity could not be verified from token.");
 
-            await _unKnownServiceCase.MarkAsFoundAsync(id, CurrentUserId, isAdmin: IsAdmin);
+            await _unKnownServiceCase.MarkAsFoundAsync(id, CurrentUserId, foundPersonInfo, isAdmin: IsAdmin);
             return NoContent();
         }
 

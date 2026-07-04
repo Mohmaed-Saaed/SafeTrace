@@ -33,7 +33,7 @@ namespace SafeTrace.Application.Interfaces.IServices.ICases
         void EnsureSinglePrimaryPhoto(ICollection<CasePhoto> photos, long? preferredPrimaryId = null);
 
         // ── File / storage helpers
-        Task CleanupPhysicalFilesAsync(IEnumerable<string> filePaths, string? policeReportImage = null);
+        Task CleanupPhysicalFilesAsync(IEnumerable<string> filePaths);
 
         // ── Face recognition helpers 
         Task DeleteFacesAsync(IEnumerable<string> faceIds, long caseIdForLogging);

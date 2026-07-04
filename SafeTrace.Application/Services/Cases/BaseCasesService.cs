@@ -55,15 +55,7 @@ namespace SafeTrace.Application.Services.Cases
 
         public virtual async Task<ApiResponse<TDetailDto>> GetByIdAsync(long id)
         {
-            var entity = await _unitOfWork.Repository<TEntity>()
-                .GetOneAsync(
-                    x => x.Id == id && x.Status != CaseStatus.Deleted,
-                    tracked: false,
-                    includes: DetailIncludes
-                );
-
-            if (entity == null)
-                throw new NotFoundException($"Case {id} not found.");
+            var entity = await _caseHelper.GetValidCaseAsync<TEntity>(id, tracked: false, includes: DetailIncludes);
 
             var dto = _mapper.Map<TDetailDto>(entity);
             return ApiResponse<TDetailDto>.Ok(dto, "Case retrieved successfully.");
@@ -204,9 +196,9 @@ namespace SafeTrace.Application.Services.Cases
             _logger.LogInformation("Case {CaseId} soft-deleted by user {UserId}.", entity.Id, userId);
         }
 
-        public virtual async Task MarkAsFoundAsync(long caseId, string userId, FoundPersonInfo? foundPersonInfo = null, bool isAdmin = false, bool checkOwnership = true)
+        public virtual async Task MarkAsFoundAsync(long caseId, string userId, FoundPersonInfoRequestDto foundPersonInfo, bool isAdmin = false, bool checkOwnership = true)
         {
-            var entity = await _caseHelper.GetValidCaseAsync<TEntity>(caseId, userId, isAdmin, checkOwnership: checkOwnership);
+            var entity = await _caseHelper.GetValidCaseAsync<TEntity>(caseId, userId, isAdmin, checkOwnership);
 
             if (entity.Status == CaseStatus.Found)
                 throw new BadRequestException("Case is already marked as Found.");
@@ -218,16 +210,17 @@ namespace SafeTrace.Application.Services.Cases
             entity.Status = CaseStatus.Found;
             entity.UpdatedAt = DateTime.UtcNow;
 
-            // Per-type extra behavior (e.g. UrgentCase sets EndDate) — hook, not a type check.
             await OnMarkedAsFoundAsync(entity);
 
-            if (foundPersonInfo != null)
-            {
-                foundPersonInfo.CaseId = entity.Id;
-                await _unitOfWork.Repository<FoundPersonInfo>().CreateAsync(foundPersonInfo);
-            }
+            var foundPersonInfoEntity = _mapper.Map<FoundPersonInfo>(foundPersonInfo);
+
+            foundPersonInfoEntity.CaseId = entity.Id;
+            foundPersonInfoEntity.FoundedUserId = userId;
+
+            await _unitOfWork.Repository<FoundPersonInfo>().CreateAsync(foundPersonInfoEntity);
 
             _unitOfWork.Repository<TEntity>().Update(entity);
+
             await _unitOfWork.SaveAsync();
 
             _logger.LogInformation("Case {CaseId} marked as Found by user {UserId}.", entity.Id, userId);

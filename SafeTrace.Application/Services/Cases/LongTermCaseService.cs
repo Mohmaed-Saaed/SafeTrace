@@ -27,7 +27,7 @@ namespace SafeTrace.Application.Services.Cases
         protected override async Task DeleteAdditionalFilesAsync(LongTermMissingCase entity)
         {
             if (!string.IsNullOrWhiteSpace(entity.PoliceReportImage))
-                await _caseHelper.CleanupPhysicalFilesAsync(Enumerable.Empty<string>(), entity.PoliceReportImage);
+                await _caseHelper.CleanupPhysicalFilesAsync(Enumerable.Empty<string>());
         }
 
         // CREATE
@@ -206,8 +206,7 @@ namespace SafeTrace.Application.Services.Cases
             _unitOfWork.Repository<LongTermMissingCase>().Update(entity);
             await _unitOfWork.SaveAsync();
 
-            _logger.LogInformation(
-                "تم تعديل الحالة {CaseId} بواسطة المستخدم {UserId} (IsAdmin={IsAdmin})", id, userId, isAdmin);
+            _logger.LogInformation("تم تعديل الحالة {CaseId} بواسطة المستخدم {UserId} (IsAdmin={IsAdmin})", id, userId, isAdmin);
         }
     }
 }
