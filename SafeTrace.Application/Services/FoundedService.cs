@@ -26,7 +26,7 @@ namespace SafeTrace.Infrastructure.Service.Founded
                 .Query(
                     tracked: false,
                     includes:
-                    [f => f.Case,f => f.Case.Photos,f => f.Case.AgeCategory])
+                    [f => f.Case,f => f.Case.CaseFiles,f => f.Case.AgeCategory])
                 .Where(f =>
                     (string.IsNullOrEmpty(query.Search)
                         || f.Case.FName!.Contains(query.Search)
@@ -60,7 +60,7 @@ namespace SafeTrace.Infrastructure.Service.Founded
                     tracked: false,
                     includes:[
                     f => f.Case,
-                    f => f.Case.Photos])
+                    f => f.Case.CaseFiles])
                 .FirstOrDefaultAsync(f => f.Id == id);
 
             if (foundPerson is null)

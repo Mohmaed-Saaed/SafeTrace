@@ -1,6 +1,6 @@
 ﻿namespace SafeTrace.Domain.Entities
 {
-    public class CasePhoto
+    public class CaseFile
     {
         public long Id { get; set; }
         public long CaseId { get; set; }

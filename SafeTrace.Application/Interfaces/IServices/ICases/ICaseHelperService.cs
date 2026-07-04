@@ -29,8 +29,8 @@ namespace SafeTrace.Application.Interfaces.IServices.ICases
         Task<int> ResolveAgeCategoryIdAsync(int age);
 
         // ── Photo helpers 
-        Task<List<CasePhoto>> HandlePhotoUploadsAsync(IEnumerable<IFormFile> files, string folderName, long caseId = 0);
-        void EnsureSinglePrimaryPhoto(ICollection<CasePhoto> photos, long? preferredPrimaryId = null);
+        Task<List<CaseFile>> HandlePhotoUploadsAsync(IEnumerable<IFormFile> files, string folderName, long caseId = 0);
+        void EnsureSinglePrimaryPhoto(ICollection<CaseFile> photos, long? preferredPrimaryId = null);
 
         // ── File / storage helpers
         Task CleanupPhysicalFilesAsync(IEnumerable<string> filePaths);

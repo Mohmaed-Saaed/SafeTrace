@@ -34,11 +34,11 @@ namespace SafeTrace.Application.Services
 
             var matchedFaceIds = faceMatches.Select(f => f.FaceId).ToList();
 
-            var photosQuery = _unitOfWork.Repository<CasePhoto>()
+            var photosQuery = _unitOfWork.Repository<CaseFile>()
                 .Query(tracked: true, includes:
                 [
                     p => p.Case,
-                    p => p.Case.Photos
+                    p => p.Case.CaseFiles
                 ]);
 
             var query = photosQuery.Where(p => p.FaceId != null &&

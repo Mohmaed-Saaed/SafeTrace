@@ -24,7 +24,7 @@ namespace SafeTrace.Infrastructure.DataAccess.Configurations
             builder.HasMany(u => u.Cases)
                     .WithOne(c => c.User)
                     .HasForeignKey(c => c.UserId)
-                    .OnDelete(DeleteBehavior.Restrict);
+                    .OnDelete(DeleteBehavior.Cascade);
 
             builder.HasMany(u => u.Notifications)
                 .WithOne(n => n.User)

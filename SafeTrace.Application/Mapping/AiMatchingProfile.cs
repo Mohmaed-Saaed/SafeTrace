@@ -13,9 +13,9 @@ namespace SafeTrace.Application.Mapping
                     NameHelper.CombineNames(src.FName, src.SName, src.TName, src.LName, "غير معروف")))
                 
                 .ForMember(dest => dest.MainPhotoPath, opt => opt.MapFrom(src =>
-                    src.Photos.FirstOrDefault(p => p.IsPrimary) != null
-                        ? src.Photos.FirstOrDefault(p => p.IsPrimary)!.ImagePath
-                        : src.Photos.FirstOrDefault()!.ImagePath))
+                    src.CaseFiles.FirstOrDefault(p => p.IsPrimary) != null
+                        ? src.CaseFiles.FirstOrDefault(p => p.IsPrimary)!.ImagePath
+                        : src.CaseFiles.FirstOrDefault()!.ImagePath))
                 
                 .ForMember(dest => dest.Similarity, opt => opt.Ignore());
         }
