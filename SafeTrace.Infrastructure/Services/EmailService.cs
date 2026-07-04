@@ -68,14 +68,10 @@ namespace SafeTrace.Infrastructure.Services
             {
                 throw new BadRequestException("تعذر الوصول إلى خادم البريد الإلكتروني. يرجى التحقق من اتصالك بالإنترنت.");
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                throw new Exception(ex.ToString());
+                throw new BadRequestException("حدث خطأ غير متوقع أثناء محاولة إرسال البريد الإلكتروني.");
             }
-            //catch (Exception)
-            //{
-            //    throw new BadRequestException("حدث خطأ غير متوقع أثناء محاولة إرسال البريد الإلكتروني.");
-            //}
             finally
             {
                 if (smtp.IsConnected)
