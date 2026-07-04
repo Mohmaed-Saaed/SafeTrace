@@ -1,4 +1,5 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
+using SafeTrace.Application.Helpers;
 using SafeTrace.Application.Interfaces.IServices;
 using SafeTrace.Application.Interfaces.IServices.INotificationSewrvice;
 using SafeTrace.Application.Interfaces.IServices.IUserProfile;
@@ -22,6 +23,9 @@ namespace SafeTrace.Application.DependencyInjection
 
             services.AddScoped<IAIMatchingService, AIMatchingService>();
             services.AddScoped<IUnknownCaseService,UnKnownCaseService>();
+            services.AddScoped<FaceMatchingHelper>();
+
+
 
             return services;
         }
