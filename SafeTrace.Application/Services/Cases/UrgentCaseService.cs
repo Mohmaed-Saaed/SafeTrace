@@ -76,7 +76,7 @@ namespace SafeTrace.Application.Services.Cases
             entity.AgeCategoryId = await _caseHelper.ResolveAgeCategoryIdAsync(entity.Age);
             entity.Location = new Point(createDto.Longitude, createDto.Latitude) { SRID = 4326 };
 
-            var uploadedPhotos = new List<CasePhoto>();
+            var uploadedPhotos = new List<CaseFile>();
 
             await _unitOfWork.BeginTransactionAsync();
 
@@ -84,7 +84,7 @@ namespace SafeTrace.Application.Services.Cases
             {
                 uploadedPhotos = await _caseHelper.HandlePhotoUploadsAsync(createDto.Photos, "UrgentCases");
                 _caseHelper.EnsureSinglePrimaryPhoto(uploadedPhotos);
-                entity.Photos = uploadedPhotos;
+                entity.CaseFiles = uploadedPhotos;
 
                 await _unitOfWork.Repository<UrgentCase>().CreateAsync(entity);
                 await _unitOfWork.SaveAsync();
@@ -111,7 +111,7 @@ namespace SafeTrace.Application.Services.Cases
                 .Query(tracked: false, includes:
                 [
                     x => x.AgeCategory,
-                    x => x.Photos,
+                    x => x.CaseFiles,
                     x => x.User
                 ])
                 .FirstAsync(x => x.Id == entity.Id);
@@ -126,7 +126,7 @@ namespace SafeTrace.Application.Services.Cases
             UrgentCase entity;
             try
             {
-                entity = await _caseHelper.GetValidCaseAsync<UrgentCase>(updateDto.Id, userId, checkOwnership: true, includes: [x => x.Photos]);
+                entity = await _caseHelper.GetValidCaseAsync<UrgentCase>(updateDto.Id, userId, checkOwnership: true, includes: [x => x.CaseFiles]);
                 _caseHelper.ValidateCaseIsEditable(entity);
             }
             catch (NotFoundException)
@@ -142,7 +142,7 @@ namespace SafeTrace.Application.Services.Cases
                 return ApiResponse<UrgentCaseUpdateResponse>.Fail(ex.Message);
             }
 
-            var uploadedPhotos = new List<CasePhoto>();
+            var uploadedPhotos = new List<CaseFile>();
             var filesToDelete = new List<string>();
 
             await _unitOfWork.BeginTransactionAsync();
@@ -153,21 +153,21 @@ namespace SafeTrace.Application.Services.Cases
                 {
                     uploadedPhotos = await _caseHelper.HandlePhotoUploadsAsync(updateDto.Photos, "UrgentCases", entity.Id);
                     foreach (var photo in uploadedPhotos)
-                        entity.Photos.Add(photo);
+                        entity.CaseFiles.Add(photo);
                 }
 
                 if (updateDto.DeletedPhotoIds?.Count > 0)
                 {
-                    var ownedIds = entity.Photos.Select(p => p.Id).ToHashSet();
-                    var toRemove = entity.Photos.Where(p => updateDto.DeletedPhotoIds.Contains(p.Id) && ownedIds.Contains(p.Id)).ToList();
+                    var ownedIds = entity.CaseFiles.Select(p => p.Id).ToHashSet();
+                    var toRemove = entity.CaseFiles.Where(p => updateDto.DeletedPhotoIds.Contains(p.Id) && ownedIds.Contains(p.Id)).ToList();
 
                     filesToDelete.AddRange(toRemove.Select(p => p.ImagePath));
 
                     foreach (var photo in toRemove)
-                        entity.Photos.Remove(photo);
+                        entity.CaseFiles.Remove(photo);
                 }
 
-                _caseHelper.EnsureSinglePrimaryPhoto(entity.Photos);
+                _caseHelper.EnsureSinglePrimaryPhoto(entity.CaseFiles);
 
                 _mapper.Map(updateDto, entity);
                 entity.UpdatedAt = DateTime.UtcNow;
@@ -196,7 +196,7 @@ namespace SafeTrace.Application.Services.Cases
                 .Query(tracked: false, includes:
                 [
                     x => x.AgeCategory,
-                    x => x.Photos,
+                    x => x.CaseFiles,
                     x => x.User
                 ])
                 .FirstAsync(x => x.Id == entity.Id);

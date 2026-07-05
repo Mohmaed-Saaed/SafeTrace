@@ -1,7 +1,9 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using SafeTrace.Application.Constants;
 using SafeTrace.Application.DTOs.AiMatching.Request;
 using SafeTrace.Application.Interfaces.IServices;
+using SafeTrace.Infrastructure.Authorization;
 
 namespace SafeTrace.API.Controllers
 {
@@ -18,7 +20,7 @@ namespace SafeTrace.API.Controllers
         }
 
         [HttpPost("search")]
-        [AllowAnonymous]
+        [HasPermission(Permissions.AiMatching.Search)]
         public async Task<IActionResult> SearchMatchingCases([FromForm] AiMatchingDto aiMatchingDto)
         {
             var response = await _aiMatchingService.GetMatchingCasesAsync(aiMatchingDto.Image);

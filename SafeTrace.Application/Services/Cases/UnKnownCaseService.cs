@@ -57,8 +57,8 @@ namespace SafeTrace.Application.Services.Cases
             {
                 _logger.LogInformation("Uploading {Count} photos for CaseCode: {CaseCode}", dto.Photos.Count(), unknownCase.CaseCode);
 
-                unknownCase.Photos = await _caseHelper.HandlePhotoUploadsAsync(dto.Photos, "UnknownCases");
-                _caseHelper.EnsureSinglePrimaryPhoto(unknownCase.Photos);
+                unknownCase.CaseFiles = await _caseHelper.HandlePhotoUploadsAsync(dto.Photos, "UnknownCases");
+                _caseHelper.EnsureSinglePrimaryPhoto(unknownCase.CaseFiles);
 
                 _logger.LogInformation("Photos uploaded successfully for CaseCode: {CaseCode}", unknownCase.CaseCode);
             }
@@ -77,7 +77,7 @@ namespace SafeTrace.Application.Services.Cases
                 "Starting update for UnknownCase. CaseId: {CaseId}, UserId: {UserId}",
                 id, userId);
 
-            var unknownCase = await _caseHelper.GetValidCaseAsync<UnknownCase>(id, userId, checkOwnership: true, includes: new System.Linq.Expressions.Expression<Func<UnknownCase, object>>[] { x => x.Photos });
+            var unknownCase = await _caseHelper.GetValidCaseAsync<UnknownCase>(id, userId, checkOwnership: true, includes: new System.Linq.Expressions.Expression<Func<UnknownCase, object>>[] { x => x.CaseFiles });
             _caseHelper.ValidateCaseIsEditable(unknownCase);
 
             if (unknownCase.Status == CaseStatus.Active)
@@ -89,7 +89,7 @@ namespace SafeTrace.Application.Services.Cases
                 unknownCase.Status = CaseStatus.Pending;
             }
 
-            var currentPhotosCount = unknownCase.Photos.Count;
+            var currentPhotosCount = unknownCase.CaseFiles.Count;
             var deletedCount = dto.DeletedPhotoIds?.Count ?? 0;
             var addedCount = dto.NewPhotos?.Count ?? 0;
 
@@ -116,12 +116,12 @@ namespace SafeTrace.Application.Services.Cases
 
             if (dto.DeletedPhotoIds != null)
             {
-                var toRemove = unknownCase.Photos.Where(p => dto.DeletedPhotoIds.Contains(p.Id)).ToList();
+                var toRemove = unknownCase.CaseFiles.Where(p => dto.DeletedPhotoIds.Contains(p.Id)).ToList();
                 foreach (var photo in toRemove)
                 {
                     _logger.LogInformation("Deleting photo. PhotoId: {PhotoId}, CaseId: {CaseId}", photo.Id, id);
                     filesToDelete.Add(photo.ImagePath);
-                    unknownCase.Photos.Remove(photo);
+                    unknownCase.CaseFiles.Remove(photo);
                 }
             }
 
@@ -131,11 +131,11 @@ namespace SafeTrace.Application.Services.Cases
                 var newUploadedPhotos = await _caseHelper.HandlePhotoUploadsAsync(dto.NewPhotos, "UnknownCases", id);
                 foreach (var photo in newUploadedPhotos)
                 {
-                    unknownCase.Photos.Add(photo);
+                    unknownCase.CaseFiles.Add(photo);
                 }
             }
 
-            _caseHelper.EnsureSinglePrimaryPhoto(unknownCase.Photos);
+            _caseHelper.EnsureSinglePrimaryPhoto(unknownCase.CaseFiles);
 
             unknownCase.UpdatedAt = DateTime.UtcNow;
 

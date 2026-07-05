@@ -2,12 +2,11 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace SafeTrace.Infrastructure.DataAccess.Configurations
 {
-    internal class CasePhotoConfiguration : IEntityTypeConfiguration<CasePhoto>
+    internal class CaseFileConfiguration : IEntityTypeConfiguration<CaseFile>
     {
-        public void Configure(EntityTypeBuilder<CasePhoto> builder)
+        public void Configure(EntityTypeBuilder<CaseFile> builder)
         {
-            builder.ToTable("CasePhotos");
-
+            builder.ToTable("CaseFiles");
             builder.HasKey(p => p.Id);
 
             builder.Property(p => p.ImagePath)
@@ -15,7 +14,7 @@ namespace SafeTrace.Infrastructure.DataAccess.Configurations
                 .HasMaxLength(1000);
 
             builder.HasOne(p => p.Case)
-                .WithMany(c => c.Photos)
+                .WithMany(c => c.CaseFiles)
                 .HasForeignKey(p => p.CaseId)
                 .OnDelete(DeleteBehavior.Cascade);
         }

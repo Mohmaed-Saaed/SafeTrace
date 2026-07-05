@@ -22,7 +22,7 @@ namespace SafeTrace.Application.Mapping
             CreateMap<UrgentCase, UrgentCaseUpdateResponse>();
 
             CreateMap<UrgentCaseCreateDto, UrgentCase>()
-                .ForMember(dest => dest.Photos, opt => opt.Ignore())
+                .ForMember(dest => dest.CaseFiles, opt => opt.Ignore())
                 .ForMember(dest => dest.CaseType, opt => opt.Ignore())
                 .ForMember(dest => dest.Status, opt => opt.Ignore())
                 .ForMember(dest => dest.CreatedAt, opt => opt.Ignore())
@@ -35,7 +35,7 @@ namespace SafeTrace.Application.Mapping
 
             CreateMap<UrgentCaseUpdateDto, UrgentCase>()
                 .ForMember(dest => dest.Location, opt => opt.MapFrom(src => src.Latitude.HasValue && src.Longitude.HasValue ? new Point(src.Longitude.Value, src.Latitude.Value){ SRID = 4326 }: null))
-                .ForMember(dest => dest.Photos, opt => opt.Ignore())
+                .ForMember(dest => dest.CaseFiles, opt => opt.Ignore())
                 .ForMember(dest => dest.User, opt => opt.Ignore())
                 .ForMember(dest => dest.Chats, opt => opt.Ignore())
                 .ForMember(dest => dest.FoundPersonInfo, opt => opt.Ignore())

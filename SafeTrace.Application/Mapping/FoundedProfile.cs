@@ -15,7 +15,7 @@ namespace SafeTrace.Application.Mapping
                 .ForMember(
                     dest => dest.Image,
                     opt => opt.MapFrom(src =>
-                        src.Case.Photos
+                        src.Case.CaseFiles
                             .Where(p => p.IsPrimary)
                             .Select(p => p.ImagePath)
                             .FirstOrDefault()))
@@ -40,7 +40,7 @@ namespace SafeTrace.Application.Mapping
     .ForMember(
         d => d.MainImage,
         opt => opt.MapFrom(s =>
-            s.Case.Photos.Select(p => p.ImagePath).FirstOrDefault()))
+            s.Case.CaseFiles.Select(p => p.ImagePath).FirstOrDefault()))
     .ForMember(
         d => d.Age,
         opt => opt.MapFrom(s => s.Case.Age))

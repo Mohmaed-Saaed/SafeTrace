@@ -15,10 +15,10 @@ namespace SafeTrace.Application.Mapping
                 .IncludeBase<Case, CaseDetailBaseDto>();
 
             CreateMap<CreateUnknownDto, UnknownCase>()
-               .ForMember(dest => dest.Photos, opt => opt.Ignore());
+               .ForMember(dest => dest.CaseFiles, opt => opt.Ignore());
 
             CreateMap<UpdateUnknownCaseDto, UnknownCase>()
-               .ForMember(dest => dest.Photos, opt => opt.Ignore())
+               .ForMember(dest => dest.CaseFiles, opt => opt.Ignore())
                .ForAllMembers(opt =>
                opt.Condition((src, dest, srcMember) => srcMember != null));
         }

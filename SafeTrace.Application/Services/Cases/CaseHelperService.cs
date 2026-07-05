@@ -98,16 +98,16 @@ namespace SafeTrace.Application.Services.Cases
         }
         
         // PHOTO HELPERS // Handel More Files
-        public async Task<List<CasePhoto>> HandlePhotoUploadsAsync(IEnumerable<IFormFile> files, string folderName, long caseId = 0)
+        public async Task<List<CaseFile>> HandlePhotoUploadsAsync(IEnumerable<IFormFile> files, string folderName, long caseId = 0)
         {
-            var uploadedPhotos = new List<CasePhoto>();
+            var uploadedPhotos = new List<CaseFile>();
 
             if (files != null && files.Any())
             {
                 foreach (var file in files)
                 {
                     var imagePath = await _fileStorageService.SaveFileAsync(file, folderName);
-                    uploadedPhotos.Add(new CasePhoto
+                    uploadedPhotos.Add(new CaseFile
                     {
                         CaseId = caseId,
                         ImagePath = imagePath,
@@ -120,7 +120,7 @@ namespace SafeTrace.Application.Services.Cases
             return uploadedPhotos;
         }
 
-        public void EnsureSinglePrimaryPhoto(ICollection<CasePhoto> photos, long? preferredPrimaryId = null)
+        public void EnsureSinglePrimaryPhoto(ICollection<CaseFile> photos, long? preferredPrimaryId = null)
         {
             if (photos == null || !photos.Any())
                 return;

@@ -63,6 +63,11 @@
             public const string GetStatistics = "Dashboard.GetStatistics";
         }
 
+        public static class AiMatching
+        {
+            public const string Search = "AiMatching.Search";
+        }
+
         public static class Complaints
         {
             public const string GetAll = "Complaints.GetAll";

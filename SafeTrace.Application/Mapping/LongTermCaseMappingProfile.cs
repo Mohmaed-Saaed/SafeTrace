@@ -24,7 +24,7 @@ namespace SafeTrace.Application.Mapping
                 .ForMember(d => d.CaseType, opt => opt.Ignore())
                 .ForMember(d => d.FoundPersonInfo, opt => opt.Ignore())
                 .ForMember(d => d.Chats, opt => opt.Ignore())
-                .ForMember(d => d.Photos, opt => opt.Ignore())
+                .ForMember(d => d.CaseFiles, opt => opt.Ignore())
                 .ForMember(d => d.PoliceReportImage, opt => opt.Ignore());
         }
     }

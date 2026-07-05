@@ -30,7 +30,7 @@ namespace SafeTrace.Application.Services.Cases
         // QUERIES
         public virtual async Task<ApiResponse<PaginationResponseDto<TListDto>>> GetAllAsync(TFilterDto filter)
         {
-            var query = _unitOfWork.Repository<TEntity>().Query(tracked: false, includes: x => x.Photos);
+            var query = _unitOfWork.Repository<TEntity>().Query(tracked: false, includes: x => x.CaseFiles);
 
             query = query.Where(x => x.Status == CaseStatus.Active);
             query = ApplyFilter(query, filter);
@@ -64,7 +64,7 @@ namespace SafeTrace.Application.Services.Cases
         public virtual async Task<ApiResponse<PaginationResponseDto<TListDto>>> GetMyCasesAsync(string userId, TFilterDto filter)
         {
             var query = _unitOfWork.Repository<TEntity>()
-                .Query(tracked: false, includes: x => x.Photos)
+                .Query(tracked: false, includes: x => x.CaseFiles)
                 .Where(x => x.UserId == userId && x.Status != CaseStatus.Deleted);
 
             query = ApplyFilter(query, filter);
@@ -183,7 +183,7 @@ namespace SafeTrace.Application.Services.Cases
             entity.DeletedByUserId = userId;
             entity.UpdatedAt = DateTime.UtcNow;
 
-            var faceIds = entity.Photos
+            var faceIds = entity.CaseFiles
                 .Where(p => !string.IsNullOrWhiteSpace(p.FaceId))
                 .Select(p => p.FaceId!)
                 .ToList();
@@ -232,7 +232,7 @@ namespace SafeTrace.Application.Services.Cases
                 .GetOneAsync(
                     c => c.Id == caseId,
                     tracked: true,
-                    includes: c => c.Photos);
+                    includes: c => c.CaseFiles);
 
             if (entity == null)
             {
@@ -241,14 +241,14 @@ namespace SafeTrace.Application.Services.Cases
             }
 
             // 1. Shared photo files
-            var filesToDelete = entity.Photos.Select(p => p.ImagePath).ToList();
+            var filesToDelete = entity.CaseFiles.Select(p => p.ImagePath).ToList();
             await _caseHelper.CleanupPhysicalFilesAsync(filesToDelete);
 
             // 2. Feature-specific files (e.g. LongTermMissingCase.PoliceReportImage) — hook, not a type check.
             await DeleteAdditionalFilesAsync(entity);
 
             // 3. Shared face records
-            var faceIds = entity.Photos
+            var faceIds = entity.CaseFiles
                 .Where(p => !string.IsNullOrWhiteSpace(p.FaceId))
                 .Select(p => p.FaceId!)
                 .ToList();
@@ -271,10 +271,10 @@ namespace SafeTrace.Application.Services.Cases
         protected virtual Task OnMarkedAsFoundAsync(TEntity entity) => Task.CompletedTask;
 
         /// <summary>Includes used for GetByIdAsync. Override to add type-specific navigation properties.</summary>
-        protected virtual Expression<Func<TEntity, object>>[] DetailIncludes => [x => x.Photos, x => x.User, x => x.AgeCategory];
+        protected virtual Expression<Func<TEntity, object>>[] DetailIncludes => [x => x.CaseFiles, x => x.User, x => x.AgeCategory];
 
         /// <summary>Includes used for AdminGetAllAsync. Override to add type-specific navigation properties.</summary>
-        protected virtual Expression<Func<TEntity, object>>[] AdminDetailIncludes => [x => x.Photos, x => x.User, x => x.AgeCategory, x => x.FoundPersonInfo];
+        protected virtual Expression<Func<TEntity, object>>[] AdminDetailIncludes => [x => x.CaseFiles, x => x.User, x => x.AgeCategory, x => x.FoundPersonInfo];
         
         /// <summary>Allows derived services to apply additional filtering. Default: no extra filters. </summary>
         protected virtual IQueryable<TEntity> ApplyCustomFilter(IQueryable<TEntity> query, TFilterDto filter)=> query;

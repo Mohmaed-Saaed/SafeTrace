@@ -53,7 +53,7 @@ namespace SafeTrace.API.Controllers
         [HasPermission(Permissions.Users.Approve)]
         public async Task<IActionResult> ApproveUser(string userId)
         {
-            var response = _userService.ApproveUserAsync(userId);
+            var response = await _userService.ApproveUserAsync(userId);
             return Ok(response);
         }
 
@@ -61,7 +61,7 @@ namespace SafeTrace.API.Controllers
         [HasPermission(Permissions.Users.Reject)]
         public async Task<IActionResult> RejectUser(string userId)
         {
-            var response = _userService.RejectUserAsync(userId);
+            var response = await _userService.RejectUserAsync(userId);
             return Ok(response);
         }
 

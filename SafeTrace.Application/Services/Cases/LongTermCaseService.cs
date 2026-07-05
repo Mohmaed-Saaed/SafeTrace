@@ -67,7 +67,7 @@ namespace SafeTrace.Application.Services.Cases
                             "تعذّر تسجيل الوجه في AWS للصورة {Index} أثناء إنشاء الحالة للمستخدم {UserId}.", i, userId);
                     }
 
-                    entity.Photos.Add(new CasePhoto
+                    entity.CaseFiles.Add(new CaseFile
                     {
                         ImagePath = path,
                         FaceId = faceId,
@@ -75,7 +75,7 @@ namespace SafeTrace.Application.Services.Cases
                     });
                 }
 
-                _caseHelper.EnsureSinglePrimaryPhoto(entity.Photos);
+                _caseHelper.EnsureSinglePrimaryPhoto(entity.CaseFiles);
             }
 
             await _unitOfWork.BeginTransactionAsync();
@@ -95,7 +95,7 @@ namespace SafeTrace.Application.Services.Cases
             {
                 await _unitOfWork.RollbackTransactionAsync();
 
-                foreach (var photo in entity.Photos)
+                foreach (var photo in entity.CaseFiles)
                     _fileStorageService.DeleteFile(photo.ImagePath);
 
                 if (!string.IsNullOrEmpty(entity.PoliceReportImage))
@@ -114,7 +114,7 @@ namespace SafeTrace.Application.Services.Cases
                 userId,
                 isAdmin,
                 checkOwnership: true,
-                includes: [c => c.Photos]
+                includes: [c => c.CaseFiles]
             );
 
             if (dto.Age.HasValue)
@@ -144,7 +144,7 @@ namespace SafeTrace.Application.Services.Cases
 
             if (dto.RemovedPhotoIds is { Count: > 0 })
             {
-                var toRemove = entity.Photos.Where(p => dto.RemovedPhotoIds.Contains(p.Id)).ToList();
+                var toRemove = entity.CaseFiles.Where(p => dto.RemovedPhotoIds.Contains(p.Id)).ToList();
                 foreach (var photo in toRemove)
                 {
                     _fileStorageService.DeleteFile(photo.ImagePath);
@@ -162,8 +162,8 @@ namespace SafeTrace.Application.Services.Cases
                         }
                     }
 
-                    entity.Photos.Remove(photo);
-                    _unitOfWork.Repository<CasePhoto>().Remove(photo);
+                    entity.CaseFiles.Remove(photo);
+                    _unitOfWork.Repository<CaseFile>().Remove(photo);
                 }
             }
 
@@ -186,7 +186,7 @@ namespace SafeTrace.Application.Services.Cases
                             "تعذّر تسجيل الوجه في AWS للصورة الجديدة {Index} عند تعديل الحالة {CaseId}.", i, id);
                     }
 
-                    entity.Photos.Add(new CasePhoto
+                    entity.CaseFiles.Add(new CaseFile
                     {
                         ImagePath = path,
                         FaceId = faceId,
@@ -195,7 +195,7 @@ namespace SafeTrace.Application.Services.Cases
                 }
             }
 
-            _caseHelper.EnsureSinglePrimaryPhoto(entity.Photos, dto.PrimaryPhotoId);
+            _caseHelper.EnsureSinglePrimaryPhoto(entity.CaseFiles, dto.PrimaryPhotoId);
 
             if (!isAdmin && entity.Status != CaseStatus.Pending)
             {
