@@ -1,4 +1,4 @@
-using SafeTrace.Application.DTOs.UrgentMissingCase.Request;
+using SafeTrace.Application.DTOs.Cases.Request;
 
 namespace SafeTrace.Application.Common.Validators.Attributes
 {
@@ -10,12 +10,12 @@ namespace SafeTrace.Application.Common.Validators.Attributes
     {
         protected override ValidationResult? IsValid(object? value, ValidationContext context)
         {
-            if (value is not UrgentCaseFilterDto filter)
+            if (value is not CasesFilterBaseDto filter)
                 return ValidationResult.Success;
 
             if (filter.MinAge.HasValue && filter.MaxAge.HasValue && filter.MaxAge.Value < filter.MinAge.Value)
             {
-                return new ValidationResult(ErrorMessage ?? "MaxAge must be greater than or equal to MinAge.", [nameof(UrgentCaseFilterDto.MaxAge)]);
+                return new ValidationResult(ErrorMessage ?? "MaxAge must be greater than or equal to MinAge.", [nameof(CasesFilterBaseDto.MaxAge)]);
             }
 
             return ValidationResult.Success;

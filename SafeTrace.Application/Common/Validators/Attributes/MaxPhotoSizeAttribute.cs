@@ -1,4 +1,3 @@
-using System;
 using Microsoft.AspNetCore.Http;
 
 namespace SafeTrace.Application.Common.Validators.Attributes

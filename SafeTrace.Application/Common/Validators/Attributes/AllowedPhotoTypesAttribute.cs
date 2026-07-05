@@ -7,7 +7,7 @@ namespace SafeTrace.Application.Common.Validators.Attributes
     public class AllowedPhotoTypesAttribute : ValidationAttribute
     {
         private static readonly HashSet<string> _allowed =
-            ["image/jpeg", "image/png", "image/webp"];
+            ["image/jpeg", "image/png", "image/webp", "image/jpg"];
 
         public override bool IsValid(object? value)
         {
