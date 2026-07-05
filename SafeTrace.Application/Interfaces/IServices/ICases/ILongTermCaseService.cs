@@ -1,5 +1,5 @@
-using SafeTrace.Application.DTOs.LongTermCases.Request;
-using SafeTrace.Application.DTOs.LongTermCases.Response;
+using SafeTrace.Application.DTOs.LongTermCase.Request;
+using SafeTrace.Application.DTOs.LongTermCase.Response;
 
 namespace SafeTrace.Application.Interfaces.IServices.ICases
 {

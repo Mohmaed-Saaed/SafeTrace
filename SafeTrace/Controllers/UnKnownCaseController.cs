@@ -76,8 +76,7 @@ namespace SafeTrace.API.Controllers
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
 
-            var result = await _unKnownServiceCase
-                .UpdateUnknownCaseAsync(id, dto, userId);
+            var result = await _unKnownServiceCase.UpdateUnknownCaseAsync(id, dto, userId);
 
             return Ok(result);
         }

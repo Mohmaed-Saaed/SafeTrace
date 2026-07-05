@@ -5,7 +5,7 @@ using SafeTrace.Application.Exceptions;
 using SafeTrace.Infrastructure.Authorization;
 using System.Security.Claims;
 using SafeTrace.Application.Interfaces.IServices.ICases;
-using SafeTrace.Application.DTOs.LongTermCases.Request;
+using SafeTrace.Application.DTOs.LongTermCase.Request;
 using SafeTrace.Application.DTOs.Cases.Request;
 
 namespace SafeTrace.API.Controllers

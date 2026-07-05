@@ -1,7 +1,8 @@
 using SafeTrace.Application.Interfaces.IServices.ICases;
 using SafeTrace.Application.Common.Enums;
-using SafeTrace.Application.DTOs.LongTermCases.Request;
-using SafeTrace.Application.DTOs.LongTermCases.Response;
+using SafeTrace.Application.DTOs.LongTermCase.Response;
+using SafeTrace.Application.DTOs.LongTermCase.Request;
+
 
 namespace SafeTrace.Application.Services.Cases
 {
