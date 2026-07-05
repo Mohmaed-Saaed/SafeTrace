@@ -322,8 +322,17 @@ namespace SafeTrace.Infrastructure.Services
                 var storedRefreshToken = await _unitOfWork.Repository<RefreshToken>()
                     .GetOneAsync(t => t.Token == requestDto.RefreshToken && t.UserId == userId);
 
-                if (storedRefreshToken == null || !storedRefreshToken.IsActive)
-                    throw new UnauthorizedException("انتهت صلاحية الجلسة، يرجى تسجيل الدخول من جديد.");
+                if (storedRefreshToken == null) throw new UnauthorizedException("انتهت صلاحية الجلسة، يرجى تسجيل الدخول من جديد.");
+
+                if (!storedRefreshToken.IsActive)
+                {
+                    _logger.LogWarning("Refresh Token Reuse Detected! Attempted use of revoked token for user {UserId}. Revoking all sessions...", userId);
+
+                    await RevokeAllActiveSessionsAsync(userId!);
+                    await _unitOfWork.CommitTransactionAsync();
+
+                    throw new UnauthorizedException("تم اكتشاف نشاط مريب في الجلسة، تم تسجيل الخروج من جميع الأجهزة كإجراء أمني.");
+                }
 
                 var user = await _userManager.FindByIdAsync(userId!);
                 if (user == null) throw new NotFoundException("هذا الحساب غير موجود.");
