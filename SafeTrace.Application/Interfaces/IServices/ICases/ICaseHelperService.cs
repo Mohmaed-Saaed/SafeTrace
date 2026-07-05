@@ -16,7 +16,6 @@ namespace SafeTrace.Application.Interfaces.IServices.ICases
         Task<TEntity> GetValidCaseAsync<TEntity>(
             long id,
             string? userId = null,
-            bool isAdmin = false,
             bool checkOwnership = false,
             bool allowDeleted = false,
             bool tracked = true,

@@ -116,7 +116,7 @@ namespace SafeTrace.Application.Services.Cases
             return _mapper.Map<TDto>(entity);
         }
        
-        // SHARED COMMANDS
+        // COMMANDS
         public virtual async Task ApproveAsync(long caseId)
         {
             var entity = await _caseHelper.GetValidCaseAsync<TEntity>(caseId);
@@ -171,9 +171,9 @@ namespace SafeTrace.Application.Services.Cases
             _logger.LogInformation("Case {CaseId} rejected (Pending -> {Status}).", entity.Id, entity.Status);
         }
 
-        public virtual async Task SoftDeleteAsync(long caseId, string userId, bool isAdmin = false, bool checkOwnership = true)
+        public virtual async Task SoftDeleteAsync(long caseId, string userId, bool checkOwnership = true)
         {
-            var entity = await _caseHelper.GetValidCaseAsync<TEntity>(caseId, userId, isAdmin, checkOwnership: checkOwnership);
+            var entity = await _caseHelper.GetValidCaseAsync<TEntity>(caseId, userId, checkOwnership: checkOwnership);
 
             if (entity.Status == CaseStatus.Found)
             {
@@ -200,9 +200,9 @@ namespace SafeTrace.Application.Services.Cases
             _logger.LogInformation("Case {CaseId} soft-deleted by user {UserId}.", entity.Id, userId);
         }
 
-        public virtual async Task MarkAsFoundAsync(long caseId, string userId, FoundPersonInfoRequestDto foundPersonInfo, bool isAdmin = false, bool checkOwnership = true)
+        public virtual async Task MarkAsFoundAsync(long caseId, string userId, FoundPersonInfoRequestDto foundPersonInfo, bool checkOwnership = true)
         {
-            var entity = await _caseHelper.GetValidCaseAsync<TEntity>(caseId, userId, isAdmin, checkOwnership);
+            var entity = await _caseHelper.GetValidCaseAsync<TEntity>(caseId, userId, checkOwnership);
 
             if (entity.Status == CaseStatus.Found)
                 throw new BadRequestException("Case is already marked as Found.");
@@ -279,7 +279,6 @@ namespace SafeTrace.Application.Services.Cases
         /// <summary>Allows derived services to apply custom sorting. Default: no extra sorting.</summary>
         protected virtual IQueryable<TEntity> ApplyCustomSorting(IQueryable<TEntity> query, TFilterDto filter) => query; 
         
-
         // FILTER / SORT / PAGINATION
         private IQueryable<TEntity> ApplyFilter(IQueryable<TEntity> query, TFilterDto filter)
         {

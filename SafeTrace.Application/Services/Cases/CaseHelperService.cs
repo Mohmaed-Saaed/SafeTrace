@@ -29,7 +29,6 @@ namespace SafeTrace.Application.Services.Cases
         public async Task<TEntity> GetValidCaseAsync<TEntity>(
             long id,
             string? userId = null,
-            bool isAdmin = false,
             bool checkOwnership = false,
             bool allowDeleted = false,
             bool tracked = true,
@@ -47,7 +46,7 @@ namespace SafeTrace.Application.Services.Cases
                 throw new NotFoundException($"Case {id} not found.");
             }
 
-            if (checkOwnership && !string.IsNullOrEmpty(userId) && entity.UserId != userId && !isAdmin)
+            if (checkOwnership && !string.IsNullOrEmpty(userId) && entity.UserId != userId)
             {
                 _logger.LogWarning("Unauthorized attempt to access Case {CaseId} by User {UserId}", id, userId);
                 throw new UnauthorizedException("You are not authorized to perform this action.");
