@@ -31,11 +31,11 @@ namespace SafeTrace.API.Controllers
             return Ok(await _urgentCaseService.GetAllAsync(filter));
         }
 
-        [HttpGet("{id:long}")]
-        [AllowAnonymous]
-        public async Task<IActionResult> GetById(long id)
+        [HttpGet("admin")]
+        [HasPermission(Permissions.UrgentCases.GetAll)]
+        public async Task<IActionResult> AdminGetAll([FromQuery] UrgentCasesFilterDto filter)
         {
-            return Ok(await _urgentCaseService.GetByIdAsync(id));
+            return Ok(await _urgentCaseService.AdminGetAllAsync(filter));
         }
 
         [HttpGet("my-cases")]
@@ -48,11 +48,18 @@ namespace SafeTrace.API.Controllers
             return Ok(await _urgentCaseService.GetMyCasesAsync(CurrentUserId, filter));
         }
 
-        [HttpGet("admin")]
-        [HasPermission(Permissions.UrgentCases.GetAll)]
-        public async Task<IActionResult> AdminGetAll([FromQuery] UrgentCasesFilterDto filter)
+        [HttpGet("{id:long}")]
+        [AllowAnonymous]
+        public async Task<IActionResult> GetById(long id)
         {
-            return Ok(await _urgentCaseService.AdminGetAllAsync(filter));
+            return Ok(await _urgentCaseService.GetByIdAsync(id));
+        }
+
+        [HttpGet("admin/{id:long}")]
+        [HasPermission(Permissions.LongTermCases.GetById)]
+        public async Task<IActionResult> AdminGetById(long id)
+        {
+            return Ok(await _urgentCaseService.AdminGetByIdAsync(id));
         }
 
         [HttpPost]

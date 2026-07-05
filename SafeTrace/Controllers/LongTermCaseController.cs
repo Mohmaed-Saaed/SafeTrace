@@ -30,12 +30,11 @@ namespace SafeTrace.API.Controllers
         {
             return Ok(await _service.GetAllAsync(filter));
         }
-
-        [HttpGet("{id:long}")]
-        [AllowAnonymous]
-        public async Task<IActionResult> GetById(long id)
+        [HttpGet("admin")]
+        [HasPermission(Permissions.LongTermCases.GetAll)]
+        public async Task<IActionResult> AdminGetAll([FromQuery] LongTermCaseFilterDto filter)
         {
-            return Ok(await _service.GetByIdAsync(id));
+            return Ok(await _service.AdminGetAllAsync(filter));
         }
 
         [HttpGet("my-cases")]
@@ -46,11 +45,18 @@ namespace SafeTrace.API.Controllers
             return Ok(await _service.GetMyCasesAsync(CurrentUserId, filter));
         }
 
-        [HttpGet("admin")]
-        [HasPermission(Permissions.LongTermCases.GetAll)]
-        public async Task<IActionResult> AdminGetAll([FromQuery] LongTermCaseFilterDto filter)
+        [HttpGet("{id:long}")]
+        [AllowAnonymous]
+        public async Task<IActionResult> GetById(long id)
         {
-            return Ok(await _service.AdminGetAllAsync(filter));
+            return Ok(await _service.GetByIdAsync(id));
+        }
+
+        [HttpGet("admin/{id:long}")]
+        [HasPermission(Permissions.LongTermCases.GetById)]
+        public async Task<IActionResult> AdminGetById(long id)
+        {
+            return Ok(await _service.AdminGetByIdAsync(id));
         }
 
         /// <summary>
