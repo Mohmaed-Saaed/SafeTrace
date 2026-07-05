@@ -24,20 +24,21 @@ namespace SafeTrace.API.Controllers
         private string? CurrentUserId => User.FindFirstValue(ClaimTypes.NameIdentifier);
         private bool IsAdmin => User.IsInRole("Admin");
 
-        [HttpGet]
+        [HttpGet("GetCases")]
         [AllowAnonymous]
         public async Task<IActionResult> GetAll([FromQuery] LongTermCaseFilterDto filter)
         {
             return Ok(await _service.GetAllAsync(filter));
         }
-        [HttpGet("admin")]
+        
+        [HttpGet("Admin/GetCases")]
         [HasPermission(Permissions.LongTermCases.GetAll)]
         public async Task<IActionResult> AdminGetAll([FromQuery] LongTermCaseFilterDto filter)
         {
             return Ok(await _service.AdminGetAllAsync(filter));
         }
 
-        [HttpGet("my-cases")]
+        [HttpGet("GetMyCases")]
         [HasPermission(Permissions.LongTermCases.GetMyCases)]
         public async Task<IActionResult> GetMyCases([FromQuery] LongTermCaseFilterDto filter)
         {
@@ -45,14 +46,14 @@ namespace SafeTrace.API.Controllers
             return Ok(await _service.GetMyCasesAsync(CurrentUserId, filter));
         }
 
-        [HttpGet("{id:long}")]
+        [HttpGet("GetCaseDetails/{id:long}")]
         [AllowAnonymous]
         public async Task<IActionResult> GetById(long id)
         {
             return Ok(await _service.GetByIdAsync(id));
         }
 
-        [HttpGet("admin/{id:long}")]
+        [HttpGet("Admin/GetCaseDetails/{id:long}")]
         [HasPermission(Permissions.LongTermCases.GetById)]
         public async Task<IActionResult> AdminGetById(long id)
         {
@@ -62,7 +63,7 @@ namespace SafeTrace.API.Controllers
         /// <summary>
         /// إنشاء حالة جديدة — يتطلب صلاحية Create
         /// </summary>
-        [HttpPost]
+        [HttpPost("CreateCase")]
         [Consumes("multipart/form-data")]
         [HasPermission(Permissions.LongTermCases.Create)]
         public async Task<IActionResult> Create([FromForm] CreateLongTermCaseDto dto)
@@ -77,7 +78,7 @@ namespace SafeTrace.API.Controllers
         /// <summary>
         /// تعديل حالة — المستخدم يعدل حالته، الأدمن يعدل أي حالة
         /// </summary>
-        [HttpPut("{id:long}")]
+        [HttpPut("UpdateCase/{id:long}")]
         [Consumes("multipart/form-data")]
         [HasPermission(Permissions.LongTermCases.Update)]
         public async Task<IActionResult> Update(long id, [FromForm] UpdateLongTermCaseDto dto)
@@ -88,7 +89,7 @@ namespace SafeTrace.API.Controllers
             return NoContent();
         }
 
-        [HttpPut("{id:long}/approve")]
+        [HttpPut("Approve/{id:long}")]
         [HasPermission(Permissions.LongTermCases.Approve)]
         public async Task<IActionResult> Approve(long id)
         {
@@ -96,7 +97,7 @@ namespace SafeTrace.API.Controllers
             return NoContent();
         }
 
-        [HttpPut("{id:long}/reject")]
+        [HttpPut("Reject/{id:long}")]
         [HasPermission(Permissions.LongTermCases.Reject)]
         public async Task<IActionResult> Reject(long id)
         {
@@ -104,7 +105,7 @@ namespace SafeTrace.API.Controllers
             return NoContent();
         }
 
-        [HttpDelete("{id:long}")]
+        [HttpDelete("Delete/{id:long}")]
         [HasPermission(Permissions.LongTermCases.SoftDelete)]
         public async Task<IActionResult> SoftDelete(long id)
         {
@@ -113,7 +114,7 @@ namespace SafeTrace.API.Controllers
             return NoContent();
         }
 
-        [HttpPut("{id:long}/mark-as-found")]
+        [HttpPut("MarkAsFound/{id:long}")]
         [HasPermission(Permissions.LongTermCases.MarkAsFounded)]
         public async Task<IActionResult> MarkAsFound(long id, FoundPersonInfoRequestDto foundPersonInfo)
         {
@@ -122,7 +123,7 @@ namespace SafeTrace.API.Controllers
             return NoContent();
         }
 
-        [HttpDelete("{id:long}/permanent")]
+        [HttpDelete("PermanentDeletion/{id:long}")]
         [HasPermission(Permissions.LongTermCases.HardDelete)]
         public async Task<IActionResult> PermanentDelete(long id)
         {
