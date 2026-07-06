@@ -180,6 +180,28 @@ namespace SafeTrace.Infrastructure.Migrations
                     b.ToTable("AgeCategories", (string)null);
                 });
 
+            modelBuilder.Entity("SafeTrace.Domain.Entities.AiSearchUsage", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("AiSearchUsages", (string)null);
+                });
+
             modelBuilder.Entity("SafeTrace.Domain.Entities.ApplicationUser", b =>
                 {
                     b.Property<string>("Id")
@@ -304,8 +326,8 @@ namespace SafeTrace.Infrastructure.Migrations
 
                     b.Property<string>("City")
                         .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
 
                     b.Property<string>("CommunicationPhone")
                         .HasMaxLength(15)
@@ -326,6 +348,11 @@ namespace SafeTrace.Infrastructure.Migrations
                         .HasMaxLength(2000)
                         .HasColumnType("nvarchar(2000)");
 
+                    b.Property<string>("Discriminator")
+                        .IsRequired()
+                        .HasMaxLength(21)
+                        .HasColumnType("nvarchar(21)");
+
                     b.Property<DateTime>("EventDate")
                         .HasColumnType("datetime2");
 
@@ -340,8 +367,8 @@ namespace SafeTrace.Infrastructure.Migrations
 
                     b.Property<string>("Government")
                         .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
 
                     b.Property<string>("LName")
                         .HasMaxLength(60)
@@ -367,8 +394,8 @@ namespace SafeTrace.Infrastructure.Migrations
 
                     b.Property<string>("Street")
                         .IsRequired()
-                        .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)");
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
 
                     b.Property<string>("TName")
                         .HasMaxLength(60)
@@ -402,10 +429,12 @@ namespace SafeTrace.Infrastructure.Migrations
                             t.HasCheckConstraint("CK_Cases_Age", "[Age] >= 0 AND [Age] <= 120");
                         });
 
-                    b.UseTptMappingStrategy();
+                    b.HasDiscriminator<string>("Discriminator").HasValue("Case");
+
+                    b.UseTphMappingStrategy();
                 });
 
-            modelBuilder.Entity("SafeTrace.Domain.Entities.CasePhoto", b =>
+            modelBuilder.Entity("SafeTrace.Domain.Entities.CaseFile", b =>
                 {
                     b.Property<long>("Id")
                         .ValueGeneratedOnAdd()
@@ -434,7 +463,7 @@ namespace SafeTrace.Infrastructure.Migrations
 
                     b.HasIndex("CaseId");
 
-                    b.ToTable("CasePhotos", (string)null);
+                    b.ToTable("CaseFiles", (string)null);
                 });
 
             modelBuilder.Entity("SafeTrace.Domain.Entities.Chat", b =>
@@ -518,6 +547,66 @@ namespace SafeTrace.Infrastructure.Migrations
                     b.HasIndex("UserId");
 
                     b.ToTable("Complaints", (string)null);
+                });
+
+            modelBuilder.Entity("SafeTrace.Domain.Entities.DuplicateGroup", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("GroupStatus")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)");
+
+                    b.Property<long?>("MasterCaseId")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("MasterCaseId");
+
+                    b.ToTable("DuplicateGroups", (string)null);
+                });
+
+            modelBuilder.Entity("SafeTrace.Domain.Entities.DuplicateGroupCase", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<long>("CaseId")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<long>("DuplicateGroupId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("MatchedBy")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)");
+
+                    b.Property<decimal>("SimilarityScore")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CaseId");
+
+                    b.HasIndex("DuplicateGroupId");
+
+                    b.ToTable("DuplicateGroupCases", (string)null);
                 });
 
             modelBuilder.Entity("SafeTrace.Domain.Entities.FoundPersonInfo", b =>
@@ -856,6 +945,17 @@ namespace SafeTrace.Infrastructure.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("SafeTrace.Domain.Entities.AiSearchUsage", b =>
+                {
+                    b.HasOne("SafeTrace.Domain.Entities.ApplicationUser", "User")
+                        .WithMany("AiSearchUsages")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("SafeTrace.Domain.Entities.Case", b =>
                 {
                     b.HasOne("SafeTrace.Domain.Entities.AgeCategory", "AgeCategory")
@@ -867,7 +967,7 @@ namespace SafeTrace.Infrastructure.Migrations
                     b.HasOne("SafeTrace.Domain.Entities.ApplicationUser", "User")
                         .WithMany("Cases")
                         .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Restrict)
+                        .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
                     b.Navigation("AgeCategory");
@@ -875,10 +975,10 @@ namespace SafeTrace.Infrastructure.Migrations
                     b.Navigation("User");
                 });
 
-            modelBuilder.Entity("SafeTrace.Domain.Entities.CasePhoto", b =>
+            modelBuilder.Entity("SafeTrace.Domain.Entities.CaseFile", b =>
                 {
                     b.HasOne("SafeTrace.Domain.Entities.Case", "Case")
-                        .WithMany("Photos")
+                        .WithMany("CaseFiles")
                         .HasForeignKey("CaseId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
@@ -922,6 +1022,34 @@ namespace SafeTrace.Infrastructure.Migrations
                         .IsRequired();
 
                     b.Navigation("User");
+                });
+
+            modelBuilder.Entity("SafeTrace.Domain.Entities.DuplicateGroup", b =>
+                {
+                    b.HasOne("SafeTrace.Domain.Entities.Case", "MasterCase")
+                        .WithMany()
+                        .HasForeignKey("MasterCaseId");
+
+                    b.Navigation("MasterCase");
+                });
+
+            modelBuilder.Entity("SafeTrace.Domain.Entities.DuplicateGroupCase", b =>
+                {
+                    b.HasOne("SafeTrace.Domain.Entities.Case", "Case")
+                        .WithMany("DuplicateGroups")
+                        .HasForeignKey("CaseId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("SafeTrace.Domain.Entities.DuplicateGroup", "DuplicateGroup")
+                        .WithMany("DuplicateCases")
+                        .HasForeignKey("DuplicateGroupId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Case");
+
+                    b.Navigation("DuplicateGroup");
                 });
 
             modelBuilder.Entity("SafeTrace.Domain.Entities.FoundPersonInfo", b =>
@@ -1003,24 +1131,6 @@ namespace SafeTrace.Infrastructure.Migrations
                     b.Navigation("User");
                 });
 
-            modelBuilder.Entity("SafeTrace.Domain.Entities.UnknownCase", b =>
-                {
-                    b.HasOne("SafeTrace.Domain.Entities.Case", null)
-                        .WithOne()
-                        .HasForeignKey("SafeTrace.Domain.Entities.UnknownCase", "Id")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("SafeTrace.Domain.Entities.UrgentCase", b =>
-                {
-                    b.HasOne("SafeTrace.Domain.Entities.Case", null)
-                        .WithOne()
-                        .HasForeignKey("SafeTrace.Domain.Entities.UrgentCase", "Id")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-                });
-
             modelBuilder.Entity("SafeTrace.Domain.Entities.AgeCategory", b =>
                 {
                     b.Navigation("Cases");
@@ -1028,6 +1138,8 @@ namespace SafeTrace.Infrastructure.Migrations
 
             modelBuilder.Entity("SafeTrace.Domain.Entities.ApplicationUser", b =>
                 {
+                    b.Navigation("AiSearchUsages");
+
                     b.Navigation("Cases");
 
                     b.Navigation("Complaints");
@@ -1041,16 +1153,23 @@ namespace SafeTrace.Infrastructure.Migrations
 
             modelBuilder.Entity("SafeTrace.Domain.Entities.Case", b =>
                 {
+                    b.Navigation("CaseFiles");
+
                     b.Navigation("Chats");
 
-                    b.Navigation("FoundPersonInfo");
+                    b.Navigation("DuplicateGroups");
 
-                    b.Navigation("Photos");
+                    b.Navigation("FoundPersonInfo");
                 });
 
             modelBuilder.Entity("SafeTrace.Domain.Entities.Chat", b =>
                 {
                     b.Navigation("Messages");
+                });
+
+            modelBuilder.Entity("SafeTrace.Domain.Entities.DuplicateGroup", b =>
+                {
+                    b.Navigation("DuplicateCases");
                 });
 #pragma warning restore 612, 618
         }
