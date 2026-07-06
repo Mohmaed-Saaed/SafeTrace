@@ -1,5 +1,6 @@
 ﻿using SafeTrace.Application.DTOs.NotificationDTOS;
 using SafeTrace.Application.DTOs.User_Profiel_DTOS;
+using SafeTrace.Application.DTOs.User_Profiel_DTOS.Update_Profile_DTOS;
 using SafeTrace.Domain.Entities;
 
 namespace SafeTrace.Application.Mapping
@@ -28,11 +29,29 @@ namespace SafeTrace.Application.Mapping
 
             #endregion
 
+            CreateMap<UpdateNameDTO, ApplicationUser>()
+                 .ForMember(dest => dest.FName, opt => opt.MapFrom(src => src.FirstName))
+                 .ForMember(dest => dest.LName, opt => opt.MapFrom(src => src.LastName))
+                 .ReverseMap();
+
+            CreateMap<UpdateHomeLocationDTO, ApplicationUser>()
+                .ForMember(dest => dest.HomeLocationLatitude, opt => opt.MapFrom(src => src.HomeLatitude))
+                .ForMember(dest => dest.HomeLocationLongitude, opt => opt.MapFrom(src => src.HomeLongitude))
+                .ReverseMap();
+
+            CreateMap<UpdateProfileImageDTO, ApplicationUser>();
+            CreateMap<AddIdImageDTO, ApplicationUser>();
+
+
+
+
+
             CreateMap<UpdateProfileInfoDTO, ApplicationUser>()
                 .ForMember(dest => dest.FName, opt => opt.MapFrom(src => src.FirstName))
                 .ForMember(dest => dest.LName, opt => opt.MapFrom(src => src.LastName))
                 .ForMember(dest => dest.HomeLocationLatitude,
         opt => opt.MapFrom(src => src.HomeLatitude))
+
     .ForMember(dest => dest.HomeLocationLongitude,
         opt => opt.MapFrom(src => src.HomeLongitude))
                 .ReverseMap();

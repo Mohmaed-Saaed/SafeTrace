@@ -1,4 +1,6 @@
-﻿using Microsoft.AspNetCore.Http;
+﻿using System.Runtime.CompilerServices;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -6,6 +8,7 @@ using Microsoft.Extensions.Logging;
 using SafeTrace.Application.DTOs.NotificationDTOS;
 using SafeTrace.Application.DTOs.Responses;
 using SafeTrace.Application.DTOs.User_Profiel_DTOS;
+using SafeTrace.Application.DTOs.User_Profiel_DTOS.Update_Profile_DTOS;
 using SafeTrace.Application.Exceptions;
 using SafeTrace.Application.Interfaces.IServices;
 using SafeTrace.Application.Interfaces.IServices.INotificationSewrvice;
@@ -14,6 +17,7 @@ using SafeTrace.Application.Services.NotificationServices;
 using SafeTrace.Domain.Entities;
 using SafeTrace.Domain.Enums;
 using static System.Net.Mime.MediaTypeNames;
+using static SafeTrace.Application.Constants.Permissions;
 
 namespace SafeTrace.Application.Services.UserProfileServices
 {
@@ -43,8 +47,6 @@ namespace SafeTrace.Application.Services.UserProfileServices
             _Notify = Notify;
             _httpContextAccessor = httpContextAccessor;
         }
-
-
         public async Task<ApiResponse<GetUserInfoDTO?>> GetProfileInfoAsync(string userId)
         {
             _logger.LogInformation("Fetching profile for UserId: {userId} at {Time}", userId, DateTime.UtcNow);
@@ -72,6 +74,121 @@ namespace SafeTrace.Application.Services.UserProfileServices
             }
         }
 
+
+        #region Update
+        public async Task<ApiResponse<bool>> AddIdImageAsync(string userId, AddIdImageDTO dto)
+        {
+            var user = await _userManager.FindByIdAsync(userId);
+            if (dto.IdentificationImage is not null)
+            {
+                if (user.VerificationStatus == VerificationStatus.Verified)
+                {
+                    throw new BadRequestException("صورة البطاقة موجودة بالفعل .");
+                }
+                var newIdImage =
+                 await _Image.SaveFileAsync(dto.IdentificationImage, "Identification");
+                if (!string.IsNullOrEmpty(user.IdentificationImage))
+                {
+                    _Image.DeleteFile(user.IdentificationImage);
+                }
+
+                user.IdentificationImage = newIdImage;
+                user.VerificationStatus = VerificationStatus.Pending;
+                var result = await _userManager.UpdateAsync(user);
+
+                if (!result.Succeeded)
+                {
+                    return ApiResponse<bool>.Ok(true, "فشل اضافة صورة بطاقة او تم اضافتها من قبل ");
+                }
+            }
+
+            return ApiResponse<bool>.Ok(true, "تم اضافة صورة البطاقة بنجاح");
+
+        }
+
+        public async Task<ApiResponse<bool>> UpdateHomeLocationAsync(string userId, UpdateHomeLocationDTO dto)
+        {
+            var user = await _userManager.FindByIdAsync(userId);
+            if (user == null)
+            {
+                throw new NotFoundException("المستخدم غير موجود");
+            }
+            else
+            {
+                var NewLocation = _mapper.Map(dto, user);
+                var result = await _userManager.UpdateAsync(user);
+                return ApiResponse<bool>.Ok(true, "تم تحديث عنوانك بنجاح");
+            }
+        }
+
+        public async Task<ApiResponse<bool>> UpdateNameAsync(string userId, UpdateNameDTO dto)
+        {
+            var user = await _userManager.FindByIdAsync(userId);
+            if (user == null)
+            {
+                throw new NotFoundException("المستخدم غير موجود");
+            }
+            else
+            {
+                _mapper.Map(dto, user);
+                var result = await _userManager.UpdateAsync(user);
+                return ApiResponse<bool>.Ok(true, "تم تحديث الاسم بنجاح");
+            }
+        }
+
+        public async Task<ApiResponse<bool>> UpdatePasswordAsync(string userId, UpdatePasswordDTO dto)
+        {
+            var user = await _userManager.FindByIdAsync(userId);
+            if (!string.IsNullOrWhiteSpace(dto.NewPassword))
+            {
+                var changePasswordResult = await _userManager.ChangePasswordAsync(
+                    user,
+                    dto.CurrentPassword!,
+                    dto.NewPassword);
+
+                if (!changePasswordResult.Succeeded)
+                {
+                    _logger.LogWarning(
+                        "Failed to change password for UserId: {UserId}. Errors: {Errors}",
+                        userId,
+                        string.Join(", ", changePasswordResult.Errors.Select(e => e.Description)));
+
+                    throw new BadRequestException(
+                        string.Join(", ", changePasswordResult.Errors.Select(e => e.Description)));
+                }
+                var result = await _userManager.UpdateAsync(user);
+                return ApiResponse<bool>.Ok(true, "تمت تغيير كلمة المرور بنجاح  ");
+            }
+            return ApiResponse<bool>.Ok(true, "تمت العملية ");
+        }
+
+        public async Task<ApiResponse<bool>> UpdateProfilImageesync(string userId, UpdateProfileImageDTO dto)
+        {
+            var user = await _userManager.FindByIdAsync(userId);
+            if (dto.ProfileImage is not null)
+            {
+                var NewImg = await _Image.SaveFileAsync(dto.ProfileImage, "Profile");
+
+                if (!string.IsNullOrEmpty(user.ProfileImage))
+                {
+                    _Image.DeleteFile(user.ProfileImage);
+                }
+                user.ProfileImage = NewImg;
+
+                var result = await _userManager.UpdateAsync(user);
+                if (!result.Succeeded)
+                {
+                    string.Join(", ", result.Errors.Select(e => e.Description));
+                    //throw new BadRequestException("حدث خطأ اثناء محاولة اضافة صورة");
+                    return ApiResponse<bool>.Ok(false, "حدث خطأ اثناء محاولة اضافة صورة");
+                }
+            }
+            return ApiResponse<bool>.Ok(true, "تمت تغيير صورة الملف الشخصي بنجاح بنجاح  ");
+
+        }
+
+
+        #region UPDATE OLD 
         public async Task<ApiResponse<bool>> UpdateProfileInfoAsync(string userId, UpdateProfileInfoDTO dto)
         {
             _logger.LogInformation("Update User Info with Id: {UserId} at {Time}", userId, DateTime.UtcNow);
@@ -203,7 +320,9 @@ namespace SafeTrace.Application.Services.UserProfileServices
             return ApiResponse<bool>.Ok(true, "تم تعديل البيانات بنجاح");
 
         }
+        #endregion
 
+        #endregion
     }
 
 }
