@@ -9,17 +9,22 @@ namespace SafeTrace.Infrastructure.DataAccess.Configurations
         {
             builder.ToTable("ApplicationUsers");
 
-            builder.Property(u => u.FName).IsRequired().HasMaxLength(100);
-            builder.Property(u => u.LName).IsRequired().HasMaxLength(100);
+            builder.Property(u => u.FName)
+                .IsRequired()
+                .HasMaxLength(100);
+                
+            builder.Property(u => u.LName)
+                .IsRequired()
+                .HasMaxLength(100);
 
             builder.Property(u => u.VerificationStatus)
                 .IsRequired()
                 .HasDefaultValue(VerificationStatus.Unverified);
 
-        builder.HasMany(u => u.Cases)
-                .WithOne(c => c.User)
-                .HasForeignKey(c => c.UserId)
-                .OnDelete(DeleteBehavior.Restrict);
+            builder.HasMany(u => u.Cases)
+                    .WithOne(c => c.User)
+                    .HasForeignKey(c => c.UserId)
+                    .OnDelete(DeleteBehavior.Restrict);
 
             builder.HasMany(u => u.Notifications)
                 .WithOne(n => n.User)

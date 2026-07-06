@@ -23,6 +23,7 @@ namespace SafeTrace.Application.Hubs
 
         public override async Task OnConnectedAsync()
         {
+
             var userId = Context.UserIdentifier;
 
             if (!string.IsNullOrEmpty(userId))
@@ -56,21 +57,53 @@ namespace SafeTrace.Application.Hubs
             await base.OnDisconnectedAsync(exception);
         }
 
-        public async Task GetMyNotifications()
+        //public async Task GetMyNotifications()
+        //{
+        //    var userId = Context.UserIdentifier;
+
+        //    if (string.IsNullOrEmpty(userId))
+        //        return;
+
+        //    var notifications = await _notificationService.GetUserNotificationsAsync(userId);
+        //    await Clients.Caller.SendAsync(
+        //        "ReceiveNotifications",
+        //        notifications);
+        //}
+
+        //public async Task GetMyNotifications(int page = 1, int pageSize = 10)
+        //{
+        //    var userId = Context.UserIdentifier;
+
+        //    if (string.IsNullOrEmpty(userId))
+        //        return;
+
+        //    var notifications =
+        //        await _notificationService.GetUserNotificationsAsync(userId, page, pageSize);
+
+        //    await Clients.Caller.SendAsync(
+        //        "ReceiveNotifications",
+        //        notifications);
+        //}
+        public async Task GetMyNotifications(int page = 1, int pageSize = 10)
         {
-            var userId = Context.UserIdentifier;
+            try
+            {
+                var userId = Context.UserIdentifier;
 
-            if (string.IsNullOrEmpty(userId))
-                return;
+                if (string.IsNullOrEmpty(userId))
+                    throw new Exception("UserIdentifier is null");
 
-            var notifications = await _notificationService.GetUserNotificationsAsync(userId);
-            await Clients.Caller.SendAsync(
-                "ReceiveNotifications",
-                notifications);
+                var notifications =
+                    await _notificationService.GetUserNotificationsAsync(userId, page, pageSize);
+
+                await Clients.Caller.SendAsync("ReceiveNotifications", notifications);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex.ToString());
+                throw;
+            }
         }
-
-
-
         public async Task MarkAsRead(long notificationId)
         {
             var userId = Context.UserIdentifier;
