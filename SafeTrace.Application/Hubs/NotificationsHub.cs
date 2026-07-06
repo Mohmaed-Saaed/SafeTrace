@@ -23,6 +23,7 @@ namespace SafeTrace.Application.Hubs
 
         public override async Task OnConnectedAsync()
         {
+
             var userId = Context.UserIdentifier;
 
             if (!string.IsNullOrEmpty(userId))
@@ -69,21 +70,40 @@ namespace SafeTrace.Application.Hubs
         //        notifications);
         //}
 
+        //public async Task GetMyNotifications(int page = 1, int pageSize = 10)
+        //{
+        //    var userId = Context.UserIdentifier;
+
+        //    if (string.IsNullOrEmpty(userId))
+        //        return;
+
+        //    var notifications =
+        //        await _notificationService.GetUserNotificationsAsync(userId, page, pageSize);
+
+        //    await Clients.Caller.SendAsync(
+        //        "ReceiveNotifications",
+        //        notifications);
+        //}
         public async Task GetMyNotifications(int page = 1, int pageSize = 10)
         {
-            var userId = Context.UserIdentifier;
+            try
+            {
+                var userId = Context.UserIdentifier;
 
-            if (string.IsNullOrEmpty(userId))
-                return;
+                if (string.IsNullOrEmpty(userId))
+                    throw new Exception("UserIdentifier is null");
 
-            var notifications =
-                await _notificationService.GetUserNotificationsAsync(userId, page, pageSize);
+                var notifications =
+                    await _notificationService.GetUserNotificationsAsync(userId, page, pageSize);
 
-            await Clients.Caller.SendAsync(
-                "ReceiveNotifications",
-                notifications);
+                await Clients.Caller.SendAsync("ReceiveNotifications", notifications);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex.ToString());
+                throw;
+            }
         }
-
         public async Task MarkAsRead(long notificationId)
         {
             var userId = Context.UserIdentifier;

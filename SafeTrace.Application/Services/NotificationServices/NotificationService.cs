@@ -45,6 +45,8 @@ namespace SafeTrace.Application.Services.NotificationServices
             _logger.LogInformation("Sending notification to UserId: {UserId} at {date}", dto.UserId, DateTime.UtcNow);
 
             var notification = _mapper.Map<Notification>(dto);
+            notification.CreatedAt = DateTime.UtcNow;
+            notification.IsRead = false;
 
             await _UNIT.Repository<Notification>().CreateAsync(notification);
             await _UNIT.SaveAsync();
@@ -55,8 +57,7 @@ namespace SafeTrace.Application.Services.NotificationServices
                .CountAsync(n => n.UserId == dto.UserId && !n.IsRead);
 
             var responseDto = _mapper.Map<GetUserNotificationsDTO>(notification);
-            responseDto.CreatedAt = DateTime.UtcNow;
-            responseDto.IsRead = false;
+
 
             var payload = new
             {
@@ -237,9 +238,10 @@ namespace SafeTrace.Application.Services.NotificationServices
                 Page = page,
                 PageSize = pageSize,
                 TotalCount = totalCount,
-                TotalPages = (int)Math.Ceiling(totalCount / (double)pageSize)
-            };
+                TotalPages = (int)Math.Ceiling(totalCount / (double)pageSize),
+                HasMore = page < (int)Math.Ceiling(totalCount / (double)pageSize)
 
+            };
             return ApiResponse<NotificationPageDto>.Ok(
                 result,
                 "تم جلب الاشعارات بنجاح.");
