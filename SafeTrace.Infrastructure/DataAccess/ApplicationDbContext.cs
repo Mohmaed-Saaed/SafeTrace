@@ -4,6 +4,8 @@
     {
         public DbSet<ApplicationUser> ApplicationUsers { get; set; }
         public DbSet<Case> Cases { get; set; }
+        public DbSet<DuplicateGroup> DuplicateGroups { get; set; }
+        public DbSet<DuplicateGroupCase> DuplicateGroupCases { get; set; }
         public DbSet<FoundPersonInfo> FoundPersonInfos { get; set; }
         public DbSet<AiSearchUsage> AiSearchUsages { get; set; }
         public DbSet<Complaint> Complaints { get; set; }
