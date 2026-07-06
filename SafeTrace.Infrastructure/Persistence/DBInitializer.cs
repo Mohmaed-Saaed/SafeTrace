@@ -46,6 +46,7 @@ namespace SafeTrace.Infrastructure.Persistence
                                           "Profile.GetUserInfo", "Profile.UpdateUserInfo",
                                           "Complaints.GetAll", "Complaints.GetById", "Complaints.Create", "Complaints.HardDelete", "Complaints.MarkAsSolved",
                                           "Account.ChangePassword",
+                                          "AiMatching.Search",
                                           "Roles.GetAll", "Roles.Create", "Roles.Delete", "Roles.GetPermissionsByRoleId", "Roles.UpdateRolePermissions",
                                           "Users.GetAll", "Users.GetById", "Users.RegisterByAdmin",  "Users.ChangeRole", "Users.GetPermissions", "Users.AssignPermissions", "Users.Approve", "Users.Reject", "Users.ToggleBlock",
                                           "Chat.GetAll", "Chat.GetById", "Chat.GetMyChats",  "Chat.GetMessages", "Chat.SendMessage", "Chat.Create", "Chat.MarkAsRead", "Chat.HardDelete", "Chat.SoftDelete", "Chat.DeleteMessage", "Chat.DeleteMessageForEveryone",
@@ -59,6 +60,7 @@ namespace SafeTrace.Infrastructure.Persistence
                                                  "Profile.GetUserInfo", "Profile.UpdateUserInfo",
                                                  "Complaints.Create",
                                                  "Account.ChangePassword",
+                                                 "AiMatching.Search",
                                                  "Chat.GetById", "Chat.GetMyChats",  "Chat.GetMessages", "Chat.SendMessage", "Chat.Create", "Chat.MarkAsRead", "Chat.SoftDelete", "Chat.DeleteMessage"};
 
             string[] UserPermissions = { "UrgentCases.GetById", "UrgentCases.GetMyCases", "UrgentCases.Create", "UrgentCases.Update", "UrgentCases.SoftDelete", "UrgentCases.MarkAsFounded",
@@ -68,6 +70,7 @@ namespace SafeTrace.Infrastructure.Persistence
                                          "Profile.GetUserInfo", "Profile.UpdateUserInfo",
                                          "Complaints.Create",
                                          "Account.ChangePassword",
+                                         "AiMatching.Search",
                                          "Chat.GetById", "Chat.GetMyChats",  "Chat.GetMessages", "Chat.SendMessage", "Chat.Create", "Chat.MarkAsRead", "Chat.SoftDelete", "Chat.DeleteMessage"};
 
             await AssignPermissionsToRoleAsync("Admin", AdminPermissions);

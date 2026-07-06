@@ -39,7 +39,7 @@ namespace SafeTrace.Application.Services
 
             var baseCase = await _unitOfWork.Repository<Case>()
                 .GetOneAsync(c => c.Id == caseId, tracked: false)
-                ?? throw new NotFoundException($"Case with id {caseId} was not found.");
+                ?? throw new NotFoundException($"{caseId} لم يتم العثور على الحالة المطلوبة.");
 
             var caseOwnerId = baseCase.UserId;
 
@@ -51,7 +51,7 @@ namespace SafeTrace.Application.Services
             caseId);
 
 
-                throw new BadRequestException("You cannot start a conversation on your own case.");
+                throw new BadRequestException("لا يمكنك بدء محادثة على حالتك الخاصة.");
             }
 
             //var existing = await _unitOfWork.ChatRepository
@@ -75,7 +75,7 @@ namespace SafeTrace.Application.Services
 
                 return ApiResponse<ChatDetailsDto>.Ok(
                     _mapper.Map<ChatDetailsDto>(existing),
-                    "Existing conversation returned.");
+                    "تم استرجاع المحادثة الموجودة.");
             }
             var chat = new Chat
             {
@@ -96,7 +96,7 @@ namespace SafeTrace.Application.Services
 
             return ApiResponse<ChatDetailsDto>.Ok(
                 _mapper.Map<ChatDetailsDto>(chat),
-                "Conversation created successfully.");
+                "تم إنشاء المحادثة بنجاح.");
 
         }
         public async Task<ApiResponse<IEnumerable<ChatSummaryDto>>> GetUserChatsAsync(string currentUserId)
@@ -141,7 +141,7 @@ namespace SafeTrace.Application.Services
             chats.Count());
 
             return ApiResponse<IEnumerable<ChatSummaryDto>>.Ok(
-                result, "user chats returned");
+                result, "تم جلب المحادثات بنجاح.");
         }
         public async Task<ApiResponse<ChatDetailsDto>> GetChatDetailsAsync(long chatId, string currentUserId, bool isAdmin)
         {
@@ -157,7 +157,7 @@ namespace SafeTrace.Application.Services
                     c => c.Case,
                     c => c.Sender,
                     c => c.Receiver)
-                ?? throw new NotFoundException($"Chat with id {chatId} was not found.");
+                ?? throw new NotFoundException($"{chatId}لم يتم العثور على المحادثة.");
             if (!isAdmin)
             {
                 EnsureParticipant(chat, currentUserId);
@@ -199,7 +199,7 @@ namespace SafeTrace.Application.Services
 
             return ApiResponse<ChatDetailsDto>.Ok(
                dto,
-                "Chat details returned successfully.");
+                "تم جلب تفاصيل المحادثة بنجاح.");
 
         }
         public async Task <ApiResponse<PaginationResponseDto<MessageDto>>> GetPaginatedMessagesAsync(long chatId, string currentUserId,bool isAdmin, int page, int pageSize)
@@ -217,7 +217,7 @@ namespace SafeTrace.Application.Services
                     tracked: false,
                     c => c.Case,
                     chatId => chatId.Messages)
-               ?? throw new NotFoundException($"Chat with id {chatId} was not found.");
+               ?? throw new NotFoundException($"{chatId}لم يتم العثور على المحادثة.");
 
             if (!isAdmin)
             {
@@ -267,7 +267,7 @@ namespace SafeTrace.Application.Services
                 PageSize = pageSize
             };
             return ApiResponse <PaginationResponseDto<MessageDto>>.Ok(result,
-                "paged messages returned");
+                "تم جلب الرسائل بنجاح.");
 
 
         }
@@ -280,7 +280,7 @@ namespace SafeTrace.Application.Services
                 true,
                 c=> c.Sender,
                 chatId => chatId.Receiver)
-                ?? throw new NotFoundException($"Chat with id {chatId} was not found.");
+                ?? throw new NotFoundException($"{chatId} لم يتم العثور على المحادثة.");
 
             EnsureParticipant(chat, userId);
 
@@ -312,7 +312,7 @@ namespace SafeTrace.Application.Services
 
             return ApiResponse<ChatDetailsDto>.Ok(
                _mapper.Map<ChatDetailsDto>(chat),
-               $"{name} delete chat successfully");
+               $"تم حذف المحادثة بنجاح.");
 
 
         }
@@ -325,7 +325,7 @@ namespace SafeTrace.Application.Services
                 includes: c => c.Messages
                 )
                 ?? throw new NotFoundException(
-            $"Chat with id {chatId} was not found.");
+            $"{chatId} لم يتم العثور على المحادثة.");
 
             _unitOfWork.Repository<Chat>().Remove( chat );
             
@@ -333,7 +333,7 @@ namespace SafeTrace.Application.Services
 
             return ApiResponse<ChatDetailsDto>.Ok(
                _mapper.Map<ChatDetailsDto>(chat),
-               "chat hard deleted successfully");
+               "تم حذف المحادثة نهائيًا.");
 
 
         }
@@ -411,7 +411,7 @@ namespace SafeTrace.Application.Services
             };
 
             return ApiResponse<PaginationResponseDto<AdminChatsDto>>
-            .Ok(result, "Filtered chats returned");
+            .Ok(result, "تم جلب المحادثات بنجاح.");
         }
 
         private void EnsureParticipant(Chat chat, string userId)
@@ -422,7 +422,7 @@ namespace SafeTrace.Application.Services
             userId,
             chat.Id);
 
-                throw new ForbiddenException("You are not a participant of this conversation.");
+                throw new ForbiddenException("ليس لديك صلاحية للوصول إلى هذه المحادثة.");
             }
         }
 

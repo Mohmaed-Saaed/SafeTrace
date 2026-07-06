@@ -1,15 +1,9 @@
-﻿using Microsoft.AspNetCore.Http.HttpResults;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Logging;
 using SafeTrace.Application.DTOs.Founded.Request;
 using SafeTrace.Application.DTOs.Founded.Response;
 using SafeTrace.Application.DTOs.FoundedDTO.Response;
-using SafeTrace.Application.DTOs.Responses;
 using SafeTrace.Application.Exceptions;
 using SafeTrace.Application.Interfaces;
-using SafeTrace.Domain.Common;
-using SafeTrace.Domain.Entities;
-using SafeTrace.Domain.Interfaces.IUnitOfWork;
+
 
 namespace SafeTrace.Infrastructure.Service.Founded
 {
@@ -32,7 +26,7 @@ namespace SafeTrace.Infrastructure.Service.Founded
                 .Query(
                     tracked: false,
                     includes:
-                    [f => f.Case,f => f.Case.Photos,f => f.Case.AgeCategory])
+                    [f => f.Case,f => f.Case.CaseFiles,f => f.Case.AgeCategory])
                 .Where(f =>
                     (string.IsNullOrEmpty(query.Search)
                         || f.Case.FName!.Contains(query.Search)
@@ -66,7 +60,7 @@ namespace SafeTrace.Infrastructure.Service.Founded
                     tracked: false,
                     includes:[
                     f => f.Case,
-                    f => f.Case.Photos])
+                    f => f.Case.CaseFiles])
                 .FirstOrDefaultAsync(f => f.Id == id);
 
             if (foundPerson is null)
