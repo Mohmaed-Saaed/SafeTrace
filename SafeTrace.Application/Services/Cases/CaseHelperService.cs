@@ -47,7 +47,7 @@ namespace SafeTrace.Application.Services.Cases
                 throw new NotFoundException($"Case {id} not found.");
             }
 
-            if (checkOwnership && !string.IsNullOrEmpty(userId) && entity.UserId != userId && !isAdmin)
+            if (checkOwnership && !string.IsNullOrEmpty(userId) && entity.UserId != userId && isAdmin)
             {
                 _logger.LogWarning("Unauthorized attempt to access Case {CaseId} by User {UserId}", id, userId);
                 throw new UnauthorizedException("You are not authorized to perform this action.");
