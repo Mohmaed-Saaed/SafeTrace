@@ -1,6 +1,8 @@
 using System.Linq.Expressions;
 using Microsoft.AspNetCore.Http;
 using SafeTrace.Application.Common.Enums;
+using SafeTrace.Application.DTOs.Cases.Request;
+using SafeTrace.Application.DTOs.Cases.Response;
 
 
 namespace SafeTrace.Application.Interfaces.IServices.ICases
@@ -16,7 +18,6 @@ namespace SafeTrace.Application.Interfaces.IServices.ICases
         Task<TEntity> GetValidCaseAsync<TEntity>(
             long id,
             string? userId = null,
-            bool isAdmin = false,
             bool checkOwnership = false,
             bool allowDeleted = false,
             bool tracked = true,
@@ -37,5 +38,7 @@ namespace SafeTrace.Application.Interfaces.IServices.ICases
 
         // ── Face recognition helpers 
         Task DeleteFacesAsync(IEnumerable<string> faceIds, long caseIdForLogging);
+
+        Task<MatchedCasesResult> FindMatchedCasesAsync(CaseMatchSubjectInfoDto subject, IFormFile primaryImage);
     }
 }

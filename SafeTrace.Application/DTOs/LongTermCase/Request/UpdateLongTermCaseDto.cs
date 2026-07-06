@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.Http;
 
-namespace SafeTrace.Application.DTOs.LongTermCases.Request
+namespace SafeTrace.Application.DTOs.LongTermCase.Request
 {
     /// <summary>
     /// Payload for updating a Long-Term Missing Case. Only the case owner (or an Admin)

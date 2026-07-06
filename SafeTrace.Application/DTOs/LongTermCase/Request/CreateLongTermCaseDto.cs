@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.Http;
 
-namespace SafeTrace.Application.DTOs.LongTermCases.Request
+namespace SafeTrace.Application.DTOs.LongTermCase.Request
 {
     /// <summary>
     /// Payload for creating a new Long-Term Missing Case (FR-18 .. FR-20).

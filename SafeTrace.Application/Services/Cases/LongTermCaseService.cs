@@ -1,12 +1,12 @@
 using SafeTrace.Application.Interfaces.IServices.ICases;
 using SafeTrace.Application.Common.Enums;
-using SafeTrace.Application.DTOs.LongTermCases.Request;
-using SafeTrace.Application.DTOs.LongTermCases.Response;
+using SafeTrace.Application.DTOs.LongTermCase.Response;
+using SafeTrace.Application.DTOs.LongTermCase.Request;
+
 
 namespace SafeTrace.Application.Services.Cases
 {
-    public class LongTermCaseService
-        : BaseCasesService<LongTermMissingCase, LongTermCaseListDto, LongTermCaseDetailDto, LongTermCaseFilterDto>, ILongTermCaseService
+    public class LongTermCaseService : BaseCasesService<LongTermMissingCase, LongTermCaseListDto, LongTermCaseDetailDto, LongTermCaseFilterDto>, ILongTermCaseService
     {
         private readonly IFileStorageService _fileStorageService;
         private readonly IFaceRecognitionService _faceRecognition;
@@ -107,12 +107,11 @@ namespace SafeTrace.Application.Services.Cases
         }
 
         // UPDATE
-        public async Task UpdateAsync(long id, UpdateLongTermCaseDto dto, string userId, bool isAdmin)
+        public async Task UpdateAsync(long id, UpdateLongTermCaseDto dto, string userId)
         {
             var entity = await _caseHelper.GetValidCaseAsync<LongTermMissingCase>(
                 id,
                 userId,
-                isAdmin,
                 checkOwnership: true,
                 includes: [c => c.CaseFiles]
             );
@@ -197,7 +196,7 @@ namespace SafeTrace.Application.Services.Cases
 
             _caseHelper.EnsureSinglePrimaryPhoto(entity.CaseFiles, dto.PrimaryPhotoId);
 
-            if (!isAdmin && entity.Status != CaseStatus.Pending)
+            if (entity.Status != CaseStatus.Pending)
             {
                 entity.PreviousStatus = entity.Status;
                 entity.Status = CaseStatus.Pending;
@@ -206,7 +205,7 @@ namespace SafeTrace.Application.Services.Cases
             _unitOfWork.Repository<LongTermMissingCase>().Update(entity);
             await _unitOfWork.SaveAsync();
 
-            _logger.LogInformation("تم تعديل الحالة {CaseId} بواسطة المستخدم {UserId} (IsAdmin={IsAdmin})", id, userId, isAdmin);
+            _logger.LogInformation("تم تعديل الحالة {CaseId} بواسطة المستخدم {UserId})", id, userId);
         }
     }
 }
