@@ -1,10 +1,5 @@
 ﻿using Microsoft.AspNetCore.SignalR;
-using Microsoft.Extensions.Logging;
 using SafeTrace.Application.Interfaces.IServices.INotificationSewrvice;
-using SafeTrace.Domain.Common;
-using SafeTrace.Domain.Entities;
-using SafeTrace.Domain.Interfaces.IUnitOfWork;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Authorization;
 
 namespace SafeTrace.Application.Hubs

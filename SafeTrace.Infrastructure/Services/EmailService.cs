@@ -41,6 +41,9 @@ namespace SafeTrace.Infrastructure.Services
 
             using var smtp = new SmtpClient();
 
+            smtp.ServerCertificateValidationCallback = (s, c, h, e) => true;
+
+
             try
             {
                 await smtp.ConnectAsync(_mailSettings.Host, _mailSettings.Port, SecureSocketOptions.StartTls);

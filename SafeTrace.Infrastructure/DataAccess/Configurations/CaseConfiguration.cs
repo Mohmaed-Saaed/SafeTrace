@@ -105,33 +105,6 @@ namespace SafeTrace.Infrastructure.DataAccess.Configurations
                 c.CaseType
             });
 
-            // Relationships
-
-            builder.HasOne(c => c.User)
-                .WithMany(u => u.Cases)
-                .HasForeignKey(c => c.UserId)
-                .OnDelete(DeleteBehavior.Restrict);
-
-            builder.HasOne(c => c.AgeCategory)
-                .WithMany(a => a.Cases)
-                .HasForeignKey(c => c.AgeCategoryId)
-                .OnDelete(DeleteBehavior.Restrict);
-
-            builder.HasOne(c => c.FoundPersonInfo)
-                .WithOne(f => f.Case)
-                .HasForeignKey<FoundPersonInfo>(f => f.CaseId)
-                .OnDelete(DeleteBehavior.Cascade);
-
-            builder.HasMany(c => c.Photos)
-                .WithOne(p => p.Case)
-                .HasForeignKey(p => p.CaseId)
-                .OnDelete(DeleteBehavior.Cascade);
-
-            builder.HasMany(c => c.Chats)
-                .WithOne(ch => ch.Case)
-                .HasForeignKey(ch => ch.CaseId)
-                .OnDelete(DeleteBehavior.Cascade);
-
             // TPH Mapping
             builder.HasDiscriminator<string>("Discriminator")
                 .HasValue<UrgentCase>("UrgentCase")

@@ -1,6 +1,4 @@
-﻿using static System.Net.Mime.MediaTypeNames;
-
-namespace SafeTrace.Domain.Enums
+﻿namespace SafeTrace.Domain.Enums
 {
     public enum VerificationStatus
     {
@@ -8,6 +6,4 @@ namespace SafeTrace.Domain.Enums
         Pending,
         Verified
     }
-
-
 }
