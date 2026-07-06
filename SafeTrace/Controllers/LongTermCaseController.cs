@@ -22,7 +22,6 @@ namespace SafeTrace.API.Controllers
         }
 
         private string? CurrentUserId => User.FindFirstValue(ClaimTypes.NameIdentifier);
-        private bool IsAdmin => User.IsInRole("Admin");
 
         [HttpGet("GetCases")]
         [AllowAnonymous]
@@ -85,7 +84,7 @@ namespace SafeTrace.API.Controllers
         {
             if (CurrentUserId == null) throw new UnauthorizedException("لم يتم التعرف على هوية المستخدم.");
 
-            await _service.UpdateAsync(id, dto, CurrentUserId, IsAdmin);
+            await _service.UpdateAsync(id, dto, CurrentUserId);
             return NoContent();
         }
 
@@ -110,7 +109,7 @@ namespace SafeTrace.API.Controllers
         public async Task<IActionResult> SoftDelete(long id)
         {
             if (CurrentUserId == null) throw new UnauthorizedException("لم يتم التعرف على هوية المستخدم.");
-            await _service.SoftDeleteAsync(id, CurrentUserId, IsAdmin);
+            await _service.SoftDeleteAsync(id, CurrentUserId);
             return NoContent();
         }
 
@@ -119,7 +118,7 @@ namespace SafeTrace.API.Controllers
         public async Task<IActionResult> MarkAsFound(long id, FoundPersonInfoRequestDto foundPersonInfo)
         {
             if (CurrentUserId == null) throw new UnauthorizedException("لم يتم التعرف على هوية المستخدم.");
-            await _service.MarkAsFoundAsync(id, CurrentUserId, foundPersonInfo, isAdmin: IsAdmin);
+            await _service.MarkAsFoundAsync(id, CurrentUserId, foundPersonInfo);
             return NoContent();
         }
 

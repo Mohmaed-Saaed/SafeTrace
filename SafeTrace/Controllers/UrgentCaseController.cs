@@ -22,7 +22,6 @@ namespace SafeTrace.API.Controllers
         }
 
         private string? CurrentUserId => User.FindFirstValue(ClaimTypes.NameIdentifier);
-        private bool IsAdmin => User.IsInRole("Admin");
 
         [HttpGet("GetCases")]
         [AllowAnonymous]
@@ -91,7 +90,7 @@ namespace SafeTrace.API.Controllers
             if (string.IsNullOrEmpty(CurrentUserId))
                 throw new UnauthorizedException("User identity could not be verified from token.");
 
-            await _urgentCaseService.SoftDeleteAsync(id, CurrentUserId, IsAdmin);
+            await _urgentCaseService.SoftDeleteAsync(id, CurrentUserId);
             return NoContent();
         }
 
@@ -102,7 +101,7 @@ namespace SafeTrace.API.Controllers
             if (string.IsNullOrEmpty(CurrentUserId))
                 throw new UnauthorizedException("User identity could not be verified from token.");
 
-            await _urgentCaseService.MarkAsFoundAsync(id, CurrentUserId, foundPersonInfo, isAdmin: IsAdmin);
+            await _urgentCaseService.MarkAsFoundAsync(id, CurrentUserId, foundPersonInfo);
 
             return NoContent();
         }

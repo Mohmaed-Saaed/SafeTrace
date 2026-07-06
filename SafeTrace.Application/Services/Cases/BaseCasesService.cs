@@ -240,8 +240,8 @@ namespace SafeTrace.Application.Services.Cases
 
             if (entity == null)
             {
-                _logger.LogWarning("Permanent delete failed - Case {CaseId} not found or not soft-deleted.", caseId);
-                throw new NotFoundException($"Case {caseId} was not found or has not been soft-deleted yet. Permanent delete requires soft delete first.");
+                _logger.LogWarning("Permanent delete failed - Case {CaseId} not found.", caseId);
+                throw new NotFoundException($"Case {caseId} was not found");
             }
 
             // 1. Shared photo files

@@ -123,7 +123,7 @@ namespace SafeTrace.API.Controllers
             if (string.IsNullOrEmpty(CurrentUserId))
                 throw new UnauthorizedException("User identity could not be verified from token.");
 
-            await _unKnownServiceCase.MarkAsFoundAsync(id, CurrentUserId, foundPersonInfo, isAdmin: IsAdmin);
+            await _unKnownServiceCase.MarkAsFoundAsync(id, CurrentUserId, foundPersonInfo);
             return NoContent();
         }
 
