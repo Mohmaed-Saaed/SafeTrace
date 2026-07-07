@@ -69,9 +69,7 @@ namespace SafeTrace.API.Controllers
         {
             if (CurrentUserId == null) throw new UnauthorizedException("لم يتم التعرف على هوية المستخدم.");
 
-            var id = await _service.CreateAsync(dto, CurrentUserId);
-            // return CreatedAtAction(nameof(GetById), new { id }, new { id });
-            return Ok();
+            return Ok(await _service.CreateAsync(CurrentUserId, dto));
         }
 
         /// <summary>
@@ -84,7 +82,7 @@ namespace SafeTrace.API.Controllers
         {
             if (CurrentUserId == null) throw new UnauthorizedException("لم يتم التعرف على هوية المستخدم.");
 
-            await _service.UpdateAsync(id, dto, CurrentUserId);
+            await _service.UpdateAsync(id, CurrentUserId, dto);
             return NoContent();
         }
 
@@ -92,16 +90,14 @@ namespace SafeTrace.API.Controllers
         [HasPermission(Permissions.LongTermCases.Approve)]
         public async Task<IActionResult> Approve(long id)
         {
-            await _service.ApproveAsync(id);
-            return NoContent();
+            return Ok(await _service.ApproveAsync(id));
         }
 
         [HttpPut("Reject/{id:long}")]
         [HasPermission(Permissions.LongTermCases.Reject)]
         public async Task<IActionResult> Reject(long id)
         {
-            await _service.RejectAsync(id);
-            return NoContent();
+            return Ok(await _service.RejectAsync(id));
         }
 
         [HttpDelete("Delete/{id:long}")]
@@ -109,8 +105,8 @@ namespace SafeTrace.API.Controllers
         public async Task<IActionResult> SoftDelete(long id)
         {
             if (CurrentUserId == null) throw new UnauthorizedException("لم يتم التعرف على هوية المستخدم.");
-            await _service.SoftDeleteAsync(id, CurrentUserId);
-            return NoContent();
+
+            return Ok(await _service.SoftDeleteAsync(id, CurrentUserId));
         }
 
         [HttpPut("MarkAsFound/{id:long}")]
@@ -118,16 +114,15 @@ namespace SafeTrace.API.Controllers
         public async Task<IActionResult> MarkAsFound(long id, FoundPersonInfoRequestDto foundPersonInfo)
         {
             if (CurrentUserId == null) throw new UnauthorizedException("لم يتم التعرف على هوية المستخدم.");
-            await _service.MarkAsFoundAsync(id, CurrentUserId, foundPersonInfo);
-            return NoContent();
+            
+            return Ok(await _service.MarkAsFoundAsync(id, CurrentUserId, foundPersonInfo));
         }
 
         [HttpDelete("PermanentDeletion/{id:long}")]
         [HasPermission(Permissions.LongTermCases.HardDelete)]
         public async Task<IActionResult> PermanentDelete(long id)
         {
-            await _service.PermanentDeleteAsync(id);
-            return NoContent();
+            return Ok(await _service.PermanentDeleteAsync(id));
         }
     }
 }
