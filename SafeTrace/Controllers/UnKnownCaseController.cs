@@ -16,29 +16,29 @@ namespace SafeTrace.API.Controllers
     {
         private readonly IUnknownCaseService _unKnownServiceCase;
 
+
         public UnknownCaseController(IUnknownCaseService unKnownServiceCase)
         {
             _unKnownServiceCase = unKnownServiceCase;
         }
 
         private string? CurrentUserId => User.FindFirstValue(ClaimTypes.NameIdentifier);
-        private bool IsAdmin => User.IsInRole("Admin");
 
-        [HttpGet]
+        [HttpGet("GetCases")]
         [AllowAnonymous]
         public async Task<IActionResult> GetAll([FromQuery] UnknownCasesFilterDto filter)
         {
             return Ok(await _unKnownServiceCase.GetAllAsync(filter));
         }
 
-        [HttpGet("{id:long}")]
-        [AllowAnonymous]
-        public async Task<IActionResult> GetById(long id)
+        [HttpGet("Admin/GetCases")]
+        [HasPermission(Permissions.UnknownCases.GetAll)]
+        public async Task<IActionResult> AdminGetAll([FromQuery] UnknownCasesFilterDto filter)
         {
-            return Ok(await _unKnownServiceCase.GetByIdAsync(id));
+            return Ok(await _unKnownServiceCase.AdminGetAllAsync(filter));
         }
 
-        [HttpGet("my-cases")]
+        [HttpGet("GetMyCases")]
         [HasPermission(Permissions.UnknownCases.GetMyCases)]
         public async Task<IActionResult> GetMyCases([FromQuery] UnknownCasesFilterDto filter)
         {
@@ -48,79 +48,81 @@ namespace SafeTrace.API.Controllers
             return Ok(await _unKnownServiceCase.GetMyCasesAsync(CurrentUserId, filter));
         }
 
-        [HttpGet("admin")]
-        [HasPermission(Permissions.UnknownCases.GetAll)]
-        public async Task<IActionResult> AdminGetAll([FromQuery] UnknownCasesFilterDto filter)
+        [HttpGet("GetCaseDetails/{id:long}")]
+        [AllowAnonymous]
+        public async Task<IActionResult> GetById(long id)
         {
-            return Ok(await _unKnownServiceCase.AdminGetAllAsync(filter));
+            return Ok(await _unKnownServiceCase.GetByIdAsync(id));
         }
 
-        [HttpPost]
+        [HttpGet("Admin/GetCaseDetails/{id:long}")]
+        [HasPermission(Permissions.UnknownCases.GetById)]
+        public async Task<IActionResult> AdminGetById(long id)
+        {
+            return Ok(await _unKnownServiceCase.AdminGetByIdAsync(id));
+        }
+
+        [HttpPost("CreateCase")]
         [Consumes("multipart/form-data")]
         [HasPermission(Permissions.UnknownCases.Create)]
         public async Task<IActionResult> CreateUnknown([FromForm] CreateUnknownDto dto)
         {
-            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(CurrentUserId))
+                throw new UnauthorizedException("User identity could not be verified from token.");
 
-            if (string.IsNullOrEmpty(userId))
-                throw new UnauthorizedException("User is not authenticated.");
-
-            var result = await _unKnownServiceCase.CreateUnknownCaseAsync(dto, userId);
-
-            return Ok(result);
+            return Ok(await _unKnownServiceCase.CreateUnknownCaseAsync(CurrentUserId, dto));
         }
 
-        [HttpPut("{id}/UpdateUnKnownCase")]
+        [HttpPut("UpdateCase/{id:long}")]
+        [Consumes("multipart/form-data")]
         [HasPermission(Permissions.UnknownCases.Update)]
         public async Task<IActionResult> UpdateUnknownCase(long id, [FromForm] UpdateUnknownCaseDto dto)
         {
-            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrEmpty(CurrentUserId))
+                throw new UnauthorizedException("User identity could not be verified from token.");
 
-            var result = await _unKnownServiceCase
-                .UpdateUnknownCaseAsync(id, dto, userId);
-
-            return Ok(result);
+            return Ok(await _unKnownServiceCase.UpdateUnknownCaseAsync(id, CurrentUserId, dto));
         }
 
-        [HttpPut("{id:long}/approve")]
+        [HttpPut("Approve/{id:long}")]
+        [HasPermission(Permissions.UnknownCases.Approve)]
         public async Task<IActionResult> Approve(long id)
         {
-            await _unKnownServiceCase.ApproveAsync(id);
-            return NoContent();
+            return Ok(await _unKnownServiceCase.ApproveAsync(id));
         }
 
-        [HttpPut("{id:long}/reject")]
+        [HttpPut("Reject/{id:long}")]
+        [HasPermission(Permissions.UnknownCases.Reject)]
         public async Task<IActionResult> Reject(long id)
         {
-            await _unKnownServiceCase.RejectAsync(id);
-            return NoContent();
+            return Ok(await _unKnownServiceCase.RejectAsync(id));
         }
 
-        [HttpDelete("{id:long}")]
+        [HttpDelete("Delete/{id:long}")]
+        [HasPermission(Permissions.UnknownCases.SoftDelete)]
         public async Task<IActionResult> SoftDelete(long id)
         {
             if (string.IsNullOrEmpty(CurrentUserId))
                 throw new UnauthorizedException("User identity could not be verified from token.");
 
-            await _unKnownServiceCase.SoftDeleteAsync(id, CurrentUserId, IsAdmin);
-            return NoContent();
+            return Ok(await _unKnownServiceCase.SoftDeleteAsync(id, CurrentUserId));
         }
 
-        [HttpPut("{id:long}/mark-as-found")]
+        [HttpPut("MarkAsFound/{id:long}")]
+        [HasPermission(Permissions.UnknownCases.MarkAsFounded)]
         public async Task<IActionResult> MarkAsFound(long id, FoundPersonInfoRequestDto foundPersonInfo)
         {
             if (string.IsNullOrEmpty(CurrentUserId))
                 throw new UnauthorizedException("User identity could not be verified from token.");
 
-            await _unKnownServiceCase.MarkAsFoundAsync(id, CurrentUserId, foundPersonInfo, isAdmin: IsAdmin);
-            return NoContent();
+            return Ok(await _unKnownServiceCase.MarkAsFoundAsync(id, CurrentUserId, foundPersonInfo));
         }
 
-        [HttpDelete("{id:long}/permanent")]
+        [HttpDelete("PermanentDeletion/{id:long}")]
+        [HasPermission(Permissions.UnknownCases.HardDelete)]
         public async Task<IActionResult> PermanentDelete(long id)
         {
-            await _unKnownServiceCase.PermanentDeleteAsync(id);
-            return NoContent();
+            return Ok(await _unKnownServiceCase.PermanentDeleteAsync(id));
         }
     }
 }

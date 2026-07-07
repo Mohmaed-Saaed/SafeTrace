@@ -1,6 +1,6 @@
 using SafeTrace.Application.DTOs.Cases.Response;
 
-namespace SafeTrace.Application.DTOs.LongTermCases.Response
+namespace SafeTrace.Application.DTOs.LongTermCase.Response
 {
     public class LongTermCaseDetailDto : CaseDetailBaseDto
     {
