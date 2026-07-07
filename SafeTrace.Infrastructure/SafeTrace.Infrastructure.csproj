@@ -7,8 +7,11 @@
 	</PropertyGroup>
 
 	<ItemGroup>
+		<Compile Remove="Licenses\**" />
 		<Compile Remove="Service\**" />
+		<EmbeddedResource Remove="Licenses\**" />
 		<EmbeddedResource Remove="Service\**" />
+		<None Remove="Licenses\**" />
 		<None Remove="Service\**" />
 	</ItemGroup>
 
@@ -33,9 +36,5 @@
 		<ProjectReference Include="..\SafeTrace.Application\SafeTrace.Application.csproj" />
 		<ProjectReference Include="..\SafeTrace.Domain\SafeTrace.Domain.csproj" />
 	</ItemGroup>
-
-  <ItemGroup>
-    <Folder Include="Licenses/" />
-  </ItemGroup>
 
 </Project>

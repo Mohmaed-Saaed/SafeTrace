@@ -194,6 +194,7 @@ namespace SafeTrace.Infrastructure.Services
             if (!addResult.Succeeded) throw new BadRequestException("فشل في ترقية حساب المستخدم إلى 'مستخدم موثق'.");
 
             user.VerificationStatus = VerificationStatus.Verified;
+            await _userManager.UpdateAsync(user);
 
             var result = await _userManager.UpdateAsync(user);
             if (!result.Succeeded)
@@ -223,6 +224,7 @@ namespace SafeTrace.Infrastructure.Services
             if (!DeletedResult) throw new BadRequestException("فشل في مسح صورة الهوية الخاصة بالمستخدم من الخادم.");
 
             user.VerificationStatus = VerificationStatus.Unverified;
+            await _userManager.UpdateAsync(user);
 
             var result = await _userManager.UpdateAsync(user);
             if (!result.Succeeded)
