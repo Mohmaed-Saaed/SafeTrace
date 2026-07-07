@@ -24,21 +24,21 @@ namespace SafeTrace.API.Controllers
         private string? CurrentUserId => User.FindFirstValue(ClaimTypes.NameIdentifier);
         private bool IsAdmin => User.IsInRole("Admin");
 
-        [HttpGet]
+        [HttpGet("GetCases")]
         [AllowAnonymous]
         public async Task<IActionResult> GetAll([FromQuery] UnknownCasesFilterDto filter)
         {
             return Ok(await _unKnownServiceCase.GetAllAsync(filter));
         }
 
-        [HttpGet("{id:long}")]
-        [AllowAnonymous]
-        public async Task<IActionResult> GetById(long id)
+        [HttpGet("Admin/GetCases")]
+        [HasPermission(Permissions.UnknownCases.GetAll)]
+        public async Task<IActionResult> AdminGetAll([FromQuery] UnknownCasesFilterDto filter)
         {
-            return Ok(await _unKnownServiceCase.GetByIdAsync(id));
+            return Ok(await _unKnownServiceCase.AdminGetAllAsync(filter));
         }
 
-        [HttpGet("my-cases")]
+        [HttpGet("GetMyCases")]
         [HasPermission(Permissions.UnknownCases.GetMyCases)]
         public async Task<IActionResult> GetMyCases([FromQuery] UnknownCasesFilterDto filter)
         {
@@ -48,14 +48,21 @@ namespace SafeTrace.API.Controllers
             return Ok(await _unKnownServiceCase.GetMyCasesAsync(CurrentUserId, filter));
         }
 
-        [HttpGet("admin")]
-        [HasPermission(Permissions.UnknownCases.GetAll)]
-        public async Task<IActionResult> AdminGetAll([FromQuery] UnknownCasesFilterDto filter)
+        [HttpGet("GetCaseDetails/{id:long}")]
+        [AllowAnonymous]
+        public async Task<IActionResult> GetById(long id)
         {
-            return Ok(await _unKnownServiceCase.AdminGetAllAsync(filter));
+            return Ok(await _unKnownServiceCase.GetByIdAsync(id));
         }
 
-        [HttpPost]
+        [HttpGet("Admin/GetCaseDetails/{id:long}")]
+        [HasPermission(Permissions.UnknownCases.GetById)]
+        public async Task<IActionResult> AdminGetById(long id)
+        {
+            return Ok(await _unKnownServiceCase.AdminGetByIdAsync(id));
+        }
+
+        [HttpPost("CreateCase")]
         [Consumes("multipart/form-data")]
         [HasPermission(Permissions.UnknownCases.Create)]
         public async Task<IActionResult> CreateUnknown([FromForm] CreateUnknownDto dto)
@@ -70,33 +77,36 @@ namespace SafeTrace.API.Controllers
             return Ok(result);
         }
 
-        [HttpPut("{id}/UpdateUnKnownCase")]
+        [HttpPut("UpdateCase/{id:long}")]
+        [Consumes("multipart/form-data")]
         [HasPermission(Permissions.UnknownCases.Update)]
         public async Task<IActionResult> UpdateUnknownCase(long id, [FromForm] UpdateUnknownCaseDto dto)
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
 
-            var result = await _unKnownServiceCase
-                .UpdateUnknownCaseAsync(id, dto, userId);
+            var result = await _unKnownServiceCase.UpdateUnknownCaseAsync(id, dto, userId);
 
             return Ok(result);
         }
 
-        [HttpPut("{id:long}/approve")]
+        [HttpPut("Approve/{id:long}")]
+        [HasPermission(Permissions.UnknownCases.Approve)]
         public async Task<IActionResult> Approve(long id)
         {
             await _unKnownServiceCase.ApproveAsync(id);
             return NoContent();
         }
 
-        [HttpPut("{id:long}/reject")]
+        [HttpPut("Reject/{id:long}")]
+        [HasPermission(Permissions.UnknownCases.Reject)]
         public async Task<IActionResult> Reject(long id)
         {
             await _unKnownServiceCase.RejectAsync(id);
             return NoContent();
         }
 
-        [HttpDelete("{id:long}")]
+        [HttpDelete("Delete/{id:long}")]
+        [HasPermission(Permissions.UnknownCases.SoftDelete)]
         public async Task<IActionResult> SoftDelete(long id)
         {
             if (string.IsNullOrEmpty(CurrentUserId))
@@ -106,17 +116,19 @@ namespace SafeTrace.API.Controllers
             return NoContent();
         }
 
-        [HttpPut("{id:long}/mark-as-found")]
+        [HttpPut("MarkAsFound/{id:long}")]
+        [HasPermission(Permissions.UnknownCases.MarkAsFounded)]
         public async Task<IActionResult> MarkAsFound(long id, FoundPersonInfoRequestDto foundPersonInfo)
         {
             if (string.IsNullOrEmpty(CurrentUserId))
                 throw new UnauthorizedException("User identity could not be verified from token.");
 
-            await _unKnownServiceCase.MarkAsFoundAsync(id, CurrentUserId, foundPersonInfo, isAdmin: IsAdmin);
+            await _unKnownServiceCase.MarkAsFoundAsync(id, CurrentUserId, foundPersonInfo);
             return NoContent();
         }
 
-        [HttpDelete("{id:long}/permanent")]
+        [HttpDelete("PermanentDeletion/{id:long}")]
+        [HasPermission(Permissions.UnknownCases.HardDelete)]
         public async Task<IActionResult> PermanentDelete(long id)
         {
             await _unKnownServiceCase.PermanentDeleteAsync(id);

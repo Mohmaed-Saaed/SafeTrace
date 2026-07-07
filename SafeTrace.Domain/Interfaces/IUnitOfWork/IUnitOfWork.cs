@@ -11,5 +11,7 @@
         Task CommitTransactionAsync();
 
         Task RollbackTransactionAsync();
+        
+        Task<int> GetNextSequenceValueAsync(string sequenceName);
     }
 }

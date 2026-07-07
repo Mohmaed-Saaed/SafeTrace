@@ -1,6 +1,8 @@
 using System.Linq.Expressions;
 using Microsoft.AspNetCore.Http;
 using SafeTrace.Application.Common.Enums;
+using SafeTrace.Application.DTOs.Cases.Request;
+using SafeTrace.Application.DTOs.Cases.Response;
 
 
 namespace SafeTrace.Application.Interfaces.IServices.ICases
@@ -16,7 +18,6 @@ namespace SafeTrace.Application.Interfaces.IServices.ICases
         Task<TEntity> GetValidCaseAsync<TEntity>(
             long id,
             string? userId = null,
-            bool isAdmin = false,
             bool checkOwnership = false,
             bool allowDeleted = false,
             bool tracked = true,
@@ -28,14 +29,21 @@ namespace SafeTrace.Application.Interfaces.IServices.ICases
         Task<string> GenerateCaseCodeAsync(CaseCodePrefix prefix);
         Task<int> ResolveAgeCategoryIdAsync(int age);
 
-        // ── Photo helpers 
-        Task<List<CaseFile>> HandlePhotoUploadsAsync(IEnumerable<IFormFile> files, string folderName, long caseId = 0);
-        void EnsureSinglePrimaryPhoto(ICollection<CaseFile> photos, long? preferredPrimaryId = null);
+        Task<List<CaseFile>> CreateCaseFilesAsync(
+            IFormFile primaryImage,
+            IEnumerable<IFormFile>? additionalImages,
+            IFormFile? video,
+            string folderName,
+            long caseId = 0);
 
+        void SetPrimaryImage(ICollection<CaseFile> files, long primaryPhotoId);
+        
         // ── File / storage helpers
-        Task CleanupPhysicalFilesAsync(IEnumerable<string> filePaths);
+        void CleanupPhysicalFiles(IEnumerable<string> filePaths);
 
         // ── Face recognition helpers 
         Task DeleteFacesAsync(IEnumerable<string> faceIds, long caseIdForLogging);
+
+        Task<MatchedCasesResult> FindMatchedCasesAsync(CaseMatchSubjectInfoDto subject, IFormFile primaryImage);
     }
 }

@@ -6,14 +6,15 @@ namespace SafeTrace.Application.Interfaces.IServices.ICases
         where TFilterDto : CasesFilterBaseDto
     {
         Task<ApiResponse<PaginationResponseDto<TListDto>>> GetAllAsync(TFilterDto filter);
-        Task<ApiResponse<TDetailDto>> GetByIdAsync(long id);
-        Task<ApiResponse<PaginationResponseDto<TListDto>>> GetMyCasesAsync(string userId, TFilterDto filter);
         Task<ApiResponse<PaginationResponseDto<TDetailDto>>> AdminGetAllAsync(TFilterDto filter);
+        Task<ApiResponse<PaginationResponseDto<TListDto>>> GetMyCasesAsync(string userId, TFilterDto filter);
+        Task<ApiResponse<TDetailDto>> GetByIdAsync(long id);
+        Task<ApiResponse<TDetailDto>> AdminGetByIdAsync(long id);
  
-        Task ApproveAsync(long caseId);
-        Task RejectAsync(long caseId);
-        Task SoftDeleteAsync(long caseId, string userId, bool isAdmin = false, bool checkOwnership = true);
-        Task MarkAsFoundAsync(long caseId, string userId, FoundPersonInfoRequestDto foundPersonInfo, bool isAdmin = false, bool checkOwnership = true);
-        Task PermanentDeleteAsync(long caseId);
+        Task<ApiResponse<string>> ApproveAsync(long caseId);
+        Task<ApiResponse<string>> RejectAsync(long caseId);
+        Task<ApiResponse<string>> SoftDeleteAsync(long caseId, string userId, bool checkOwnership = true);
+        Task<ApiResponse<string>> MarkAsFoundAsync(long caseId, string userId, FoundPersonInfoRequestDto foundPersonInfo, bool checkOwnership = true);
+        Task<ApiResponse<string>> PermanentDeleteAsync(long caseId);
     }
 }

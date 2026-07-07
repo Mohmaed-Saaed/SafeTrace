@@ -1,9 +1,13 @@
-﻿namespace SafeTrace.Infrastructure.DataAccess
+﻿using SafeTrace.Infrastructure.DataAccess.Configurations;
+
+namespace SafeTrace.Infrastructure.DataAccess
 {
     public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
     {
         public DbSet<ApplicationUser> ApplicationUsers { get; set; }
         public DbSet<Case> Cases { get; set; }
+        public DbSet<DuplicateGroup> DuplicateGroups { get; set; }
+        public DbSet<DuplicateGroupCase> DuplicateGroupCases { get; set; }
         public DbSet<FoundPersonInfo> FoundPersonInfos { get; set; }
         public DbSet<AiSearchUsage> AiSearchUsages { get; set; }
         public DbSet<Complaint> Complaints { get; set; }
@@ -23,17 +27,8 @@
             base.OnModelCreating(builder);
 
             builder.ApplyConfigurationsFromAssembly(typeof(ApplicationDbContext).Assembly);
-
-
-            //builder.Entity<BaseCase>().ToTable("BaseCases");
-
-            //builder.Entity<UnknownCase>().ToTable("UnknownCases");
-
-            //builder.Entity<LongTermMissingCase>().ToTable("LongTermMissingCases");
-
-            //builder.Entity<UrgentCase>().ToTable("UrgentCases");
-
+            
+            DatabaseConfiguration.Configure(builder);
         }
-
     }
 }
