@@ -28,7 +28,9 @@ namespace SafeTrace.Application.Services.Cases
             _logger = logger;
         }
 
-        // QUERIES
+        /// <summary>
+        /// Retrieves all active cases with filtering, sorting, and pagination.
+        /// </summary>
         public virtual async Task<ApiResponse<PaginationResponseDto<TListDto>>> GetAllAsync(TFilterDto filter)
         {
             var query = _unitOfWork.Repository<TEntity>()
@@ -37,9 +39,12 @@ namespace SafeTrace.Application.Services.Cases
 
             var response = await GetPagedResultAsync<TListDto>(query, filter);
 
-            return ApiResponse<PaginationResponseDto<TListDto>>.Ok(response, "Cases retrieved successfully.");
+            return ApiResponse<PaginationResponseDto<TListDto>>.Ok(response, "تم استرجاع الحالات بنجاح.");
         }
         
+        /// <summary>
+        /// Retrieves all cases for administrators with filtering, sorting and pagination.
+        /// </summary>
         public virtual async Task<ApiResponse<PaginationResponseDto<TDetailDto>>> AdminGetAllAsync(TFilterDto filter)
         {
             var query = _unitOfWork.Repository<TEntity>().Query(
@@ -48,9 +53,13 @@ namespace SafeTrace.Application.Services.Cases
 
             var response = await GetPagedResultAsync<TDetailDto>(query, filter);
 
-            return ApiResponse<PaginationResponseDto<TDetailDto>>.Ok(response, "Admin cases retrieved successfully.");
+            return ApiResponse<PaginationResponseDto<TDetailDto>>.Ok(response, "تم استرجاع الحالات بنجاح.");
         }
         
+        /// <summary>
+        /// Retrieves paginated cases created by the current user,
+        /// excluding soft-deleted cases.
+        /// </summary>
         public virtual async Task<ApiResponse<PaginationResponseDto<TListDto>>> GetMyCasesAsync(string userId, TFilterDto filter)
         {
             var query = _unitOfWork.Repository<TEntity>()
@@ -59,9 +68,12 @@ namespace SafeTrace.Application.Services.Cases
 
             var response = await GetPagedResultAsync<TListDto>(query, filter);
 
-            return ApiResponse<PaginationResponseDto<TListDto>>.Ok(response, "My cases retrieved successfully.");
+            return ApiResponse<PaginationResponseDto<TListDto>>.Ok(response, "تم استرجاع الحالات الخاصة بالمستخدم بنجاح.");
         }
         
+        /// <summary>
+        /// Retrieves the details of a specific active case by its ID.
+        /// </summary>
         public virtual async Task<ApiResponse<TDetailDto>> GetByIdAsync(long id)
         {
             var dto = await GetByIdInternalAsync<TDetailDto>(
@@ -69,9 +81,12 @@ namespace SafeTrace.Application.Services.Cases
                 activeOnly: true,
                 includes: [x => x.CaseFiles, x => x.User, x => x.AgeCategory]);
 
-            return ApiResponse<TDetailDto>.Ok(dto, "Case retrieved successfully.");
+            return ApiResponse<TDetailDto>.Ok(dto, "تم استرجاع بيانات الحالة بنجاح.");
         }
 
+        /// <summary>
+        /// Retrieves the details of a specific case by its ID for administrators.
+        /// </summary>
         public virtual async Task<ApiResponse<TDetailDto>> AdminGetByIdAsync(long id)
         {
             var dto = await GetByIdInternalAsync<TDetailDto>(
@@ -80,55 +95,24 @@ namespace SafeTrace.Application.Services.Cases
                 includes: [x => x.CaseFiles, x => x.User, x => x.AgeCategory, x => x.FoundPersonInfo]);
 
             return ApiResponse<TDetailDto>
-                .Ok(dto, "Case retrieved successfully.");
+                .Ok(dto, "تم استرجاع بيانات الحالة بنجاح.");
         }
         
-        private async Task<PaginationResponseDto<TDto>> GetPagedResultAsync<TDto>(IQueryable<TEntity> query, TFilterDto filter)
-        {
-            query = ApplyFilter(query, filter);
-
-            var totalCount = await query.CountAsync();
-
-            query = ApplySorting(query, filter);
-            query = ApplyPagination(query, filter);
-
-            var items = await query.ToListAsync();
-
-            return new PaginationResponseDto<TDto>
-            {
-                Items = _mapper.Map<List<TDto>>(items),
-                PageNumber = filter.Page,
-                PageSize = DefaultPageSize,
-                TotalCount = totalCount
-            };
-        }
-        
-        private async Task<TDto> GetByIdInternalAsync<TDto>(long id, bool activeOnly, params Expression<Func<TEntity, object>>[] includes)
-        {
-            var entity = await _caseHelper.GetValidCaseAsync<TEntity>(
-                id,
-                tracked: false,
-                includes: includes);
-
-            if (activeOnly && entity.Status != CaseStatus.Active)
-                throw new NotFoundException($"Case {id} not found.");
-
-            return _mapper.Map<TDto>(entity);
-        }
-       
-        // COMMANDS
-        public virtual async Task ApproveAsync(long caseId)
+        /// <summary>
+        /// Approves a pending case and changes its status to Active.
+        /// </summary>
+        public virtual async Task<ApiResponse<string>> ApproveAsync(long caseId)
         {
             var entity = await _caseHelper.GetValidCaseAsync<TEntity>(caseId);
 
             if (entity.Status == CaseStatus.Active)
-                throw new BadRequestException("Case is already approved.");
+                throw new BadRequestException("تمت الموافقة على الحالة بالفعل.");
 
             if (entity.Status == CaseStatus.Rejected)
-                throw new BadRequestException("Cannot approve a rejected case.");
+                throw new BadRequestException("لا يمكن الموافقة على حالة مرفوضة.");
 
             if (entity.Status != CaseStatus.Pending)
-                throw new BadRequestException("Only pending cases can be approved.");
+                throw new BadRequestException("يمكن الموافقة على الحالات قيد المراجعة فقط.");
 
             await ExecuteInTransactionAsync(
                 async () =>
@@ -143,20 +127,25 @@ namespace SafeTrace.Application.Services.Cases
                 });
 
             _logger.LogInformation("Case {CaseId} approved.", entity.Id);
-        }
 
-        public virtual async Task RejectAsync(long caseId)
+            return ApiResponse<string>.Ok(message: "تمت الموافقة على الحالة بنجاح.");
+        }
+        
+        /// <summary>
+        /// Rejects a pending case or restores its previous status if available.
+        /// </summary>
+        public virtual async Task<ApiResponse<string>> RejectAsync(long caseId)
         {
             var entity = await _caseHelper.GetValidCaseAsync<TEntity>(caseId);
 
             if (entity.Status == CaseStatus.Rejected)
-                throw new BadRequestException("Case is already rejected.");
+                throw new BadRequestException("تم رفض الحالة بالفعل.");
 
             if (entity.Status == CaseStatus.Active)
-                throw new BadRequestException("Cannot reject an already active/approved case.");
+                throw new BadRequestException("لا يمكن رفض حالة تمت الموافقة عليها.");
 
             if (entity.Status != CaseStatus.Pending)
-                throw new BadRequestException("Only pending cases can be rejected.");
+                throw new BadRequestException("يمكن رفض الحالات قيد المراجعة فقط.");
 
             await ExecuteInTransactionAsync(
                 async () =>
@@ -182,9 +171,14 @@ namespace SafeTrace.Application.Services.Cases
                 "Case {CaseId} rejected (Pending -> {Status}).",
                 entity.Id,
                 entity.Status);
+            
+            return ApiResponse<string>.Ok(message: "تم رفض الحالة بنجاح.");
         }
-
-        public virtual async Task SoftDeleteAsync(long caseId, string userId, bool checkOwnership = true)
+        
+        /// <summary>
+        /// Soft deletes a case while preserving its data for future recovery.
+        /// </summary>
+        public virtual async Task<ApiResponse<string>> SoftDeleteAsync(long caseId, string userId, bool checkOwnership = true)
         {
             var entity = await _caseHelper.GetValidCaseAsync<TEntity>(
                 caseId,
@@ -194,12 +188,7 @@ namespace SafeTrace.Application.Services.Cases
 
             if (entity.Status == CaseStatus.Found)
             {
-                _logger.LogWarning(
-                    "Attempt to delete Case {CaseId} that is already marked as Found.",
-                    entity.Id);
-
-                throw new BadRequestException(
-                    "Cannot delete a case that is already marked as Found.");
+                throw new BadRequestException("لا يمكن حذف حالة تم العثور عليها.");
             }
 
             var faceIds = entity.CaseFiles
@@ -227,17 +216,22 @@ namespace SafeTrace.Application.Services.Cases
                 "Case {CaseId} soft-deleted by user {UserId}.",
                 entity.Id,
                 userId);
+            
+            return ApiResponse<string>.Ok(message: "تم حذف الحالة بنجاح.");
         }
         
-        public virtual async Task MarkAsFoundAsync(long caseId, string userId, FoundPersonInfoRequestDto foundPersonInfo, bool checkOwnership = true)
+        /// <summary>
+        /// Marks a case as found and stores the found person information.
+        /// </summary>
+        public virtual async Task<ApiResponse<string>> MarkAsFoundAsync(long caseId, string userId, FoundPersonInfoRequestDto foundPersonInfo, bool checkOwnership = true)
         {
             var entity = await _caseHelper.GetValidCaseAsync<TEntity>(caseId, userId, checkOwnership);
 
             if (entity.Status == CaseStatus.Found)
-                throw new BadRequestException("Case is already marked as Found.");
+                throw new BadRequestException("تم تسجيل هذه الحالة كمُعثر عليها بالفعل.");
 
             if (entity.Status == CaseStatus.Expired)
-                throw new BadRequestException("Cannot mark an expired case as Found.");
+                throw new BadRequestException("لا يمكن تسجيل حالة منتهية كمُعثر عليها.");
 
             await ExecuteInTransactionAsync(
                 async () =>
@@ -249,7 +243,6 @@ namespace SafeTrace.Application.Services.Cases
                     await OnMarkedAsFoundAsync(entity);
 
                     var foundPersonInfoEntity = _mapper.Map<FoundPersonInfo>(foundPersonInfo);
-
                     foundPersonInfoEntity.CaseId = entity.Id;
                     foundPersonInfoEntity.FoundedUserId = userId;
 
@@ -265,21 +258,20 @@ namespace SafeTrace.Application.Services.Cases
                 "Case {CaseId} marked as Found by user {UserId}.",
                 entity.Id,
                 userId);
+            
+            return ApiResponse<string>.Ok(message: "تم تسجيل الحالة كمُعثر عليها بنجاح.");
         }
-                
-        public virtual async Task PermanentDeleteAsync(long caseId)
+
+        /// <summary>
+        /// Permanently deletes a case and removes all associated files and face records.
+        /// </summary> 
+        public virtual async Task<ApiResponse<string>> PermanentDeleteAsync(long caseId)
         {
             var entity = await _unitOfWork.Repository<TEntity>()
                 .GetOneAsync(c => c.Id == caseId, tracked: true, includes: c => c.CaseFiles);
 
             if (entity == null)
-            {
-                _logger.LogWarning(
-                    "Permanent delete failed - Case {CaseId} not found.",
-                    caseId);
-
-                throw new NotFoundException($"Case {caseId} was not found");
-            }
+                throw new NotFoundException("الحالة غير موجودة.");
 
             var filesToDelete = entity.CaseFiles
                 .Select(p => p.ImagePath)
@@ -307,12 +299,13 @@ namespace SafeTrace.Application.Services.Cases
             _logger.LogWarning(
                 "Case {CaseId} permanently deleted.",
                 entity.Id);
+            
+            return ApiResponse<string>.Ok(message: "تم حذف الحالة نهائيًا بنجاح.");
         }
                 
         /// <summary>
-        /// Reusable "begin transaction → do work → commit; on failure rollback + run caller-supplied
-        /// cleanup" template. Extracted so derived services (Create/Update flows that upload photos and
-        /// index faces) don't each hand-roll the same try/catch/rollback skeleton.
+        /// Executes the specified operation inside a transaction,
+        /// committing on success and rolling back on failure.
         /// </summary>
         protected async Task<TResult> ExecuteInTransactionAsync<TResult>(Func<Task<TResult>> action, Func<Exception, Task>? onFailureAsync = null)
         {
@@ -337,16 +330,25 @@ namespace SafeTrace.Application.Services.Cases
         }
         
         // EXTENSION HOOKS (Template Method) — only where a real difference exists
-        /// <summary>Deletes any feature-specific physical files beyond the shared Photos collection. No-op by default.</summary>
+
+        /// <summary>
+        /// Deletes any feature-specific physical files beyond the shared Photos collection. No-op by default.
+        /// </summary>
         protected virtual void DeleteAdditionalFiles(TEntity entity){}
 
-        /// <summary>Extra state changes when a case is marked as Found (e.g. Urgent sets EndDate). No-op by default.</summary>
+        /// <summary>
+        /// Extra state changes when a case is marked as Found (e.g. Urgent sets EndDate). No-op by default.
+        /// </summary>
         protected virtual Task OnMarkedAsFoundAsync(TEntity entity) => Task.CompletedTask;
         
-        /// <summary>Allows derived services to apply additional filtering. Default: no extra filters. </summary>
+        /// <summary>
+        /// Allows derived services to apply additional filtering. Default: no extra filters. 
+        /// </summary>
         protected virtual IQueryable<TEntity> ApplyCustomFilter(IQueryable<TEntity> query, TFilterDto filter)=> query;
 
-        /// <summary>Allows derived services to apply custom sorting. Default: no extra sorting.</summary>
+        /// <summary>
+        /// Allows derived services to apply custom sorting. Default: no extra sorting.
+        /// </summary>
         protected virtual IQueryable<TEntity> ApplyCustomSorting(IQueryable<TEntity> query, TFilterDto filter) => query; 
         
         // FILTER / SORT / PAGINATION
@@ -433,5 +435,41 @@ namespace SafeTrace.Application.Services.Cases
 
             return query.Skip((filter.Page - 1) * DefaultPageSize).Take(DefaultPageSize);
         }
+        
+        // Applies filtering, sorting, and pagination, then maps the result to the requested DTO.
+        private async Task<PaginationResponseDto<TDto>> GetPagedResultAsync<TDto>(IQueryable<TEntity> query, TFilterDto filter)
+        {
+            query = ApplyFilter(query, filter);
+
+            var totalCount = await query.CountAsync();
+
+            query = ApplySorting(query, filter);
+            query = ApplyPagination(query, filter);
+
+            var items = await query.ToListAsync();
+
+            return new PaginationResponseDto<TDto>
+            {
+                Items = _mapper.Map<List<TDto>>(items),
+                PageNumber = filter.Page,
+                PageSize = DefaultPageSize,
+                TotalCount = totalCount
+            };
+        }
+        
+        // Retrieves a case by ID, validates its status if required, and maps it to the requested DTO.
+        private async Task<TDto> GetByIdInternalAsync<TDto>(long id, bool activeOnly, params Expression<Func<TEntity, object>>[] includes)
+        {
+            var entity = await _caseHelper.GetValidCaseAsync<TEntity>(
+                id,
+                tracked: false,
+                includes: includes);
+
+            if (activeOnly && entity.Status != CaseStatus.Active)
+                throw new NotFoundException("الحالة غير موجودة.");
+
+            return _mapper.Map<TDto>(entity);
+        }
+    
     }
 }

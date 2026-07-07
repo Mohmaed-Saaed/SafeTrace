@@ -10,6 +10,9 @@ namespace SafeTrace.Application.Services.Cases
     {
         private readonly IFileStorageService _fileStorageService;
 
+        private const string FolderName = "LongTermCase";
+        private const string PoliceReportsFolder = "LongTermCase/PoliceReports";
+
         public LongTermCaseService(
             IUnitOfWork unitOfWork,
             IMapper mapper,
@@ -21,6 +24,9 @@ namespace SafeTrace.Application.Services.Cases
             _fileStorageService = fileStorage;
         }
 
+        /// <summary>
+        /// Deletes the police report image when a long-term case is permanently deleted.
+        /// </summary>
         protected override void DeleteAdditionalFiles(LongTermMissingCase entity)
         {
             if (!string.IsNullOrWhiteSpace(entity.PoliceReportImage))
@@ -29,7 +35,10 @@ namespace SafeTrace.Application.Services.Cases
             }
         }
         
-        public async Task<ApiResponse<string>> CreateAsync(CreateLongTermCaseDto dto, string userId)
+        /// <summary>
+        /// Creates a new long-term missing case with pending status.
+        /// </summary>
+        public async Task<ApiResponse<string>> CreateAsync(string userId, CreateLongTermCaseDto dto)
         {
             var entity = _mapper.Map<LongTermMissingCase>(dto);
 
@@ -43,7 +52,7 @@ namespace SafeTrace.Application.Services.Cases
 
             if (dto.PoliceReportImage is not null)
             {
-                entity.PoliceReportImage = await _fileStorageService.SaveFileAsync(dto.PoliceReportImage, "LongTermCase/PoliceReports");
+                entity.PoliceReportImage = await _fileStorageService.SaveFileAsync(dto.PoliceReportImage, PoliceReportsFolder);
             }
 
             await ExecuteInTransactionAsync(
@@ -53,7 +62,7 @@ namespace SafeTrace.Application.Services.Cases
                         dto.PrimaryImage,
                         dto.AdditionalImages,
                         dto.Video,
-                        "LongTermCase",
+                        FolderName,
                         entity.Id);
 
                     foreach (var photo in uploadedPhotos)
@@ -68,16 +77,24 @@ namespace SafeTrace.Application.Services.Cases
                     _caseHelper.CleanupPhysicalFiles(entity.CaseFiles.Select(x => x.ImagePath));
                     _fileStorageService.DeleteFile(entity.PoliceReportImage);
                     await _caseHelper.DeleteFacesAsync(entity.CaseFiles.Select(x => x.FaceId), entity.Id);
+                    
+                    _logger.LogError(
+                        ex,
+                        "Failed to create unknown case for user {UserId}",
+                        userId);
                 });
 
             _logger.LogInformation(
-                "Created long-term missing case. CaseId={CaseId}, CaseCode={CaseCode}, UserId={UserId}",
+                "Created longTerm missing case. CaseId={CaseId}, CaseCode={CaseCode}, UserId={UserId}",
                 entity.Id, entity.CaseCode, userId);
 
-            return ApiResponse<string>.Ok(message: "LongTerm case created successfully.");
+            return ApiResponse<string>.Ok(message: "تم إنشاء حالة الفقد طويلة المدة بنجاح.");
         }
-
-        public async Task<ApiResponse<string>> UpdateAsync(long id, UpdateLongTermCaseDto dto, string userId)
+        
+        /// <summary>
+        /// Updates a longTerm missing case with photo and police report management.
+        /// </summary>
+        public async Task<ApiResponse<string>> UpdateAsync(long id, string userId, UpdateLongTermCaseDto dto)
         {
             var entity = await _caseHelper.GetValidCaseAsync<LongTermMissingCase>(
                 id,
@@ -94,27 +111,19 @@ namespace SafeTrace.Application.Services.Cases
             await ExecuteInTransactionAsync(
                 action: async () =>
                 {
+                    _mapper.Map(dto, entity);
+
                     entity.Age = dto.Age;
                     entity.AgeCategoryId = await _caseHelper.ResolveAgeCategoryIdAsync(entity.Age);
-
-                    entity.Gender = dto.Gender;
-                    entity.FName = dto.FName;
-                    entity.SName = dto.SName;
-                    if (dto.TName is not null) entity.TName = dto.TName;
-                    if (dto.LName is not null) entity.LName = dto.LName;
-                    if (dto.Relation.HasValue) entity.Relation = dto.Relation.Value;
-                    if (dto.Description is not null) entity.Description = dto.Description;
-                    if (dto.Government is not null) entity.Government = dto.Government;
-                    if (dto.City is not null) entity.City = dto.City;
-                    if (dto.Street is not null) entity.Street = dto.Street;
+                    entity.UpdatedAt = DateTime.UtcNow;
 
                     if (dto.PoliceReportImage is not null)
                     {
+                        var newReport = await _fileStorageService.SaveFileAsync(dto.PoliceReportImage, PoliceReportsFolder);
+                        
                         _fileStorageService.DeleteFile(entity.PoliceReportImage);
 
-                        entity.PoliceReportImage = await _fileStorageService.SaveFileAsync(
-                                dto.PoliceReportImage,
-                                "LongTermCase/PoliceReports");
+                        entity.PoliceReportImage = newReport;
                     }
 
                     if (dto.DeletedPhotoIds is { Count: > 0 })
@@ -134,13 +143,13 @@ namespace SafeTrace.Application.Services.Cases
                         }
                     }
 
-                    if (dto.NewPhotos is not null && dto.NewPhotos.Any())
+                    if (dto.NewPhotos?.Count > 0)
                     {
                         var newPhotos = await _caseHelper.CreateCaseFilesAsync(
                             dto.NewPhotos.First(),
                             dto.NewPhotos.Skip(1),
                             null,
-                            "LongTermCase",
+                            FolderName,
                             entity.Id);
 
                         uploadedPhotos.AddRange(newPhotos);
@@ -192,8 +201,8 @@ namespace SafeTrace.Application.Services.Cases
                 id,
                 userId);
 
-            return ApiResponse<string>.Ok(message: "LongTerm case updated successfully.");
+            return ApiResponse<string>.Ok(message: "تم تحديث حالة الفقد طويلة المدة بنجاح.");
         }
-            
+    
     }
 }

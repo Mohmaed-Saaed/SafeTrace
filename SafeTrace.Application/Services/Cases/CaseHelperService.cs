@@ -17,9 +17,6 @@ namespace SafeTrace.Application.Services.Cases
         private readonly IMapper _mapper;
         private readonly ILogger<CaseHelperService> _logger;
 
-        // Tunable thresholds for face-match verification. Kept as constants here (not
-        // config) for now — promote to IOptions<T> later if they need to be tuned
-        // without a redeploy.
         private const float MinimumSimilarity = 80f;
         private const int MaxAgeDifference = 5;
 
@@ -37,7 +34,9 @@ namespace SafeTrace.Application.Services.Cases
             _logger = logger;
         }
 
-        // VALIDATION / LOOKUP
+        /// <summary>
+        /// Retrieves a case by ID with optional ownership and status validation.
+        /// </summary>
         public async Task<TEntity> GetValidCaseAsync<TEntity>(
             long id,
             string? userId = null,
@@ -54,43 +53,49 @@ namespace SafeTrace.Application.Services.Cases
 
             if (entity == null)
             {
-                _logger.LogWarning("Case {CaseId} not found or deleted.", id);
-                throw new NotFoundException($"Case {id} not found.");
+                throw new NotFoundException("الحالة غير موجودة.");
             }
 
             if (checkOwnership && !string.IsNullOrEmpty(userId) && entity.UserId != userId)
             {
-                _logger.LogWarning("Unauthorized attempt to access Case {CaseId} by User {UserId}", id, userId);
-                throw new UnauthorizedException("You are not authorized to perform this action.");
+                throw new UnauthorizedException("لا يمكن تنفيذ هذا الإجراء على هذه الحالة.");
             }
 
             return entity;
         }
 
+        /// <summary>
+        /// Validates that a case can be modified (not Found, Expired, or Deleted).
+        /// </summary>
         public void ValidateCaseIsEditable(Case entity)
         {
             if (entity.Status == CaseStatus.Found || entity.Status == CaseStatus.Expired || entity.Status == CaseStatus.Deleted)
             {
-                _logger.LogWarning("Attempt to edit/update uneditable Case {CaseId} with status {Status}", entity.Id, entity.Status);
-                throw new BadRequestException($"Cannot perform this action on a case with status '{entity.Status}'.");
+                throw new BadRequestException($"لا يمكن تنفيذ هذا الإجراء على حالة بحالة '{entity.Status}'.");
             }
         }
         
+        /// <summary>
+        /// Resolves the age category ID for a given age.
+        /// </summary>
         public async Task<int> ResolveAgeCategoryIdAsync(int age)
         {
             var category = await _unitOfWork.Repository<AgeCategory>()
                 .GetOneAsync(c => age >= c.MinAge && age <= c.MaxAge, tracked: false);
 
             if (category is null)
-                throw new NotFoundException($"No age category configured for age {age}.");
+                throw new NotFoundException($"لا يوجد فئة عمرية محددة للعمر {age}.");
 
             return category.Id;
         }
 
+        /// <summary>
+        /// Generates a unique case code with the specified prefix.
+        /// </summary>
         public async Task<string> GenerateCaseCodeAsync(CaseCodePrefix prefix)
         {
             if (!SequenceNames.TryGetValue(prefix, out var sequenceName))
-                throw new ArgumentOutOfRangeException(nameof(prefix));
+                throw new ArgumentOutOfRangeException(nameof(prefix), "البادئة غير صالحة.");
 
             var number = await _unitOfWork.GetNextSequenceValueAsync(sequenceName);
 
@@ -104,7 +109,9 @@ namespace SafeTrace.Application.Services.Cases
             { CaseCodePrefix.UNK, "UnknownCaseSequence" }
         };
 
-        // PHOTO HELPERS
+        /// <summary>
+        /// Creates case file entities from uploaded files.
+        /// </summary>
         public async Task<List<CaseFile>> CreateCaseFilesAsync(IFormFile primaryImage, IEnumerable<IFormFile>? additionalImages, IFormFile? video, string folderName, long caseId = 0)
         {
             var files = new List<CaseFile>
@@ -156,6 +163,9 @@ namespace SafeTrace.Application.Services.Cases
             };
         }
        
+        /// <summary>
+        /// Sets the primary image for a case.
+        /// </summary>
         public void SetPrimaryImage(ICollection<CaseFile> files, long primaryPhotoId)
         {
             var images = files
@@ -163,10 +173,10 @@ namespace SafeTrace.Application.Services.Cases
                 .ToList();
 
             if (!images.Any())
-                throw new BadRequestException("The case has no images.");
+                throw new BadRequestException("الحالة لا تحتوي على صور.");
 
             if (!images.Any(i => i.Id == primaryPhotoId))
-                throw new BadRequestException("The specified primary image does not exist.");
+                throw new BadRequestException("الصورة الأساسية المحددة غير موجودة.");
 
             foreach (var image in images)
             {
@@ -181,6 +191,9 @@ namespace SafeTrace.Application.Services.Cases
             ".webm"
         };
 
+        /// <summary>
+        /// Deletes physical files from storage with error logging.
+        /// </summary>
         public void CleanupPhysicalFiles(IEnumerable<string> filePaths)
         {
             foreach (var path in filePaths.Where(p => !string.IsNullOrWhiteSpace(p)))
@@ -196,7 +209,9 @@ namespace SafeTrace.Application.Services.Cases
             }
         }
 
-        // FACE RECOGNITION HELPERS
+        /// <summary>
+        /// Deletes face records from the recognition service.
+        /// </summary>
         public async Task DeleteFacesAsync(IEnumerable<string>? faceIds, long caseId)
         {
             try
@@ -209,26 +224,19 @@ namespace SafeTrace.Application.Services.Cases
             }
         }
     
-        // =========================================================
-        // FACE MATCHING
-        // Finds existing cases that may belong to the same person.
-        // It only returns matched cases; each case service decides
-        // how to handle them (block, show, or continue creating).
-        // =========================================================
+        /// <summary>
+        /// Finds existing cases that match the provided subject and face image.
+        /// </summary>
         public async Task<MatchedCasesResult> FindMatchedCasesAsync(CaseMatchSubjectInfoDto subject, IFormFile primaryImage)
         {
-            // Step 1: Search similar faces in AWS / Vector DB
             var faceMatches = await SearchFacesAsync(primaryImage);
             if (faceMatches.Count == 0)
                 return MatchedCasesResult.Empty;
 
-            // Step 2: Load matching cases
             var candidateCases = await LoadCandidateCasesAsync(faceMatches);
             if (candidateCases.Count == 0)
                 return MatchedCasesResult.Empty;
 
-
-            // Step 3: Verify and filter matches
             var matchedCases = FilterMatchedCases(candidateCases, faceMatches, subject);
 
             return new MatchedCasesResult
@@ -238,9 +246,6 @@ namespace SafeTrace.Application.Services.Cases
             };
         }
 
-        /// <summary>
-        /// Searches the face recognition service for similar faces.
-        /// </summary>
         private async Task<List<FaceMatchResult>> SearchFacesAsync(IFormFile primaryImage)
         {
             var faceMatches = await _faceRecognitionService.SearchByImageAsync(primaryImage);
@@ -255,9 +260,6 @@ namespace SafeTrace.Application.Services.Cases
                 .ToList();
         }
  
-        /// <summary>
-        /// Loads active cases that contain the matched FaceIds.
-        /// </summary>
         private async Task<List<Case>> LoadCandidateCasesAsync(IReadOnlyCollection<FaceMatchResult> faceMatches)
         {
             var faceIds = faceMatches.Select(x => x.FaceId).ToList();
@@ -271,9 +273,6 @@ namespace SafeTrace.Application.Services.Cases
                 .ToListAsync();
         }
  
-        /// <summary>
-        /// Filters candidate cases using business verification rules.
-        /// </summary>
         private List<MatchedCaseDto> FilterMatchedCases(IReadOnlyCollection<Case> candidateCases, IReadOnlyCollection<FaceMatchResult> faceMatches, CaseMatchSubjectInfoDto subject)
         {
             var matchedCases = new List<MatchedCaseDto>();
@@ -283,7 +282,6 @@ namespace SafeTrace.Application.Services.Cases
                 CaseFile? matchedPhoto = null;
                 FaceMatchResult? matchedFace = null;
 
-                // Find the first candidate photo returned by AWS
                 foreach (var photo in candidate.CaseFiles)
                 {
                     matchedFace = faceMatches.FirstOrDefault(x => x.FaceId == photo.FaceId);
@@ -300,7 +298,6 @@ namespace SafeTrace.Application.Services.Cases
 
                 var similarity = matchedFace.Similarity ?? 0;
 
-                // Verify business information
                 if (!PassesVerification(candidate, similarity, subject))
                     continue;
 
@@ -314,20 +311,14 @@ namespace SafeTrace.Application.Services.Cases
             return matchedCases;
         }
         
-        /// <summary>
-        /// Verifies whether the candidate is likely the same person.
-        /// </summary>
         private static bool PassesVerification(Case candidate, float similarity, CaseMatchSubjectInfoDto subject)
         {
-            // Similarity
             if (similarity < MinimumSimilarity)
                 return false;
 
-            // Gender
             if (candidate.Gender != subject.Gender)
                 return false;
 
-            // Age
             if (Math.Abs(candidate.Age - subject.Age) > MaxAgeDifference)
                 return false;
 
