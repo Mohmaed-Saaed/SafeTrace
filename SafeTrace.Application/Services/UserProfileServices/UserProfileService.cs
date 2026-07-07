@@ -136,31 +136,6 @@ namespace SafeTrace.Application.Services.UserProfileServices
             }
         }
 
-        public async Task<ApiResponse<bool>> UpdatePasswordAsync(string userId, UpdatePasswordDTO dto)
-        {
-            var user = await _userManager.FindByIdAsync(userId);
-            if (!string.IsNullOrWhiteSpace(dto.NewPassword))
-            {
-                var changePasswordResult = await _userManager.ChangePasswordAsync(
-                    user,
-                    dto.CurrentPassword!,
-                    dto.NewPassword);
-
-                if (!changePasswordResult.Succeeded)
-                {
-                    _logger.LogWarning(
-                        "Failed to change password for UserId: {UserId}. Errors: {Errors}",
-                        userId,
-                        string.Join(", ", changePasswordResult.Errors.Select(e => e.Description)));
-
-                    throw new BadRequestException(
-                        string.Join(", ", changePasswordResult.Errors.Select(e => e.Description)));
-                }
-                var result = await _userManager.UpdateAsync(user);
-                return ApiResponse<bool>.Ok(true, "تمت تغيير كلمة المرور بنجاح  ");
-            }
-            return ApiResponse<bool>.Ok(true, "تمت العملية ");
-        }
 
         public async Task<ApiResponse<bool>> UpdateProfilImageesync(string userId, UpdateProfileImageDTO dto)
         {
