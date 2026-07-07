@@ -68,9 +68,6 @@ namespace SafeTrace.Infrastructure.Repositories.Repository
             return await query.FirstOrDefaultAsync(predicate);
         }
 
-
-
-
         public async Task<T?> GetByIdAsync(object id)
         {
             return await _db.FindAsync(id);

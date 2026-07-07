@@ -9,29 +9,27 @@ namespace SafeTrace.Application.Services.Cases
     public class LongTermCaseService : BaseCasesService<LongTermMissingCase, LongTermCaseListDto, LongTermCaseDetailDto, LongTermCaseFilterDto>, ILongTermCaseService
     {
         private readonly IFileStorageService _fileStorageService;
-        private readonly IFaceRecognitionService _faceRecognition;
 
         public LongTermCaseService(
             IUnitOfWork unitOfWork,
             IMapper mapper,
             IFileStorageService fileStorage,
             ICaseHelperService caseHelper,
-            IFaceRecognitionService faceRecognition,
             ILogger<LongTermCaseService> logger)
             : base(unitOfWork, mapper, caseHelper, logger)
         {
             _fileStorageService = fileStorage;
-            _faceRecognition = faceRecognition;
         }
 
-        protected override async Task DeleteAdditionalFilesAsync(LongTermMissingCase entity)
+        protected override void DeleteAdditionalFiles(LongTermMissingCase entity)
         {
             if (!string.IsNullOrWhiteSpace(entity.PoliceReportImage))
-                await _caseHelper.CleanupPhysicalFilesAsync(Enumerable.Empty<string>());
+            {
+                _caseHelper.CleanupPhysicalFiles([entity.PoliceReportImage]);
+            }
         }
-
-        // CREATE
-        public async Task<long> CreateAsync(CreateLongTermCaseDto dto, string userId)
+        
+        public async Task<ApiResponse<string>> CreateAsync(CreateLongTermCaseDto dto, string userId)
         {
             var entity = _mapper.Map<LongTermMissingCase>(dto);
 
@@ -44,168 +42,158 @@ namespace SafeTrace.Application.Services.Cases
             entity.AgeCategoryId = await _caseHelper.ResolveAgeCategoryIdAsync(entity.Age);
 
             if (dto.PoliceReportImage is not null)
-                entity.PoliceReportImage = await _fileStorageService.SaveFileAsync(dto.PoliceReportImage, "long-term/police-reports");
-
-            if (dto.Photos is not null && dto.Photos.Any())
             {
-                var photoList = dto.Photos.ToList();
+                entity.PoliceReportImage = await _fileStorageService.SaveFileAsync(dto.PoliceReportImage, "LongTermCase/PoliceReports");
+            }
 
-                for (int i = 0; i < photoList.Count; i++)
+            await ExecuteInTransactionAsync(
+                action: async () =>
                 {
-                    var photo = photoList[i];
-                    var path = await _fileStorageService.SaveFileAsync(photo, "long-term");
+                    var uploadedPhotos = await _caseHelper.CreateCaseFilesAsync(
+                        dto.PrimaryImage,
+                        dto.AdditionalImages,
+                        dto.Video,
+                        "LongTermCase",
+                        entity.Id);
 
-                    bool isPrimary = dto.PrimaryPhotoIndex == i;
-                    string? faceId = null;
-                    try
-                    {
-                        faceId = await _faceRecognition.IndexFaceAsync(photo);
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.LogWarning(ex,
-                            "تعذّر تسجيل الوجه في AWS للصورة {Index} أثناء إنشاء الحالة للمستخدم {UserId}.", i, userId);
-                    }
+                    foreach (var photo in uploadedPhotos)
+                        entity.CaseFiles.Add(photo);
 
-                    entity.CaseFiles.Add(new CaseFile
-                    {
-                        ImagePath = path,
-                        FaceId = faceId,
-                        IsPrimary = isPrimary
-                    });
-                }
+                    await _unitOfWork.Repository<LongTermMissingCase>().CreateAsync(entity);
 
-                _caseHelper.EnsureSinglePrimaryPhoto(entity.CaseFiles);
-            }
-
-            await _unitOfWork.BeginTransactionAsync();
-            try
-            {
-                await _unitOfWork.Repository<LongTermMissingCase>().CreateAsync(entity);
-                await _unitOfWork.SaveAsync();
-                await _unitOfWork.CommitTransactionAsync();
-
-                _logger.LogInformation(
-                    "تم إنشاء حالة مفقود طويل الأمد. CaseId={CaseId}, CaseCode={CaseCode}, UserId={UserId}",
-                    entity.Id, entity.CaseCode, userId);
-
-                return entity.Id;
-            }
-            catch (Exception ex)
-            {
-                await _unitOfWork.RollbackTransactionAsync();
-
-                foreach (var photo in entity.CaseFiles)
-                    _fileStorageService.DeleteFile(photo.ImagePath);
-
-                if (!string.IsNullOrEmpty(entity.PoliceReportImage))
+                    return true;
+                },
+                onFailureAsync: async ex =>
+                {
+                    _caseHelper.CleanupPhysicalFiles(entity.CaseFiles.Select(x => x.ImagePath));
                     _fileStorageService.DeleteFile(entity.PoliceReportImage);
+                    await _caseHelper.DeleteFacesAsync(entity.CaseFiles.Select(x => x.FaceId), entity.Id);
+                });
 
-                _logger.LogError(ex, "فشل إنشاء الحالة للمستخدم {UserId}", userId);
-                throw;
-            }
+            _logger.LogInformation(
+                "Created long-term missing case. CaseId={CaseId}, CaseCode={CaseCode}, UserId={UserId}",
+                entity.Id, entity.CaseCode, userId);
+
+            return ApiResponse<string>.Ok(message: "LongTerm case created successfully.");
         }
 
-        // UPDATE
-        public async Task UpdateAsync(long id, UpdateLongTermCaseDto dto, string userId)
+        public async Task<ApiResponse<string>> UpdateAsync(long id, UpdateLongTermCaseDto dto, string userId)
         {
             var entity = await _caseHelper.GetValidCaseAsync<LongTermMissingCase>(
                 id,
                 userId,
                 checkOwnership: true,
-                includes: [c => c.CaseFiles]
-            );
+                includes: [c => c.CaseFiles]);
 
-            if (dto.Age.HasValue)
-            {
-                entity.Age = dto.Age.Value;
-                entity.AgeCategoryId = await _caseHelper.ResolveAgeCategoryIdAsync(entity.Age);
-            }
+            _caseHelper.ValidateCaseIsEditable(entity);
 
-            if (dto.Gender.HasValue) entity.Gender = dto.Gender.Value;
-            if (dto.FName is not null) entity.FName = dto.FName;
-            if (dto.SName is not null) entity.SName = dto.SName;
-            if (dto.TName is not null) entity.TName = dto.TName;
-            if (dto.LName is not null) entity.LName = dto.LName;
-            if (dto.Relation.HasValue) entity.Relation = dto.Relation.Value;
-            if (dto.Description is not null) entity.Description = dto.Description;
-            if (dto.Government is not null) entity.Government = dto.Government;
-            if (dto.City is not null) entity.City = dto.City;
-            if (dto.Street is not null) entity.Street = dto.Street;
+            var uploadedPhotos = new List<CaseFile>();
+            var filesToDelete = new List<string>();
+            var faceIdsToDelete = new List<string>();
 
-            if (dto.PoliceReportImage is not null)
-            {
-                if (!string.IsNullOrEmpty(entity.PoliceReportImage))
-                    _fileStorageService.DeleteFile(entity.PoliceReportImage);
-
-                entity.PoliceReportImage = await _fileStorageService.SaveFileAsync(dto.PoliceReportImage, "long-term/police-reports");
-            }
-
-            if (dto.RemovedPhotoIds is { Count: > 0 })
-            {
-                var toRemove = entity.CaseFiles.Where(p => dto.RemovedPhotoIds.Contains(p.Id)).ToList();
-                foreach (var photo in toRemove)
+            await ExecuteInTransactionAsync(
+                action: async () =>
                 {
-                    _fileStorageService.DeleteFile(photo.ImagePath);
+                    entity.Age = dto.Age;
+                    entity.AgeCategoryId = await _caseHelper.ResolveAgeCategoryIdAsync(entity.Age);
 
-                    if (!string.IsNullOrEmpty(photo.FaceId))
+                    entity.Gender = dto.Gender;
+                    entity.FName = dto.FName;
+                    entity.SName = dto.SName;
+                    if (dto.TName is not null) entity.TName = dto.TName;
+                    if (dto.LName is not null) entity.LName = dto.LName;
+                    if (dto.Relation.HasValue) entity.Relation = dto.Relation.Value;
+                    if (dto.Description is not null) entity.Description = dto.Description;
+                    if (dto.Government is not null) entity.Government = dto.Government;
+                    if (dto.City is not null) entity.City = dto.City;
+                    if (dto.Street is not null) entity.Street = dto.Street;
+
+                    if (dto.PoliceReportImage is not null)
                     {
-                        try
+                        _fileStorageService.DeleteFile(entity.PoliceReportImage);
+
+                        entity.PoliceReportImage = await _fileStorageService.SaveFileAsync(
+                                dto.PoliceReportImage,
+                                "LongTermCase/PoliceReports");
+                    }
+
+                    if (dto.DeletedPhotoIds is { Count: > 0 })
+                    {
+                        var toRemove = entity.CaseFiles
+                            .Where(p => dto.DeletedPhotoIds.Contains(p.Id))
+                            .ToList();
+
+                        foreach (var photo in toRemove)
                         {
-                            await _faceRecognition.DeleteFaceAsync(photo.FaceId);
-                        }
-                        catch (Exception ex)
-                        {
-                            _logger.LogWarning(ex,
-                                "تعذّر حذف الوجه {FaceId} من AWS عند تعديل الحالة {CaseId}.", photo.FaceId, id);
+                            filesToDelete.Add(photo.ImagePath);
+
+                            if (!string.IsNullOrWhiteSpace(photo.FaceId))
+                                faceIdsToDelete.Add(photo.FaceId);
+
+                            entity.CaseFiles.Remove(photo);
                         }
                     }
 
-                    entity.CaseFiles.Remove(photo);
-                    _unitOfWork.Repository<CaseFile>().Remove(photo);
-                }
-            }
+                    if (dto.NewPhotos is not null && dto.NewPhotos.Any())
+                    {
+                        var newPhotos = await _caseHelper.CreateCaseFilesAsync(
+                            dto.NewPhotos.First(),
+                            dto.NewPhotos.Skip(1),
+                            null,
+                            "LongTermCase",
+                            entity.Id);
 
-            if (dto.NewPhotos is not null && dto.NewPhotos.Any())
-            {
-                var newPhotoList = dto.NewPhotos.ToList();
-                for (int i = 0; i < newPhotoList.Count; i++)
+                        uploadedPhotos.AddRange(newPhotos);
+
+                        foreach (var photo in newPhotos)
+                            entity.CaseFiles.Add(photo);
+                    }
+
+                    if (dto.PrimaryPhotoId.HasValue)
+                        _caseHelper.SetPrimaryImage(entity.CaseFiles, dto.PrimaryPhotoId.Value);
+
+                    if (entity.Status != CaseStatus.Pending &&
+                        entity.Status != CaseStatus.Deleted)
+                    {
+                        entity.PreviousStatus = entity.Status;
+                        entity.Status = CaseStatus.Pending;
+                    }
+
+                    entity.UpdatedAt = DateTime.UtcNow;
+
+                    _unitOfWork.Repository<LongTermMissingCase>().Update(entity);
+
+                    return true;
+                },
+                onFailureAsync: async ex =>
                 {
-                    var photo = newPhotoList[i];
-                    var path = await _fileStorageService.SaveFileAsync(photo, "long-term");
+                    _caseHelper.CleanupPhysicalFiles(uploadedPhotos.Select(x => x.ImagePath));
 
-                    string? faceId = null;
-                    try
-                    {
-                        faceId = await _faceRecognition.IndexFaceAsync(photo);
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.LogWarning(ex,
-                            "تعذّر تسجيل الوجه في AWS للصورة الجديدة {Index} عند تعديل الحالة {CaseId}.", i, id);
-                    }
+                    await _caseHelper.DeleteFacesAsync(
+                        uploadedPhotos
+                            .Where(x => !string.IsNullOrWhiteSpace(x.FaceId))
+                            .Select(x => x.FaceId!),
+                        entity.Id);
 
-                    entity.CaseFiles.Add(new CaseFile
-                    {
-                        ImagePath = path,
-                        FaceId = faceId,
-                        IsPrimary = false
-                    });
-                }
-            }
+                    _logger.LogError(
+                        ex,
+                        "Failed to update LongTerm case {CaseId} by user {UserId}",
+                        id,
+                        userId);
+                });
 
-            _caseHelper.EnsureSinglePrimaryPhoto(entity.CaseFiles, dto.PrimaryPhotoId);
+            _caseHelper.CleanupPhysicalFiles(filesToDelete);
 
-            if (entity.Status != CaseStatus.Pending)
-            {
-                entity.PreviousStatus = entity.Status;
-                entity.Status = CaseStatus.Pending;
-            }
+            if (faceIdsToDelete.Count > 0)
+                await _caseHelper.DeleteFacesAsync(faceIdsToDelete, entity.Id);
 
-            _unitOfWork.Repository<LongTermMissingCase>().Update(entity);
-            await _unitOfWork.SaveAsync();
+            _logger.LogInformation(
+                "Updated case {CaseId} by user {UserId}",
+                id,
+                userId);
 
-            _logger.LogInformation("تم تعديل الحالة {CaseId} بواسطة المستخدم {UserId})", id, userId);
+            return ApiResponse<string>.Ok(message: "LongTerm case updated successfully.");
         }
+            
     }
 }

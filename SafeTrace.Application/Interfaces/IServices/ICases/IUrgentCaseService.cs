@@ -6,7 +6,7 @@ namespace SafeTrace.Application.Interfaces.IServices.ICases
 {
     public interface IUrgentCaseService : IBaseCasesService<UrgentCaseListDto, UrgentCaseDetailDto, UrgentCasesFilterDto>
     {
-        Task<ApiResponse<UrgentCaseCreateResponse>> CreateAsync(string userId, UrgentCaseCreateDto createDto);
-        Task<ApiResponse<UrgentCaseUpdateResponse>> UpdateAsync(string userId, UrgentCaseUpdateDto updateDto);
+        Task<ApiResponse<string>> CreateAsync(string userId, UrgentCaseCreateDto createDto);
+        Task<ApiResponse<string>> UpdateAsync(long id, string userId, UrgentCaseUpdateDto updateDto);
     }
 }

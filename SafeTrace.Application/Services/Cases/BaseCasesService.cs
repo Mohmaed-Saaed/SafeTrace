@@ -130,12 +130,17 @@ namespace SafeTrace.Application.Services.Cases
             if (entity.Status != CaseStatus.Pending)
                 throw new BadRequestException("Only pending cases can be approved.");
 
-            entity.Status = CaseStatus.Active;
-            entity.PreviousStatus = null;
-            entity.UpdatedAt = DateTime.UtcNow;
+            await ExecuteInTransactionAsync(
+                async () =>
+                {
+                    entity.Status = CaseStatus.Active;
+                    entity.PreviousStatus = null;
+                    entity.UpdatedAt = DateTime.UtcNow;
 
-            _unitOfWork.Repository<TEntity>().Update(entity);
-            await _unitOfWork.SaveAsync();
+                    _unitOfWork.Repository<TEntity>().Update(entity);
+
+                    return true;
+                });
 
             _logger.LogInformation("Case {CaseId} approved.", entity.Id);
         }
@@ -153,53 +158,77 @@ namespace SafeTrace.Application.Services.Cases
             if (entity.Status != CaseStatus.Pending)
                 throw new BadRequestException("Only pending cases can be rejected.");
 
-            if (entity.PreviousStatus.HasValue)
-            {
-                entity.Status = entity.PreviousStatus.Value;
-                entity.PreviousStatus = null;
-            }
-            else
-            {
-                entity.Status = CaseStatus.Rejected;
-            }
+            await ExecuteInTransactionAsync(
+                async () =>
+                {
+                    if (entity.PreviousStatus.HasValue)
+                    {
+                        entity.Status = entity.PreviousStatus.Value;
+                        entity.PreviousStatus = null;
+                    }
+                    else
+                    {
+                        entity.Status = CaseStatus.Rejected;
+                    }
 
-            entity.UpdatedAt = DateTime.UtcNow;
+                    entity.UpdatedAt = DateTime.UtcNow;
 
-            _unitOfWork.Repository<TEntity>().Update(entity);
-            await _unitOfWork.SaveAsync();
+                    _unitOfWork.Repository<TEntity>().Update(entity);
 
-            _logger.LogInformation("Case {CaseId} rejected (Pending -> {Status}).", entity.Id, entity.Status);
+                    return true;
+                });
+
+            _logger.LogInformation(
+                "Case {CaseId} rejected (Pending -> {Status}).",
+                entity.Id,
+                entity.Status);
         }
 
         public virtual async Task SoftDeleteAsync(long caseId, string userId, bool checkOwnership = true)
         {
-            var entity = await _caseHelper.GetValidCaseAsync<TEntity>(caseId, userId, checkOwnership: checkOwnership);
+            var entity = await _caseHelper.GetValidCaseAsync<TEntity>(
+                caseId,
+                userId,
+                checkOwnership: checkOwnership,
+                includes: x => x.CaseFiles);
 
             if (entity.Status == CaseStatus.Found)
             {
-                _logger.LogWarning("Attempt to delete Case {CaseId} that is already marked as Found.", entity.Id);
-                throw new BadRequestException("Cannot delete a case that is already marked as Found.");
-            }
+                _logger.LogWarning(
+                    "Attempt to delete Case {CaseId} that is already marked as Found.",
+                    entity.Id);
 
-            entity.PreviousStatus = entity.Status;
-            entity.Status = CaseStatus.Deleted;
-            entity.DeletedAt = DateTime.UtcNow;
-            entity.DeletedByUserId = userId;
-            entity.UpdatedAt = DateTime.UtcNow;
+                throw new BadRequestException(
+                    "Cannot delete a case that is already marked as Found.");
+            }
 
             var faceIds = entity.CaseFiles
                 .Where(p => !string.IsNullOrWhiteSpace(p.FaceId))
                 .Select(p => p.FaceId!)
                 .ToList();
 
+            await ExecuteInTransactionAsync(
+                async () =>
+                {
+                    entity.PreviousStatus = entity.Status;
+                    entity.Status = CaseStatus.Deleted;
+                    entity.DeletedAt = DateTime.UtcNow;
+                    entity.DeletedByUserId = userId;
+                    entity.UpdatedAt = DateTime.UtcNow;
+
+                    _unitOfWork.Repository<TEntity>().Update(entity);
+
+                    return true;
+                });
+
             await _caseHelper.DeleteFacesAsync(faceIds, entity.Id);
 
-            _unitOfWork.Repository<TEntity>().Update(entity);
-            await _unitOfWork.SaveAsync();
-
-            _logger.LogInformation("Case {CaseId} soft-deleted by user {UserId}.", entity.Id, userId);
+            _logger.LogInformation(
+                "Case {CaseId} soft-deleted by user {UserId}.",
+                entity.Id,
+                userId);
         }
-
+        
         public virtual async Task MarkAsFoundAsync(long caseId, string userId, FoundPersonInfoRequestDto foundPersonInfo, bool checkOwnership = true)
         {
             var entity = await _caseHelper.GetValidCaseAsync<TEntity>(caseId, userId, checkOwnership);
@@ -210,65 +239,106 @@ namespace SafeTrace.Application.Services.Cases
             if (entity.Status == CaseStatus.Expired)
                 throw new BadRequestException("Cannot mark an expired case as Found.");
 
-            entity.PreviousStatus = entity.Status;
-            entity.Status = CaseStatus.Found;
-            entity.UpdatedAt = DateTime.UtcNow;
+            await ExecuteInTransactionAsync(
+                async () =>
+                {
+                    entity.PreviousStatus = entity.Status;
+                    entity.Status = CaseStatus.Found;
+                    entity.UpdatedAt = DateTime.UtcNow;
 
-            await OnMarkedAsFoundAsync(entity);
+                    await OnMarkedAsFoundAsync(entity);
 
-            var foundPersonInfoEntity = _mapper.Map<FoundPersonInfo>(foundPersonInfo);
+                    var foundPersonInfoEntity = _mapper.Map<FoundPersonInfo>(foundPersonInfo);
 
-            foundPersonInfoEntity.CaseId = entity.Id;
-            foundPersonInfoEntity.FoundedUserId = userId;
+                    foundPersonInfoEntity.CaseId = entity.Id;
+                    foundPersonInfoEntity.FoundedUserId = userId;
 
-            await _unitOfWork.Repository<FoundPersonInfo>().CreateAsync(foundPersonInfoEntity);
+                    await _unitOfWork.Repository<FoundPersonInfo>()
+                        .CreateAsync(foundPersonInfoEntity);
 
-            _unitOfWork.Repository<TEntity>().Update(entity);
+                    _unitOfWork.Repository<TEntity>().Update(entity);
 
-            await _unitOfWork.SaveAsync();
+                    return true;
+                });
 
-            _logger.LogInformation("Case {CaseId} marked as Found by user {UserId}.", entity.Id, userId);
+            _logger.LogInformation(
+                "Case {CaseId} marked as Found by user {UserId}.",
+                entity.Id,
+                userId);
         }
-
+                
         public virtual async Task PermanentDeleteAsync(long caseId)
         {
             var entity = await _unitOfWork.Repository<TEntity>()
-                .GetOneAsync(
-                    c => c.Id == caseId,
-                    tracked: true,
-                    includes: c => c.CaseFiles);
+                .GetOneAsync(c => c.Id == caseId, tracked: true, includes: c => c.CaseFiles);
 
             if (entity == null)
             {
-                _logger.LogWarning("Permanent delete failed - Case {CaseId} not found.", caseId);
+                _logger.LogWarning(
+                    "Permanent delete failed - Case {CaseId} not found.",
+                    caseId);
+
                 throw new NotFoundException($"Case {caseId} was not found");
             }
 
-            // 1. Shared photo files
-            var filesToDelete = entity.CaseFiles.Select(p => p.ImagePath).ToList();
-            await _caseHelper.CleanupPhysicalFilesAsync(filesToDelete);
+            var filesToDelete = entity.CaseFiles
+                .Select(p => p.ImagePath)
+                .ToList();
 
-            // 2. Feature-specific files (e.g. LongTermMissingCase.PoliceReportImage) — hook, not a type check.
-            await DeleteAdditionalFilesAsync(entity);
-
-            // 3. Shared face records
             var faceIds = entity.CaseFiles
                 .Where(p => !string.IsNullOrWhiteSpace(p.FaceId))
                 .Select(p => p.FaceId!)
                 .ToList();
 
+            await ExecuteInTransactionAsync(
+                async () =>
+                {
+                    _unitOfWork.Repository<TEntity>().Remove(entity);
+
+                    return true;
+                });
+
+            _caseHelper.CleanupPhysicalFiles(filesToDelete);
+
+            DeleteAdditionalFiles(entity);
+
             await _caseHelper.DeleteFacesAsync(faceIds, entity.Id);
 
-            // 4/5. Remove + save
-            _unitOfWork.Repository<TEntity>().Remove(entity);
-            await _unitOfWork.SaveAsync();
-
-            _logger.LogWarning("Case {CaseId} permanently deleted.", entity.Id);
+            _logger.LogWarning(
+                "Case {CaseId} permanently deleted.",
+                entity.Id);
         }
-
+                
+        /// <summary>
+        /// Reusable "begin transaction → do work → commit; on failure rollback + run caller-supplied
+        /// cleanup" template. Extracted so derived services (Create/Update flows that upload photos and
+        /// index faces) don't each hand-roll the same try/catch/rollback skeleton.
+        /// </summary>
+        protected async Task<TResult> ExecuteInTransactionAsync<TResult>(Func<Task<TResult>> action, Func<Exception, Task>? onFailureAsync = null)
+        {
+            await _unitOfWork.BeginTransactionAsync();
+ 
+            try
+            {
+                var result = await action();
+                await _unitOfWork.SaveAsync();
+                await _unitOfWork.CommitTransactionAsync();
+                return result;
+            }
+            catch (Exception ex)
+            {
+                await _unitOfWork.RollbackTransactionAsync();
+ 
+                if (onFailureAsync != null)
+                    await onFailureAsync(ex);
+ 
+                throw;
+            }
+        }
+        
         // EXTENSION HOOKS (Template Method) — only where a real difference exists
         /// <summary>Deletes any feature-specific physical files beyond the shared Photos collection. No-op by default.</summary>
-        protected virtual Task DeleteAdditionalFilesAsync(TEntity entity) => Task.CompletedTask;
+        protected virtual void DeleteAdditionalFiles(TEntity entity){}
 
         /// <summary>Extra state changes when a case is marked as Found (e.g. Urgent sets EndDate). No-op by default.</summary>
         protected virtual Task OnMarkedAsFoundAsync(TEntity entity) => Task.CompletedTask;

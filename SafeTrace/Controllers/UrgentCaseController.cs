@@ -80,7 +80,7 @@ namespace SafeTrace.API.Controllers
             if (string.IsNullOrEmpty(CurrentUserId))
                 throw new UnauthorizedException("User identity could not be verified from token.");
 
-            return Ok(await _urgentCaseService.UpdateAsync(CurrentUserId, dto));
+            return Ok(await _urgentCaseService.UpdateAsync(id, CurrentUserId, dto));
         }
 
         [HttpDelete("Delete/{id:long}")]

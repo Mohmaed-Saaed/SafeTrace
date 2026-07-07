@@ -56,12 +56,12 @@ namespace SafeTrace.Application.Services.Cases
         }
 
 
-        public async Task<ApiResponse<UrgentCaseCreateResponse>> CreateAsync(string userId, UrgentCaseCreateDto createDto)
+        public async Task<ApiResponse<string>> CreateAsync(string userId, UrgentCaseCreateDto createDto)
         {
             var rateLimitViolation = await CheckRateLimitAsync(userId);
 
             if (rateLimitViolation is not null)
-                return ApiResponse<UrgentCaseCreateResponse>.Fail(rateLimitViolation);
+                return ApiResponse<string>.Fail(rateLimitViolation);
 
             var now = DateTime.UtcNow;
             var entity = _mapper.Map<UrgentCase>(createDto);
@@ -76,136 +76,127 @@ namespace SafeTrace.Application.Services.Cases
             entity.AgeCategoryId = await _caseHelper.ResolveAgeCategoryIdAsync(entity.Age);
             entity.Location = new Point(createDto.Longitude, createDto.Latitude) { SRID = 4326 };
 
-            var uploadedPhotos = new List<CaseFile>();
+            await ExecuteInTransactionAsync(
+                action: async () =>
+                {
+                    entity.CaseFiles = await _caseHelper.CreateCaseFilesAsync(
+                        createDto.PrimaryImage,
+                        createDto.AdditionalImages,
+                        createDto.Video,
+                        "UrgentCases");
 
-            await _unitOfWork.BeginTransactionAsync();
+                    await _unitOfWork.Repository<UrgentCase>().CreateAsync(entity);
 
-            try
-            {
-                uploadedPhotos = await _caseHelper.HandlePhotoUploadsAsync(createDto.Photos, "UrgentCases");
-                _caseHelper.EnsureSinglePrimaryPhoto(uploadedPhotos);
-                entity.CaseFiles = uploadedPhotos;
+                    return true;
+                },
+                onFailureAsync: ex =>
+                {
+                    _caseHelper.CleanupPhysicalFiles(entity.CaseFiles.Select(p => p.ImagePath));
+                    _logger.LogError(ex, "Failed to create urgent case for user {UserId}", userId);
+                    return Task.CompletedTask;
+                });
 
-                await _unitOfWork.Repository<UrgentCase>().CreateAsync(entity);
-                await _unitOfWork.SaveAsync();
-                await _unitOfWork.CommitTransactionAsync();
+            _logger.LogInformation(
+                "Urgent case {CaseCode} created by user {UserId}. EndDate: {EndDate}",
+                entity.CaseCode, userId, entity.EndDate);
 
-                _logger.LogInformation(
-                    "Urgent case {CaseCode} created by user {UserId}. EndDate: {EndDate}",
-                    entity.CaseCode, userId, entity.EndDate);
-            }
-            catch (Exception ex)
-            {
-                await _unitOfWork.RollbackTransactionAsync();
-                await _caseHelper.CleanupPhysicalFilesAsync(uploadedPhotos.Select(p => p.ImagePath));
-
-                _logger.LogError(ex, "Failed to create urgent case for user {UserId}", userId);
-                throw;
-            }
-
-            // Runs AFTER commit so the case is visible in the DB.
-            // Fire-and-forget — notification failure must never fail the create.
             _ = NotifyNearbyUsersAsync(entity, createDto.Latitude, createDto.Longitude);
 
             var created = await _unitOfWork.Repository<UrgentCase>()
-                .Query(tracked: false, includes:
-                [
-                    x => x.AgeCategory,
-                    x => x.CaseFiles,
-                    x => x.User
-                ])
+                .Query(tracked: false, includes: [x => x.AgeCategory, x => x.CaseFiles, x => x.User])
                 .FirstAsync(x => x.Id == entity.Id);
 
-            return ApiResponse<UrgentCaseCreateResponse>.Ok(
-                data: _mapper.Map<UrgentCaseCreateResponse>(created),
-                message: "Urgent case created successfully.");
+            return ApiResponse<string>.Ok(message: "Urgent case created successfully.");
         }
 
-        public async Task<ApiResponse<UrgentCaseUpdateResponse>> UpdateAsync(string userId, UrgentCaseUpdateDto updateDto)
+        public async Task<ApiResponse<string>> UpdateAsync(long id, string userId, UrgentCaseUpdateDto updateDto)
         {
             UrgentCase entity;
             try
             {
-                entity = await _caseHelper.GetValidCaseAsync<UrgentCase>(updateDto.Id, userId, checkOwnership: true, includes: [x => x.CaseFiles]);
+                entity = await _caseHelper.GetValidCaseAsync<UrgentCase>(
+                    id, userId, checkOwnership: true, includes: [x => x.CaseFiles]);
                 _caseHelper.ValidateCaseIsEditable(entity);
             }
             catch (NotFoundException)
             {
-                return ApiResponse<UrgentCaseUpdateResponse>.Fail("Urgent case not found.");
+                return ApiResponse<string>.Fail("Urgent case not found.");
             }
             catch (UnauthorizedException)
             {
-                return ApiResponse<UrgentCaseUpdateResponse>.Fail("You are not authorized to update this case.");
+                return ApiResponse<string>.Fail("You are not authorized to update this case.");
             }
             catch (BadRequestException ex)
             {
-                return ApiResponse<UrgentCaseUpdateResponse>.Fail(ex.Message);
+                return ApiResponse<string>.Fail(ex.Message);
             }
 
             var uploadedPhotos = new List<CaseFile>();
             var filesToDelete = new List<string>();
 
-            await _unitOfWork.BeginTransactionAsync();
-
-            try
-            {
-                if (updateDto.Photos?.Count > 0)
+            await ExecuteInTransactionAsync(
+                action: async () =>
                 {
-                    uploadedPhotos = await _caseHelper.HandlePhotoUploadsAsync(updateDto.Photos, "UrgentCases", entity.Id);
-                    foreach (var photo in uploadedPhotos)
-                        entity.CaseFiles.Add(photo);
-                }
+                    // Reads updateDto.NewPhotos (the update-specific field), not AdditionalImages
+                    // (the create-only field this previously, incorrectly, read from).
+                    if (updateDto.NewPhotos?.Count > 0)
+                    {
+                        var primaryImage = updateDto.NewPhotos[0];
+                        var additionalImages = updateDto.NewPhotos.Skip(1);
 
-                if (updateDto.DeletedPhotoIds?.Count > 0)
-                {
-                    var ownedIds = entity.CaseFiles.Select(p => p.Id).ToHashSet();
-                    var toRemove = entity.CaseFiles.Where(p => updateDto.DeletedPhotoIds.Contains(p.Id) && ownedIds.Contains(p.Id)).ToList();
+                        uploadedPhotos = await _caseHelper.CreateCaseFilesAsync(
+                            primaryImage, additionalImages, null, "UrgentCases", entity.Id);
 
-                    filesToDelete.AddRange(toRemove.Select(p => p.ImagePath));
+                        foreach (var photo in uploadedPhotos)
+                            entity.CaseFiles.Add(photo);
+                    }
 
-                    foreach (var photo in toRemove)
-                        entity.CaseFiles.Remove(photo);
-                }
+                    if (updateDto.DeletedPhotoIds?.Count > 0)
+                    {
+                        var toRemove = entity.CaseFiles
+                            .Where(p => updateDto.DeletedPhotoIds.Contains(p.Id))
+                            .ToList();
 
-                _caseHelper.EnsureSinglePrimaryPhoto(entity.CaseFiles);
+                        filesToDelete.AddRange(toRemove.Select(p => p.ImagePath));
 
-                _mapper.Map(updateDto, entity);
-                entity.UpdatedAt = DateTime.UtcNow;
+                        foreach (var photo in toRemove)
+                            entity.CaseFiles.Remove(photo);
+                    }
 
-                if (updateDto.Age.HasValue)
+                    _mapper.Map(updateDto, entity);
+                    entity.UpdatedAt = DateTime.UtcNow;
+                    entity.Age = updateDto.Age;
                     entity.AgeCategoryId = await _caseHelper.ResolveAgeCategoryIdAsync(entity.Age);
 
-                _unitOfWork.Repository<UrgentCase>().Update(entity);
-                await _unitOfWork.SaveAsync();
-                await _unitOfWork.CommitTransactionAsync();
+                    if (updateDto.Latitude.HasValue && updateDto.Longitude.HasValue)
+                    {
+                        entity.Location = new Point(updateDto.Longitude.Value, updateDto.Latitude.Value) { SRID = 4326 };
+                    }
 
-                _logger.LogInformation("Urgent case {CaseId} updated by user {UserId}.", entity.Id, userId);
-            }
-            catch (Exception ex)
-            {
-                await _unitOfWork.RollbackTransactionAsync();
-                await _caseHelper.CleanupPhysicalFilesAsync(uploadedPhotos.Select(p => p.ImagePath));
+                    _unitOfWork.Repository<UrgentCase>().Update(entity);
 
-                _logger.LogError(ex, "Failed to update urgent case {CaseId} for user {UserId}", updateDto.Id, userId);
-                throw;
-            }
+                    return true;
+                },
+                onFailureAsync: ex =>
+                {
+                    _caseHelper.CleanupPhysicalFiles(uploadedPhotos.Select(p => p.ImagePath));
+                    _logger.LogError(ex, "Failed to update urgent case {CaseId} for user {UserId}", id, userId);
+                    return Task.CompletedTask;
+                });
 
-            await _caseHelper.CleanupPhysicalFilesAsync(filesToDelete);
+            _logger.LogInformation("Urgent case {CaseId} updated by user {UserId}.", entity.Id, userId);
+
+            _caseHelper.CleanupPhysicalFiles(filesToDelete);
 
             var updated = await _unitOfWork.Repository<UrgentCase>()
-                .Query(tracked: false, includes:
-                [
-                    x => x.AgeCategory,
-                    x => x.CaseFiles,
-                    x => x.User
-                ])
+                .Query(tracked: false, includes: [x => x.AgeCategory, x => x.CaseFiles, x => x.User])
                 .FirstAsync(x => x.Id == entity.Id);
 
-            return ApiResponse<UrgentCaseUpdateResponse>.Ok(
-                data: _mapper.Map<UrgentCaseUpdateResponse>(updated),
+            return ApiResponse<string>.Ok(
+                data: _mapper.Map<string>(updated),
                 message: "Urgent case updated successfully.");
         }
-
+                
         private static Point CreateUserLocation(UrgentCasesFilterDto filter)
         {
             return new Point(filter.Longitude!.Value,filter.Latitude!.Value){ SRID = 4326 };

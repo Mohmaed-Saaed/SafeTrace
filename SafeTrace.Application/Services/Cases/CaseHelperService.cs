@@ -86,84 +86,102 @@ namespace SafeTrace.Application.Services.Cases
 
             return category.Id;
         }
-        // use task Lock
+
         public async Task<string> GenerateCaseCodeAsync(CaseCodePrefix prefix)
         {
+            if (!SequenceNames.TryGetValue(prefix, out var sequenceName))
+                throw new ArgumentOutOfRangeException(nameof(prefix));
 
-            var repository = _unitOfWork.Repository<Case>();
-            
-            var lastCase = await repository.Query(tracked: false)
-                .Where(x => x.CaseCode.StartsWith(prefix + "-"))
-                .OrderByDescending(x => x.Id)
-                .FirstOrDefaultAsync();
+            var number = await _unitOfWork.GetNextSequenceValueAsync(sequenceName);
 
-            if (lastCase == null || string.IsNullOrWhiteSpace(lastCase.CaseCode))
-            {
-                return $"{prefix}-1000";
-            }
-
-            var numberPart = lastCase.CaseCode.Split('-').Last();
-
-            var number = int.Parse(numberPart);
-
-            return $"{prefix}-{number + 1}";
+            return $"{prefix}-{number}";
         }
         
-        // PHOTO HELPERS // Handel More Files
-        public async Task<List<CaseFile>> HandlePhotoUploadsAsync(IEnumerable<IFormFile> files, string folderName, long caseId = 0)
+        private static readonly Dictionary<CaseCodePrefix, string> SequenceNames = new()
         {
-            var uploadedPhotos = new List<CaseFile>();
+            { CaseCodePrefix.LNG, "LongTermCaseSequence" },
+            { CaseCodePrefix.URG, "UrgentCaseSequence" },
+            { CaseCodePrefix.UNK, "UnknownCaseSequence" }
+        };
 
-            if (files != null && files.Any())
+        // PHOTO HELPERS
+        public async Task<List<CaseFile>> CreateCaseFilesAsync(IFormFile primaryImage, IEnumerable<IFormFile>? additionalImages, IFormFile? video, string folderName, long caseId = 0)
+        {
+            var files = new List<CaseFile>
             {
-                foreach (var file in files)
+                await CreateCaseFileAsync(primaryImage, folderName, caseId, true)
+            };
+
+            if (additionalImages != null)
+            {
+                foreach (var image in additionalImages)
                 {
-                    var imagePath = await _fileStorageService.SaveFileAsync(file, folderName);
-                    uploadedPhotos.Add(new CaseFile
-                    {
-                        CaseId = caseId,
-                        ImagePath = imagePath,
-                        CreatedAt = DateTime.UtcNow,
-                        IsPrimary = false
-                    });
+                    files.Add(await CreateCaseFileAsync(image, folderName, caseId, false));
                 }
             }
 
-            return uploadedPhotos;
+            if (video != null)
+            {
+                files.Add(await CreateCaseFileAsync(video, folderName, caseId, false));
+            }
+
+            return files;
         }
 
-        public void EnsureSinglePrimaryPhoto(ICollection<CaseFile> photos, long? preferredPrimaryId = null)
+        private async Task<CaseFile> CreateCaseFileAsync(IFormFile file, string folderName, long caseId, bool isPrimary)
         {
-            if (photos == null || !photos.Any())
-                return;
+            var path = await _fileStorageService.SaveFileAsync(file, folderName);
 
-            if (preferredPrimaryId.HasValue)
+            string? faceId = null;
+
+            if (!VideoExtensions.Contains(Path.GetExtension(file.FileName)))
             {
-                var targetPhoto = photos.FirstOrDefault(p => p.Id == preferredPrimaryId.Value);
-                if (targetPhoto == null)
-                    throw new BadRequestException("The specified primary photo does not exist.");
-
-                foreach (var p in photos)
+                try
                 {
-                    p.IsPrimary = p.Id == preferredPrimaryId.Value;
+                    faceId = await _faceRecognitionService.IndexFaceAsync(file);
                 }
-
-                return;
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Failed to index face for file {FileName}.", file.FileName);
+                }
             }
 
-            var primaries = photos.Where(p => p.IsPrimary).ToList();
-            if (primaries.Count == 0)
+            return new CaseFile
             {
-                photos.First().IsPrimary = true;
-            }
-            else if (primaries.Count > 1)
+                CaseId = caseId,
+                ImagePath = path,
+                FaceId = faceId,
+                IsPrimary = isPrimary,
+                CreatedAt = DateTime.UtcNow
+            };
+        }
+       
+        public void SetPrimaryImage(ICollection<CaseFile> files, long primaryPhotoId)
+        {
+            var images = files
+                .Where(f => !VideoExtensions.Contains(Path.GetExtension(f.ImagePath)))
+                .ToList();
+
+            if (!images.Any())
+                throw new BadRequestException("The case has no images.");
+
+            if (!images.Any(i => i.Id == primaryPhotoId))
+                throw new BadRequestException("The specified primary image does not exist.");
+
+            foreach (var image in images)
             {
-                foreach (var p in primaries.Skip(1))
-                    p.IsPrimary = false;
+                image.IsPrimary = image.Id == primaryPhotoId;
             }
         }
+        
+        private static readonly HashSet<string> VideoExtensions = new(StringComparer.OrdinalIgnoreCase)
+        {
+            ".mp4",
+            ".mov",
+            ".webm"
+        };
 
-        public async Task CleanupPhysicalFilesAsync(IEnumerable<string> filePaths)
+        public void CleanupPhysicalFiles(IEnumerable<string> filePaths)
         {
             foreach (var path in filePaths.Where(p => !string.IsNullOrWhiteSpace(p)))
             {
@@ -176,24 +194,18 @@ namespace SafeTrace.Application.Services.Cases
                     _logger.LogError(ex, "Failed to delete physical file {FilePath}", path);
                 }
             }
-
-            await Task.CompletedTask;
         }
 
         // FACE RECOGNITION HELPERS
-        public async Task DeleteFacesAsync(IEnumerable<string> faceIds, long caseIdForLogging)
+        public async Task DeleteFacesAsync(IEnumerable<string>? faceIds, long caseId)
         {
-            var ids = faceIds?.Where(f => !string.IsNullOrEmpty(f)).ToList() ?? new List<string>();
-            if (ids.Count == 0)
-                return;
-
             try
             {
-                await _faceRecognitionService.DeleteFacesAsync(ids);
+                await _faceRecognitionService.DeleteFacesAsync(faceIds?.ToList() ?? []);
             }
             catch (Exception ex)
             {
-                _logger.LogWarning(ex, "Failed to delete {Count} face(s) from AWS for Case {CaseId}.", ids.Count, caseIdForLogging);
+                _logger.LogWarning(ex, "Failed to delete faces for case {CaseId}", caseId);
             }
         }
     

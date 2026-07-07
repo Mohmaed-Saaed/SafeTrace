@@ -1,48 +1,24 @@
 using Microsoft.AspNetCore.Http;
+using SafeTrace.Application.DTOs.Cases.Request;
 
 namespace SafeTrace.Application.DTOs.LongTermCase.Request
 {
-    /// <summary>
-    /// Payload for updating a Long-Term Missing Case. Only the case owner (or an Admin)
-    /// can update it. All properties are optional - only the supplied ones are changed.
-    /// </summary>
-    public class UpdateLongTermCaseDto
+    public class UpdateLongTermCaseDto : CaseUpdateBaseDto
     {
-        public Gender? Gender { get; set; }
-        public string? FName { get; set; }
-        public string? SName { get; set; }
-        public string? TName { get; set; }
-        public string? LName { get; set; }
+        [Required(ErrorMessage = "First name is required.")]
+        [StringLength(100, MinimumLength = 2, ErrorMessage = "First name must be between 2 and 100 characters.")]
+        public string FName { get; set; } = null!;
 
-        [Range(0, 150)]
-        public int? Age { get; set; }
+        [Required(ErrorMessage = "Last name is required.")]
+        [StringLength(100, MinimumLength = 2, ErrorMessage = "Last name must be between 2 and 100 characters.")]
+        public string LName { get; set; } = null!;
 
+        [EnumDataType(typeof(RelationType), ErrorMessage = "Invalid relation type.")]
         public RelationType? Relation { get; set; }
 
-
-
-        [MaxLength(2000)]
-        public string? Description { get; set; }
-
-        [MaxLength(200)]
-        public string? Government { get; set; }
-
-        [MaxLength(200)]
-        public string? City { get; set; }
-
-        [MaxLength(500)]
-        public string? Street { get; set; }
-
         /// <summary>If provided, replaces the existing police report image.</summary>
+        [MaxPhotoSize(10, ErrorMessage = "Police report must not exceed 10 MB.")]
+        [AllowedPhotoTypes(ErrorMessage = "Only JPEG, PNG, and WebP images are allowed.")]
         public IFormFile? PoliceReportImage { get; set; }
-
-        /// <summary>New photos to append to the case (existing photos are kept unless removed below).</summary>
-        public List<IFormFile>? NewPhotos { get; set; }
-
-        /// <summary>Ids of existing CasePhoto records to delete.</summary>
-        public List<long>? RemovedPhotoIds { get; set; }
-
-        public long? PrimaryPhotoId { get; set; }
-
     }
 }
