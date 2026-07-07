@@ -22,23 +22,22 @@ namespace SafeTrace.API.Controllers
         }
 
         private string? CurrentUserId => User.FindFirstValue(ClaimTypes.NameIdentifier);
-        private bool IsAdmin => User.IsInRole("Admin");
 
-        [HttpGet]
+        [HttpGet("GetCases")]
         [AllowAnonymous]
         public async Task<IActionResult> GetAll([FromQuery] UrgentCasesFilterDto filter)
         {
             return Ok(await _urgentCaseService.GetAllAsync(filter));
         }
 
-        [HttpGet("{id:long}")]
-        [AllowAnonymous]
-        public async Task<IActionResult> GetById(long id)
+        [HttpGet("Admin/GetCases")]
+        [HasPermission(Permissions.UrgentCases.GetAll)]
+        public async Task<IActionResult> AdminGetAll([FromQuery] UrgentCasesFilterDto filter)
         {
-            return Ok(await _urgentCaseService.GetByIdAsync(id));
+            return Ok(await _urgentCaseService.AdminGetAllAsync(filter));
         }
 
-        [HttpGet("my-cases")]
+        [HttpGet("GetMyCases")]
         [HasPermission(Permissions.UrgentCases.GetMyCases)]
         public async Task<IActionResult> GetMyCases([FromQuery] UrgentCasesFilterDto filter)
         {
@@ -48,14 +47,21 @@ namespace SafeTrace.API.Controllers
             return Ok(await _urgentCaseService.GetMyCasesAsync(CurrentUserId, filter));
         }
 
-        [HttpGet("admin")]
-        [HasPermission(Permissions.UrgentCases.GetAll)]
-        public async Task<IActionResult> AdminGetAll([FromQuery] UrgentCasesFilterDto filter)
+        [HttpGet("GetCaseDetails/{id:long}")]
+        [AllowAnonymous]
+        public async Task<IActionResult> GetById(long id)
         {
-            return Ok(await _urgentCaseService.AdminGetAllAsync(filter));
+            return Ok(await _urgentCaseService.GetByIdAsync(id));
         }
 
-        [HttpPost]
+        [HttpGet("Admin/GetCaseDetails/{id:long}")]
+        [HasPermission(Permissions.UrgentCases.GetById)]
+        public async Task<IActionResult> AdminGetById(long id)
+        {
+            return Ok(await _urgentCaseService.AdminGetByIdAsync(id));
+        }
+
+        [HttpPost("CreateCase")]
         [Consumes("multipart/form-data")]
         [HasPermission(Permissions.UrgentCases.Create)]
         public async Task<IActionResult> Create([FromForm] UrgentCaseCreateDto dto)
@@ -66,25 +72,25 @@ namespace SafeTrace.API.Controllers
             return Ok(await _urgentCaseService.CreateAsync(CurrentUserId, dto));
         }
 
-        [HttpPut]
+        [HttpPut("UpdateCase/{id:long}")]
+        [Consumes("multipart/form-data")]
         [HasPermission(Permissions.UrgentCases.Update)]
-        public async Task<IActionResult> Update([FromForm] UrgentCaseUpdateDto dto)
+        public async Task<IActionResult> Update(long id, [FromForm] UrgentCaseUpdateDto dto)
         {
             if (string.IsNullOrEmpty(CurrentUserId))
                 throw new UnauthorizedException("User identity could not be verified from token.");
 
-            return Ok(await _urgentCaseService.UpdateAsync(CurrentUserId, dto));
+            return Ok(await _urgentCaseService.UpdateAsync(id, CurrentUserId, dto));
         }
 
-        [HttpDelete("{id:long}")]
+        [HttpDelete("Delete/{id:long}")]
         [HasPermission(Permissions.UrgentCases.SoftDelete)]
         public async Task<IActionResult> SoftDelete(long id)
         {
             if (string.IsNullOrEmpty(CurrentUserId))
                 throw new UnauthorizedException("User identity could not be verified from token.");
 
-            await _urgentCaseService.SoftDeleteAsync(id, CurrentUserId, IsAdmin);
-            return NoContent();
+            return Ok(await _urgentCaseService.SoftDeleteAsync(id, CurrentUserId));
         }
 
         [HttpPut("{id:long}/mark-as-found")]
@@ -94,17 +100,14 @@ namespace SafeTrace.API.Controllers
             if (string.IsNullOrEmpty(CurrentUserId))
                 throw new UnauthorizedException("User identity could not be verified from token.");
 
-            await _urgentCaseService.MarkAsFoundAsync(id, CurrentUserId, foundPersonInfo, isAdmin: IsAdmin);
-
-            return NoContent();
+            return Ok(await _urgentCaseService.MarkAsFoundAsync(id, CurrentUserId, foundPersonInfo));
         }
 
         [HttpDelete("{id:long}/permanent")]
         [HasPermission(Permissions.UrgentCases.HardDelete)]
         public async Task<IActionResult> PermanentDelete(long id)
         {
-            await _urgentCaseService.PermanentDeleteAsync(id);
-            return NoContent();
+            return Ok(await _urgentCaseService.PermanentDeleteAsync(id));
         }
     }
 }

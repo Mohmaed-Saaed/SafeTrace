@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using NetTopologySuite.Geometries;
 using SafeTrace.Infrastructure.DataAccess;
@@ -12,9 +13,11 @@ using SafeTrace.Infrastructure.DataAccess;
 namespace SafeTrace.Infrastructure.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260707063526_AddCaseSequences")]
+    partial class AddCaseSequences
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -558,66 +561,6 @@ namespace SafeTrace.Infrastructure.Migrations
                     b.ToTable("Complaints", (string)null);
                 });
 
-            modelBuilder.Entity("SafeTrace.Domain.Entities.DuplicateGroup", b =>
-                {
-                    b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("GroupStatus")
-                        .IsRequired()
-                        .HasMaxLength(10)
-                        .HasColumnType("nvarchar(10)");
-
-                    b.Property<long?>("MasterCaseId")
-                        .HasColumnType("bigint");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("MasterCaseId");
-
-                    b.ToTable("DuplicateGroups", (string)null);
-                });
-
-            modelBuilder.Entity("SafeTrace.Domain.Entities.DuplicateGroupCase", b =>
-                {
-                    b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
-
-                    b.Property<long>("CaseId")
-                        .HasColumnType("bigint");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<long>("DuplicateGroupId")
-                        .HasColumnType("bigint");
-
-                    b.Property<string>("MatchedBy")
-                        .IsRequired()
-                        .HasMaxLength(10)
-                        .HasColumnType("nvarchar(10)");
-
-                    b.Property<decimal>("SimilarityScore")
-                        .HasColumnType("decimal(18,2)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("CaseId");
-
-                    b.HasIndex("DuplicateGroupId");
-
-                    b.ToTable("DuplicateGroupCases", (string)null);
-                });
-
             modelBuilder.Entity("SafeTrace.Domain.Entities.FoundPersonInfo", b =>
                 {
                     b.Property<long>("Id")
@@ -1033,34 +976,6 @@ namespace SafeTrace.Infrastructure.Migrations
                     b.Navigation("User");
                 });
 
-            modelBuilder.Entity("SafeTrace.Domain.Entities.DuplicateGroup", b =>
-                {
-                    b.HasOne("SafeTrace.Domain.Entities.Case", "MasterCase")
-                        .WithMany()
-                        .HasForeignKey("MasterCaseId");
-
-                    b.Navigation("MasterCase");
-                });
-
-            modelBuilder.Entity("SafeTrace.Domain.Entities.DuplicateGroupCase", b =>
-                {
-                    b.HasOne("SafeTrace.Domain.Entities.Case", "Case")
-                        .WithMany("DuplicateGroups")
-                        .HasForeignKey("CaseId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("SafeTrace.Domain.Entities.DuplicateGroup", "DuplicateGroup")
-                        .WithMany("DuplicateCases")
-                        .HasForeignKey("DuplicateGroupId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Case");
-
-                    b.Navigation("DuplicateGroup");
-                });
-
             modelBuilder.Entity("SafeTrace.Domain.Entities.FoundPersonInfo", b =>
                 {
                     b.HasOne("SafeTrace.Domain.Entities.Case", "Case")
@@ -1166,19 +1081,12 @@ namespace SafeTrace.Infrastructure.Migrations
 
                     b.Navigation("Chats");
 
-                    b.Navigation("DuplicateGroups");
-
                     b.Navigation("FoundPersonInfo");
                 });
 
             modelBuilder.Entity("SafeTrace.Domain.Entities.Chat", b =>
                 {
                     b.Navigation("Messages");
-                });
-
-            modelBuilder.Entity("SafeTrace.Domain.Entities.DuplicateGroup", b =>
-                {
-                    b.Navigation("DuplicateCases");
                 });
 #pragma warning restore 612, 618
         }
