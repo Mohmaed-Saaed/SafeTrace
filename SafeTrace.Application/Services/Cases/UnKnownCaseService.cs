@@ -10,7 +10,8 @@ namespace SafeTrace.Application.Services.Cases
     public class UnKnownCaseService : BaseCasesService<UnknownCase, UnknownCaseListDto, UnknownCaseDetailDto, UnknownCasesFilterDto>, IUnknownCaseService
     {
         private readonly UserManager<ApplicationUser> _userManager;
-
+        private const string FolderName = "UnknownCase";
+        
         public UnKnownCaseService(
             IUnitOfWork unitOfWork,
             IMapper mapper,
@@ -22,39 +23,31 @@ namespace SafeTrace.Application.Services.Cases
             _userManager = userManager;
         }
 
-        public async Task<ApiResponse<string>> CreateUnknownCaseAsync(CreateUnknownDto dto, string userId)
+        /// <summary>
+        /// Creates a new unknown case with pending status.
+        /// </summary>
+        public async Task<ApiResponse<string>> CreateUnknownCaseAsync(string userId, CreateUnknownDto dto)
         {
-            _logger.LogInformation("Start creating unknown case for UserId: {UserId}", userId);
-
             var user = await _userManager.FindByIdAsync(userId);
 
             if (user == null)
             {
-                _logger.LogWarning("User not found. UserId: {UserId}", userId);
-                throw new NotFoundException("User was not found.");
+                throw new NotFoundException("لم يتم العثور على المستخدم.");
             }
 
             if (user.VerificationStatus != VerificationStatus.Verified)
             {
-                _logger.LogWarning("User is not verified. UserId: {UserId}", userId);
-                throw new UnauthorizedException("You must verify your account before creating a case.");
+                throw new UnauthorizedException("يجب عليك التحقق من حسابك قبل إنشاء طلب دعم.");
             }
 
-            _logger.LogInformation("User validated successfully. UserId: {UserId}", userId);
+            var entity = _mapper.Map<UnknownCase>(dto);
 
-            var unknownCase = _mapper.Map<UnknownCase>(dto);
-
-            unknownCase.AgeCategoryId = await _caseHelper.ResolveAgeCategoryIdAsync(unknownCase.Age);
-            unknownCase.UserId = userId;
-            unknownCase.CreatedAt = DateTime.UtcNow;
-            unknownCase.Status = CaseStatus.Pending;
-            unknownCase.CaseType = CaseType.Unknown;
-            unknownCase.CaseCode = await _caseHelper.GenerateCaseCodeAsync(CaseCodePrefix.UNK);
-            unknownCase.Street ??= string.Empty;
-
-            _logger.LogInformation(
-                "Unknown case object created in memory. CaseCode: {CaseCode}",
-                unknownCase.CaseCode);
+            entity.UserId = userId;
+            entity.Status = CaseStatus.Pending;
+            entity.CaseType = CaseType.Unknown;
+            entity.AgeCategoryId = await _caseHelper.ResolveAgeCategoryIdAsync(entity.Age);
+            entity.CaseCode = await _caseHelper.GenerateCaseCodeAsync(CaseCodePrefix.UNK);
+            entity.CreatedAt = DateTime.UtcNow;
 
             var uploadedFiles = new List<CaseFile>();
 
@@ -65,173 +58,175 @@ namespace SafeTrace.Application.Services.Cases
                         dto.PrimaryImage,
                         dto.AdditionalImages,
                         dto.Video,
-                        "UnknownCase");
+                        FolderName);
 
-                    unknownCase.CaseFiles = uploadedFiles;
+                    entity.CaseFiles = uploadedFiles;
 
-                    await _unitOfWork.Repository<UnknownCase>().CreateAsync(unknownCase);
+                    await _unitOfWork.Repository<UnknownCase>().CreateAsync(entity);
 
                     return true;
                 },
-                onFailureAsync: ex =>
+                onFailureAsync: async ex =>
                 {
-                    _caseHelper.CleanupPhysicalFiles(
-                        uploadedFiles.Select(p => p.ImagePath));
+                    _caseHelper.CleanupPhysicalFiles(uploadedFiles.Select(p => p.ImagePath));
+                    await _caseHelper.DeleteFacesAsync(entity.CaseFiles.Select(x => x.FaceId), entity.Id);
 
                     _logger.LogError(
                         ex,
                         "Failed to create unknown case for user {UserId}",
                         userId);
-
-                    return Task.CompletedTask;
                 });
 
             _logger.LogInformation(
                 "Unknown case {CaseCode} created successfully by user {UserId}.",
-                unknownCase.CaseCode,
+                entity.CaseCode,
                 userId);
 
             return ApiResponse<string>.Ok(message: "تم إنشاء حالة مجهول الهوية بنجاح");
         }
 
-        public async Task<ApiResponse<string>> UpdateUnknownCaseAsync(long id, UpdateUnknownCaseDto dto, string userId)
+        /// <summary>
+        /// Updates an existing unknown case with photo management.
+        /// </summary>
+        public async Task<ApiResponse<string>> UpdateUnknownCaseAsync(long id, string userId, UpdateUnknownCaseDto dto)
         {
-            _logger.LogInformation("Starting update for UnknownCase. CaseId: {CaseId}, UserId: {UserId}", id, userId);
-
-            var unknownCase = await _caseHelper.GetValidCaseAsync<UnknownCase>(
+            var entity = await _caseHelper.GetValidCaseAsync<UnknownCase>(
                 id,
                 userId,
                 checkOwnership: true,
                 includes: [x => x.CaseFiles]);
 
-            _caseHelper.ValidateCaseIsEditable(unknownCase);
+            _caseHelper.ValidateCaseIsEditable(entity);
 
-            if (unknownCase.Status == CaseStatus.Active)
+            if (entity.Status == CaseStatus.Active)
             {
-                _logger.LogInformation("Case status changed from Active to Pending. CaseId: {CaseId}", id);
-                unknownCase.Status = CaseStatus.Pending;
+                entity.PreviousStatus = entity.Status;
+                entity.Status = CaseStatus.Pending;
             }
 
-            var currentPhotosCount = unknownCase.CaseFiles.Count;
+            var currentPhotosCount = entity.CaseFiles.Count;
             var deletedCount = dto.DeletedPhotoIds?.Count ?? 0;
             var addedCount = dto.NewPhotos?.Count ?? 0;
 
-            _logger.LogInformation(
-                "Photos update for CaseId: {CaseId}. Current: {Current}, ToDelete: {Deleted}, ToAdd: {Added}",
-                id, currentPhotosCount, deletedCount, addedCount);
-
-            var expectedCount = currentPhotosCount - deletedCount + addedCount;
-
-            if (expectedCount <= 0)
+            if (currentPhotosCount - deletedCount + addedCount <= 0)
             {
-                _logger.LogWarning(
-                    "Update rejected because it would leave the case without photos. CaseId: {CaseId}",
-                    id);
-
                 throw new BadRequestException(
-                    "يجب ان تضع صوره واحده علي الاقل وان تم حذف جميع الصوره يجب استبدال اول صوره علي الاقل ");
+                    "يجب أن تحتوي الحالة على صورة واحدة على الأقل.");
             }
 
-            unknownCase.Gender = dto.Gender;
-            if (dto.FName is not null) unknownCase.FName = dto.FName;
-            if (dto.SName is not null) unknownCase.SName = dto.SName;
-            if (dto.TName is not null) unknownCase.TName = dto.TName;
-            if (dto.LName is not null) unknownCase.LName = dto.LName;
+            entity.Gender = dto.Gender;
 
-            unknownCase.Age = dto.Age;
-            unknownCase.AgeCategoryId = await _caseHelper.ResolveAgeCategoryIdAsync(unknownCase.Age);
+            if (dto.FName is not null)
+                entity.FName = dto.FName;
 
-            unknownCase.Government = dto.Government;
-            unknownCase.City = dto.City;
+            if (dto.SName is not null)
+                entity.SName = dto.SName;
+
+            if (dto.TName is not null)
+                entity.TName = dto.TName;
+
+            if (dto.LName is not null)
+                entity.LName = dto.LName;
+
+            entity.Age = dto.Age;
+            entity.AgeCategoryId =
+                await _caseHelper.ResolveAgeCategoryIdAsync(entity.Age);
+
+            entity.Government = dto.Government;
+            entity.City = dto.City;
 
             if (dto.Street is not null)
-                unknownCase.Street = dto.Street;
+                entity.Street = dto.Street;
 
             if (dto.CommunicationPhone is not null)
-                unknownCase.CommunicationPhone = dto.CommunicationPhone;
+                entity.CommunicationPhone = dto.CommunicationPhone;
 
             if (dto.Description is not null)
-                unknownCase.Description = dto.Description;
+                entity.Description = dto.Description;
 
             var uploadedPhotos = new List<CaseFile>();
             var filesToDelete = new List<string>();
+            var faceIdsToDelete = new List<string>();
 
             await ExecuteInTransactionAsync(
                 action: async () =>
                 {
-                    if (dto.DeletedPhotoIds?.Any() == true)
+                    if (dto.DeletedPhotoIds?.Count > 0)
                     {
-                        var toRemove = unknownCase.CaseFiles
+                        var toRemove = entity.CaseFiles
                             .Where(p => dto.DeletedPhotoIds.Contains(p.Id))
                             .ToList();
 
                         filesToDelete.AddRange(toRemove.Select(p => p.ImagePath));
 
-                        foreach (var photo in toRemove)
-                        {
-                            _logger.LogInformation(
-                                "Deleting photo. PhotoId: {PhotoId}, CaseId: {CaseId}",
-                                photo.Id,
-                                id);
+                        faceIdsToDelete.AddRange(
+                            toRemove
+                                .Where(p => !string.IsNullOrWhiteSpace(p.FaceId))
+                                .Select(p => p.FaceId!));
 
-                            unknownCase.CaseFiles.Remove(photo);
-                        }
+                        foreach (var photo in toRemove)
+                            entity.CaseFiles.Remove(photo);
                     }
 
-                    if (dto.NewPhotos?.Any() == true)
+                    if (dto.NewPhotos?.Count > 0)
                     {
-                        _logger.LogInformation(
-                            "Adding {Count} new photos to CaseId: {CaseId}",
-                            dto.NewPhotos.Count,
-                            id);
-
                         uploadedPhotos = await _caseHelper.CreateCaseFilesAsync(
                             dto.NewPhotos.First(),
                             dto.NewPhotos.Skip(1),
                             null,
-                            "UnknownCase",
-                            unknownCase.Id);
+                            FolderName,
+                            entity.Id);
 
                         foreach (var photo in uploadedPhotos)
-                            unknownCase.CaseFiles.Add(photo);
+                            entity.CaseFiles.Add(photo);
                     }
 
                     if (dto.PrimaryPhotoId.HasValue)
                     {
                         _caseHelper.SetPrimaryImage(
-                            unknownCase.CaseFiles,
+                            entity.CaseFiles,
                             dto.PrimaryPhotoId.Value);
                     }
 
-                    unknownCase.UpdatedAt = DateTime.UtcNow;
+                    entity.UpdatedAt = DateTime.UtcNow;
 
-                    _unitOfWork.Repository<UnknownCase>().Update(unknownCase);
+                    _unitOfWork.Repository<UnknownCase>().Update(entity);
 
                     return true;
                 },
-                onFailureAsync: ex =>
+                onFailureAsync: async ex =>
                 {
                     _caseHelper.CleanupPhysicalFiles(
-                        uploadedPhotos.Select(p => p.ImagePath));
+                        uploadedPhotos.Select(x => x.ImagePath));
+
+                    await _caseHelper.DeleteFacesAsync(
+                        uploadedPhotos
+                            .Where(x => !string.IsNullOrWhiteSpace(x.FaceId))
+                            .Select(x => x.FaceId!),
+                        entity.Id);
 
                     _logger.LogError(
                         ex,
                         "Failed to update unknown case {CaseId} for user {UserId}",
                         id,
                         userId);
-
-                    return Task.CompletedTask;
                 });
 
             _caseHelper.CleanupPhysicalFiles(filesToDelete);
 
+            if (faceIdsToDelete.Count > 0)
+            {
+                await _caseHelper.DeleteFacesAsync(
+                    faceIdsToDelete,
+                    entity.Id);
+            }
+
             _logger.LogInformation(
-                "Unknown case updated successfully. CaseId: {CaseId}, UserId: {UserId}",
-                id,
-                userId);
+                "Unknown case {CaseId} updated successfully.",
+                entity.Id);
 
             return ApiResponse<string>.Ok(message: "تم تحديث حالة مجهول الهوية بنجاح");
         }
-    
+            
     }
 }

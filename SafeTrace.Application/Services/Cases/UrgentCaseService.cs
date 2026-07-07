@@ -1,4 +1,3 @@
-using SafeTrace.Application.Exceptions;
 using NetTopologySuite.Geometries;
 using SafeTrace.Application.DTOs.NotificationDTOS;
 using SafeTrace.Application.Interfaces.IServices.INotificationSewrvice;
@@ -12,7 +11,7 @@ namespace SafeTrace.Application.Services.Cases
     public class UrgentCaseService : BaseCasesService<UrgentCase, UrgentCaseListDto, UrgentCaseDetailDto, UrgentCasesFilterDto>, IUrgentCaseService
     {
         private readonly INotificationServices _notificationServices;
-
+        private const string FolderName = "UrgentCases";
         private const int RateLimitDays = 14;
         private const int ExpirationHours = 48;
         private const double NotifyRadiusM = 50_000; // 50 km
@@ -28,13 +27,18 @@ namespace SafeTrace.Application.Services.Cases
             _notificationServices = notificationServices;
         }
 
-        // Urgent-only: mark-as-found also closes out the expiry window.
+        /// <summary>
+        /// Filters urgent cases by geographic location and radius.
+        /// </summary>
         protected override Task OnMarkedAsFoundAsync(UrgentCase entity)
         {
             entity.EndDate = DateTime.UtcNow;
             return Task.CompletedTask;
         }
 
+        /// <summary>
+        /// Filters urgent cases by geographic location and radius.
+        /// </summary>
         protected override IQueryable<UrgentCase> ApplyCustomFilter(IQueryable<UrgentCase> query, UrgentCasesFilterDto filter)
         {
             if (!filter.Latitude.HasValue && !filter.Longitude.HasValue)
@@ -45,6 +49,9 @@ namespace SafeTrace.Application.Services.Cases
             return query.Where(x => x.Location.Distance(location) <= filter.RadiusInMeters);
         }
 
+        /// <summary>
+        /// Sorts urgent cases by distance from the user's location.
+        /// </summary>
         protected override IQueryable<UrgentCase> ApplyCustomSorting(IQueryable<UrgentCase> query, UrgentCasesFilterDto filter)
         {
             if (!filter.Latitude.HasValue && !filter.Longitude.HasValue)
@@ -55,8 +62,10 @@ namespace SafeTrace.Application.Services.Cases
             return query.OrderBy(x => x.Location.Distance(location));
         }
 
-
-        public async Task<ApiResponse<string>> CreateAsync(string userId, UrgentCaseCreateDto createDto)
+        /// <summary>
+        /// Creates a new urgent case with expiration and rate limiting.
+        /// </summary>
+        public async Task<ApiResponse<string>> CreateAsync(string userId, UrgentCaseCreateDto dto)
         {
             var rateLimitViolation = await CheckRateLimitAsync(userId);
 
@@ -64,7 +73,7 @@ namespace SafeTrace.Application.Services.Cases
                 return ApiResponse<string>.Fail(rateLimitViolation);
 
             var now = DateTime.UtcNow;
-            var entity = _mapper.Map<UrgentCase>(createDto);
+            var entity = _mapper.Map<UrgentCase>(dto);
 
             entity.UserId = userId;
             entity.CaseType = CaseType.Urgent;
@@ -74,16 +83,16 @@ namespace SafeTrace.Application.Services.Cases
             entity.EndDate = now.AddHours(ExpirationHours);
             entity.CaseCode = await _caseHelper.GenerateCaseCodeAsync(CaseCodePrefix.URG);
             entity.AgeCategoryId = await _caseHelper.ResolveAgeCategoryIdAsync(entity.Age);
-            entity.Location = new Point(createDto.Longitude, createDto.Latitude) { SRID = 4326 };
+            entity.Location = new Point(dto.Longitude, dto.Latitude) { SRID = 4326 };
 
             await ExecuteInTransactionAsync(
                 action: async () =>
                 {
                     entity.CaseFiles = await _caseHelper.CreateCaseFilesAsync(
-                        createDto.PrimaryImage,
-                        createDto.AdditionalImages,
-                        createDto.Video,
-                        "UrgentCases");
+                        dto.PrimaryImage,
+                        dto.AdditionalImages,
+                        dto.Video,
+                        FolderName);
 
                     await _unitOfWork.Repository<UrgentCase>().CreateAsync(entity);
 
@@ -95,41 +104,28 @@ namespace SafeTrace.Application.Services.Cases
                     _logger.LogError(ex, "Failed to create urgent case for user {UserId}", userId);
                     return Task.CompletedTask;
                 });
-
+                
             _logger.LogInformation(
                 "Urgent case {CaseCode} created by user {UserId}. EndDate: {EndDate}",
                 entity.CaseCode, userId, entity.EndDate);
 
-            _ = NotifyNearbyUsersAsync(entity, createDto.Latitude, createDto.Longitude);
+            _ = NotifyNearbyUsersAsync(entity);
 
-            var created = await _unitOfWork.Repository<UrgentCase>()
-                .Query(tracked: false, includes: [x => x.AgeCategory, x => x.CaseFiles, x => x.User])
-                .FirstAsync(x => x.Id == entity.Id);
-
-            return ApiResponse<string>.Ok(message: "Urgent case created successfully.");
+            return ApiResponse<string>.Ok(message: "تم إنشاء الحالة العاجلة بنجاح.");
         }
-
+        
+        /// <summary>
+        /// Updates an existing urgent case with new photos and location.
+        /// </summary>
         public async Task<ApiResponse<string>> UpdateAsync(long id, string userId, UrgentCaseUpdateDto updateDto)
         {
-            UrgentCase entity;
-            try
-            {
-                entity = await _caseHelper.GetValidCaseAsync<UrgentCase>(
-                    id, userId, checkOwnership: true, includes: [x => x.CaseFiles]);
-                _caseHelper.ValidateCaseIsEditable(entity);
-            }
-            catch (NotFoundException)
-            {
-                return ApiResponse<string>.Fail("Urgent case not found.");
-            }
-            catch (UnauthorizedException)
-            {
-                return ApiResponse<string>.Fail("You are not authorized to update this case.");
-            }
-            catch (BadRequestException ex)
-            {
-                return ApiResponse<string>.Fail(ex.Message);
-            }
+            var entity = await _caseHelper.GetValidCaseAsync<UrgentCase>(
+                id,
+                userId,
+                checkOwnership: true,
+                includes: [x => x.CaseFiles]);
+
+            _caseHelper.ValidateCaseIsEditable(entity);
 
             var uploadedPhotos = new List<CaseFile>();
             var filesToDelete = new List<string>();
@@ -143,7 +139,7 @@ namespace SafeTrace.Application.Services.Cases
                         var additionalImages = updateDto.NewPhotos.Skip(1);
 
                         uploadedPhotos = await _caseHelper.CreateCaseFilesAsync(
-                            primaryImage, additionalImages, null, "UrgentCases", entity.Id);
+                            primaryImage, additionalImages, null, FolderName, entity.Id);
 
                         foreach (var photo in uploadedPhotos)
                             entity.CaseFiles.Add(photo);
@@ -163,7 +159,6 @@ namespace SafeTrace.Application.Services.Cases
 
                     _mapper.Map(updateDto, entity);
                     entity.UpdatedAt = DateTime.UtcNow;
-                    entity.Age = updateDto.Age;
                     entity.AgeCategoryId = await _caseHelper.ResolveAgeCategoryIdAsync(entity.Age);
 
                     if (updateDto.Latitude.HasValue && updateDto.Longitude.HasValue)
@@ -186,13 +181,7 @@ namespace SafeTrace.Application.Services.Cases
 
             _caseHelper.CleanupPhysicalFiles(filesToDelete);
 
-            var updated = await _unitOfWork.Repository<UrgentCase>()
-                .Query(tracked: false, includes: [x => x.AgeCategory, x => x.CaseFiles, x => x.User])
-                .FirstAsync(x => x.Id == entity.Id);
-
-            return ApiResponse<string>.Ok(
-                data: _mapper.Map<string>(updated),
-                message: "Urgent case updated successfully.");
+            return ApiResponse<string>.Ok(message: "تم تحديث الحالة العاجلة بنجاح.");
         }
                 
         private static Point CreateUserLocation(UrgentCasesFilterDto filter)
@@ -202,6 +191,8 @@ namespace SafeTrace.Application.Services.Cases
 
         private async Task<string?> CheckRateLimitAsync(string userId)
         {
+            var now = DateTime.UtcNow;
+
             var lastCase = await _unitOfWork.Repository<UrgentCase>()
                 .Query(tracked: false)
                 .Where(x => x.UserId == userId)
@@ -209,10 +200,10 @@ namespace SafeTrace.Application.Services.Cases
                 .Select(x => new { x.Id, x.CaseCode, x.Status, x.CreatedAt, x.LimitReachDate })
                 .FirstOrDefaultAsync();
 
-            if (lastCase is null || lastCase.LimitReachDate <= DateTime.UtcNow)
+            if (lastCase is null || lastCase.LimitReachDate <= now)
                 return null;
 
-            var remaining = (int)Math.Ceiling((lastCase.LimitReachDate - DateTime.UtcNow).TotalDays);
+            var remaining = (int)Math.Ceiling((lastCase.LimitReachDate - now).TotalDays);
 
             _logger.LogInformation(
                 "Rate limit hit for user {UserId}. Last case: {CaseCode} ({Status}). " +
@@ -220,14 +211,16 @@ namespace SafeTrace.Application.Services.Cases
                 userId, lastCase.CaseCode, lastCase.Status,
                 lastCase.LimitReachDate, remaining);
 
-            return $"You can create a new urgent case in {remaining} day(s).";
+            return remaining == 1
+            ? "لا يمكنك إنشاء حالة عاجلة جديدة الآن. يمكنك المحاولة مرة أخرى بعد يوم واحد."
+            : $"لا يمكنك إنشاء حالة عاجلة جديدة الآن. يمكنك المحاولة مرة أخرى بعد {remaining} أيام.";
         }
 
-        private async Task NotifyNearbyUsersAsync(UrgentCase entity, double caseLat, double caseLng)
+        private async Task NotifyNearbyUsersAsync(UrgentCase entity)
         {
             try
             {
-                var caseLocation = new Point(caseLng, caseLat) { SRID = 4326 };
+                var caseLocation = entity.Location;
 
                 var nearbyUserIds = await _unitOfWork.Repository<ApplicationUser>()
                     .Query(tracked: false)
@@ -249,18 +242,16 @@ namespace SafeTrace.Application.Services.Cases
 
                 if (!nearbyUserIds.Any())
                 {
-                    _logger.LogInformation("No nearby users to notify for urgent case {CaseCode}.", entity.CaseCode);
                     return;
                 }
 
-                _logger.LogInformation("Notifying {Count} nearby user(s) about urgent case {CaseCode}.", nearbyUserIds.Count, entity.CaseCode);
-
                 var notificationContent =
-                    $"🚨 New urgent case nearby: {entity.CaseCode}. " +
-                    $"Missing person aged {entity.Age}, " +
-                    $"last seen in {entity.City}, {entity.Government}.";
+                    $"🚨 توجد حالة عاجلة بالقرب منك.\n" +
+                    $"كود الحالة: {entity.CaseCode}\n" +
+                    $"العمر: {entity.Age}\n" +
+                    $"آخر مكان: {entity.City} - {entity.Government}";
 
-                var semaphore = new SemaphoreSlim(10);
+                using var semaphore = new SemaphoreSlim(10);
 
                 var tasks = nearbyUserIds.Select(async recipientId =>
                 {
@@ -296,5 +287,6 @@ namespace SafeTrace.Application.Services.Cases
                 _logger.LogError(ex, "NotifyNearbyUsersAsync failed for urgent case {CaseCode}.", entity.CaseCode);
             }
         }
+    
     }
 }
