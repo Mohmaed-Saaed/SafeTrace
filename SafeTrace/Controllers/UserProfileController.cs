@@ -35,13 +35,13 @@ namespace SafeTrace.API.Controllers
             return Ok(profile);
         }
 
-        #region
+        #region 
         /// <summary>
         /// لتغيير اسم المستخدم 
         /// </summary>
         /// <returns></returns>
         [HttpPut("UpdateName")]
-        [HasPermission(Permissions.Profile.UpdateUserInfo)]
+        [HasPermission(Permissions.Profile.UpdateName)]
         public async Task<IActionResult> UpdateName([FromForm] UpdateNameDTO dTO)
         {
             var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
@@ -52,25 +52,11 @@ namespace SafeTrace.API.Controllers
         }
 
         /// <summary>
-        /// لتغيير كلمة المرور 
-        /// </summary>
-        /// <returns></returns>
-        [HttpPut("UpdatePassword")]
-        [HasPermission(Permissions.Profile.UpdateUserInfo)]
-        public async Task<IActionResult> UpdatePassword([FromForm] UpdatePasswordDTO dTO)
-        {
-            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            var UpdateProfile = await _user.UpdatePasswordAsync(userId, dTO);
-            if (UpdateProfile == null)
-                return NotFound();
-            return Ok(UpdateProfile);
-        }
-        /// <summary>
         /// تغيير صورة الملف الشخصي
         /// </summary>
         /// <returns></returns>
         [HttpPut("UpdateProfileImage")]
-        [HasPermission(Permissions.Profile.UpdateUserInfo)]
+        [HasPermission(Permissions.Profile.UpdateProfileImage)]
         public async Task<IActionResult> UpdateProfileImage([FromForm] UpdateProfileImageDTO dTO)
         {
             var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
@@ -84,7 +70,7 @@ namespace SafeTrace.API.Controllers
         /// </summary>
         /// <returns></returns>
         [HttpPut("AddIdImage")]
-        [HasPermission(Permissions.Profile.UpdateUserInfo)]
+        [HasPermission(Permissions.Profile.UpdateIdImage)]
         public async Task<IActionResult> AddIdImage([FromForm] AddIdImageDTO dTO)
         {
             var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
@@ -98,7 +84,7 @@ namespace SafeTrace.API.Controllers
         /// </summary>
         /// <returns></returns>
         [HttpPut("UpdateHomeLocation")]
-        [HasPermission(Permissions.Profile.UpdateUserInfo)]
+        [HasPermission(Permissions.Profile.UpdateHomeLocation)]
         public async Task<IActionResult> UpdateHomeLocation([FromForm] UpdateHomeLocationDTO dTO)
         {
             var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
@@ -123,5 +109,3 @@ namespace SafeTrace.API.Controllers
         #endregion
     }
 }
-//https://localhost:7041/Images/Profile/61d2613d-47e1-41e1-8cd4-7340d08959ae.jpg
-//https://localhost:7041/Images/Identification/5bc9ae5d-7a09-45a2-ae53-1ffa9bbf0138.png

@@ -58,8 +58,7 @@
             public const string UpdateName = "Profile.UpdateName";
             public const string UpdateHomeLocation = "Profile.UpdateHomeLocation";
             public const string UpdateProfileImage = "Profile.UpdateProfileImage";
-            public const string AddIdImage = "Profile.AddIdImage";
-            public const string UpdatePassword = "Profile.UpdatePassword";
+            public const string UpdateIdImage = "Profile.UpdateIdImage";
             public const string UpdateUserInfo = "Profile.UpdateUserInfo";
         }
 
