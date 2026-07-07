@@ -35,7 +35,7 @@ namespace SafeTrace.API.Controllers
             return Ok(profile);
         }
 
-        #region
+        #region 
         /// <summary>
         /// لتغيير اسم المستخدم 
         /// </summary>
@@ -123,5 +123,3 @@ namespace SafeTrace.API.Controllers
         #endregion
     }
 }
-//https://localhost:7041/Images/Profile/61d2613d-47e1-41e1-8cd4-7340d08959ae.jpg
-//https://localhost:7041/Images/Identification/5bc9ae5d-7a09-45a2-ae53-1ffa9bbf0138.png
