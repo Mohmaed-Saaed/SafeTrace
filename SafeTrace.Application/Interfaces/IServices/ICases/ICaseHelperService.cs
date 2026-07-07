@@ -25,7 +25,8 @@ namespace SafeTrace.Application.Interfaces.IServices.ICases
             where TEntity : Case;
 
         void ValidateCaseIsEditable(Case entity);
-
+        Task ValidateVerifiedUserAsync(string userId);
+        
         Task<string> GenerateCaseCodeAsync(CaseCodePrefix prefix);
         Task<int> ResolveAgeCategoryIdAsync(int age);
 
