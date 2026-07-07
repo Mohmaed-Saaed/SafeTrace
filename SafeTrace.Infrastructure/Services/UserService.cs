@@ -194,6 +194,7 @@ namespace SafeTrace.Infrastructure.Services
             if (!addResult.Succeeded) throw new BadRequestException("فشل في ترقية حساب المستخدم إلى 'مستخدم موثق'.");
 
             user.VerificationStatus = VerificationStatus.Verified;
+            await _userManager.UpdateAsync(user);
 
             _logger.LogWarning($"Role changed for User with ID: {userId} from {string.Join(",", currentRoles)} to VerifiedUser");
             return ApiResponse<string>.Ok(null, "تمت الموافقة على توثيق المستخدم بنجاح.");
@@ -213,6 +214,7 @@ namespace SafeTrace.Infrastructure.Services
             if (!DeletedResult) throw new BadRequestException("فشل في مسح صورة الهوية الخاصة بالمستخدم من الخادم.");
 
             user.VerificationStatus = VerificationStatus.Unverified;
+            await _userManager.UpdateAsync(user);
 
             return ApiResponse<string>.Ok(null, "تم رفض طلب توثيق المستخدم بنجاح.");
         }

@@ -9,6 +9,7 @@ namespace SafeTrace.Application.Interfaces.IServices
 {
     public interface IChatService
     {
+        Task<ApiResponse<StartChatContextDto>> GetStartChatContextAsync(long caseId, string currentUserId);
         Task<ApiResponse<ChatDetailsDto>> StartOrGetChatAsync(long caseId, string currentUserId);
         Task<ApiResponse<IEnumerable<ChatSummaryDto>>> GetUserChatsAsync (string currentUserId);
         Task<ApiResponse<ChatDetailsDto>> GetChatDetailsAsync(long chatId, string currentUserId, bool isAdmin);
