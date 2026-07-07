@@ -1,4 +1,6 @@
-﻿namespace SafeTrace.Infrastructure.DataAccess
+﻿using SafeTrace.Infrastructure.DataAccess.Configurations;
+
+namespace SafeTrace.Infrastructure.DataAccess
 {
     public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
     {
@@ -25,17 +27,8 @@
             base.OnModelCreating(builder);
 
             builder.ApplyConfigurationsFromAssembly(typeof(ApplicationDbContext).Assembly);
-
-
-            //builder.Entity<BaseCase>().ToTable("BaseCases");
-
-            //builder.Entity<UnknownCase>().ToTable("UnknownCases");
-
-            //builder.Entity<LongTermMissingCase>().ToTable("LongTermMissingCases");
-
-            //builder.Entity<UrgentCase>().ToTable("UrgentCases");
-
+            
+            DatabaseConfiguration.Configure(builder);
         }
-
     }
 }
