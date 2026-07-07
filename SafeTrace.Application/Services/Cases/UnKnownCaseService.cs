@@ -9,18 +9,15 @@ namespace SafeTrace.Application.Services.Cases
 {
     public class UnKnownCaseService : BaseCasesService<UnknownCase, UnknownCaseListDto, UnknownCaseDetailDto, UnknownCasesFilterDto>, IUnknownCaseService
     {
-        private readonly UserManager<ApplicationUser> _userManager;
         private const string FolderName = "UnknownCase";
         
         public UnKnownCaseService(
             IUnitOfWork unitOfWork,
             IMapper mapper,
             ICaseHelperService caseHelper,
-            UserManager<ApplicationUser> userManager,
             ILogger<UnKnownCaseService> logger)
             : base(unitOfWork, mapper, caseHelper, logger)
         {
-            _userManager = userManager;
         }
 
         /// <summary>
@@ -28,17 +25,7 @@ namespace SafeTrace.Application.Services.Cases
         /// </summary>
         public async Task<ApiResponse<string>> CreateUnknownCaseAsync(string userId, CreateUnknownDto dto)
         {
-            var user = await _userManager.FindByIdAsync(userId);
-
-            if (user == null)
-            {
-                throw new NotFoundException("لم يتم العثور على المستخدم.");
-            }
-
-            if (user.VerificationStatus != VerificationStatus.Verified)
-            {
-                throw new UnauthorizedException("يجب عليك التحقق من حسابك قبل إنشاء طلب دعم.");
-            }
+            await _caseHelper.ValidateVerifiedUserAsync(userId);
 
             var entity = _mapper.Map<UnknownCase>(dto);
 
