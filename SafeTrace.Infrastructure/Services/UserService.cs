@@ -195,6 +195,16 @@ namespace SafeTrace.Infrastructure.Services
 
             user.VerificationStatus = VerificationStatus.Verified;
 
+            var result = await _userManager.UpdateAsync(user);
+            if (!result.Succeeded)
+            {
+                _logger.LogError("Failed to approve user verification for UserId: {UserId}. Errors: {Errors}",
+                userId,
+                string.Join(", ", result.Errors.Select(e => e.Description)));
+
+                throw new BadRequestException("تعذر الموافقة على طلب توثيق المستخدم. يرجى المحاولة مرة أخرى.");
+            }
+
             _logger.LogWarning($"Role changed for User with ID: {userId} from {string.Join(",", currentRoles)} to VerifiedUser");
             return ApiResponse<string>.Ok(null, "تمت الموافقة على توثيق المستخدم بنجاح.");
         }
@@ -213,6 +223,16 @@ namespace SafeTrace.Infrastructure.Services
             if (!DeletedResult) throw new BadRequestException("فشل في مسح صورة الهوية الخاصة بالمستخدم من الخادم.");
 
             user.VerificationStatus = VerificationStatus.Unverified;
+
+            var result = await _userManager.UpdateAsync(user);
+            if (!result.Succeeded)
+            {
+                _logger.LogError("Failed to reject user verification for UserId: {UserId}. Errors: {Errors}",
+                userId,
+                string.Join(", ", result.Errors.Select(e => e.Description)));
+
+                throw new BadRequestException("تعذر رفض طلب توثيق المستخدم. يرجى المحاولة مرة أخرى.");
+            }
 
             return ApiResponse<string>.Ok(null, "تم رفض طلب توثيق المستخدم بنجاح.");
         }
