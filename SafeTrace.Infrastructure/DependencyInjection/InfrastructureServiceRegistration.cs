@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.IdentityModel.Tokens;
 using SafeTrace.Application.Interfaces;
+using SafeTrace.Application.Services;
 using SafeTrace.Infrastructure.Authorization;
 using SafeTrace.Infrastructure.Options;
 using SafeTrace.Infrastructure.Persistence;
@@ -22,7 +23,6 @@ namespace SafeTrace.Infrastructure.DependencyInjection
             services.AddScoped<IUnitOfWork, UnitOfWork>();
             services.AddScoped<IFileStorageService, FileStorageService>();
             services.AddScoped<IDashboardService, DashboardService>();
-            
             services.AddScoped<IEmailService, EmailService>();
             services.AddScoped<ITokenService, TokenService>();
             services.AddScoped<IAccountService, AccountService>();
