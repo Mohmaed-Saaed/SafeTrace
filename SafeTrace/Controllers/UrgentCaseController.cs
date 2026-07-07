@@ -90,8 +90,7 @@ namespace SafeTrace.API.Controllers
             if (string.IsNullOrEmpty(CurrentUserId))
                 throw new UnauthorizedException("User identity could not be verified from token.");
 
-            await _urgentCaseService.SoftDeleteAsync(id, CurrentUserId);
-            return NoContent();
+            return Ok(await _urgentCaseService.SoftDeleteAsync(id, CurrentUserId));
         }
 
         [HttpPut("{id:long}/mark-as-found")]
@@ -101,17 +100,14 @@ namespace SafeTrace.API.Controllers
             if (string.IsNullOrEmpty(CurrentUserId))
                 throw new UnauthorizedException("User identity could not be verified from token.");
 
-            await _urgentCaseService.MarkAsFoundAsync(id, CurrentUserId, foundPersonInfo);
-
-            return NoContent();
+            return Ok(await _urgentCaseService.MarkAsFoundAsync(id, CurrentUserId, foundPersonInfo));
         }
 
         [HttpDelete("{id:long}/permanent")]
         [HasPermission(Permissions.UrgentCases.HardDelete)]
         public async Task<IActionResult> PermanentDelete(long id)
         {
-            await _urgentCaseService.PermanentDeleteAsync(id);
-            return NoContent();
+            return Ok(await _urgentCaseService.PermanentDeleteAsync(id));
         }
     }
 }
