@@ -1,10 +1,5 @@
 namespace SafeTrace.Application.DTOs.Cases.Response
 {
-    /// <summary>
-    /// Fields shared by every case type's detail view. Renamed from the old
-    /// "CaseDetailDto". EndDate/LimitReachDate/Latitude/Longitude were Urgent-only
-    /// and moved to UrgentCaseDetailDto.
-    /// </summary>
     public abstract class CaseDetailBaseDto
     {
         public long Id { get; set; }
