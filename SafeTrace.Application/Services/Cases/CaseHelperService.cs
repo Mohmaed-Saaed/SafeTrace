@@ -75,17 +75,6 @@ namespace SafeTrace.Application.Services.Cases
             }
         }
         
-        public async Task ValidateVerifiedUserAsync(string userId)
-        {
-            var user = await _unitOfWork.Repository<ApplicationUser>()
-                .GetOneAsync(u => u.Id == userId, tracked: false);
-
-            if (user is null)
-                throw new NotFoundException("المستخدم غير موجود.");
-
-            if (user.VerificationStatus != VerificationStatus.Verified)
-                throw new UnauthorizedException("يجب توثيق حسابك قبل تنفيذ هذا الإجراء.");
-        }
         /// <summary>
         /// Ensures the user exists and has a verified account.
         /// </summary>
