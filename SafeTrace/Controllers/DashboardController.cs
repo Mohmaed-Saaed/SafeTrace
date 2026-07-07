@@ -2,7 +2,7 @@
 using Microsoft.AspNetCore.Mvc;
 using SafeTrace.Application.Interfaces.IServices;
 
-namespace SafeTrace.API.Controllers
+namespace SafeTrace.API.Controllers.Dashboard
 {
     [Route("api/[controller]")]
     [ApiController]
