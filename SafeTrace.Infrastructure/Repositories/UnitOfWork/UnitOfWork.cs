@@ -1,4 +1,5 @@
-﻿using Microsoft.EntityFrameworkCore.Storage;
+﻿using System.Data;
+using Microsoft.EntityFrameworkCore.Storage;
 using SafeTrace.Domain.Interfaces.IUnitOfWork;
 using SafeTrace.Infrastructure.DataAccess;
 using SafeTrace.Infrastructure.Repositories.Repository;
@@ -76,6 +77,30 @@ namespace SafeTrace.Infrastructure.Repositories.UnitOfWork
             {
                 await _currentTransaction.DisposeAsync();
                 _currentTransaction = null;
+            }
+        }
+        public async Task<int> GetNextSequenceValueAsync(string sequenceName)
+        {
+            var connection = _context.Database.GetDbConnection();
+
+            var shouldCloseConnection = connection.State != ConnectionState.Open;
+
+            if (shouldCloseConnection)
+                await connection.OpenAsync();
+
+            try
+            {
+                await using var command = connection.CreateCommand();
+                command.CommandText = $"SELECT NEXT VALUE FOR {sequenceName}";
+
+                var result = await command.ExecuteScalarAsync();
+
+                return Convert.ToInt32(result);
+            }
+            finally
+            {
+                if (shouldCloseConnection)
+                    await connection.CloseAsync();
             }
         }
 

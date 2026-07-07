@@ -16,13 +16,13 @@ namespace SafeTrace.API.Controllers
     {
         private readonly IUnknownCaseService _unKnownServiceCase;
 
+
         public UnknownCaseController(IUnknownCaseService unKnownServiceCase)
         {
             _unKnownServiceCase = unKnownServiceCase;
         }
 
         private string? CurrentUserId => User.FindFirstValue(ClaimTypes.NameIdentifier);
-        private bool IsAdmin => User.IsInRole("Admin");
 
         [HttpGet("GetCases")]
         [AllowAnonymous]
@@ -67,14 +67,10 @@ namespace SafeTrace.API.Controllers
         [HasPermission(Permissions.UnknownCases.Create)]
         public async Task<IActionResult> CreateUnknown([FromForm] CreateUnknownDto dto)
         {
-            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(CurrentUserId))
+                throw new UnauthorizedException("User identity could not be verified from token.");
 
-            if (string.IsNullOrEmpty(userId))
-                throw new UnauthorizedException("User is not authenticated.");
-
-            var result = await _unKnownServiceCase.CreateUnknownCaseAsync(dto, userId);
-
-            return Ok(result);
+            return Ok(await _unKnownServiceCase.CreateUnknownCaseAsync(CurrentUserId, dto));
         }
 
         [HttpPut("UpdateCase/{id:long}")]
@@ -82,27 +78,24 @@ namespace SafeTrace.API.Controllers
         [HasPermission(Permissions.UnknownCases.Update)]
         public async Task<IActionResult> UpdateUnknownCase(long id, [FromForm] UpdateUnknownCaseDto dto)
         {
-            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrEmpty(CurrentUserId))
+                throw new UnauthorizedException("User identity could not be verified from token.");
 
-            var result = await _unKnownServiceCase.UpdateUnknownCaseAsync(id, dto, userId);
-
-            return Ok(result);
+            return Ok(await _unKnownServiceCase.UpdateUnknownCaseAsync(id, CurrentUserId, dto));
         }
 
         [HttpPut("Approve/{id:long}")]
         [HasPermission(Permissions.UnknownCases.Approve)]
         public async Task<IActionResult> Approve(long id)
         {
-            await _unKnownServiceCase.ApproveAsync(id);
-            return NoContent();
+            return Ok(await _unKnownServiceCase.ApproveAsync(id));
         }
 
         [HttpPut("Reject/{id:long}")]
         [HasPermission(Permissions.UnknownCases.Reject)]
         public async Task<IActionResult> Reject(long id)
         {
-            await _unKnownServiceCase.RejectAsync(id);
-            return NoContent();
+            return Ok(await _unKnownServiceCase.RejectAsync(id));
         }
 
         [HttpDelete("Delete/{id:long}")]
@@ -112,8 +105,7 @@ namespace SafeTrace.API.Controllers
             if (string.IsNullOrEmpty(CurrentUserId))
                 throw new UnauthorizedException("User identity could not be verified from token.");
 
-            await _unKnownServiceCase.SoftDeleteAsync(id, CurrentUserId, IsAdmin);
-            return NoContent();
+            return Ok(await _unKnownServiceCase.SoftDeleteAsync(id, CurrentUserId));
         }
 
         [HttpPut("MarkAsFound/{id:long}")]
@@ -123,16 +115,14 @@ namespace SafeTrace.API.Controllers
             if (string.IsNullOrEmpty(CurrentUserId))
                 throw new UnauthorizedException("User identity could not be verified from token.");
 
-            await _unKnownServiceCase.MarkAsFoundAsync(id, CurrentUserId, foundPersonInfo);
-            return NoContent();
+            return Ok(await _unKnownServiceCase.MarkAsFoundAsync(id, CurrentUserId, foundPersonInfo));
         }
 
         [HttpDelete("PermanentDeletion/{id:long}")]
         [HasPermission(Permissions.UnknownCases.HardDelete)]
         public async Task<IActionResult> PermanentDelete(long id)
         {
-            await _unKnownServiceCase.PermanentDeleteAsync(id);
-            return NoContent();
+            return Ok(await _unKnownServiceCase.PermanentDeleteAsync(id));
         }
     }
 }
