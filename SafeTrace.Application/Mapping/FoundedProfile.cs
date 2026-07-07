@@ -1,7 +1,6 @@
 ﻿using SafeTrace.Application.DTOs.Founded.Response;
 using SafeTrace.Application.DTOs.FoundedDTO.Response;
 using SafeTrace.Application.Helpers;
-using SafeTrace.Domain.Entities;
 
 namespace SafeTrace.Application.Mapping
 {
@@ -12,14 +11,11 @@ namespace SafeTrace.Application.Mapping
             CreateMap<FoundPersonInfo, FoundPersonListItemDto>()
                 .ForMember(
                     dest => dest.Name,
-                    opt => opt.MapFrom(src =>
-                        NameHelper.CombineNames(
-                            src.Case.FName,
-                            src.Case.SName)))
+                    opt => opt.MapFrom(s => s.Case.FName + " " + s.Case.SName))
                 .ForMember(
                     dest => dest.Image,
                     opt => opt.MapFrom(src =>
-                        src.Case.Photos
+                        src.Case.CaseFiles
                             .Where(p => p.IsPrimary)
                             .Select(p => p.ImagePath)
                             .FirstOrDefault()))
@@ -44,7 +40,7 @@ namespace SafeTrace.Application.Mapping
     .ForMember(
         d => d.MainImage,
         opt => opt.MapFrom(s =>
-            s.Case.Photos.Select(p => p.ImagePath).FirstOrDefault()))
+            s.Case.CaseFiles.Select(p => p.ImagePath).FirstOrDefault()))
     .ForMember(
         d => d.Age,
         opt => opt.MapFrom(s => s.Case.Age))

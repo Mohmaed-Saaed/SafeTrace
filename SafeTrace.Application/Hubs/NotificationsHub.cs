@@ -1,5 +1,4 @@
 ﻿using Microsoft.AspNetCore.SignalR;
-using Microsoft.Extensions.Logging;
 using SafeTrace.Application.Interfaces.IServices.INotificationSewrvice;
 using Microsoft.AspNetCore.Authorization;
 

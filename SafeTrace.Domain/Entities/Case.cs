@@ -1,6 +1,4 @@
-﻿using SafeTrace.Domain.Enums;
-
-namespace SafeTrace.Domain.Entities
+﻿namespace SafeTrace.Domain.Entities
 {
     public abstract class Case
     {
@@ -17,8 +15,8 @@ namespace SafeTrace.Domain.Entities
         public string UserId { get; set; } = null!;
         public ApplicationUser User { get; set; } = null!;
         public string? CommunicationPhone{ get; set; }
-        public CaseStatus Status { get; set; }
         public string CaseCode { get; set; } = null!;
+        public CaseStatus Status { get; set; }
         public RelationType Relation { get; set; }
         public DateTime CreatedAt { get; set; }
         public DateTime? UpdatedAt { get; set; } 
@@ -28,10 +26,11 @@ namespace SafeTrace.Domain.Entities
         public DateTime EventDate { get; set; }
         public string? Description { get; set; }
         public CaseType CaseType { get; set; }
-        public int   AgeCategoryId { get; set; }
+        public int AgeCategoryId { get; set; }
         public FoundPersonInfo? FoundPersonInfo { get; set; }
         public AgeCategory AgeCategory { get; set; } = null!;
-        public ICollection<CasePhoto> Photos { get; set; } = new List<CasePhoto>();
+        public ICollection<CaseFile> CaseFiles { get; set; } = new List<CaseFile>();
         public ICollection<Chat> Chats { get; set; } = new List<Chat>();
+        public ICollection<DuplicateGroupCase> DuplicateGroups { get; set; } = new List<DuplicateGroupCase>();
     }
 }
