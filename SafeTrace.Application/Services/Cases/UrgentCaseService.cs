@@ -137,8 +137,6 @@ namespace SafeTrace.Application.Services.Cases
             await ExecuteInTransactionAsync(
                 action: async () =>
                 {
-                    // Reads updateDto.NewPhotos (the update-specific field), not AdditionalImages
-                    // (the create-only field this previously, incorrectly, read from).
                     if (updateDto.NewPhotos?.Count > 0)
                     {
                         var primaryImage = updateDto.NewPhotos[0];
