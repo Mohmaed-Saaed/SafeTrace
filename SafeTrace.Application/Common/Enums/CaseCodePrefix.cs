@@ -1,8 +1,10 @@
-namespace SafeTrace.Application.Common.Enums;
-
-public enum CaseCodePrefix
+namespace SafeTrace.Application.Common.Enums
 {
-    URG,
-    LNG,
-    UNK
+    public enum CaseCodePrefix
+    {
+        URG,
+        LNG,
+        UNK
+    }
 }
+

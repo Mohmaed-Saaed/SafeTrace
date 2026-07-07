@@ -1,9 +1,5 @@
 namespace SafeTrace.Application.DTOs.Cases.Response
 {
-    /// <summary>
-    /// Fields shared by every case type's list item. Renamed from the old
-    /// "CaseListItemDto". EndDate was Urgent-only and moved to UrgentCaseListDto.
-    /// </summary>
     public abstract class CaseListItemBaseDto
     {
         public long Id { get; set; }

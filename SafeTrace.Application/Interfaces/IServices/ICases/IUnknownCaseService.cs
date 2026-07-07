@@ -5,7 +5,7 @@ namespace SafeTrace.Application.Interfaces.IServices.ICases
 {
     public interface IUnknownCaseService : IBaseCasesService<UnknownCaseListDto, UnknownCaseDetailDto, UnknownCasesFilterDto>
     {
-        Task<ApiResponse<string>> CreateUnknownCaseAsync(CreateUnknownDto dto, string userId);
-        Task<ApiResponse<string>> UpdateUnknownCaseAsync(long id, UpdateUnknownCaseDto dto, string userId);
+        Task<ApiResponse<string>> CreateUnknownCaseAsync(string userId, CreateUnknownDto dto);
+        Task<ApiResponse<string>> UpdateUnknownCaseAsync(long id, string userId, UpdateUnknownCaseDto dto);
     }
 }

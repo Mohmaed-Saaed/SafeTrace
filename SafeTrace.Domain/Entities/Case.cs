@@ -1,6 +1,4 @@
-﻿using SafeTrace.Domain.Enums;
-
-namespace SafeTrace.Domain.Entities
+﻿namespace SafeTrace.Domain.Entities
 {
     public abstract class Case
     {
@@ -33,5 +31,6 @@ namespace SafeTrace.Domain.Entities
         public AgeCategory AgeCategory { get; set; } = null!;
         public ICollection<CaseFile> CaseFiles { get; set; } = new List<CaseFile>();
         public ICollection<Chat> Chats { get; set; } = new List<Chat>();
+        public ICollection<DuplicateGroupCase> DuplicateGroups { get; set; } = new List<DuplicateGroupCase>();
     }
 }
