@@ -2,6 +2,8 @@ using SafeTrace.Application.Interfaces.IServices.ICases;
 using SafeTrace.Application.Common.Enums;
 using SafeTrace.Application.DTOs.LongTermCase.Response;
 using SafeTrace.Application.DTOs.LongTermCase.Request;
+using SafeTrace.Application.DTOs.Cases.Request;
+using SafeTrace.Application.DTOs.Cases.Response;
 
 
 namespace SafeTrace.Application.Services.Cases
@@ -34,12 +36,42 @@ namespace SafeTrace.Application.Services.Cases
                 _caseHelper.CleanupPhysicalFiles([entity.PoliceReportImage]);
             }
         }
-        
+
         /// <summary>
         /// Creates a new long-term missing case with pending status.
+        /// Before creating, the user must be verified, and the case is checked against existing
+        /// active cases (via face + attribute matching):
+        /// - a match with the SAME case type (LongTerm) blocks creation entirely (true duplicate).
+        /// - a match with a DIFFERENT case type blocks creation and returns the matched case(s),
+        ///   unless forceCreate is true.
         /// </summary>
-        public async Task<ApiResponse<string>> CreateAsync(string userId, CreateLongTermCaseDto dto)
+        public async Task<ApiResponse<CreateCaseResultDto>> CreateAsync(string userId, CreateLongTermCaseDto dto, bool forceCreate = false)
         {
+            await _caseHelper.ValidateVerifiedUserAsync(userId);
+
+            var subject = new CaseMatchSubjectInfoDto
+            {
+                Gender = dto.Gender,
+                Age = dto.Age
+            };
+
+            var duplicateCheck = await _caseHelper.CheckDuplicateCaseAsync(
+                CaseType.LongTerm,
+                subject,
+                dto.PrimaryImage,
+                forceCreate);
+
+            if (duplicateCheck.RequiresConfirmation)
+            {
+                return ApiResponse<CreateCaseResultDto>.Ok(
+                    new CreateCaseResultDto
+                    {
+                        IsCreated = false,
+                        MatchedCases = duplicateCheck.MatchedCases
+                    },
+                    "تم العثور على حالة مشابهة من نوع مختلف. يمكنك التواصل مع صاحب الحالة، أو إعادة الإرسال مع forceCreate=true لتجاهل التطابق.");
+            }
+
             var entity = _mapper.Map<LongTermMissingCase>(dto);
 
             entity.UserId = userId;
@@ -77,7 +109,7 @@ namespace SafeTrace.Application.Services.Cases
                     _caseHelper.CleanupPhysicalFiles(entity.CaseFiles.Select(x => x.ImagePath));
                     _fileStorageService.DeleteFile(entity.PoliceReportImage);
                     await _caseHelper.DeleteFacesAsync(entity.CaseFiles.Select(x => x.FaceId), entity.Id);
-                    
+
                     _logger.LogError(
                         ex,
                         "Failed to create unknown case for user {UserId}",
@@ -88,9 +120,15 @@ namespace SafeTrace.Application.Services.Cases
                 "Created longTerm missing case. CaseId={CaseId}, CaseCode={CaseCode}, UserId={UserId}",
                 entity.Id, entity.CaseCode, userId);
 
-            return ApiResponse<string>.Ok(message: "تم إنشاء حالة الفقد طويلة المدة بنجاح.");
+            return ApiResponse<CreateCaseResultDto>.Ok(
+                new CreateCaseResultDto
+                {
+                    IsCreated = true,
+                    CaseId = entity.Id
+                },
+                "تم إنشاء حالة الفقد طويلة المدة بنجاح.");
         }
-        
+
         /// <summary>
         /// Updates a longTerm missing case with photo and police report management.
         /// </summary>
@@ -120,7 +158,7 @@ namespace SafeTrace.Application.Services.Cases
                     if (dto.PoliceReportImage is not null)
                     {
                         var newReport = await _fileStorageService.SaveFileAsync(dto.PoliceReportImage, PoliceReportsFolder);
-                        
+
                         _fileStorageService.DeleteFile(entity.PoliceReportImage);
 
                         entity.PoliceReportImage = newReport;
@@ -203,6 +241,7 @@ namespace SafeTrace.Application.Services.Cases
 
             return ApiResponse<string>.Ok(message: "تم تحديث حالة الفقد طويلة المدة بنجاح.");
         }
-    
+
+
     }
 }

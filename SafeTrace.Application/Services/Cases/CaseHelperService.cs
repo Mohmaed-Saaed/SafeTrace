@@ -74,7 +74,7 @@ namespace SafeTrace.Application.Services.Cases
                 throw new BadRequestException($"لا يمكن تنفيذ هذا الإجراء على حالة بحالة '{entity.Status}'.");
             }
         }
-        
+
         /// <summary>
         /// Ensures the user exists and has a verified account.
         /// </summary>
@@ -116,7 +116,7 @@ namespace SafeTrace.Application.Services.Cases
 
             return $"{prefix}-{number}";
         }
-        
+
         private static readonly Dictionary<CaseCodePrefix, string> SequenceNames = new()
         {
             { CaseCodePrefix.LNG, "LongTermCaseSequence" },
@@ -177,7 +177,7 @@ namespace SafeTrace.Application.Services.Cases
                 CreatedAt = DateTime.UtcNow
             };
         }
-       
+
         /// <summary>
         /// Sets the primary image for a case.
         /// </summary>
@@ -198,7 +198,7 @@ namespace SafeTrace.Application.Services.Cases
                 image.IsPrimary = image.Id == primaryPhotoId;
             }
         }
-        
+
         private static readonly HashSet<string> VideoExtensions = new(StringComparer.OrdinalIgnoreCase)
         {
             ".mp4",
@@ -238,7 +238,7 @@ namespace SafeTrace.Application.Services.Cases
                 _logger.LogWarning(ex, "Failed to delete faces for case {CaseId}", caseId);
             }
         }
-    
+
         /// <summary>
         /// Finds existing cases that match the provided subject and face image.
         /// </summary>
@@ -261,6 +261,57 @@ namespace SafeTrace.Application.Services.Cases
             };
         }
 
+        /// <summary>
+        /// Generic pre-create duplicate check, meant to be called by every case type's CreateAsync
+        /// (LongTerm / Unknown / Urgent) right before persisting a new case.
+        ///
+        /// Behaviour:
+        /// - No match at all                                -> returns DuplicateCheckResult.None (proceed with create).
+        /// - A match exists with the SAME case type          -> throws BadRequestException (true duplicate, never bypassable).
+        /// - A match exists with a DIFFERENT case type       -> returns RequiresConfirmation = true with the matches,
+        ///                                                       UNLESS forceCreate is true, in which case it's bypassed
+        ///                                                       and DuplicateCheckResult.None is returned.
+        /// </summary>
+        public async Task<DuplicateCheckResult> CheckDuplicateCaseAsync(
+            CaseType currentCaseType,
+            CaseMatchSubjectInfoDto subject,
+            IFormFile primaryImage,
+            bool forceCreate = false)
+        {
+            var matchResult = await FindMatchedCasesAsync(subject, primaryImage);
+
+            if (!matchResult.HasMatched)
+                return DuplicateCheckResult.None;
+
+            var sameTypeDuplicate = matchResult.DuplicateCases
+                .FirstOrDefault(c => c.CaseType == currentCaseType);
+
+            if (sameTypeDuplicate != null)
+            {
+                _logger.LogInformation(
+                    "Duplicate case blocked. Existing case {CaseCode} already matches this person with the same type {CaseType}.",
+                    sameTypeDuplicate.CaseCode,
+                    currentCaseType);
+
+                throw new BadRequestException($"توجد حالة مطابقة لنفس الشخص من نفس نوع الحالة بالفعل (كود الحالة: {sameTypeDuplicate.CaseCode}).");
+            }
+
+            if (forceCreate)
+            {
+                _logger.LogInformation(
+                    "Cross-type case match(es) found for type {CaseType} but forceCreate was set; proceeding with creation.",
+                    currentCaseType);
+
+                return DuplicateCheckResult.None;
+            }
+
+            return new DuplicateCheckResult
+            {
+                RequiresConfirmation = true,
+                MatchedCases = matchResult.DuplicateCases
+            };
+        }
+
         private async Task<List<FaceMatchResult>> SearchFacesAsync(IFormFile primaryImage)
         {
             var faceMatches = await _faceRecognitionService.SearchByImageAsync(primaryImage);
@@ -271,10 +322,10 @@ namespace SafeTrace.Application.Services.Cases
             return faceMatches
                 .Where(x => !string.IsNullOrWhiteSpace(x.FaceId))
                 .GroupBy(x => x.FaceId)
-                .Select(g => new FaceMatchResult{FaceId = g.Key!, Similarity = g.Max(x => x.Similarity ?? 0)})
+                .Select(g => new FaceMatchResult { FaceId = g.Key!, Similarity = g.Max(x => x.Similarity ?? 0) })
                 .ToList();
         }
- 
+
         private async Task<List<Case>> LoadCandidateCasesAsync(IReadOnlyCollection<FaceMatchResult> faceMatches)
         {
             var faceIds = faceMatches.Select(x => x.FaceId).ToList();
@@ -287,7 +338,7 @@ namespace SafeTrace.Application.Services.Cases
                 .Where(c => c.Status == CaseStatus.Active && c.CaseFiles.Any(f => f.FaceId != null && faceIds.Contains(f.FaceId)))
                 .ToListAsync();
         }
- 
+
         private List<MatchedCaseDto> FilterMatchedCases(IReadOnlyCollection<Case> candidateCases, IReadOnlyCollection<FaceMatchResult> faceMatches, CaseMatchSubjectInfoDto subject)
         {
             var matchedCases = new List<MatchedCaseDto>();
@@ -325,7 +376,7 @@ namespace SafeTrace.Application.Services.Cases
 
             return matchedCases;
         }
-        
+
         private static bool PassesVerification(Case candidate, float similarity, CaseMatchSubjectInfoDto subject)
         {
             if (similarity < MinimumSimilarity)
@@ -339,6 +390,6 @@ namespace SafeTrace.Application.Services.Cases
 
             return true;
         }
-    
+
     }
 }
