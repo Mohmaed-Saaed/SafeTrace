@@ -1,14 +1,11 @@
 ﻿using AutoMapper;
-using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Logging;
 using SafeTrace.Application.Constants;
 using SafeTrace.Application.DTOs.Auth.Request;
 using SafeTrace.Application.DTOs.Auth.Response;
 using SafeTrace.Application.DTOs.Responses;
 using SafeTrace.Application.Exceptions;
-using SafeTrace.Application.Interfaces.IServices;
 using SafeTrace.Domain.Enums;
-using SafeTrace.Domain.Interfaces.IUnitOfWork;
 using System.Net;
 using System.Security.Claims;
 using System.Text.Json;
@@ -77,8 +74,8 @@ namespace SafeTrace.Infrastructure.Services
 
                 try
                 {
-                    var mailBody = EmailTemplates.BuildArabicOtpEmailTemplate($"{user.FName} {user.LName}", otp, "تأكيد الحساب الرقمي", "شكراً لتسجيلك في منصة SafeTrace. يرجى استخدام رمز التحقق التالي لتفعيل حسابك وتأكيد البريد الإلكتروني الخاص بك.");
-                    await _emailService.SendEmailAsync(user.Email!, "SafeTrace - رمز تفعيل الحساب", mailBody);
+                    var mailBody = EmailTemplates.BuildArabicOtpEmailTemplate($"{user.FName} {user.LName}", otp, "تأكيد الحساب الرقمي", "شكراً لتسجيلك في منصة لقاء. يرجى استخدام رمز التحقق التالي لتفعيل حسابك وتأكيد البريد الإلكتروني الخاص بك.");
+                    await _emailService.SendEmailAsync(user.Email!, "لقاء - رمز تفعيل الحساب", mailBody);
                 }
                 catch (Exception ex)
                 {
@@ -153,7 +150,7 @@ namespace SafeTrace.Infrastructure.Services
             var subject = type == OtpType.EmailConfirmation ? "رمز تفعيل الحساب" : "رمز الأمان الخاص بك";
             var mailBody = EmailTemplates.BuildArabicOtpEmailTemplate($"{user.FName} {user.LName}", otp, "طلب رمز تحقق جديد", "بناءً على طلبك، تم إصدار رمز أمان بديل جديد. يرجى إدخاله لإكمال العملية الجارية.");
 
-            await _emailService.SendEmailAsync(user.Email!, $"SafeTrace - {subject}", mailBody);
+            await _emailService.SendEmailAsync(user.Email!, $"لقاء - {subject}", mailBody);
 
             _logger.LogInformation("A new OTP of type {Type} was resent to {Email}.", type.ToString(), email);
 
@@ -170,7 +167,7 @@ namespace SafeTrace.Infrastructure.Services
             var otp = await _otpService.GenerateAndSaveOtpAsync(user.Id, OtpType.PasswordReset);
             var mailBody = EmailTemplates.BuildArabicOtpEmailTemplate($"{user.FName} {user.LName}", otp, "طلب إعادة تعيين كلمة المرور", "لقد تلقينا طلباً لإعادة تعيين كلمة المرور الخاصة بحسابك. يرجى استخدام الرمز السري التالي لإتمام عملية التعيين بنجاح.");
 
-            await _emailService.SendEmailAsync(user.Email!, "SafeTrace - إعادة تعيين كلمة المرور", mailBody);
+            await _emailService.SendEmailAsync(user.Email!, "لقاء - إعادة تعيين كلمة المرور", mailBody);
 
             _logger.LogInformation("Password reset OTP dispatched to {Email}.", email);
 
