@@ -1,3 +1,4 @@
+using ElmahCore.Mvc;
 using Microsoft.AspNetCore.Mvc;
 using SafeTrace.API.ExceptionHandlers;
 using SafeTrace.API.ExtensionMethods;
@@ -74,6 +75,7 @@ namespace SafeTrace
             var app = builder.Build();
 
             app.UseExceptionHandler();
+            app.UseElmah();
             app.UseStatusCodePages(async context =>
             {
                 var response = context.HttpContext.Response;
