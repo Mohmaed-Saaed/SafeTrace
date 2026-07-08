@@ -313,6 +313,7 @@ namespace SafeTrace.Infrastructure.Services
                 if (!storedRefreshToken.IsActive)
                 {
                     await RevokeAllActiveSessionsAsync(userId!);
+                    await _unitOfWork.SaveAsync();
                     await _unitOfWork.CommitTransactionAsync();
                     throw new UnauthorizedException("تم اكتشاف نشاط مريب في الجلسة، تم تسجيل الخروج من جميع الأجهزة كإجراء أمني.");
                 }
@@ -328,6 +329,7 @@ namespace SafeTrace.Infrastructure.Services
                 _unitOfWork.Repository<RefreshToken>().Update(storedRefreshToken);
                 await _unitOfWork.Repository<RefreshToken>().CreateAsync(newRefreshToken);
 
+                await _unitOfWork.SaveAsync();
                 await _unitOfWork.CommitTransactionAsync();
 
                 var roles = await _userManager.GetRolesAsync(user);
