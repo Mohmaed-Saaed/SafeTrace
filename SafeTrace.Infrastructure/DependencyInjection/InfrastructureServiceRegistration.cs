@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Authentication.JwtBearer;
+﻿using ElmahCore.Sql;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -9,6 +10,7 @@ using SafeTrace.Infrastructure.Authorization;
 using SafeTrace.Infrastructure.Options;
 using SafeTrace.Infrastructure.Persistence;
 using System.Text;
+using ElmahCore.Mvc;
 
 namespace SafeTrace.Infrastructure.DependencyInjection
 {
@@ -139,6 +141,18 @@ namespace SafeTrace.Infrastructure.DependencyInjection
             });
 
             services.AddAuthorization();
+
+            services.AddElmah<SqlErrorLog>(options =>
+            {
+                options.Path = "/elmah";
+
+                options.ConnectionString = configuration.GetConnectionString("DefaultConnection");
+
+                //options.OnPermissionCheck = context =>
+                //    context.User.Identity != null &&
+                //    context.User.Identity.IsAuthenticated &&
+                //    context.User.IsInRole("Admin");
+            });
 
             return services;
         }
