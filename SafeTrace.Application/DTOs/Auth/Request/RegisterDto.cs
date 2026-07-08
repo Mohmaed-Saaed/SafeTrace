@@ -18,7 +18,7 @@ namespace SafeTrace.Application.DTOs.Auth.Request
 
         [Required(ErrorMessage = "رقم الهاتف مطلوب.")]
         [Phone(ErrorMessage = "صيغة رقم الهاتف غير صحيحة.")]
-        [RegularExpression(@"^01[0-9]{9}$", ErrorMessage = "يرجى إدخال رقم هاتف مصري صحيح.")]
+        [RegularExpression(@"^01[0125][0-9]{8}$", ErrorMessage = "يرجى إدخال رقم هاتف مصري صحيح.")]
         public string PhoneNumber { get; set; } = null!;
 
         [Required(ErrorMessage = "كلمة المرور مطلوبة.")]

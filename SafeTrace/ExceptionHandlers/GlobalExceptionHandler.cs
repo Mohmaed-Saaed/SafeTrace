@@ -1,7 +1,8 @@
-﻿    using Microsoft.AspNetCore.Diagnostics;
-    using Microsoft.AspNetCore.Mvc;
-    using SafeTrace.Application.Exceptions;
-    using System.Net;
+﻿using ElmahCore;
+using Microsoft.AspNetCore.Diagnostics;
+using Microsoft.AspNetCore.Mvc;
+using SafeTrace.Application.Exceptions;
+using System.Net;
 
     namespace SafeTrace.API.ExceptionHandlers
     {
