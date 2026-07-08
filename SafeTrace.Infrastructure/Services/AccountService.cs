@@ -341,6 +341,7 @@ namespace SafeTrace.Infrastructure.Services
                     RefreshTokenExpiration = newRefreshToken.ExpiresAt,
                     Email = user.Email!,
                     FullName = $"{user.FName} {user.LName}",
+                    ProfileImage = user.ProfileImage,
                     VerificationStatus = user.VerificationStatus
                 }, "تم تجديد الجلسة بنجاح.");
             }
@@ -387,6 +388,7 @@ namespace SafeTrace.Infrastructure.Services
                 RefreshTokenExpiration = refreshToken.ExpiresAt,
                 Email = user.Email!,
                 FullName = $"{user.FName} {user.LName}",
+                ProfileImage = user.ProfileImage,
                 VerificationStatus = user.VerificationStatus
             };
         }
