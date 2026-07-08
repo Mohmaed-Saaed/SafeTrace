@@ -98,17 +98,17 @@ namespace SafeTrace.API.Controllers
 
         [AllowAnonymous]
         [HttpPost("refresh-token")]
-        public async Task<IActionResult> RefreshToken([FromBody] RefreshTokenRequestDto requestDto)
+        public async Task<IActionResult> RefreshToken()
         {
-            var response = await _accountService.RefreshTokenAsync(requestDto);
+            var response = await _accountService.RefreshTokenAsync();
             return Ok(response);
         }
 
         [AllowAnonymous]
         [HttpPost("revoke-token")]
-        public async Task<IActionResult> RevokeToken([FromQuery] string token)
+        public async Task<IActionResult> RevokeToken()
         {
-            var response = await _accountService.RevokeTokenAsync(token);
+            var response = await _accountService.RevokeTokenAsync();
             return Ok(response);
         }
     }
