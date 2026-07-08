@@ -28,6 +28,8 @@ namespace SafeTrace
 
             builder.Services.AddEndpointsApiExplorer();
 
+            builder.Services.AddHttpContextAccessor();
+
             builder.Services.AddControllers()
                             .AddJsonOptions(options =>
                             {
@@ -53,7 +55,7 @@ namespace SafeTrace
                 options.AddPolicy("CorsPolicy", builder =>
                 {
                     builder
-                        .WithOrigins("http://localhost:5500", "http://127.0.0.1:5500",
+                        .WithOrigins("https://localhost:4200", "http://localhost:5500", "http://127.0.0.1:5500",
                                     "http://localhost:5501", "http://127.0.0.1:5501", "https://localhost:7204", "https://localhost:5173", "https://localhost:7126",
                                     "http://localhost:3000", "http://localhost:8080") // Add common dev ports
                         .AllowAnyHeader()
