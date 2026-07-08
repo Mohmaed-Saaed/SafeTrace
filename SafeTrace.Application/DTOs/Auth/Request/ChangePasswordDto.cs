@@ -14,7 +14,5 @@ namespace SafeTrace.Application.DTOs.Auth.Request
             ErrorMessage = "يجب أن تحتوي كلمة المرور على حرف كبير، وحرف صغير، ورقم، ورمز خاص."
         )]
         public string NewPassword { get; set; } = null!;
-
-        public string? CurrentRefreshToken { get; set; }
     }
 }

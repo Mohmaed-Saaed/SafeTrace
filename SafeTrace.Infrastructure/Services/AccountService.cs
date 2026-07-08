@@ -1,14 +1,12 @@
 ﻿using AutoMapper;
-using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Logging;
+using Microsoft.AspNetCore.Http;
 using SafeTrace.Application.Constants;
 using SafeTrace.Application.DTOs.Auth.Request;
 using SafeTrace.Application.DTOs.Auth.Response;
 using SafeTrace.Application.DTOs.Responses;
 using SafeTrace.Application.Exceptions;
-using SafeTrace.Application.Interfaces.IServices;
 using SafeTrace.Domain.Enums;
-using SafeTrace.Domain.Interfaces.IUnitOfWork;
 using System.Net;
 using System.Security.Claims;
 using System.Text.Json;
@@ -25,6 +23,7 @@ namespace SafeTrace.Infrastructure.Services
         private readonly ILogger<AccountService> _logger;
         private readonly IOtpService _otpService;
         private readonly HttpClient _httpClient;
+        private readonly IHttpContextAccessor _httpContextAccessor;
 
         public AccountService(
             UserManager<ApplicationUser> userManager,
@@ -33,7 +32,8 @@ namespace SafeTrace.Infrastructure.Services
             IUnitOfWork unitOfWork,
             IMapper mapper,
             IOtpService otpService,
-            ILogger<AccountService> logger)
+            ILogger<AccountService> logger,
+            IHttpContextAccessor httpContextAccessor)
         {
             _userManager = userManager;
             _tokenService = tokenService;
@@ -43,6 +43,7 @@ namespace SafeTrace.Infrastructure.Services
             _logger = logger;
             _otpService = otpService;
             _httpClient = new HttpClient();
+            _httpContextAccessor = httpContextAccessor;
         }
 
         public async Task<ApiResponse<string>> RegisterAsync(RegisterDto registerDto)
@@ -68,17 +69,15 @@ namespace SafeTrace.Infrastructure.Services
                 }
 
                 await _userManager.AddToRoleAsync(user, "User");
-
                 var otp = await _otpService.GenerateAndSaveOtpAsync(user.Id, OtpType.EmailConfirmation);
-
                 await _unitOfWork.CommitTransactionAsync();
 
                 _logger.LogInformation("User with ID {UserId} and Email {Email} just created successfully.", user.Id, user.Email);
 
                 try
                 {
-                    var mailBody = EmailTemplates.BuildArabicOtpEmailTemplate($"{user.FName} {user.LName}", otp, "تأكيد الحساب الرقمي", "شكراً لتسجيلك في منصة SafeTrace. يرجى استخدام رمز التحقق التالي لتفعيل حسابك وتأكيد البريد الإلكتروني الخاص بك.");
-                    await _emailService.SendEmailAsync(user.Email!, "SafeTrace - رمز تفعيل الحساب", mailBody);
+                    var mailBody = EmailTemplates.BuildArabicOtpEmailTemplate($"{user.FName} {user.LName}", otp, "تأكيد الحساب الرقمي", "شكراً لتسجيلك في منصة لقاء. يرجى استخدام رمز التحقق التالي لتفعيل حسابك وتأكيد البريد الإلكتروني الخاص بك.");
+                    await _emailService.SendEmailAsync(user.Email!, "لقاء - رمز تفعيل الحساب", mailBody);
                 }
                 catch (Exception ex)
                 {
@@ -99,13 +98,11 @@ namespace SafeTrace.Infrastructure.Services
             var user = await _userManager.FindByEmailAsync(loginDto.Email);
             if (user == null || !await _userManager.CheckPasswordAsync(user, loginDto.Password))
             {
-                _logger.LogWarning("Failed authentication challenge for user: {Email}", loginDto.Email);
                 throw new UnauthorizedException("البريد الإلكتروني أو كلمة المرور غير صحيحة.");
             }
 
             if (!user.EmailConfirmed)
             {
-                _logger.LogWarning("User {Email} attempted to login but email is not confirmed.", loginDto.Email);
                 throw new ForbiddenException("يرجى تأكيد بريدك الإلكتروني أولاً قبل تسجيل الدخول.");
             }
 
@@ -116,9 +113,6 @@ namespace SafeTrace.Infrastructure.Services
             {
                 var authResult = await GenerateAuthTokensAndSaveAsync(user);
                 await _unitOfWork.CommitTransactionAsync();
-
-                _logger.LogInformation("User {Email} logged in successfully.", user.Email);
-
                 return ApiResponse<AuthResponseDto>.Ok(authResult, "تم تسجيل الدخول بنجاح.");
             }
             catch
@@ -153,7 +147,7 @@ namespace SafeTrace.Infrastructure.Services
             var subject = type == OtpType.EmailConfirmation ? "رمز تفعيل الحساب" : "رمز الأمان الخاص بك";
             var mailBody = EmailTemplates.BuildArabicOtpEmailTemplate($"{user.FName} {user.LName}", otp, "طلب رمز تحقق جديد", "بناءً على طلبك، تم إصدار رمز أمان بديل جديد. يرجى إدخاله لإكمال العملية الجارية.");
 
-            await _emailService.SendEmailAsync(user.Email!, $"SafeTrace - {subject}", mailBody);
+            await _emailService.SendEmailAsync(user.Email!, $"لقاء - {subject}", mailBody);
 
             _logger.LogInformation("A new OTP of type {Type} was resent to {Email}.", type.ToString(), email);
 
@@ -170,7 +164,7 @@ namespace SafeTrace.Infrastructure.Services
             var otp = await _otpService.GenerateAndSaveOtpAsync(user.Id, OtpType.PasswordReset);
             var mailBody = EmailTemplates.BuildArabicOtpEmailTemplate($"{user.FName} {user.LName}", otp, "طلب إعادة تعيين كلمة المرور", "لقد تلقينا طلباً لإعادة تعيين كلمة المرور الخاصة بحسابك. يرجى استخدام الرمز السري التالي لإتمام عملية التعيين بنجاح.");
 
-            await _emailService.SendEmailAsync(user.Email!, "SafeTrace - إعادة تعيين كلمة المرور", mailBody);
+            await _emailService.SendEmailAsync(user.Email!, "لقاء - إعادة تعيين كلمة المرور", mailBody);
 
             _logger.LogInformation("Password reset OTP dispatched to {Email}.", email);
 
@@ -227,23 +221,14 @@ namespace SafeTrace.Infrastructure.Services
 
                 if (!result.Succeeded)
                 {
-                    var errors = string.Join(", ", result.Errors.Select(e => e.Description));
-                    _logger.LogWarning("Failed password change attempt for user {Email}. Errors: {Errors}", user.Email, errors);
-
-                    if (result.Errors.Any(e => e.Code == "PasswordMismatch"))
-                    {
-                        throw new BadRequestException("كلمة المرور الحالية غير صحيحة.");
-                    }
-
+                    if (result.Errors.Any(e => e.Code == "PasswordMismatch")) throw new BadRequestException("كلمة المرور الحالية غير صحيحة.");
                     throw new BadRequestException("حدث خطأ أثناء تغيير كلمة المرور، يرجى التأكد من الشروط المطلوبة.");
                 }
 
-                await RevokeAllActiveSessionsAsync(userId, dto.CurrentRefreshToken);
+                var currentRefreshToken = GetRefreshTokenFromCookie();
+                await RevokeAllActiveSessionsAsync(userId, currentRefreshToken);
 
                 await _unitOfWork.CommitTransactionAsync();
-
-                _logger.LogInformation("User {Email} successfully changed their password and other sessions were revoked.", user.Email);
-
                 return ApiResponse<string>.Ok(null, "تم تغيير كلمة المرور بنجاح وتسجيل الخروج من جميع الأجهزة الأخرى.");
             }
             catch
@@ -309,21 +294,29 @@ namespace SafeTrace.Infrastructure.Services
             }
         }
 
-        public async Task<ApiResponse<AuthResponseDto>> RefreshTokenAsync(RefreshTokenRequestDto requestDto)
+        public async Task<ApiResponse<AuthResponseDto>> RefreshTokenAsync()
         {
-            var principal = _tokenService.GetPrincipalFromExpiredToken(requestDto.ExpiredAccessToken);
-            if (principal == null) throw new BadRequestException("بيانات الجلسة غير صالحة، يرجى تسجيل الدخول مرة أخرى.");
-
-            var userId = principal.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            var refreshTokenFromCookie = GetRefreshTokenFromCookie();
+            if (string.IsNullOrEmpty(refreshTokenFromCookie))
+                throw new UnauthorizedException("انتهت صلاحية الجلسة، يرجى تسجيل الدخول من جديد.");
 
             await _unitOfWork.BeginTransactionAsync();
             try
             {
                 var storedRefreshToken = await _unitOfWork.Repository<RefreshToken>()
-                    .GetOneAsync(t => t.Token == requestDto.RefreshToken && t.UserId == userId);
+                    .GetOneAsync(t => t.Token == refreshTokenFromCookie);
 
-                if (storedRefreshToken == null || !storedRefreshToken.IsActive)
-                    throw new UnauthorizedException("انتهت صلاحية الجلسة، يرجى تسجيل الدخول من جديد.");
+                if (storedRefreshToken == null) throw new UnauthorizedException("انتهت صلاحية الجلسة، يرجى تسجيل الدخول من جديد.");
+
+                var userId = storedRefreshToken.UserId;
+
+                if (!storedRefreshToken.IsActive)
+                {
+                    await RevokeAllActiveSessionsAsync(userId!);
+                    await _unitOfWork.SaveAsync();
+                    await _unitOfWork.CommitTransactionAsync();
+                    throw new UnauthorizedException("تم اكتشاف نشاط مريب في الجلسة، تم تسجيل الخروج من جميع الأجهزة كإجراء أمني.");
+                }
 
                 var user = await _userManager.FindByIdAsync(userId!);
                 if (user == null) throw new NotFoundException("هذا الحساب غير موجود.");
@@ -336,18 +329,21 @@ namespace SafeTrace.Infrastructure.Services
                 _unitOfWork.Repository<RefreshToken>().Update(storedRefreshToken);
                 await _unitOfWork.Repository<RefreshToken>().CreateAsync(newRefreshToken);
 
+                await _unitOfWork.SaveAsync();
                 await _unitOfWork.CommitTransactionAsync();
 
                 var roles = await _userManager.GetRolesAsync(user);
                 var newAccessToken = _tokenService.GenerateAccessToken(user, roles);
 
+                SetRefreshTokenCookie(newRefreshToken.Token, newRefreshToken.ExpiresAt);
+
                 return ApiResponse<AuthResponseDto>.Ok(new AuthResponseDto
                 {
                     AccessToken = newAccessToken,
-                    RefreshToken = newRefreshToken.Token,
                     RefreshTokenExpiration = newRefreshToken.ExpiresAt,
                     Email = user.Email!,
                     FullName = $"{user.FName} {user.LName}",
+                    ProfileImage = user.ProfileImage,
                     VerificationStatus = user.VerificationStatus
                 }, "تم تجديد الجلسة بنجاح.");
             }
@@ -358,15 +354,20 @@ namespace SafeTrace.Infrastructure.Services
             }
         }
 
-        public async Task<ApiResponse<string>> RevokeTokenAsync(string token)
+        public async Task<ApiResponse<string>> RevokeTokenAsync()
         {
-            var storedToken = await _unitOfWork.Repository<RefreshToken>().GetOneAsync(t => t.Token == token);
-            if (storedToken == null) throw new NotFoundException("بيانات الجلسة غير موجودة.");
-            if (!storedToken.IsActive) throw new BadRequestException("هذه الجلسة منتهية بالفعل.");
+            var cookieToken = GetRefreshTokenFromCookie();
+            if (string.IsNullOrEmpty(cookieToken)) return ApiResponse<string>.Ok(null, "تم تسجيل الخروج بنجاح.");
 
-            storedToken.RevokedAt = DateTime.UtcNow;
-            _unitOfWork.Repository<RefreshToken>().Update(storedToken);
-            await _unitOfWork.SaveAsync();
+            var storedToken = await _unitOfWork.Repository<RefreshToken>().GetOneAsync(t => t.Token == cookieToken);
+            if (storedToken != null && storedToken.IsActive)
+            {
+                storedToken.RevokedAt = DateTime.UtcNow;
+                _unitOfWork.Repository<RefreshToken>().Update(storedToken);
+                await _unitOfWork.SaveAsync();
+            }
+
+            _httpContextAccessor.HttpContext?.Response.Cookies.Delete("refreshToken", new CookieOptions { HttpOnly = true, Secure = true, SameSite = SameSiteMode.None });
 
             return ApiResponse<string>.Ok(null, "تم تسجيل الخروج بنجاح.");
         }
@@ -381,13 +382,15 @@ namespace SafeTrace.Infrastructure.Services
             await _unitOfWork.Repository<RefreshToken>().CreateAsync(refreshToken);
             await _unitOfWork.SaveAsync();
 
+            SetRefreshTokenCookie(refreshToken.Token, refreshToken.ExpiresAt);
+
             return new AuthResponseDto
             {
                 AccessToken = accessToken,
-                RefreshToken = refreshToken.Token,
                 RefreshTokenExpiration = refreshToken.ExpiresAt,
                 Email = user.Email!,
                 FullName = $"{user.FName} {user.LName}",
+                ProfileImage = user.ProfileImage,
                 VerificationStatus = user.VerificationStatus
             };
         }
@@ -475,6 +478,23 @@ namespace SafeTrace.Infrastructure.Services
                     _unitOfWork.Repository<RefreshToken>().Update(token);
                 }
             }
+        }
+
+        private void SetRefreshTokenCookie(string token, DateTime expiresAt)
+        {
+            var cookieOptions = new CookieOptions
+            {
+                HttpOnly = true,
+                Secure = true,
+                SameSite = SameSiteMode.None,
+                Expires = expiresAt
+            };
+            _httpContextAccessor.HttpContext?.Response.Cookies.Append("refreshToken", token, cookieOptions);
+        }
+
+        private string? GetRefreshTokenFromCookie()
+        {
+            return _httpContextAccessor.HttpContext?.Request.Cookies["refreshToken"];
         }
     }
 }
