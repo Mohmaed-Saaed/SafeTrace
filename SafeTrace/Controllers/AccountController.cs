@@ -130,6 +130,7 @@ namespace SafeTrace.API.Controllers
         /// إعادة إرسال رمز التحقق (OTP) للبريد الإلكتروني.
         /// </summary>
         /// <param name="type">نوع الـ OTP (تأكيد حساب أو استعادة كلمة مرور).</param>
+        /// <param name="email">البريد الإلكتروني الخاص بالمستخدم.</param>
         /// <response code="200">تمت إعادة إرسال رمز التحقق بنجاح.</response>
         /// <response code="404">الحساب غير موجود.</response>
         [ProducesResponseType(typeof(ApiResponse<string>), StatusCodes.Status200OK)]

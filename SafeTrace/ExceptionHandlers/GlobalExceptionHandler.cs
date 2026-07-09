@@ -30,8 +30,6 @@ namespace SafeTrace.API.ExceptionHandlers
                 UnauthorizedException => HttpStatusCode.Unauthorized,
                 ForbiddenException => HttpStatusCode.Forbidden,
                 ConflictException => HttpStatusCode.Conflict,
-                KeyNotFoundException => HttpStatusCode.NotFound,
-                UnauthorizedAccessException => HttpStatusCode.Unauthorized,
 
                 _ => HttpStatusCode.InternalServerError
             };
