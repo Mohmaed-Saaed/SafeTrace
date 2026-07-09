@@ -2,7 +2,6 @@
 using Microsoft.AspNetCore.Mvc;
 using SafeTrace.Application.Constants;
 using SafeTrace.Application.DTOs.Cases.Request;
-using SafeTrace.Application.DTOs.Cases.Response;
 using SafeTrace.Application.DTOs.LongTermCase.Request;
 using SafeTrace.Application.DTOs.LongTermCase.Response;
 using SafeTrace.Application.DTOs.Responses;
@@ -102,7 +101,7 @@ namespace SafeTrace.API.Controllers
         [HttpPost("CreateCase")]
         [Consumes("multipart/form-data")]
         [HasPermission(Permissions.LongTermCases.Create)]
-        [ProducesResponseType(typeof(ApiResponse<CreateCaseResultDto>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiResponse<string>), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         public async Task<IActionResult> Create([FromForm] CreateLongTermCaseDto dto, [FromQuery] bool forceCreate = false)
