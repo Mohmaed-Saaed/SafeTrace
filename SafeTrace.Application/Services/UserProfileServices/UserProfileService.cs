@@ -51,6 +51,7 @@ namespace SafeTrace.Application.Services.UserProfileServices
         {
             _logger.LogInformation("Fetching profile for UserId: {userId} at {Time}", userId, DateTime.UtcNow);
             var user = await _userManager.FindByIdAsync(userId);
+            var roles = await _userManager.GetRolesAsync(user);
             if (user == null)
             {
                 _logger.LogWarning("User With Id : {UserId} Not Found at {Time}", userId, DateTime.UtcNow);
@@ -59,8 +60,13 @@ namespace SafeTrace.Application.Services.UserProfileServices
             else
             {
                 var dto = _mapper.Map<GetUserInfoDTO>(user);
-                // to return full path of image 
+                dto.Role = roles.Contains("Admin")
+                    ? "Admin"
+                    : roles.Contains("VerifiedUser")
+                        ? "VerifiedUser"
+                        : "User";
                 var request = _httpContextAccessor.HttpContext.Request;
+
                 string baseUrl = $"{request.Scheme}://{request.Host}";
 
                 dto.ProfileImage = string.IsNullOrEmpty(dto.ProfileImage)
