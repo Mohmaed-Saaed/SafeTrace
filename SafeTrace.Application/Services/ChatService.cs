@@ -58,7 +58,7 @@ namespace SafeTrace.Application.Services
             {
                 CaseId = baseCase.Id,
                 CaseTitle = $"{baseCase.FName} {baseCase.SName} {baseCase.TName} {baseCase.LName}",
-                Status = baseCase.Status.ToString(),
+                CaseType = baseCase.CaseType,
 
                 CaseImage = primaryImage,
 
