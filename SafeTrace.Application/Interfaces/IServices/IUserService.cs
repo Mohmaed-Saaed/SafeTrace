@@ -11,9 +11,9 @@ namespace SafeTrace.Application.Interfaces.IServices
         Task<ApiResponse<string>> RegisterByAdminAsync(RegisterByAdminDto dto);
         Task<ApiResponse<string>> ApproveUserAsync(string userId);
         Task<ApiResponse<string>> RejectUserAsync(string userId);
-        Task<ApiResponse<string>> ToggleUserBlockStatusAsync(string userId);
-        Task<ApiResponse<string>> ChangeUserRoleAsync(ChangeUserRoleDto dto);
+        Task<ApiResponse<string>> ToggleUserBlockStatusAsync(string currentUserId, string userId);
+        Task<ApiResponse<string>> ChangeUserRoleAsync(string currentUserId, ChangeUserRoleDto dto);
         Task<ApiResponse<UserPermissionsResponseDto>> GetUserPermissionsAsync(string userId);
-        Task<ApiResponse<string>> AssignUserPermissionsAsync(AssignUserPermissionsDto dto);
+        Task<ApiResponse<string>> AssignUserPermissionsAsync(string currentUserId, AssignUserPermissionsDto dto);
     }
 }

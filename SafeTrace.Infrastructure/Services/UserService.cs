@@ -2,6 +2,7 @@
 using AutoMapper.QueryableExtensions;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Logging;
+using SafeTrace.Application.Constants;
 using SafeTrace.Application.DTOs.Responses;
 using SafeTrace.Application.DTOs.User.Request;
 using SafeTrace.Application.DTOs.User.Response;
@@ -110,21 +111,38 @@ namespace SafeTrace.Infrastructure.Services
             return ApiResponse<GetUserByIdDto>.Ok(userDto);
         }
 
-        public async Task<ApiResponse<string>> ChangeUserRoleAsync(ChangeUserRoleDto dto)
+        public async Task<ApiResponse<string>> ChangeUserRoleAsync(string currentUserId, ChangeUserRoleDto dto)
         {
+            if (currentUserId == dto.UserId) throw new BadRequestException("لا يمكنك تعديل الصلاحيات أو الدور لحسابك الشخصي.");
+
             var user = await _userManager.FindByIdAsync(dto.UserId);
             if (user == null) throw new NotFoundException("لم يتم العثور على هذا الحساب في النظام.");
+
+            if (user.Email == SystemConstants.RootAdminEmail) throw new ForbiddenException("غير مسموح بالمساس بصلاحيات أو دور المالك الأساسي للنظام.");
 
             var roleExists = await _roleManager.RoleExistsAsync(dto.NewRole);
             if (!roleExists) throw new BadRequestException("الدور (Role) المحدد غير موجود.");
 
             var currentRoles = await _userManager.GetRolesAsync(user);
 
+            foreach (var role in currentRoles)
+            {
+                if(role != "User")
+                {
+                    user.VerificationStatus = VerificationStatus.Unverified;
+                }
+            }
+
             var removeResult = await _userManager.RemoveFromRolesAsync(user, currentRoles);
             if (!removeResult.Succeeded) throw new BadRequestException("فشل في إزالة الأدوار الحالية للمستخدم.");
 
             var addResult = await _userManager.AddToRoleAsync(user, dto.NewRole);
             if (!addResult.Succeeded) throw new BadRequestException("فشل في تعيين الدور الجديد للمستخدم.");
+
+            if (dto.NewRole != "User")
+            {
+                user.VerificationStatus = VerificationStatus.Verified;
+            }
 
             _logger.LogWarning($"Role changed for User with ID: {dto.UserId} from {string.Join(",", currentRoles)} to {dto.NewRole}");
             return ApiResponse<string>.Ok(null, "تم تحديث دور المستخدم بنجاح.");
@@ -149,8 +167,16 @@ namespace SafeTrace.Infrastructure.Services
                     LName = dto.LName,
                     PhoneNumber = dto.PhoneNumber,
                     EmailConfirmed = true,
-                    VerificationStatus = VerificationStatus.Verified
                 };
+
+                if (dto.Role != "User")
+                {
+                    user.VerificationStatus = VerificationStatus.Verified;
+                }
+                else
+                {
+                    user.VerificationStatus = VerificationStatus.Unverified;
+                }
 
                 var result = await _userManager.CreateAsync(user, dto.Password);
 
@@ -239,23 +265,36 @@ namespace SafeTrace.Infrastructure.Services
             return ApiResponse<string>.Ok(null, "تم رفض طلب توثيق المستخدم بنجاح.");
         }
 
-        public async Task<ApiResponse<string>> ToggleUserBlockStatusAsync(string userId)
+        public async Task<ApiResponse<string>> ToggleUserBlockStatusAsync(string currentUserId, string userId)
         {
-            var user = await _userManager.FindByIdAsync(userId);
-            if (user == null) throw new NotFoundException("لم يتم العثور على هذا الحساب.");
+            if (currentUserId == userId) throw new BadRequestException("لا يمكنك حظر حسابك الشخصي.");
 
-            bool isCurrentlyBlocked = user.LockoutEnd.HasValue && user.LockoutEnd.Value > DateTimeOffset.UtcNow;
+            var targetUser = await _userManager.FindByIdAsync(userId);
+            if (targetUser == null) throw new NotFoundException("لم يتم العثور على هذا الحساب.");
+
+            if (targetUser.Email == SystemConstants.RootAdminEmail) throw new ForbiddenException("غير مسموح بحظر المدير الأساسي للنظام.");
+
+            var currentUser = await _userManager.FindByIdAsync(currentUserId);
+            var currentUserRoles = await _userManager.GetRolesAsync(currentUser!);
+            var targetUserRoles = await _userManager.GetRolesAsync(targetUser);
+
+            if ((targetUserRoles.Contains("Admin") || targetUserRoles.Contains("Moderator")) && currentUserRoles.Contains("Moderator"))
+            {
+                throw new ForbiddenException("غير مسموح للمشرف (Moderator) بحظر أو فك حظر مديري النظام (Admins) أو المشرفين الأخرين.");
+            }
+
+            bool isCurrentlyBlocked = targetUser.LockoutEnd.HasValue && targetUser.LockoutEnd.Value > DateTimeOffset.UtcNow;
 
             if (isCurrentlyBlocked)
             {
-                await _userManager.SetLockoutEndDateAsync(user, null);
+                await _userManager.SetLockoutEndDateAsync(targetUser, null);
 
-                _logger.LogInformation("User {Email} has been unblocked by Admin.", user.Email);
+                _logger.LogInformation("User {Email} has been unblocked by Admin.", targetUser.Email);
                 return ApiResponse<string>.Ok(null, "تم فك الحظر عن المستخدم بنجاح.");
             }
             else
             {
-                await _userManager.SetLockoutEndDateAsync(user, DateTimeOffset.MaxValue);
+                await _userManager.SetLockoutEndDateAsync(targetUser, DateTimeOffset.MaxValue);
 
                 var activeTokens = await _unitOfWork.Repository<RefreshToken>().Query()
                                                                                .Where(rt => rt.UserId == userId &&
@@ -270,7 +309,7 @@ namespace SafeTrace.Infrastructure.Services
                 }
                 await _unitOfWork.SaveAsync();
 
-                _logger.LogInformation("User {Email} has been blocked and all active sessions revoked.", user.Email);
+                _logger.LogInformation("User {Email} has been blocked and all active sessions revoked.", targetUser.Email);
                 return ApiResponse<string>.Ok(null, "تم حظر المستخدم وإنهاء جميع جلساته النشطة بنجاح.");
             }
         }
@@ -312,10 +351,14 @@ namespace SafeTrace.Infrastructure.Services
             return ApiResponse<UserPermissionsResponseDto>.Ok(response);
         }
 
-        public async Task<ApiResponse<string>> AssignUserPermissionsAsync(AssignUserPermissionsDto dto)
+        public async Task<ApiResponse<string>> AssignUserPermissionsAsync(string currentUserId, AssignUserPermissionsDto dto)
         {
+            if (currentUserId == dto.UserId) throw new BadRequestException("لا يمكنك تعديل الصلاحيات لحسابك الشخصي.");
+
             var user = await _userManager.FindByIdAsync(dto.UserId);
             if (user == null) throw new NotFoundException("لم يتم العثور على هذا الحساب.");
+
+            if (user.Email == SystemConstants.RootAdminEmail) throw new ForbiddenException("غير مسموح بتعديل الصلاحيات المباشرة للمالك الأساسي للنظام.");
 
             var existingClaims = await _userManager.GetClaimsAsync(user);
             var permissionClaims = existingClaims.Where(c => c.Type == "Permission");
