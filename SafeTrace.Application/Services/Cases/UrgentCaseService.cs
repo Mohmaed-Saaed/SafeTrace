@@ -15,7 +15,8 @@ namespace SafeTrace.Application.Services.Cases
         private const int RateLimitDays = 14;
         private const int ExpirationHours = 48;
         private const double NotifyRadiusM = 50_000; // 50 km
-
+        private const string NotificationBaseUrl = "/urgent-cases/detail/";
+        
         public UrgentCaseService(
             ILogger<UrgentCaseService> logger,
             IUnitOfWork unitOfWork,
@@ -240,7 +241,7 @@ namespace SafeTrace.Application.Services.Cases
                     .Select(u => u.Id)
                     .ToListAsync();
 
-                if (!nearbyUserIds.Any())
+                if (nearbyUserIds.Count == 0)
                 {
                     return;
                 }
@@ -263,7 +264,7 @@ namespace SafeTrace.Application.Services.Cases
                             UserId = recipientId,
                             Content = notificationContent,
                             Type = NotificationType.Message,
-                            NotificationDirectLink = ""
+                            NotificationDirectLink = NotificationBaseUrl + entity.Id
                         });
                     }
                     catch (Exception ex)
