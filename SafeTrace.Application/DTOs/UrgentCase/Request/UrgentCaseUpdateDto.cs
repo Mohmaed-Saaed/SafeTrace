@@ -7,10 +7,6 @@ namespace SafeTrace.Application.DTOs.UrgentCase.Request
         [EnumDataType(typeof(RelationType), ErrorMessage = "Invalid relation type.")]
         public RelationType? Relation { get; set; }
 
-        [DataType(DataType.DateTime)]
-        [PastDate(ErrorMessage = "Event date cannot be in the future.")]
-        public DateTime? EventDate { get; set; }
-
         [Range(-90.0, 90.0, ErrorMessage = "Latitude must be between -90 and 90.")]
         public double? Latitude { get; set; }
 
