@@ -3,7 +3,6 @@ using SafeTrace.Application.Common.Enums;
 using SafeTrace.Application.DTOs.LongTermCase.Response;
 using SafeTrace.Application.DTOs.LongTermCase.Request;
 using SafeTrace.Application.DTOs.Cases.Request;
-using SafeTrace.Application.DTOs.Cases.Response;
 using SafeTrace.Application.Exceptions;
 
 
