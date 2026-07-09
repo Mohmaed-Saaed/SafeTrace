@@ -1,3 +1,5 @@
+
+
 using Microsoft.AspNetCore.Http;
 
 namespace SafeTrace.Application.DTOs.Cases.Request
@@ -5,7 +7,7 @@ namespace SafeTrace.Application.DTOs.Cases.Request
     public abstract class CaseUpsertBaseDto
     {
         // REQUIRED FIELDS (Both Create & Update)
-        
+
         [Required(ErrorMessage = "Gender is required.")]
         [EnumDataType(typeof(Gender), ErrorMessage = "Invalid gender value.")]
         public Gender Gender { get; set; }
@@ -13,7 +15,7 @@ namespace SafeTrace.Application.DTOs.Cases.Request
         [Required(ErrorMessage = "Age is required.")]
         [Range(0, 150, ErrorMessage = "Age must be between 0 and 150.")]
         public int Age { get; set; }
-                
+
 
         [Required(ErrorMessage = "Government is required.")]
         [StringLength(200, MinimumLength = 2, ErrorMessage = "Government must be between 2 and 200 characters.")]
@@ -30,8 +32,16 @@ namespace SafeTrace.Application.DTOs.Cases.Request
         [Required(ErrorMessage = "Primary image is required.")]
         public IFormFile PrimaryImage { get; set; } = null!;
 
+        /// <summary>
+        /// The date the event took place (e.g. date of disappearance / date the person went missing).
+        /// Entered by the user; must not be in the future.
+        /// </summary>
+        [Required(ErrorMessage = "Event date is required.")]
+        [DataType(DataType.Date)]
+        public DateTime EventDate { get; set; }
+
         // OPTIONAL FIELDS
-        
+
         [StringLength(100, ErrorMessage = "Second name cannot exceed 100 characters.")]
         public string? SName { get; set; }
 
@@ -46,7 +56,7 @@ namespace SafeTrace.Application.DTOs.Cases.Request
         public string? Description { get; set; }
 
         // PHOTO MANAGEMENT
-        
+
         [MaxPhotoCount(4, ErrorMessage = "You can upload a maximum of 4 additional photos.")]
         [AllowedPhotoTypes(ErrorMessage = "Only JPEG, PNG, and WebP images are allowed.")]
         [MaxPhotoSize(5, ErrorMessage = "Each photo must not exceed 5 MB.")]

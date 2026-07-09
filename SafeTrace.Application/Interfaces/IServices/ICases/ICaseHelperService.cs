@@ -34,11 +34,13 @@ namespace SafeTrace.Application.Interfaces.IServices.ICases
             long caseId = 0);
 
         void SetPrimaryImage(ICollection<CaseFile> files, long primaryPhotoId);
-        
+
         void CleanupPhysicalFiles(IEnumerable<string> filePaths);
 
         Task DeleteFacesAsync(IEnumerable<string> faceIds, long caseIdForLogging);
 
         Task<MatchedCasesResult> FindMatchedCasesAsync(CaseMatchSubjectInfoDto subject, IFormFile primaryImage);
+
+        DuplicateCheckResult CheckDuplicateCase(CaseType currentCaseType, MatchedCasesResult matches);
     }
 }
