@@ -1,5 +1,3 @@
-
-
 using Microsoft.AspNetCore.Http;
 
 namespace SafeTrace.Application.DTOs.Cases.Request
@@ -16,7 +14,6 @@ namespace SafeTrace.Application.DTOs.Cases.Request
         [Range(0, 150, ErrorMessage = "Age must be between 0 and 150.")]
         public int Age { get; set; }
 
-
         [Required(ErrorMessage = "Government is required.")]
         [StringLength(200, MinimumLength = 2, ErrorMessage = "Government must be between 2 and 200 characters.")]
         public string Government { get; set; } = null!;
@@ -32,10 +29,6 @@ namespace SafeTrace.Application.DTOs.Cases.Request
         [Required(ErrorMessage = "Primary image is required.")]
         public IFormFile PrimaryImage { get; set; } = null!;
 
-        /// <summary>
-        /// The date the event took place (e.g. date of disappearance / date the person went missing).
-        /// Entered by the user; must not be in the future.
-        /// </summary>
         [Required(ErrorMessage = "Event date is required.")]
         [PastDate(ErrorMessage = "Event date cannot be in the future.")]
         [DataType(DataType.Date)]
