@@ -1,4 +1,5 @@
 ﻿using Microsoft.AspNetCore.Identity;
+using SafeTrace.Application.Constants;
 using SafeTrace.Application.Interfaces;
 using SafeTrace.Domain.Interfaces.IUnitOfWork;
 using System.Security.Claims;
@@ -21,7 +22,7 @@ namespace SafeTrace.Infrastructure.Persistence
 
         public async Task Initialize()
         {
-            string[] Roles = { "User", "Admin", "VerifiedUser" };
+            string[] Roles = { "User", "Admin", "VerifiedUser", "Moderator" };
 
             foreach (string role in Roles)
             {
@@ -32,7 +33,7 @@ namespace SafeTrace.Infrastructure.Persistence
                 }
             }
 
-            var adminEmail = "esraataha3092001@gmail.com";
+            var adminEmail = SystemConstants.RootAdminEmail;
             var user = await _userManager.FindByEmailAsync(adminEmail);
             if(user != null && !await _userManager.IsInRoleAsync(user, "Admin"))
             {
@@ -52,6 +53,17 @@ namespace SafeTrace.Infrastructure.Persistence
                                           "Chat.GetAll", "Chat.GetById", "Chat.GetMyChats",  "Chat.GetMessages", "Chat.SendMessage", "Chat.Create", "Chat.StartContext", "Chat.MarkAsRead", "Chat.HardDelete", "Chat.SoftDelete", "Chat.DeleteMessage", "Chat.DeleteMessageForEveryone",
                                           "Dashboard.GetStatistics"};
 
+            string[] ModeratorPermissions = { "UrgentCases.GetAll", "UrgentCases.GetById", "UrgentCases.GetMyCases", "UrgentCases.Create", "UrgentCases.Update", "UrgentCases.SoftDelete", "UrgentCases.Reject", "UrgentCases.Approve", "UrgentCases.MarkAsFounded",
+                                              "UnknownCases.GetAll", "UnknownCases.GetById", "UnknownCases.GetMyCases", "UnknownCases.Create", "UnknownCases.Update", "UnknownCases.SoftDelete", "UnknownCases.Reject", "UnknownCases.Approve", "UnknownCases.MarkAsFounded",
+                                              "LongTermCases.GetAll", "LongTermCases.GetById", "LongTermCases.GetMyCases", "LongTermCases.Create", "LongTermCases.Update", "LongTermCases.SoftDelete", "LongTermCases.Reject", "LongTermCases.Approve", "LongTermCases.MarkAsFounded",
+                                              "Notifications.GetMyNotifications", "Notifications.DeleteNotification", "Notifications.MarkAsRead", "Notifications.MarkAllAsRead",
+                                              "Profile.GetUserInfo", "Profile.UpdateUserInfo", "Profile.UpdateName", "Profile.UpdateHomeLocation", "Profile.UpdateProfileImage", "Profile.UpdateIdImage",
+                                              "Complaints.GetAll", "Complaints.GetById", "Complaints.Create", "Complaints.MarkAsSolved",
+                                              "Account.ChangePassword",
+                                              "AiMatching.Search",
+                                              "Users.GetAll", "Users.GetById", "Users.Approve", "Users.Reject", "Users.ToggleBlock",
+                                              "Chat.GetAll", "Chat.GetById", "Chat.GetMyChats",  "Chat.GetMessages", "Chat.SendMessage", "Chat.Create", "Chat.StartContext", "Chat.MarkAsRead", "Chat.SoftDelete", "Chat.DeleteMessage", "Chat.DeleteMessageForEveryone",
+                                              "Dashboard.GetStatistics"};
 
             string[] VerifiedUserPermissions = { "UrgentCases.GetById", "UrgentCases.GetMyCases", "UrgentCases.Create", "UrgentCases.Update", "UrgentCases.SoftDelete", "UrgentCases.MarkAsFounded",
                                                  "UnknownCases.GetById", "UnknownCases.GetMyCases", "UnknownCases.Create", "UnknownCases.Update", "UnknownCases.SoftDelete", "UnknownCases.MarkAsFounded",
@@ -64,8 +76,6 @@ namespace SafeTrace.Infrastructure.Persistence
                                                  "Chat.GetById", "Chat.GetMyChats",  "Chat.GetMessages", "Chat.SendMessage", "Chat.Create", "Chat.StartContext", "Chat.MarkAsRead", "Chat.SoftDelete", "Chat.DeleteMessage"};
 
             string[] UserPermissions = { "UrgentCases.GetById", "UrgentCases.GetMyCases", "UrgentCases.Create", "UrgentCases.Update", "UrgentCases.SoftDelete", "UrgentCases.MarkAsFounded",
-                                         "UnknownCases.GetMyCases",
-                                         "LongTermCases.GetMyCases",
                                          "Notifications.GetMyNotifications", "Notifications.DeleteNotification", "Notifications.MarkAsRead", "Notifications.MarkAllAsRead",
                                          "Profile.GetUserInfo", "Profile.UpdateUserInfo", "Profile.UpdateName", "Profile.UpdateHomeLocation", "Profile.UpdateProfileImage", "Profile.UpdateIdImage",
                                          "Complaints.Create",
@@ -74,6 +84,7 @@ namespace SafeTrace.Infrastructure.Persistence
                                          "Chat.GetById", "Chat.GetMyChats",  "Chat.GetMessages", "Chat.SendMessage", "Chat.Create", "Chat.StartContext", "Chat.MarkAsRead", "Chat.SoftDelete", "Chat.DeleteMessage"};
 
             await AssignPermissionsToRoleAsync("Admin", AdminPermissions);
+            await AssignPermissionsToRoleAsync("Moderator", ModeratorPermissions);
             await AssignPermissionsToRoleAsync("VerifiedUser", VerifiedUserPermissions);
             await AssignPermissionsToRoleAsync("User", UserPermissions);
         }

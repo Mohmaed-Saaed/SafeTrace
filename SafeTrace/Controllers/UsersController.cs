@@ -5,6 +5,7 @@ using SafeTrace.Application.DTOs.User.Request;
 using SafeTrace.Application.DTOs.User.Response;
 using SafeTrace.Application.Interfaces.IServices;
 using SafeTrace.Infrastructure.Authorization;
+using System.Security.Claims;
 
 namespace SafeTrace.API.Controllers
 {
@@ -77,9 +78,15 @@ namespace SafeTrace.API.Controllers
         /// <summary>
         /// تغيير دور (Role) مستخدم معين.
         /// </summary>
+        /// <remarks>
+        /// ملاحظات هامة:
+        /// - لا يمكن للمستخدم تغيير دور حسابه الشخصي.
+        /// - لا يمكن المساس بدور المالك الأساسي للنظام (Root Admin).
+        /// - لا يمكن للمشرف (Moderator) ترقية أو تخفيض صلاحيات مدير (Admin) آخر.
+        /// </remarks>
         /// <response code="200">تم تحديث دور المستخدم بنجاح.</response>
-        /// <response code="400">فشل في التعيين أو الدور غير موجود.</response>
-        /// <response code="403">صلاحيات غير كافية.</response>
+        /// <response code="400">فشل في التعيين، أو محاولة تغيير دور الحساب الشخصي.</response>
+        /// <response code="403">صلاحيات غير كافية، أو محاولة المساس بصلاحيات مدير النظام.</response>
         /// <response code="404">لم يتم العثور على المستخدم.</response>
         [ProducesResponseType(typeof(ApiResponse<string>), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
@@ -89,7 +96,7 @@ namespace SafeTrace.API.Controllers
         [HasPermission(Permissions.Users.ChangeRole)]
         public async Task<IActionResult> ChangeUserRole([FromBody] ChangeUserRoleDto dto)
         {
-            var response = await _userService.ChangeUserRoleAsync(dto);
+            var response = await _userService.ChangeUserRoleAsync(GetCurrentUserId(), dto);
             return Ok(response);
         }
 
@@ -132,9 +139,16 @@ namespace SafeTrace.API.Controllers
         /// <summary>
         /// تبديل حالة حظر المستخدم (حظر / فك حظر).
         /// </summary>
-        /// <remarks>عند الحظر، يتم إنهاء جميع الجلسات النشطة الخاصة به.</remarks>
+        /// <remarks>
+        /// عند الحظر، يتم إنهاء جميع الجلسات النشطة الخاصة به.
+        /// قيود أمنية:
+        /// - لا يمكنك حظر حسابك الشخصي.
+        /// - المدير الأساسي للنظام محصن ضد الحظر.
+        /// - المشرفغير مسموح للمشرف (Moderator) بحظر أو فك حظر مديري النظام (Admins) أو المشرفين الأخرين.
+        /// </remarks>
         /// <response code="200">تم تغيير حالة الحظر بنجاح.</response>
-        /// <response code="403">ليس لديك صلاحية.</response>
+        /// <response code="400">محاولة حظر الحساب الشخصي.</response>
+        /// <response code="403"> محاولة حظر حساب محصن (المدير الأساسي أو تدخل مشرف ضد مدير أو مشرف أخر).</response>
         /// <response code="404">المستخدم غير موجود.</response>
         [ProducesResponseType(typeof(ApiResponse<string>), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status403Forbidden)]
@@ -143,7 +157,7 @@ namespace SafeTrace.API.Controllers
         [HasPermission(Permissions.Users.ToggleBlock)]
         public async Task<IActionResult> ToggleBlockStatus(string userId)
         {
-            var response = await _userService.ToggleUserBlockStatusAsync(userId);
+            var response = await _userService.ToggleUserBlockStatusAsync(GetCurrentUserId(), userId);
             return Ok(response);
         }
 
@@ -175,8 +189,13 @@ namespace SafeTrace.API.Controllers
         [HasPermission(Permissions.Users.AssignPermissions)]
         public async Task<IActionResult> AssignUserPermissions([FromBody] AssignUserPermissionsDto dto)
         {
-            var response = await _userService.AssignUserPermissionsAsync(dto);
+            var response = await _userService.AssignUserPermissionsAsync(GetCurrentUserId(), dto);
             return Ok(response);
+        }
+
+        private string GetCurrentUserId()
+        {
+            return User.FindFirstValue(ClaimTypes.NameIdentifier) ?? throw new UnauthorizedAccessException("تعذر التحقق من هوية المستخدم.");
         }
     }
 }
