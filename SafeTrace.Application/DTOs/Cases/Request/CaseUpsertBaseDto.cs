@@ -37,6 +37,7 @@ namespace SafeTrace.Application.DTOs.Cases.Request
         /// Entered by the user; must not be in the future.
         /// </summary>
         [Required(ErrorMessage = "Event date is required.")]
+        [PastDate(ErrorMessage = "Event date cannot be in the future.")]
         [DataType(DataType.Date)]
         public DateTime EventDate { get; set; }
 
