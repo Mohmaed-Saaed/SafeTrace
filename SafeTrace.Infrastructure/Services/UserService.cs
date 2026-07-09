@@ -125,11 +125,24 @@ namespace SafeTrace.Infrastructure.Services
 
             var currentRoles = await _userManager.GetRolesAsync(user);
 
+            foreach (var role in currentRoles)
+            {
+                if(role != "User")
+                {
+                    user.VerificationStatus = VerificationStatus.Unverified;
+                }
+            }
+
             var removeResult = await _userManager.RemoveFromRolesAsync(user, currentRoles);
             if (!removeResult.Succeeded) throw new BadRequestException("فشل في إزالة الأدوار الحالية للمستخدم.");
 
             var addResult = await _userManager.AddToRoleAsync(user, dto.NewRole);
             if (!addResult.Succeeded) throw new BadRequestException("فشل في تعيين الدور الجديد للمستخدم.");
+
+            if (dto.NewRole != "User")
+            {
+                user.VerificationStatus = VerificationStatus.Verified;
+            }
 
             _logger.LogWarning($"Role changed for User with ID: {dto.UserId} from {string.Join(",", currentRoles)} to {dto.NewRole}");
             return ApiResponse<string>.Ok(null, "تم تحديث دور المستخدم بنجاح.");
@@ -154,8 +167,16 @@ namespace SafeTrace.Infrastructure.Services
                     LName = dto.LName,
                     PhoneNumber = dto.PhoneNumber,
                     EmailConfirmed = true,
-                    VerificationStatus = VerificationStatus.Verified
                 };
+
+                if (dto.Role != "User")
+                {
+                    user.VerificationStatus = VerificationStatus.Verified;
+                }
+                else
+                {
+                    user.VerificationStatus = VerificationStatus.Unverified;
+                }
 
                 var result = await _userManager.CreateAsync(user, dto.Password);
 
