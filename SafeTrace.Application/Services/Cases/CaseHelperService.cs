@@ -256,59 +256,27 @@ namespace SafeTrace.Application.Services.Cases
 
             return new MatchedCasesResult
             {
-                HasMatched = matchedCases.Count != 0,
-                DuplicateCases = matchedCases
+                HasMatches = matchedCases.Count != 0,
+                MatchedCases = matchedCases
             };
         }
-
+        
         /// <summary>
-        /// Generic pre-create duplicate check, meant to be called by every case type's CreateAsync
-        /// (LongTerm / Unknown / Urgent) right before persisting a new case.
-        ///
-        /// Behaviour:
-        /// - No match at all                                -> returns DuplicateCheckResult.None (proceed with create).
-        /// - A match exists with the SAME case type          -> throws BadRequestException (true duplicate, never bypassable).
-        /// - A match exists with a DIFFERENT case type       -> returns RequiresConfirmation = true with the matches,
-        ///                                                       UNLESS forceCreate is true, in which case it's bypassed
-        ///                                                       and DuplicateCheckResult.None is returned.
+        /// Analyzes matched cases and separates same-type matches from cross-type matches.
         /// </summary>
-        public async Task<DuplicateCheckResult> CheckDuplicateCaseAsync(
-            CaseType currentCaseType,
-            CaseMatchSubjectInfoDto subject,
-            IFormFile primaryImage,
-            bool forceCreate = false)
+        public DuplicateCheckResult CheckDuplicateCase(CaseType currentCaseType, MatchedCasesResult matches)
         {
-            var matchResult = await FindMatchedCasesAsync(subject, primaryImage);
+            var sameType = matches.MatchedCases
+                .FirstOrDefault(x => x.CaseType == currentCaseType);
 
-            if (!matchResult.HasMatched)
-                return DuplicateCheckResult.None;
-
-            var sameTypeDuplicate = matchResult.DuplicateCases
-                .FirstOrDefault(c => c.CaseType == currentCaseType);
-
-            if (sameTypeDuplicate != null)
-            {
-                _logger.LogInformation(
-                    "Duplicate case blocked. Existing case {CaseCode} already matches this person with the same type {CaseType}.",
-                    sameTypeDuplicate.CaseCode,
-                    currentCaseType);
-
-                throw new BadRequestException($"توجد حالة مطابقة لنفس الشخص من نفس نوع الحالة بالفعل (كود الحالة: {sameTypeDuplicate.CaseCode}).");
-            }
-
-            if (forceCreate)
-            {
-                _logger.LogInformation(
-                    "Cross-type case match(es) found for type {CaseType} but forceCreate was set; proceeding with creation.",
-                    currentCaseType);
-
-                return DuplicateCheckResult.None;
-            }
+            var crossType = matches.MatchedCases
+                .Where(x => x.CaseType != currentCaseType)
+                .ToList();
 
             return new DuplicateCheckResult
             {
-                RequiresConfirmation = true,
-                MatchedCases = matchResult.DuplicateCases
+                SameTypeMatch = sameType,
+                CrossTypeMatches = crossType
             };
         }
 
