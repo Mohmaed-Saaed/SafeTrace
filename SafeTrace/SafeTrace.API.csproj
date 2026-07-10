@@ -20,12 +20,13 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\SafeTrace.Application\SafeTrace.Application.csproj" />
-    <ProjectReference Include="..\SafeTrace.Infrastructure\SafeTrace.Infrastructure.csproj" />
+    <Folder Include="wwwroot\Images\" />
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="wwwroot\Images\" />
+    <ProjectReference Include="..\SafeTrace.Application\SafeTrace.Application.csproj" />
+    <ProjectReference Include="..\SafeTrace.Domain\SafeTrace.Domain.csproj" />
+    <ProjectReference Include="..\SafeTrace.Infrastructure\SafeTrace.Infrastructure.csproj" />
   </ItemGroup>
 
 </Project>
