@@ -35,7 +35,7 @@ namespace SafeTrace.API.Controllers
             return Ok(profile);
         }
 
-        #region 
+        #region  Update
         /// <summary>
         /// لتغيير اسم المستخدم 
         /// </summary>
@@ -64,6 +64,21 @@ namespace SafeTrace.API.Controllers
             if (UpdateProfile == null)
                 return NotFound();
             return Ok(UpdateProfile);
+        }
+
+        /// <summary>
+        /// حذف صورة الملف الشخصي   
+        /// </summary>
+        /// <returns></returns>
+        [HttpDelete("ProfileImage")]
+        [HasPermission(Permissions.Profile.UpdateProfileImage)]
+        public async Task<IActionResult> RemoveProfileImage()
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
+
+            var result = await _user.RemoveProfileImageAsync(userId);
+
+            return Ok(result);
         }
         /// <summary>
         /// اضافة صورة البطاقة الشخصية

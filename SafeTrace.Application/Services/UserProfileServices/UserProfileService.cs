@@ -168,6 +168,27 @@ namespace SafeTrace.Application.Services.UserProfileServices
 
         }
 
+        public async Task<ApiResponse<bool>> RemoveProfileImageAsync(string userId)
+        {
+            var user = await _userManager.FindByIdAsync(userId);
+
+            if (user is null)
+                throw new NotFoundException("المستخدم غير موجود.");
+
+            if (string.IsNullOrWhiteSpace(user.ProfileImage))
+                return ApiResponse<bool>.Ok(true, "لا توجد صورة شخصية لحذفها.");
+
+            _Image.DeleteFile(user.ProfileImage);
+
+            user.ProfileImage = null;
+
+            var result = await _userManager.UpdateAsync(user);
+
+            if (!result.Succeeded)
+                throw new BadRequestException("حدث خطأ أثناء حذف الصورة الشخصية.");
+
+            return ApiResponse<bool>.Ok(true, "تم حذف الصورة الشخصية بنجاح.");
+        }
 
         #region UPDATE OLD 
         public async Task<ApiResponse<bool>> UpdateProfileInfoAsync(string userId, UpdateProfileInfoDTO dto)
