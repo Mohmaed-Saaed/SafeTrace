@@ -520,6 +520,61 @@ namespace SafeTrace.Infrastructure.Migrations
                     b.ToTable("Complaints", (string)null);
                 });
 
+            modelBuilder.Entity("SafeTrace.Domain.Entities.DuplicateGroup", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("GroupStatus")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("DuplicateGroups", (string)null);
+                });
+
+            modelBuilder.Entity("SafeTrace.Domain.Entities.DuplicateGroupCase", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<long>("CaseId")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<long>("DuplicateGroupId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("MatchedBy")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)");
+
+                    b.Property<decimal>("SimilarityScore")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CaseId");
+
+                    b.HasIndex("DuplicateGroupId");
+
+                    b.ToTable("DuplicateGroupCases", (string)null);
+                });
+
             modelBuilder.Entity("SafeTrace.Domain.Entities.FoundPersonInfo", b =>
                 {
                     b.Property<long>("Id")
@@ -922,6 +977,25 @@ namespace SafeTrace.Infrastructure.Migrations
                         .IsRequired();
 
                     b.Navigation("User");
+                });
+
+            modelBuilder.Entity("SafeTrace.Domain.Entities.DuplicateGroupCase", b =>
+                {
+                    b.HasOne("SafeTrace.Domain.Entities.Case", "Case")
+                        .WithMany("DuplicateGroups")
+                        .HasForeignKey("CaseId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("SafeTrace.Domain.Entities.DuplicateGroup", "DuplicateGroup")
+                        .WithMany("DuplicateCases")
+                        .HasForeignKey("DuplicateGroupId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Case");
+
+                    b.Navigation("DuplicateGroup");
                 });
 
             modelBuilder.Entity("SafeTrace.Domain.Entities.FoundPersonInfo", b =>
