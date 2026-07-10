@@ -14,6 +14,7 @@ namespace SafeTrace.Application.Services.Cases
         protected readonly IMapper _mapper;
         protected readonly ICaseHelperService _caseHelper;
         protected readonly ILogger _logger;
+        private const int DefaultPageSize = 10;
 
         protected BaseCasesService(
             IUnitOfWork unitOfWork,
@@ -27,264 +28,331 @@ namespace SafeTrace.Application.Services.Cases
             _logger = logger;
         }
 
-        // QUERIES
+        /// <summary>
+        /// Retrieves all active cases with filtering, sorting, and pagination.
+        /// </summary>
         public virtual async Task<ApiResponse<PaginationResponseDto<TListDto>>> GetAllAsync(TFilterDto filter)
         {
-            var query = _unitOfWork.Repository<TEntity>().Query(tracked: false, includes: x => x.CaseFiles);
+            var query = _unitOfWork.Repository<TEntity>()
+                .Query(tracked: false, includes: x => x.CaseFiles)
+                .Where(x => x.Status == CaseStatus.Active);
 
-            query = query.Where(x => x.Status == CaseStatus.Active);
-            query = ApplyFilter(query, filter);
+            var response = await GetPagedResultAsync<TListDto>(query, filter);
 
-            var totalCount = await query.CountAsync();
-
-            query = ApplySorting(query, filter);
-            query = ApplyPagination(query, filter);
-
-            var items = await query.ToListAsync();
-
-            var response = new PaginationResponseDto<TListDto>
-            {
-                Items = _mapper.Map<List<TListDto>>(items),
-                PageNumber = filter.Page,
-                PageSize = filter.PageSize,
-                TotalCount = totalCount
-            };
-
-            return ApiResponse<PaginationResponseDto<TListDto>>.Ok(response, "Cases retrieved successfully.");
+            return ApiResponse<PaginationResponseDto<TListDto>>.Ok(response, "تم استرجاع الحالات بنجاح.");
         }
-
-        public virtual async Task<ApiResponse<TDetailDto>> GetByIdAsync(long id)
+        
+        /// <summary>
+        /// Retrieves all cases for administrators with filtering, sorting and pagination.
+        /// </summary>
+        public virtual async Task<ApiResponse<PaginationResponseDto<TDetailDto>>> AdminGetAllAsync(TFilterDto filter)
         {
-            var entity = await _caseHelper.GetValidCaseAsync<TEntity>(id, tracked: false, includes: DetailIncludes);
+            var query = _unitOfWork.Repository<TEntity>().Query(
+                    tracked: false, 
+                    includes: [x => x.CaseFiles, x => x.User, x => x.AgeCategory, x => x.FoundPersonInfo]);
 
-            var dto = _mapper.Map<TDetailDto>(entity);
-            return ApiResponse<TDetailDto>.Ok(dto, "Case retrieved successfully.");
+            var response = await GetPagedResultAsync<TDetailDto>(query, filter);
+
+            return ApiResponse<PaginationResponseDto<TDetailDto>>.Ok(response, "تم استرجاع الحالات بنجاح.");
         }
-
+        
+        /// <summary>
+        /// Retrieves paginated cases created by the current user,
+        /// excluding soft-deleted cases.
+        /// </summary>
         public virtual async Task<ApiResponse<PaginationResponseDto<TListDto>>> GetMyCasesAsync(string userId, TFilterDto filter)
         {
             var query = _unitOfWork.Repository<TEntity>()
                 .Query(tracked: false, includes: x => x.CaseFiles)
                 .Where(x => x.UserId == userId && x.Status != CaseStatus.Deleted);
 
-            query = ApplyFilter(query, filter);
+            var response = await GetPagedResultAsync<TListDto>(query, filter);
 
-            var totalCount = await query.CountAsync();
-
-            query = ApplySorting(query, filter);
-            query = ApplyPagination(query, filter);
-
-            var items = await query.ToListAsync();
-
-            var response = new PaginationResponseDto<TListDto>
-            {
-                Items = _mapper.Map<List<TListDto>>(items),
-                PageNumber = filter.Page,
-                PageSize = filter.PageSize,
-                TotalCount = totalCount
-            };
-
-            return ApiResponse<PaginationResponseDto<TListDto>>.Ok(response, "My cases retrieved successfully.");
+            return ApiResponse<PaginationResponseDto<TListDto>>.Ok(response, "تم استرجاع الحالات الخاصة بالمستخدم بنجاح.");
         }
-
-        public virtual async Task<ApiResponse<PaginationResponseDto<TDetailDto>>> AdminGetAllAsync(TFilterDto filter)
+        
+        /// <summary>
+        /// Retrieves the details of a specific active case by its ID.
+        /// </summary>
+        public virtual async Task<ApiResponse<TDetailDto>> GetByIdAsync(long id)
         {
-            // Admins can see all statuses, so no Active/non-deleted pre-filter here.
-            var query = _unitOfWork.Repository<TEntity>().Query(tracked: false, includes: AdminDetailIncludes);
+            var dto = await GetByIdInternalAsync<TDetailDto>(
+                id,
+                activeOnly: true,
+                includes: [x => x.CaseFiles, x => x.User, x => x.AgeCategory]);
 
-            query = ApplyFilter(query, filter);
-
-            var totalCount = await query.CountAsync();
-
-            query = ApplySorting(query, filter);
-            query = ApplyPagination(query, filter);
-
-            var items = await query.ToListAsync();
-
-            var response = new PaginationResponseDto<TDetailDto>
-            {
-                Items = _mapper.Map<List<TDetailDto>>(items),
-                PageNumber = filter.Page,
-                PageSize = filter.PageSize,
-                TotalCount = totalCount
-            };
-
-            return ApiResponse<PaginationResponseDto<TDetailDto>>.Ok(response, "Admin cases retrieved successfully.");
+            return ApiResponse<TDetailDto>.Ok(dto, "تم استرجاع بيانات الحالة بنجاح.");
         }
 
-        // SHARED COMMANDS
-        public virtual async Task ApproveAsync(long caseId)
+        /// <summary>
+        /// Retrieves the details of a specific case by its ID for administrators.
+        /// </summary>
+        public virtual async Task<ApiResponse<TDetailDto>> AdminGetByIdAsync(long id)
+        {
+            var dto = await GetByIdInternalAsync<TDetailDto>(
+                id,
+                activeOnly: false,
+                includes: [x => x.CaseFiles, x => x.User, x => x.AgeCategory, x => x.FoundPersonInfo]);
+
+            return ApiResponse<TDetailDto>
+                .Ok(dto, "تم استرجاع بيانات الحالة بنجاح.");
+        }
+        
+        /// <summary>
+        /// Approves a pending case and changes its status to Active.
+        /// </summary>
+        public virtual async Task<ApiResponse<string>> ApproveAsync(long caseId)
         {
             var entity = await _caseHelper.GetValidCaseAsync<TEntity>(caseId);
 
             if (entity.Status == CaseStatus.Active)
-                throw new BadRequestException("Case is already approved.");
+                throw new BadRequestException("تمت الموافقة على الحالة بالفعل.");
 
             if (entity.Status == CaseStatus.Rejected)
-                throw new BadRequestException("Cannot approve a rejected case.");
+                throw new BadRequestException("لا يمكن الموافقة على حالة مرفوضة.");
 
             if (entity.Status != CaseStatus.Pending)
-                throw new BadRequestException("Only pending cases can be approved.");
+                throw new BadRequestException("يمكن الموافقة على الحالات قيد المراجعة فقط.");
 
-            entity.Status = CaseStatus.Active;
-            entity.PreviousStatus = null;
-            entity.UpdatedAt = DateTime.UtcNow;
+            await ExecuteInTransactionAsync(
+                async () =>
+                {
+                    entity.Status = CaseStatus.Active;
+                    entity.PreviousStatus = null;
+                    entity.UpdatedAt = DateTime.UtcNow;
 
-            _unitOfWork.Repository<TEntity>().Update(entity);
-            await _unitOfWork.SaveAsync();
+                    _unitOfWork.Repository<TEntity>().Update(entity);
+
+                    return true;
+                });
 
             _logger.LogInformation("Case {CaseId} approved.", entity.Id);
-        }
 
-        public virtual async Task RejectAsync(long caseId)
+            return ApiResponse<string>.Ok(message: "تمت الموافقة على الحالة بنجاح.");
+        }
+        
+        /// <summary>
+        /// Rejects a pending case or restores its previous status if available.
+        /// </summary>
+        public virtual async Task<ApiResponse<string>> RejectAsync(long caseId)
         {
             var entity = await _caseHelper.GetValidCaseAsync<TEntity>(caseId);
 
             if (entity.Status == CaseStatus.Rejected)
-                throw new BadRequestException("Case is already rejected.");
+                throw new BadRequestException("تم رفض الحالة بالفعل.");
 
             if (entity.Status == CaseStatus.Active)
-                throw new BadRequestException("Cannot reject an already active/approved case.");
+                throw new BadRequestException("لا يمكن رفض حالة تمت الموافقة عليها.");
 
             if (entity.Status != CaseStatus.Pending)
-                throw new BadRequestException("Only pending cases can be rejected.");
+                throw new BadRequestException("يمكن رفض الحالات قيد المراجعة فقط.");
 
-            if (entity.PreviousStatus.HasValue)
-            {
-                entity.Status = entity.PreviousStatus.Value;
-                entity.PreviousStatus = null;
-            }
-            else
-            {
-                entity.Status = CaseStatus.Rejected;
-            }
+            await ExecuteInTransactionAsync(
+                async () =>
+                {
+                    if (entity.PreviousStatus.HasValue)
+                    {
+                        entity.Status = entity.PreviousStatus.Value;
+                        entity.PreviousStatus = null;
+                    }
+                    else
+                    {
+                        entity.Status = CaseStatus.Rejected;
+                    }
 
-            entity.UpdatedAt = DateTime.UtcNow;
+                    entity.UpdatedAt = DateTime.UtcNow;
 
-            _unitOfWork.Repository<TEntity>().Update(entity);
-            await _unitOfWork.SaveAsync();
+                    _unitOfWork.Repository<TEntity>().Update(entity);
 
-            _logger.LogInformation("Case {CaseId} rejected (Pending -> {Status}).", entity.Id, entity.Status);
+                    return true;
+                });
+
+            _logger.LogInformation(
+                "Case {CaseId} rejected (Pending -> {Status}).",
+                entity.Id,
+                entity.Status);
+            
+            return ApiResponse<string>.Ok(message: "تم رفض الحالة بنجاح.");
         }
-
-        public virtual async Task SoftDeleteAsync(long caseId, string userId, bool isAdmin = false, bool checkOwnership = true)
+        
+        /// <summary>
+        /// Soft deletes a case while preserving its data for future recovery.
+        /// </summary>
+        public virtual async Task<ApiResponse<string>> SoftDeleteAsync(long caseId, string userId, bool checkOwnership = true)
         {
-            var entity = await _caseHelper.GetValidCaseAsync<TEntity>(caseId, userId, isAdmin, checkOwnership: checkOwnership);
+            var entity = await _caseHelper.GetValidCaseAsync<TEntity>(
+                caseId,
+                userId,
+                checkOwnership: checkOwnership,
+                includes: x => x.CaseFiles);
 
             if (entity.Status == CaseStatus.Found)
             {
-                _logger.LogWarning("Attempt to delete Case {CaseId} that is already marked as Found.", entity.Id);
-                throw new BadRequestException("Cannot delete a case that is already marked as Found.");
+                throw new BadRequestException("لا يمكن حذف حالة تم العثور عليها.");
             }
-
-            entity.PreviousStatus = entity.Status;
-            entity.Status = CaseStatus.Deleted;
-            entity.DeletedAt = DateTime.UtcNow;
-            entity.DeletedByUserId = userId;
-            entity.UpdatedAt = DateTime.UtcNow;
 
             var faceIds = entity.CaseFiles
                 .Where(p => !string.IsNullOrWhiteSpace(p.FaceId))
                 .Select(p => p.FaceId!)
                 .ToList();
 
+            await ExecuteInTransactionAsync(
+                async () =>
+                {
+                    entity.PreviousStatus = entity.Status;
+                    entity.Status = CaseStatus.Deleted;
+                    entity.DeletedAt = DateTime.UtcNow;
+                    entity.DeletedByUserId = userId;
+                    entity.UpdatedAt = DateTime.UtcNow;
+
+                    _unitOfWork.Repository<TEntity>().Update(entity);
+
+                    return true;
+                });
+
             await _caseHelper.DeleteFacesAsync(faceIds, entity.Id);
 
-            _unitOfWork.Repository<TEntity>().Update(entity);
-            await _unitOfWork.SaveAsync();
-
-            _logger.LogInformation("Case {CaseId} soft-deleted by user {UserId}.", entity.Id, userId);
+            _logger.LogInformation(
+                "Case {CaseId} soft-deleted by user {UserId}.",
+                entity.Id,
+                userId);
+            
+            return ApiResponse<string>.Ok(message: "تم حذف الحالة بنجاح.");
         }
-
-        public virtual async Task MarkAsFoundAsync(long caseId, string userId, FoundPersonInfoRequestDto foundPersonInfo, bool isAdmin = false, bool checkOwnership = true)
+        
+        /// <summary>
+        /// Marks a case as found and stores the found person information.
+        /// </summary>
+        public virtual async Task<ApiResponse<string>> MarkAsFoundAsync(long caseId, string userId, FoundPersonInfoRequestDto foundPersonInfo, bool checkOwnership = true)
         {
-            var entity = await _caseHelper.GetValidCaseAsync<TEntity>(caseId, userId, isAdmin, checkOwnership);
+            var entity = await _caseHelper.GetValidCaseAsync<TEntity>(caseId, userId, checkOwnership);
 
             if (entity.Status == CaseStatus.Found)
-                throw new BadRequestException("Case is already marked as Found.");
+                throw new BadRequestException("تم تسجيل هذه الحالة كمُعثر عليها بالفعل.");
 
             if (entity.Status == CaseStatus.Expired)
-                throw new BadRequestException("Cannot mark an expired case as Found.");
+                throw new BadRequestException("لا يمكن تسجيل حالة منتهية كمُعثر عليها.");
 
-            entity.PreviousStatus = entity.Status;
-            entity.Status = CaseStatus.Found;
-            entity.UpdatedAt = DateTime.UtcNow;
+            await ExecuteInTransactionAsync(
+                async () =>
+                {
+                    entity.PreviousStatus = entity.Status;
+                    entity.Status = CaseStatus.Found;
+                    entity.UpdatedAt = DateTime.UtcNow;
 
-            await OnMarkedAsFoundAsync(entity);
+                    await OnMarkedAsFoundAsync(entity);
 
-            var foundPersonInfoEntity = _mapper.Map<FoundPersonInfo>(foundPersonInfo);
+                    var foundPersonInfoEntity = _mapper.Map<FoundPersonInfo>(foundPersonInfo);
+                    foundPersonInfoEntity.CaseId = entity.Id;
+                    foundPersonInfoEntity.FoundedUserId = userId;
 
-            foundPersonInfoEntity.CaseId = entity.Id;
-            foundPersonInfoEntity.FoundedUserId = userId;
+                    await _unitOfWork.Repository<FoundPersonInfo>()
+                        .CreateAsync(foundPersonInfoEntity);
 
-            await _unitOfWork.Repository<FoundPersonInfo>().CreateAsync(foundPersonInfoEntity);
+                    _unitOfWork.Repository<TEntity>().Update(entity);
 
-            _unitOfWork.Repository<TEntity>().Update(entity);
+                    return true;
+                });
 
-            await _unitOfWork.SaveAsync();
-
-            _logger.LogInformation("Case {CaseId} marked as Found by user {UserId}.", entity.Id, userId);
+            _logger.LogInformation(
+                "Case {CaseId} marked as Found by user {UserId}.",
+                entity.Id,
+                userId);
+            
+            return ApiResponse<string>.Ok(message: "تم تسجيل الحالة كمُعثر عليها بنجاح.");
         }
 
-        public virtual async Task PermanentDeleteAsync(long caseId)
+        /// <summary>
+        /// Permanently deletes a case and removes all associated files and face records.
+        /// </summary> 
+        public virtual async Task<ApiResponse<string>> PermanentDeleteAsync(long caseId)
         {
             var entity = await _unitOfWork.Repository<TEntity>()
-                .GetOneAsync(
-                    c => c.Id == caseId,
-                    tracked: true,
-                    includes: c => c.CaseFiles);
+                .GetOneAsync(c => c.Id == caseId, tracked: true, includes: c => c.CaseFiles);
 
             if (entity == null)
-            {
-                _logger.LogWarning("Permanent delete failed - Case {CaseId} not found or not soft-deleted.", caseId);
-                throw new NotFoundException($"Case {caseId} was not found or has not been soft-deleted yet. Permanent delete requires soft delete first.");
-            }
+                throw new NotFoundException("الحالة غير موجودة.");
 
-            // 1. Shared photo files
-            var filesToDelete = entity.CaseFiles.Select(p => p.ImagePath).ToList();
-            await _caseHelper.CleanupPhysicalFilesAsync(filesToDelete);
+            var filesToDelete = entity.CaseFiles
+                .Select(p => p.ImagePath)
+                .ToList();
 
-            // 2. Feature-specific files (e.g. LongTermMissingCase.PoliceReportImage) — hook, not a type check.
-            await DeleteAdditionalFilesAsync(entity);
-
-            // 3. Shared face records
             var faceIds = entity.CaseFiles
                 .Where(p => !string.IsNullOrWhiteSpace(p.FaceId))
                 .Select(p => p.FaceId!)
                 .ToList();
 
+            await ExecuteInTransactionAsync(
+                async () =>
+                {
+                    _unitOfWork.Repository<TEntity>().Remove(entity);
+
+                    return true;
+                });
+
+            _caseHelper.CleanupPhysicalFiles(filesToDelete);
+
+            DeleteAdditionalFiles(entity);
+
             await _caseHelper.DeleteFacesAsync(faceIds, entity.Id);
 
-            // 4/5. Remove + save
-            _unitOfWork.Repository<TEntity>().Remove(entity);
-            await _unitOfWork.SaveAsync();
-
-            _logger.LogWarning("Case {CaseId} permanently deleted.", entity.Id);
+            _logger.LogWarning(
+                "Case {CaseId} permanently deleted.",
+                entity.Id);
+            
+            return ApiResponse<string>.Ok(message: "تم حذف الحالة نهائيًا بنجاح.");
         }
-
+                
+        /// <summary>
+        /// Executes the specified operation inside a transaction,
+        /// committing on success and rolling back on failure.
+        /// </summary>
+        protected async Task<TResult> ExecuteInTransactionAsync<TResult>(Func<Task<TResult>> action, Func<Exception, Task>? onFailureAsync = null)
+        {
+            await _unitOfWork.BeginTransactionAsync();
+ 
+            try
+            {
+                var result = await action();
+                await _unitOfWork.SaveAsync();
+                await _unitOfWork.CommitTransactionAsync();
+                return result;
+            }
+            catch (Exception ex)
+            {
+                await _unitOfWork.RollbackTransactionAsync();
+ 
+                if (onFailureAsync != null)
+                    await onFailureAsync(ex);
+ 
+                throw;
+            }
+        }
+        
         // EXTENSION HOOKS (Template Method) — only where a real difference exists
 
-        /// <summary>Deletes any feature-specific physical files beyond the shared Photos collection. No-op by default.</summary>
-        protected virtual Task DeleteAdditionalFilesAsync(TEntity entity) => Task.CompletedTask;
+        /// <summary>
+        /// Deletes any feature-specific physical files beyond the shared Photos collection. No-op by default.
+        /// </summary>
+        protected virtual void DeleteAdditionalFiles(TEntity entity){}
 
-        /// <summary>Extra state changes when a case is marked as Found (e.g. Urgent sets EndDate). No-op by default.</summary>
+        /// <summary>
+        /// Extra state changes when a case is marked as Found (e.g. Urgent sets EndDate). No-op by default.
+        /// </summary>
         protected virtual Task OnMarkedAsFoundAsync(TEntity entity) => Task.CompletedTask;
-
-        /// <summary>Includes used for GetByIdAsync. Override to add type-specific navigation properties.</summary>
-        protected virtual Expression<Func<TEntity, object>>[] DetailIncludes => [x => x.CaseFiles, x => x.User, x => x.AgeCategory];
-
-        /// <summary>Includes used for AdminGetAllAsync. Override to add type-specific navigation properties.</summary>
-        protected virtual Expression<Func<TEntity, object>>[] AdminDetailIncludes => [x => x.CaseFiles, x => x.User, x => x.AgeCategory, x => x.FoundPersonInfo];
         
-        /// <summary>Allows derived services to apply additional filtering. Default: no extra filters. </summary>
+        /// <summary>
+        /// Allows derived services to apply additional filtering. Default: no extra filters. 
+        /// </summary>
         protected virtual IQueryable<TEntity> ApplyCustomFilter(IQueryable<TEntity> query, TFilterDto filter)=> query;
 
-        /// <summary>Allows derived services to apply custom sorting. Default: no extra sorting.</summary>
+        /// <summary>
+        /// Allows derived services to apply custom sorting. Default: no extra sorting.
+        /// </summary>
         protected virtual IQueryable<TEntity> ApplyCustomSorting(IQueryable<TEntity> query, TFilterDto filter) => query; 
         
-
         // FILTER / SORT / PAGINATION
-        protected virtual IQueryable<TEntity> ApplyFilter(IQueryable<TEntity> query, TFilterDto filter)
+        private IQueryable<TEntity> ApplyFilter(IQueryable<TEntity> query, TFilterDto filter)
         {
             if (filter.Status.HasValue)
                 query = query.Where(x => x.Status == filter.Status.Value);
@@ -306,10 +374,13 @@ namespace SafeTrace.Application.Services.Cases
 
             if (!string.IsNullOrWhiteSpace(filter.FullName))
             {
-                var name = filter.FullName.Trim().ToLower();
+                var keyword = filter.FullName.Trim();
+
                 query = query.Where(x =>
-                    ((x.FName ?? "") + " " + (x.SName ?? "") + " " + (x.TName ?? "") + " " + (x.LName ?? "")).Contains(name, StringComparison.CurrentCultureIgnoreCase)
-                );
+                    x.FName.Contains(keyword) ||
+                    x.SName.Contains(keyword) ||
+                    x.TName.Contains(keyword) ||
+                    x.LName.Contains(keyword));
             }
 
             if (filter.FromDate.HasValue)
@@ -323,11 +394,24 @@ namespace SafeTrace.Application.Services.Cases
 
             return query;
         }
-        protected virtual IQueryable<TEntity> ApplySorting(IQueryable<TEntity> query, TFilterDto filter)
+        private IQueryable<TEntity> ApplySorting(IQueryable<TEntity> query, TFilterDto filter)
         {
+            IOrderedQueryable<TEntity>? orderedQuery = null;
+
+            if (!string.IsNullOrWhiteSpace(filter.FullName))
+            {
+                var keyword = filter.FullName.Trim();
+
+                orderedQuery = query.OrderBy(x =>
+                    x.FName.Contains(keyword) ? 0 :
+                    x.SName.Contains(keyword) ? 1 :
+                    x.TName.Contains(keyword) ? 2 :
+                    x.LName.Contains(keyword) ? 3 : 4);
+            }
+
             query = ApplyCustomSorting(query, filter);
 
-            IOrderedQueryable<TEntity>? orderedQuery = query as IOrderedQueryable<TEntity>;
+            orderedQuery ??= query as IOrderedQueryable<TEntity>;
 
             if (filter.AgeSort.HasValue)
             {
@@ -345,11 +429,47 @@ namespace SafeTrace.Application.Services.Cases
 
             return orderedQuery ?? query.OrderByDescending(x => x.CreatedAt);
         }
-        protected virtual IQueryable<TEntity> ApplyPagination(IQueryable<TEntity> query, TFilterDto filter)
+        private static IQueryable<TEntity> ApplyPagination(IQueryable<TEntity> query, TFilterDto filter)
         {
-            filter.Page = filter.Page <= 0 ? 1 : filter.Page;
-            filter.PageSize = filter.PageSize <= 0 ? 10 : (filter.PageSize > 100 ? 100 : filter.PageSize);
-            return query.Skip((filter.Page - 1) * filter.PageSize).Take(filter.PageSize);
+            filter.Page = Math.Max(filter.Page, 1);
+
+            return query.Skip((filter.Page - 1) * DefaultPageSize).Take(DefaultPageSize);
         }
+        
+        // Applies filtering, sorting, and pagination, then maps the result to the requested DTO.
+        private async Task<PaginationResponseDto<TDto>> GetPagedResultAsync<TDto>(IQueryable<TEntity> query, TFilterDto filter)
+        {
+            query = ApplyFilter(query, filter);
+
+            var totalCount = await query.CountAsync();
+
+            query = ApplySorting(query, filter);
+            query = ApplyPagination(query, filter);
+
+            var items = await query.ToListAsync();
+
+            return new PaginationResponseDto<TDto>
+            {
+                Items = _mapper.Map<List<TDto>>(items),
+                PageNumber = filter.Page,
+                PageSize = DefaultPageSize,
+                TotalCount = totalCount
+            };
+        }
+        
+        // Retrieves a case by ID, validates its status if required, and maps it to the requested DTO.
+        private async Task<TDto> GetByIdInternalAsync<TDto>(long id, bool activeOnly, params Expression<Func<TEntity, object>>[] includes)
+        {
+            var entity = await _caseHelper.GetValidCaseAsync<TEntity>(
+                id,
+                tracked: false,
+                includes: includes);
+
+            if (activeOnly && entity.Status != CaseStatus.Active)
+                throw new NotFoundException("الحالة غير موجودة.");
+
+            return _mapper.Map<TDto>(entity);
+        }
+    
     }
 }

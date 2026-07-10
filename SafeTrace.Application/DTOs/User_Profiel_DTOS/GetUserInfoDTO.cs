@@ -13,11 +13,9 @@ namespace SafeTrace.Application.DTOs.User_Profiel_DTOS
         public string? ProfileImage { get; set; }
         public VerificationStatus VerificationStatus { get; set; } = VerificationStatus.Unverified;
         public string? IdentificationImage { get; set; }
+        public ICollection<Case> Cases { get; set; } = new List<Case>();
+        public string Role { get; set; } = string.Empty;
 
-        //As Home Location (in Angular )
-
-        //Reports api to get Count (Optional)
-        //Founded Cases For User Count (Optional)
     }
 }
 //"email": "faroukyousef0@gmail.com",

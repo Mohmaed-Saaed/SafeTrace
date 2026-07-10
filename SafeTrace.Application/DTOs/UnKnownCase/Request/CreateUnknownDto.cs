@@ -1,40 +1,13 @@
-﻿
-using Microsoft.AspNetCore.Http;
+﻿using SafeTrace.Application.DTOs.Cases.Request;
 
 namespace SafeTrace.Application.DTOs.UnKnownCase.Request
 {
-    public class CreateUnknownDto : IValidatableObject
+    public class CreateUnknownDto : CaseCreateBaseDto
     {
-        public Gender Gender { get; set; }
+        [StringLength(100, MinimumLength = 2, ErrorMessage = "First name must be between 2 and 100 characters.")]
         public string? FName { get; set; }
-        public string? SName { get; set; }
-        public string? TName { get; set; }
+        
+        [StringLength(100, MinimumLength = 2, ErrorMessage = "Last name must be between 2 and 100 characters.")]
         public string? LName { get; set; }
-        public int Age { get; set; }
-
-        [Required]
-        public string Government { get; set; } = null!;
-
-        [Required]
-        public string City { get; set; } = null!;
-
-        [Required]
-        public string Street { get; set; } = null!;
-
-        public string? CommunicationPhone { get; set; }
-        public string? Description { get; set; }
-
-        public List<IFormFile> Photos { get; set; } = new();
-
-        public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
-        {
-            if (Photos == null || Photos.Count == 0)
-            {
-                yield return new ValidationResult(
-                    "You must upload at least one photo.",
-                    new[] { nameof(Photos) });
-            }
-        }
-
     }
 }

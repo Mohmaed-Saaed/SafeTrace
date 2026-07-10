@@ -23,6 +23,15 @@ namespace SafeTrace.Infrastructure.Migrations
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
 
+            modelBuilder.HasSequence<int>("LongTermCaseSequence")
+                .StartsAt(1000L);
+
+            modelBuilder.HasSequence<int>("UnknownCaseSequence")
+                .StartsAt(1000L);
+
+            modelBuilder.HasSequence<int>("UrgentCaseSequence")
+                .StartsAt(1000L);
+
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRole", b =>
                 {
                     b.Property<string>("Id")

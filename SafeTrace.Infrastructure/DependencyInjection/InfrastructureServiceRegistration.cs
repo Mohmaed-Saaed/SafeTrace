@@ -1,10 +1,14 @@
-﻿using Microsoft.AspNetCore.Authentication.JwtBearer;
+﻿using ElmahCore.Mvc;
+using ElmahCore.Sql;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.IdentityModel.Tokens;
 using SafeTrace.Application.Interfaces;
+using SafeTrace.Application.Services;
 using SafeTrace.Infrastructure.Authorization;
+using SafeTrace.Infrastructure.Filters;
 using SafeTrace.Infrastructure.Options;
 using SafeTrace.Infrastructure.Persistence;
 using System.Text;
@@ -21,6 +25,7 @@ namespace SafeTrace.Infrastructure.DependencyInjection
             services.AddScoped<IDBInitializer, DBInitializer>();
             services.AddScoped<IUnitOfWork, UnitOfWork>();
             services.AddScoped<IFileStorageService, FileStorageService>();
+            services.AddScoped<IDashboardService, DashboardService>();
             services.AddScoped<IEmailService, EmailService>();
             services.AddScoped<ITokenService, TokenService>();
             services.AddScoped<IAccountService, AccountService>();
@@ -139,6 +144,20 @@ namespace SafeTrace.Infrastructure.DependencyInjection
             });
 
             services.AddAuthorization();
+
+            services.AddElmah<SqlErrorLog>(options =>
+            {
+                options.Path = "/elmah";
+
+                options.ConnectionString = configuration.GetConnectionString("DefaultConnection");
+
+                options.Filters.Add(new BusinessExceptionFilter());
+
+                //options.OnPermissionCheck = context =>
+                //    context.User.Identity != null &&
+                //    context.User.Identity.IsAuthenticated &&
+                //    context.User.IsInRole("Admin");
+            });
 
             return services;
         }

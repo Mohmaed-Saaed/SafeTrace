@@ -51,6 +51,7 @@ namespace SafeTrace.Application.Services.UserProfileServices
         {
             _logger.LogInformation("Fetching profile for UserId: {userId} at {Time}", userId, DateTime.UtcNow);
             var user = await _userManager.FindByIdAsync(userId);
+            var roles = await _userManager.GetRolesAsync(user);
             if (user == null)
             {
                 _logger.LogWarning("User With Id : {UserId} Not Found at {Time}", userId, DateTime.UtcNow);
@@ -59,8 +60,13 @@ namespace SafeTrace.Application.Services.UserProfileServices
             else
             {
                 var dto = _mapper.Map<GetUserInfoDTO>(user);
-                // to return full path of image 
+                dto.Role = roles.Contains("Admin")
+                    ? "Admin"
+                    : roles.Contains("VerifiedUser")
+                        ? "VerifiedUser"
+                        : "User";
                 var request = _httpContextAccessor.HttpContext.Request;
+
                 string baseUrl = $"{request.Scheme}://{request.Host}";
 
                 dto.ProfileImage = string.IsNullOrEmpty(dto.ProfileImage)
@@ -162,6 +168,27 @@ namespace SafeTrace.Application.Services.UserProfileServices
 
         }
 
+        public async Task<ApiResponse<bool>> RemoveProfileImageAsync(string userId)
+        {
+            var user = await _userManager.FindByIdAsync(userId);
+
+            if (user is null)
+                throw new NotFoundException("المستخدم غير موجود.");
+
+            if (string.IsNullOrWhiteSpace(user.ProfileImage))
+                return ApiResponse<bool>.Ok(true, "لا توجد صورة شخصية لحذفها.");
+
+            _Image.DeleteFile(user.ProfileImage);
+
+            user.ProfileImage = null;
+
+            var result = await _userManager.UpdateAsync(user);
+
+            if (!result.Succeeded)
+                throw new BadRequestException("حدث خطأ أثناء حذف الصورة الشخصية.");
+
+            return ApiResponse<bool>.Ok(true, "تم حذف الصورة الشخصية بنجاح.");
+        }
 
         #region UPDATE OLD 
         public async Task<ApiResponse<bool>> UpdateProfileInfoAsync(string userId, UpdateProfileInfoDTO dto)

@@ -18,9 +18,6 @@ namespace SafeTrace.Application.Mapping
                 .ForMember(dest => dest.Latitude, opt => opt.MapFrom(src => src.Location == null ? (double?)null : src.Location.Y))
                 .ForMember(dest => dest.Longitude, opt => opt.MapFrom(src => src.Location == null ? (double?)null : src.Location.X));
 
-            CreateMap<UrgentCase, UrgentCaseCreateResponse>();
-            CreateMap<UrgentCase, UrgentCaseUpdateResponse>();
-
             CreateMap<UrgentCaseCreateDto, UrgentCase>()
                 .ForMember(dest => dest.CaseFiles, opt => opt.Ignore())
                 .ForMember(dest => dest.CaseType, opt => opt.Ignore())
