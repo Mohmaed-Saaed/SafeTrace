@@ -23,7 +23,57 @@ namespace SafeTrace.Application.Services.Cases
         /// <summary>
         /// Creates a new unknown case with pending status.
         /// </summary>
-        public async Task<ApiResponse<string>> CreateUnknownCaseAsync(string userId, CreateUnknownDto dto)
+        //public async Task<ApiResponse<string>> CreateUnknownCaseAsync(string userId, CreateUnknownDto dto)
+        //{
+        //    await _caseHelper.ValidateVerifiedUserAsync(userId);
+
+        //    var entity = _mapper.Map<UnknownCase>(dto);
+
+        //    entity.UserId = userId;
+        //    entity.Status = CaseStatus.Pending;
+        //    entity.CaseType = CaseType.Unknown;
+        //    entity.AgeCategoryId = await _caseHelper.ResolveAgeCategoryIdAsync(entity.Age);
+        //    entity.CaseCode = await _caseHelper.GenerateCaseCodeAsync(CaseCodePrefix.UNK);
+        //    entity.CreatedAt = DateTime.UtcNow;
+
+        //    var uploadedFiles = new List<CaseFile>();
+
+        //    await ExecuteInTransactionAsync(
+        //        action: async () =>
+        //        {
+        //            uploadedFiles = await _caseHelper.CreateCaseFilesAsync(
+        //                dto.PrimaryImage,
+        //                dto.AdditionalImages,
+        //                dto.Video,
+        //                FolderName);
+
+        //            entity.CaseFiles = uploadedFiles;
+
+        //            await _unitOfWork.Repository<UnknownCase>().CreateAsync(entity);
+
+        //            return true;
+        //        },
+        //        onFailureAsync: async ex =>
+        //        {
+        //            _caseHelper.CleanupPhysicalFiles(uploadedFiles.Select(p => p.ImagePath));
+        //            await _caseHelper.DeleteFacesAsync(entity.CaseFiles.Select(x => x.FaceId), entity.Id);
+
+        //            _logger.LogError(
+        //                ex,
+        //                "Failed to create unknown case for user {UserId}",
+        //                userId);
+        //        });
+
+        //    _logger.LogInformation(
+        //        "Unknown case {CaseCode} created successfully by user {UserId}.",
+        //        entity.CaseCode,
+        //        userId);
+
+        //    return ApiResponse<string>.Ok(message: "تم إنشاء حالة مجهول الهوية بنجاح");
+        //}
+        public async Task<ApiResponse<string>> CreateUnknownCaseAsync(
+    string userId,
+    CreateUnknownDto dto)
         {
             await _caseHelper.ValidateVerifiedUserAsync(userId);
 
@@ -32,31 +82,71 @@ namespace SafeTrace.Application.Services.Cases
             entity.UserId = userId;
             entity.Status = CaseStatus.Pending;
             entity.CaseType = CaseType.Unknown;
-            entity.AgeCategoryId = await _caseHelper.ResolveAgeCategoryIdAsync(entity.Age);
-            entity.CaseCode = await _caseHelper.GenerateCaseCodeAsync(CaseCodePrefix.UNK);
             entity.CreatedAt = DateTime.UtcNow;
+            entity.AgeCategoryId =
+                await _caseHelper.ResolveAgeCategoryIdAsync(entity.Age);
+
+            entity.CaseCode =
+                await _caseHelper.GenerateCaseCodeAsync(CaseCodePrefix.UNK);
 
             var uploadedFiles = new List<CaseFile>();
 
             await ExecuteInTransactionAsync(
+
                 action: async () =>
                 {
+                    //--------------------------------------------------
+                    // Save Case
+                    //--------------------------------------------------
+
+                    await _unitOfWork
+                        .Repository<UnknownCase>()
+                        .CreateAsync(entity);
+
+                    await _unitOfWork.SaveAsync();
+
+                    //--------------------------------------------------
+                    // Upload Files
+                    //--------------------------------------------------
+
                     uploadedFiles = await _caseHelper.CreateCaseFilesAsync(
                         dto.PrimaryImage,
                         dto.AdditionalImages,
                         dto.Video,
-                        FolderName);
+                        FolderName,
+                        entity.Id);
 
                     entity.CaseFiles = uploadedFiles;
 
-                    await _unitOfWork.Repository<UnknownCase>().CreateAsync(entity);
+                    //--------------------------------------------------
+                    // Link Duplicate Group
+                    //--------------------------------------------------
+
+                    await _caseHelper.LinkCaseToDuplicateGroupAsync(
+                        entity,
+                        dto.PrimaryImage);
+
+                    //--------------------------------------------------
+                    // Update Case
+                    //--------------------------------------------------
+
+                    _unitOfWork
+                        .Repository<UnknownCase>()
+                        .Update(entity);
 
                     return true;
                 },
+
                 onFailureAsync: async ex =>
                 {
-                    _caseHelper.CleanupPhysicalFiles(uploadedFiles.Select(p => p.ImagePath));
-                    await _caseHelper.DeleteFacesAsync(entity.CaseFiles.Select(x => x.FaceId), entity.Id);
+                    _caseHelper.CleanupPhysicalFiles(
+                        uploadedFiles.Select(x => x.ImagePath));
+
+                    await _caseHelper.DeleteFacesAsync(
+                        uploadedFiles
+                            .Where(x => !string.IsNullOrWhiteSpace(x.FaceId))
+                            .Select(x => x.FaceId!),
+                        entity.Id);
 
                     _logger.LogError(
                         ex,
@@ -65,13 +155,12 @@ namespace SafeTrace.Application.Services.Cases
                 });
 
             _logger.LogInformation(
-                "Unknown case {CaseCode} created successfully by user {UserId}.",
-                entity.CaseCode,
-                userId);
+                "Unknown case {CaseCode} created successfully.",
+                entity.CaseCode);
 
-            return ApiResponse<string>.Ok(message: "تم إنشاء حالة مجهول الهوية بنجاح");
+            return ApiResponse<string>.Ok(
+                message: "تم إنشاء حالة مجهول الهوية بنجاح");
         }
-
         /// <summary>
         /// Updates an existing unknown case with photo management.
         /// </summary>
@@ -216,4 +305,5 @@ namespace SafeTrace.Application.Services.Cases
         }
             
     }
+    
 }

@@ -21,8 +21,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\SafeTrace.Application\SafeTrace.Application.csproj" />
-    <ProjectReference Include="..\SafeTrace.Infrastructure\SafeTrace.Infrastructure.csproj" />
+    <Folder Include="wwwroot\Images\" />
   </ItemGroup>
 
   <ItemGroup>
