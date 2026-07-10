@@ -55,6 +55,10 @@
         public static class Profile
         {
             public const string GetUserInfo = "Profile.GetUserInfo";
+            public const string UpdateName = "Profile.UpdateName";
+            public const string UpdateHomeLocation = "Profile.UpdateHomeLocation";
+            public const string UpdateProfileImage = "Profile.UpdateProfileImage";
+            public const string UpdateIdImage = "Profile.UpdateIdImage";
             public const string UpdateUserInfo = "Profile.UpdateUserInfo";
         }
 
@@ -111,6 +115,7 @@
             public const string GetById = "Chat.GetById";
             public const string GetMessages  = "Chat.GetMessages";
             public const string SendMessage = "Chat.SendMessage";
+            public const string StartContext = "Chat.StartContext";
             public const string Create = "Chat.Create";
             public const string MarkAsRead = "Chat.MarkAsRead";
             public const string HardDelete = "Chat.HardDelete";
