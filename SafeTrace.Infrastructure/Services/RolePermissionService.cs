@@ -61,7 +61,7 @@ namespace SafeTrace.Infrastructure.Services
             var role = await _roleManager.FindByIdAsync(roleId);
             if (role == null) throw new NotFoundException("هذا الدور غير موجود.");
 
-            var coreRoles = new List<string> { "Admin", "User", "VerifiedUser" };
+            var coreRoles = new List<string> { "Admin", "User", "VerifiedUser", "Moderator" };
             if (coreRoles.Contains(role.Name!)) throw new ForbiddenException("لا يمكن حذف الأدوار الأساسية للنظام.");
 
             var usersInRole = await _userManager.GetUsersInRoleAsync(role.Name!);
@@ -120,6 +120,8 @@ namespace SafeTrace.Infrastructure.Services
         {
             var role = await _roleManager.FindByIdAsync(dto.RoleId);
             if (role == null) throw new NotFoundException("لم يتم العثور على هذا الدور (Role).");
+
+            if (role.Name == "Admin") throw new ForbiddenException("لأسباب أمنية، لا يمكن تعديل أو سحب صلاحيات دور المدير (Admin) الأساسي.");
 
             var claims = await _roleManager.GetClaimsAsync(role);
             var permissionClaims = claims.Where(c => c.Type == "Permission");

@@ -10,6 +10,9 @@ using Chat = SafeTrace.Domain.Entities.Chat;
 using SafeTrace.Domain.Enums;
 using SafeTrace.Domain.Interfaces.IUnitOfWork;
 using static SafeTrace.Application.Constants.Permissions;
+using SafeTrace.Application.Interfaces.IServices.INotificationSewrvice;
+using SafeTrace.Application.DTOs.NotificationDTOS;
+using SafeTrace.Application.Constants;
 
 
 namespace SafeTrace.Application.Services
@@ -21,15 +24,21 @@ namespace SafeTrace.Application.Services
         private readonly IChatNotifier _chatNotifier;
         private readonly ILogger<MessageService> _logger;
         private readonly IFileStorageService _fileStorageService;
+        private readonly INotificationServices _notificationServices;
+        private readonly IEmailService _emailService;
+        
         public MessageService (IUnitOfWork unitOfWork, IMapper mapper,
             IChatNotifier chatNotifier, ILogger<MessageService> logger,
-            IFileStorageService fileStorageService)
+            IFileStorageService fileStorageService, INotificationServices notificationServices,
+            IEmailService emailService)
         {
             _unitOfWork = unitOfWork;
             _mapper = mapper;
             _chatNotifier = chatNotifier;
             _logger = logger;
             _fileStorageService = fileStorageService;
+            _notificationServices = notificationServices;
+            _emailService = emailService;
         }
 
 
@@ -46,7 +55,7 @@ namespace SafeTrace.Application.Services
                 "Invalid message attempt by User {SenderId} in Chat {ChatId}. No content or file.",
                 senderId,
                 request.ChatId);
-                throw new BadRequestException("A message must contain either text content or a file attachment.");
+                throw new BadRequestException("يجب أن تحتوي الرسالة على نص أو ملف مرفق.");
             }
 
             var chat = await _unitOfWork.Repository<Chat>()
@@ -54,8 +63,10 @@ namespace SafeTrace.Application.Services
                     c => c.Id == request.ChatId,
                     tracked: false,
                     c => c.Case,
-                    chatId => chatId.Messages)
-                ?? throw new NotFoundException($"Chat with id {request.ChatId} was not found.");
+                    chatId => chatId.Messages,
+                    c => c.Sender,
+                    c => c.Receiver)
+                ?? throw new NotFoundException($"لم يتم العثور على المحادثة.");
 
             if(chat.SenderId!= senderId && chat.ReceiverId!= senderId)
             {
@@ -64,7 +75,7 @@ namespace SafeTrace.Application.Services
                 senderId,
                 request.ChatId);
 
-                throw new ForbiddenException("You are not a participant of this conversation.");
+                throw new ForbiddenException("ليس لديك صلاحية لإرسال رسائل في هذه المحادثة.");
             }
             var receiverId = chat.SenderId == senderId ? chat.ReceiverId : chat.SenderId;
             string? filePath = null;
@@ -74,7 +85,7 @@ namespace SafeTrace.Application.Services
 
             {
                 if (string.IsNullOrEmpty(request.File.FileName))
-                    throw new BadRequestException("Invalid file.");
+                    throw new BadRequestException("الملف المرفق غير صالح.");
 
                 var extension = Path.GetExtension(request.File.FileName).ToLowerInvariant();
 
@@ -82,7 +93,7 @@ namespace SafeTrace.Application.Services
                 {
                     ".jpg" or ".jpeg" or ".png" or ".webp" => FileType.Image,
                     ".mp4" or ".mov" or ".webm" => FileType.Video,
-                    _ => throw new BadRequestException("Unsupported file type.")
+                    _ => throw new BadRequestException("نوع الملف غير مدعوم.")
                 };
 
                 filePath = await _fileStorageService
@@ -112,10 +123,59 @@ namespace SafeTrace.Application.Services
             request.ChatId);
 
             var messageDto = _mapper.Map<MessageDto>(message);
+
             await _chatNotifier.SendMessageAsync(messageDto);
 
+            string notificationContent;
+
+            var sender = chat.SenderId == senderId
+             ? chat.Sender
+            : chat.Receiver;
+
+            var senderName = $"{sender.FName} {sender.LName}";
+
+            if (!string.IsNullOrWhiteSpace(request.Content))
+            {
+                notificationContent = $"{senderName}: {request.Content}";
+            }
+            else if (fileType == FileType.Image)
+            {
+                notificationContent = $"{senderName} أرسل إليك صورة.";
+            }
+            else if (fileType == FileType.Video)
+            {
+                notificationContent = $"{senderName} أرسل إليك فيديو.";
+            }
+            else
+            {
+                notificationContent = "لديك رسالة جديدة.";
+            }
+
+            await _notificationServices.SendNotificationAsync(new SendNotificationDTO
+            {
+                UserId = receiverId,
+                Content = notificationContent,
+                Type = NotificationType.Message,
+                NotificationDirectLink = $"/Chats/{request.ChatId}"
+
+            });
+            var receiver = chat.SenderId == senderId
+                ? chat.Receiver
+                : chat.Sender;
+            var receiverEmail = receiver.Email;
+
+            var emailBody = EmailTemplates.BuildArabicNewMessageEmailTemplate(
+                receiverName: receiver.FName,
+                senderName: senderName,
+                messagePreview: string.IsNullOrWhiteSpace(request.Content)
+                ? "📎 ملف مرفق"
+                : request.Content,
+                chatLink: $"https://localhost:7041/Chats/{request.ChatId}");
+
+            await _emailService.SendEmailAsync(receiverEmail, "رسالة جديدة من SafeTrace", emailBody);
+
             return ApiResponse<MessageDto>.Ok(
-                messageDto, "message sended succesfully");
+            messageDto, "تم إرسال الرسالة بنجاح.");
 
         }
         public async Task<ApiResponse<int>> MarkMessagesAsReadAsync(long chatId, string userId)
@@ -131,17 +191,16 @@ namespace SafeTrace.Application.Services
                     tracked: false,
                     c => c.Case,
                     chatId => chatId.Messages)
-                ?? throw new NotFoundException($"Chat with id {chatId} was not found.");
+                ?? throw new NotFoundException("لم يتم العثور على المحادثة.");
 
-            if(chat.SenderId != userId && chat.ReceiverId != userId)
+            if (chat.SenderId != userId && chat.ReceiverId != userId)
             {
                 _logger.LogWarning(
                  "Unauthorized read attempt by User {UserId} on Chat {ChatId}.",
                 userId,
                 chatId);
 
-                throw new ForbiddenException(
-                "You are not a participant of this conversation.");
+                throw new ForbiddenException("ليس لديك صلاحية للوصول إلى هذه المحادثة.");
 
             }
 
@@ -173,8 +232,8 @@ namespace SafeTrace.Application.Services
                 Success = true,
                 Data = updatedCount,
                 Message = updatedCount > 0
-                ? $"{updatedCount} messages marked as read"
-                : "No unread messages found"
+                ? $"تم تحديد {updatedCount} رسالة كمقروءة."
+                : "لا توجد رسائل غير مقروءة."
             };
         }
 
@@ -182,8 +241,7 @@ namespace SafeTrace.Application.Services
         {
             var message = await _unitOfWork.Repository<Message>()
                 .GetByIdAsync(messageId)
-                ?? throw new NotFoundException(
-            $"Message with id {messageId} was not found.");
+                ?? throw new NotFoundException("لم يتم العثور على الرسالة.");
 
             EnsureParticipant(message, userId);
 
@@ -205,20 +263,19 @@ namespace SafeTrace.Application.Services
 
             return ApiResponse<MessageDto>.Ok(
                 _mapper.Map<MessageDto>(message),
-                "message deleted by user");
+                "تم حذف الرسالة بنجاح.");
         }
 
         public async Task<ApiResponse<MessageDto>> DeleteMessageForEveryoneAsync(long messageId, string userId)
         {
             var message = await _unitOfWork.Repository<Message>()
                 .GetByIdAsync(messageId)
-                ?? throw new NotFoundException(
-            $"Message {messageId} was not found.");
+                ?? throw new NotFoundException("لم يتم العثور على الرسالة.");
 
             if (message.SenderId != userId)
             {
                 throw new ForbiddenException(
-                    "Only the sender can delete a message for everyone.");
+                "يمكن لمرسل الرسالة فقط حذفها لدى الجميع.");
             }
 
             message.IsDeletedForEveryone = true;
@@ -229,7 +286,7 @@ namespace SafeTrace.Application.Services
 
             return ApiResponse<MessageDto>.Ok(
                 _mapper.Map<MessageDto>(message),
-                "message deleted for everyone");
+                "تم حذف الرسالة لدى الجميع بنجاح.");
         }
 
         private void EnsureParticipant(Message message, string userId)
@@ -241,7 +298,7 @@ namespace SafeTrace.Application.Services
             userId,
             message.Id);
 
-                throw new ForbiddenException("You are not allowed to delete this message.");
+                throw new ForbiddenException("ليس لديك صلاحية لحذف هذه الرسالة.");
             }
         }
     }

@@ -56,7 +56,7 @@ namespace SafeTrace.Infrastructure.Services
             {
                 throw new UnauthorizedException("فشلت عملية المصادقة مع خادم البريد الإلكتروني. يرجى التأكد من إعدادات الإرسال.");
             }
-            catch (SmtpCommandException ex)
+            catch (SmtpCommandException)
             {
                 throw new BadRequestException("رفض خادم البريد الإلكتروني إرسال الرسالة.");
             }
@@ -68,14 +68,10 @@ namespace SafeTrace.Infrastructure.Services
             {
                 throw new BadRequestException("تعذر الوصول إلى خادم البريد الإلكتروني. يرجى التحقق من اتصالك بالإنترنت.");
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                throw new Exception(ex.ToString());
+                throw new BadRequestException("حدث خطأ غير متوقع أثناء محاولة إرسال البريد الإلكتروني.");
             }
-            //catch (Exception)
-            //{
-            //    throw new BadRequestException("حدث خطأ غير متوقع أثناء محاولة إرسال البريد الإلكتروني.");
-            //}
             finally
             {
                 if (smtp.IsConnected)

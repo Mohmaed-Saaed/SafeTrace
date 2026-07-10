@@ -1,4 +1,4 @@
-﻿using System.Linq.Expressions;
+using System.Linq.Expressions;
 using System.Security.Claims;
 using Microsoft.AspNetCore.Mvc;
 using SafeTrace.Application.DTOs.Responses;
@@ -67,9 +67,6 @@ namespace SafeTrace.Infrastructure.Repositories.Repository
 
             return await query.FirstOrDefaultAsync(predicate);
         }
-
-
-
 
         public async Task<T?> GetByIdAsync(object id)
         {

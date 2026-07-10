@@ -1,9 +1,6 @@
-﻿using SafeTrace.Application.DTOs.UnKnownDtos;
-using SafeTrace.Application.Helpers;
-using SafeTrace.Domain.Entities;
-using System;
-using System.Collections.Generic;
-using System.Text;
+﻿using SafeTrace.Application.DTOs.Cases.Response;
+using SafeTrace.Application.DTOs.UnKnownCase.Request;
+using SafeTrace.Application.DTOs.UnKnownCase.Response;
 
 namespace SafeTrace.Application.Mapping
 {
@@ -11,73 +8,19 @@ namespace SafeTrace.Application.Mapping
     {
         public UnKnownProfile()
         {
+            CreateMap<UnknownCase, UnknownCaseListDto>()
+                .IncludeBase<Case, CaseListItemBaseDto>();
+
+            CreateMap<UnknownCase, UnknownCaseDetailDto>()
+                .IncludeBase<Case, CaseDetailBaseDto>();
+
             CreateMap<CreateUnknownDto, UnknownCase>()
-               .ForMember(dest => dest.Photos, opt => opt.Ignore());
+               .ForMember(dest => dest.CaseFiles, opt => opt.Ignore());
 
-            CreateMap<UnknownCase, GetUnknownDto>()
-               .ForMember(dest => dest.FullName,
-               opt => opt.MapFrom(src =>
-                string.Join(" ",
-                    new[]
-                    {
-                    src.FName,
-                    src.SName,
-                    src.TName,
-                    src.LName
-            }
-                    .Where(x => !string.IsNullOrWhiteSpace(x))
-                )))
-              .ForMember(dest => dest.Photos,
-              opt => opt.MapFrom(src =>
-                src.Photos.Select(p => p.ImagePath).ToList())).ForMember(
-        dest => dest.AgeCategory,
-        opt => opt.MapFrom(src =>
-            AgeCategoryHelper.GetCategory(src.Age))); 
-
-            CreateMap<CasePhoto, UnknownPhotoDto>()
-           .ForMember(d => d.PhotoId, o => o.MapFrom(s => s.Id))
-           .ForMember(d => d.ImagePath, o => o.MapFrom(s => s.ImagePath))
-          .ForMember(d => d.IsPrimary, o => o.MapFrom(s => s.IsPrimary));
-
-            CreateMap<UnknownCase, GetUnknownDto>();
-
-            CreateMap<UpdateUnkownCaseDto, UnknownCase>()
-               .ForMember(dest => dest.Photos, opt => opt.Ignore())
+            CreateMap<UpdateUnknownCaseDto, UnknownCase>()
+               .ForMember(dest => dest.CaseFiles, opt => opt.Ignore())
                .ForAllMembers(opt =>
                opt.Condition((src, dest, srcMember) => srcMember != null));
-
-            CreateMap<UnknownCase, UnKnownCaseFilterDto>().ForMember(dest => dest.FullName,
-               opt => opt.MapFrom(src =>
-                string.Join(" ",
-                    new[]
-                    {
-                    src.FName,
-                    src.SName,
-                    src.TName,
-                    src.LName
-            }
-                    .Where(x => !string.IsNullOrWhiteSpace(x))
-                ))).ForMember(dest => dest.Photos,
-              opt => opt.MapFrom(src =>
-                src.Photos.Select(p => p.ImagePath).ToList()));
-
-
-            CreateMap<UnknownCase, GetMyUnknownnCasesDto>()
-           .ForMember(dest => dest.FullName,
-           opt => opt.MapFrom(src =>
-            string.Join(" ",
-             new[]
-              {
-                    src.FName,
-                    src.SName,
-                    src.TName,
-                    src.LName
-                 }
-              .Where(x => !string.IsNullOrWhiteSpace(x))
-                                      )))
-               .ForMember(dest => dest.Photos,
-             opt => opt.MapFrom(src =>
-            src.Photos.Select(p => p.ImagePath).ToList()));
         }
     }
 }

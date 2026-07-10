@@ -6,8 +6,6 @@ namespace SafeTrace.Application.DTOs.Chat
 {
     public class ChatFilterDto
     {
-        public string? UserId { get; set; }
-
         public DateTime? FromDate { get; set; }
         public DateTime? ToDate { get; set; }
 

@@ -7,13 +7,14 @@ using SafeTrace.Application.Exceptions;
 using SafeTrace.Application.Interfaces.IServices;
 using SafeTrace.Domain.Common;
 using SafeTrace.Domain.Entities;
-using Chat = SafeTrace.Domain.Entities.Chat;
 using SafeTrace.Domain.Interfaces.IUnitOfWork;
 using Serilog.Core;
 using System;
 using System.Collections.Generic;
+using System.Reflection;
 using System.Text;
 using static SafeTrace.Application.Constants.Permissions;
+using Chat = SafeTrace.Domain.Entities.Chat;
 
 namespace SafeTrace.Application.Services
 {
@@ -30,6 +31,47 @@ namespace SafeTrace.Application.Services
             _logger = logger;
         }
 
+        public async Task<ApiResponse<StartChatContextDto>> GetStartChatContextAsync(long caseId, string currentUserId)
+        {
+            var baseCase = await _unitOfWork.Repository<Case>()
+                .Query(tracked: false)
+                .Include(c => c.User)
+                .Include(c => c.CaseFiles)
+                .FirstOrDefaultAsync(c => c.Id == caseId)
+                ?? throw new NotFoundException("الحاله غير موجودة");
+
+            if (baseCase.UserId == currentUserId)
+                throw new BadRequestException("لا يمكنك بدء محادثة على حالتك.");
+
+            var existingChat = await _unitOfWork.Repository<Chat>()
+        .GetOneAsync(c =>
+            c.CaseId == caseId &&
+            (
+                (c.SenderId == currentUserId && c.ReceiverId == baseCase.UserId) ||
+                (c.SenderId == baseCase.UserId && c.ReceiverId == currentUserId)
+            ),
+            tracked: false);
+
+            var primaryImage = baseCase.CaseFiles.FirstOrDefault(f => f.IsPrimary)?.ImagePath;
+
+            var dto = new StartChatContextDto
+            {
+                CaseId = baseCase.Id,
+                CaseTitle = $"{baseCase.FName} {baseCase.SName} {baseCase.TName} {baseCase.LName}",
+                Status = baseCase.Status.ToString(),
+
+                CaseImage = primaryImage,
+
+                ParticipantName = $"{baseCase.User.FName} {baseCase.User.LName}",
+                ParticipantImage = baseCase.User.ProfileImage,
+
+                ChatExists = existingChat !=null,
+                ChatId = existingChat?.Id
+            };
+
+            return ApiResponse<StartChatContextDto>.Ok(dto);
+
+        }
         public async Task<ApiResponse<ChatDetailsDto>> StartOrGetChatAsync(long caseId, string currentUserId)
         {
             _logger.LogInformation(
@@ -39,64 +81,81 @@ namespace SafeTrace.Application.Services
 
             var baseCase = await _unitOfWork.Repository<Case>()
                 .GetOneAsync(c => c.Id == caseId, tracked: false)
-                ?? throw new NotFoundException($"Case with id {caseId} was not found.");
+                ?? throw new NotFoundException($"{caseId} لم يتم العثور على الحالة المطلوبة.");
 
             var caseOwnerId = baseCase.UserId;
 
-            if(caseOwnerId == currentUserId)
+            if (caseOwnerId == currentUserId)
             {
                 _logger.LogWarning(
-            "User {UserId} attempted to start a chat on their own case {CaseId}.",
-            currentUserId,
-            caseId);
+                    "User {UserId} attempted to start a chat on their own case {CaseId}.",
+                    currentUserId,
+                    caseId);
 
-
-                throw new BadRequestException("You cannot start a conversation on your own case.");
+                throw new BadRequestException("لا يمكنك بدء محادثة على حالتك الخاصة.");
             }
 
-            //var existing = await _unitOfWork.ChatRepository
-            //    .GetExistingChatAsync(caseId, currentUserId,caseOwnerId);
+            bool isNewChat = false;
 
-            var existing = await _unitOfWork.Repository<Chat>()
-            .GetOneAsync(
-            c => c.CaseId == caseId &&
-            (
-                (c.SenderId == currentUserId && c.ReceiverId == caseOwnerId) ||
-                (c.SenderId == caseOwnerId && c.ReceiverId == currentUserId)
-            ),
-            tracked: false);
+            var chat = await _unitOfWork.Repository<Chat>()
+                .Query(tracked: false)
+                .Include(c => c.Case)
+                .Include(c => c.Sender)
+                .Include(c => c.Receiver)
+                .FirstOrDefaultAsync(c =>
+                    c.CaseId == caseId &&
+                    (
+                        (c.SenderId == currentUserId && c.ReceiverId == caseOwnerId) ||
+                        (c.SenderId == caseOwnerId && c.ReceiverId == currentUserId)
+                    ));
 
-            if (existing is not null)
+            if (chat == null)
+            {
+                isNewChat = true;
+
+                var newChat = new Chat
+                {
+                    CaseId = caseId,
+                    SenderId = currentUserId,
+                    ReceiverId = caseOwnerId,
+                    CreatedAt = DateTime.UtcNow
+                };
+
+                await _unitOfWork.Repository<Chat>().CreateAsync(newChat);
+                await _unitOfWork.SaveAsync();
+
+                chat = await _unitOfWork.Repository<Chat>()
+                    .Query(tracked: false)
+                    .Include(c => c.Case)
+                    .Include(c => c.Sender)
+                    .Include(c => c.Receiver)
+                    .FirstAsync(c => c.Id == newChat.Id);
+
+                _logger.LogInformation(
+                    "New chat {ChatId} created between {SenderId} and {ReceiverId}.",
+                    chat.Id,
+                    chat.SenderId,
+                    chat.ReceiverId);
+            }
+            else
             {
                 _logger.LogInformation(
-            "Existing chat {ChatId} returned for user {UserId}.",
-            existing.Id,
-            currentUserId);
-
-                return ApiResponse<ChatDetailsDto>.Ok(
-                    _mapper.Map<ChatDetailsDto>(existing),
-                    "Existing conversation returned.");
+                    "Existing chat {ChatId} returned for user {UserId}.",
+                    chat.Id,
+                    currentUserId);
             }
-            var chat = new Chat
-            {
-                CaseId = caseId,
-                SenderId = currentUserId,
-                ReceiverId = caseOwnerId,
-                CreatedAt = DateTime.UtcNow,
-            };
 
-            await _unitOfWork.Repository<Chat>().CreateAsync(chat);
-            await _unitOfWork.SaveAsync();
+            var dto = _mapper.Map<ChatDetailsDto>(chat);
 
-            _logger.LogInformation(
-            "New chat {ChatId} created between {SenderId} and {ReceiverId}.",
-            chat.Id,
-            chat.SenderId,
-            chat.ReceiverId);
+            dto.OtherUserName = chat.SenderId == currentUserId
+                ? dto.ReceiverName
+                : dto.SenderName;
 
             return ApiResponse<ChatDetailsDto>.Ok(
-                _mapper.Map<ChatDetailsDto>(chat),
-                "Conversation created successfully.");
+                dto,
+                isNewChat
+                    ? "تم إنشاء المحادثة بنجاح."
+                    : "تم استرجاع المحادثة الموجودة.");
 
         }
         public async Task<ApiResponse<IEnumerable<ChatSummaryDto>>> GetUserChatsAsync(string currentUserId)
@@ -105,43 +164,49 @@ namespace SafeTrace.Application.Services
             "Fetching chats for user {UserId}.",
             currentUserId);
 
-            //var chats = await _unitOfWork.ChatRepository.GetUserChatsAsync(currentUserId);
+            //var chats = await _unitOfWork.ChatRepository.GetUserChatsAsync (currentUserId);
 
-            var chats = await _unitOfWork.Repository<Chat>()
-                .Query(
-                    tracked : false,
-                    includes: c => c.Messages)
-                    .Where(c =>
+            var result = await _unitOfWork.Repository<Chat>()
+                .Query(tracked: false)
+                .Where(c =>
                 (c.SenderId == currentUserId && !c.DeletedBySender) ||
-                (c.ReceiverId == currentUserId && !c.DeletedByReceiver)).ToListAsync();
-            var result = chats.Select(c => new ChatSummaryDto
-            {
-                ChatId = c.Id,
-                CaseId = c.CaseId,
-                OtherUserId = c.SenderId == currentUserId ? c.ReceiverId : c.SenderId,
+                (c.ReceiverId == currentUserId && !c.DeletedByReceiver))
+                .Select(c => new ChatSummaryDto
+                {
+                    ChatId = c.Id,
+                    CaseId = c.CaseId,
+                    CaseTitle = $"{c.Case.FName} {c.Case.SName} {c.Case.TName} {c.Case.LName}",
 
-                LastMessage = c.Messages
-                .OrderByDescending(m => m.SendAt)
-                .Select(m => m.Content)
-                .FirstOrDefault(),
+                    OtherUserId = c.SenderId == currentUserId ? c.ReceiverId : c.SenderId,
 
-                LastMessageDate = c.Messages
-                .OrderByDescending(m => m.SendAt)
-                .Select(m => (DateTime?)m.SendAt)
-                .FirstOrDefault(),
+                    OtherUserName = c.SenderId == currentUserId
+                    ? $"{c.Receiver.FName} {c.Receiver.LName}"
+                    : $"{c.Sender.FName} {c.Sender.LName}",
 
-                UnreadCount = c.Messages.Count(m =>
-                !m.IsRead && m.ReceiverId == currentUserId)
-            })
-            .OrderByDescending(x => x.LastMessageDate);
+                    LastMessage = c.Messages
+                    .OrderByDescending(m => m.SendAt)
+                    .Select(m => m.Content)
+                    .FirstOrDefault(),
+
+                    LastMessageDate = c.Messages
+                    .OrderByDescending(m => m.SendAt)
+                    .Select(m => (DateTime?)m.SendAt)
+                    .FirstOrDefault(),
+
+                    UnreadCount = c.Messages.Count(m =>
+                    !m.IsRead && m.ReceiverId == currentUserId)
+                })
+                .OrderByDescending(x => x.LastMessageDate)
+                .ToListAsync();
+
 
             _logger.LogInformation(
             "User {UserId} has {Count} chats.",
             currentUserId,
-            chats.Count());
+            result.Count());
 
             return ApiResponse<IEnumerable<ChatSummaryDto>>.Ok(
-                result, "user chats returned");
+                result, "تم جلب المحادثات بنجاح.");
         }
         public async Task<ApiResponse<ChatDetailsDto>> GetChatDetailsAsync(long chatId, string currentUserId, bool isAdmin)
         {
@@ -157,7 +222,7 @@ namespace SafeTrace.Application.Services
                     c => c.Case,
                     c => c.Sender,
                     c => c.Receiver)
-                ?? throw new NotFoundException($"Chat with id {chatId} was not found.");
+                ?? throw new NotFoundException($"{chatId}لم يتم العثور على المحادثة.");
             if (!isAdmin)
             {
                 EnsureParticipant(chat, currentUserId);
@@ -167,7 +232,7 @@ namespace SafeTrace.Application.Services
             {
                 ChatId = chat.Id,
                 CaseId = chat.CaseId,
-                CaseTitle = chat.Case.CaseCode,
+                CaseTitle = $"{chat.Case.FName} {chat.Case.SName} {chat.Case.TName} {chat.Case.LName}",
 
                 CreatedAt = chat.CreatedAt
             };
@@ -199,7 +264,7 @@ namespace SafeTrace.Application.Services
 
             return ApiResponse<ChatDetailsDto>.Ok(
                dto,
-                "Chat details returned successfully.");
+                "تم جلب تفاصيل المحادثة بنجاح.");
 
         }
         public async Task <ApiResponse<PaginationResponseDto<MessageDto>>> GetPaginatedMessagesAsync(long chatId, string currentUserId,bool isAdmin, int page, int pageSize)
@@ -217,7 +282,7 @@ namespace SafeTrace.Application.Services
                     tracked: false,
                     c => c.Case,
                     chatId => chatId.Messages)
-               ?? throw new NotFoundException($"Chat with id {chatId} was not found.");
+               ?? throw new NotFoundException($"{chatId}لم يتم العثور على المحادثة.");
 
             if (!isAdmin)
             {
@@ -267,7 +332,7 @@ namespace SafeTrace.Application.Services
                 PageSize = pageSize
             };
             return ApiResponse <PaginationResponseDto<MessageDto>>.Ok(result,
-                "paged messages returned");
+                "تم جلب الرسائل بنجاح.");
 
 
         }
@@ -280,7 +345,7 @@ namespace SafeTrace.Application.Services
                 true,
                 c=> c.Sender,
                 chatId => chatId.Receiver)
-                ?? throw new NotFoundException($"Chat with id {chatId} was not found.");
+                ?? throw new NotFoundException($"{chatId} لم يتم العثور على المحادثة.");
 
             EnsureParticipant(chat, userId);
 
@@ -312,7 +377,7 @@ namespace SafeTrace.Application.Services
 
             return ApiResponse<ChatDetailsDto>.Ok(
                _mapper.Map<ChatDetailsDto>(chat),
-               $"{name} delete chat successfully");
+               $"تم حذف المحادثة بنجاح.");
 
 
         }
@@ -325,7 +390,7 @@ namespace SafeTrace.Application.Services
                 includes: c => c.Messages
                 )
                 ?? throw new NotFoundException(
-            $"Chat with id {chatId} was not found.");
+            $"{chatId} لم يتم العثور على المحادثة.");
 
             _unitOfWork.Repository<Chat>().Remove( chat );
             
@@ -333,7 +398,7 @@ namespace SafeTrace.Application.Services
 
             return ApiResponse<ChatDetailsDto>.Ok(
                _mapper.Map<ChatDetailsDto>(chat),
-               "chat hard deleted successfully");
+               "تم حذف المحادثة نهائيًا.");
 
 
         }
@@ -348,10 +413,9 @@ namespace SafeTrace.Application.Services
                 null,
                 null,
                 c => c.Messages,
-                c => c.Case);
-
-            if (!string.IsNullOrWhiteSpace(filter.UserId))
-                baseQuery = baseQuery.Where(c => c.SenderId == filter.UserId || c.ReceiverId == filter.UserId);
+                c => c.Case,
+                c => c.Sender,
+                c => c.Receiver);
 
             if (filter.FromDate.HasValue)
                 baseQuery = baseQuery.Where(c => c.CreatedAt >= filter.FromDate);
@@ -368,7 +432,19 @@ namespace SafeTrace.Application.Services
             if (!string.IsNullOrWhiteSpace(filter.Search))
             {
                 baseQuery = baseQuery.Where(c =>
-                    c.Messages.Any(m => m.Content.Contains(filter.Search)));
+                    c.Messages.Any(m => m.Content.Contains(filter.Search)) ||
+
+                    c.Sender.FName.Contains(filter.Search) ||
+                    c.Sender.LName.Contains(filter.Search) ||
+
+                    c.Receiver.FName.Contains(filter.Search) ||
+                    c.Receiver.LName.Contains(filter.Search) ||
+
+                    c.Case.FName.Contains(filter.Search) ||
+                    c.Case.SName.Contains(filter.Search) ||
+                    c.Case.TName.Contains(filter.Search) ||
+                    c.Case.LName.Contains(filter.Search) 
+                    );
             }
 
             var totalCount = await baseQuery.CountAsync();
@@ -384,6 +460,10 @@ namespace SafeTrace.Application.Services
                 CaseId = c.CaseId,
                 SenderId = c.SenderId,
                 ReceiverId = c.ReceiverId,
+
+                SenderName = $"{c.Sender.FName} {c.Sender.LName}",
+
+                ReceiverName = $"{c.Receiver.FName} {c.Receiver.LName}",
 
                 MessagesCount = c.Messages.Count,
                 UnreadMessagesCount = c.Messages.Count(m => !m.IsRead),
@@ -411,7 +491,7 @@ namespace SafeTrace.Application.Services
             };
 
             return ApiResponse<PaginationResponseDto<AdminChatsDto>>
-            .Ok(result, "Filtered chats returned");
+            .Ok(result, "تم جلب المحادثات بنجاح.");
         }
 
         private void EnsureParticipant(Chat chat, string userId)
@@ -422,7 +502,7 @@ namespace SafeTrace.Application.Services
             userId,
             chat.Id);
 
-                throw new ForbiddenException("You are not a participant of this conversation.");
+                throw new ForbiddenException("ليس لديك صلاحية للوصول إلى هذه المحادثة.");
             }
         }
 
