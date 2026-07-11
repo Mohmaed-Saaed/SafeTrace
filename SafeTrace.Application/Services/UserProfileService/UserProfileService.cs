@@ -148,7 +148,7 @@ namespace SafeTrace.Application.Services.UserProfileServices
             var user = await _userManager.FindByIdAsync(userId);
             if (dto.ProfileImage is not null)
             {
-                var NewImg = await _Image.SaveFileAsync(dto.ProfileImage, "Profile");
+                var NewImg = await _Image.SaveFileAsync(dto.ProfileImage, "ProfileImages");
 
                 if (!string.IsNullOrEmpty(user.ProfileImage))
                 {
