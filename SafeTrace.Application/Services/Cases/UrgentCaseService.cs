@@ -5,27 +5,32 @@ using SafeTrace.Application.Interfaces.IServices.ICases;
 using SafeTrace.Application.Common.Enums;
 using SafeTrace.Application.DTOs.UrgentCase.Response;
 using SafeTrace.Application.DTOs.UrgentCase.Request;
+using SafeTrace.Application.Constants;
 
 namespace SafeTrace.Application.Services.Cases
 {
     public class UrgentCaseService : BaseCasesService<UrgentCase, UrgentCaseListDto, UrgentCaseDetailDto, UrgentCasesFilterDto>, IUrgentCaseService
     {
         private readonly INotificationServices _notificationServices;
+        private readonly IEmailService _emailService;
         private const string FolderName = "UrgentCases";
         private const int RateLimitDays = 14;
         private const int ExpirationHours = 48;
         private const double NotifyRadiusM = 50_000; // 50 km
         private const string NotificationBaseUrl = "/urgent-cases/detail/";
-        
+        private const string FrontendBaseUrl = "https://your-frontend-domain.com";
+
         public UrgentCaseService(
             ILogger<UrgentCaseService> logger,
             IUnitOfWork unitOfWork,
             IMapper mapper,
             ICaseHelperService caseHelper,
-            INotificationServices notificationServices)
+            INotificationServices notificationServices,
+            IEmailService emailService)
             : base(unitOfWork, mapper, caseHelper, logger)
         {
             _notificationServices = notificationServices;
+            _emailService = emailService;
         }
 
         /// <summary>
@@ -111,7 +116,7 @@ namespace SafeTrace.Application.Services.Cases
                 entity.CaseCode, userId, entity.EndDate);
 
             _ = NotifyNearbyUsersAsync(entity);
-
+            
             return ApiResponse<string>.Ok(message: "تم إنشاء الحالة العاجلة بنجاح.");
         }
         
@@ -223,28 +228,31 @@ namespace SafeTrace.Application.Services.Cases
             {
                 var caseLocation = entity.Location;
 
-                var nearbyUserIds = await _unitOfWork.Repository<ApplicationUser>()
+                var nearbyUsers = await _unitOfWork.Repository<ApplicationUser>()
                     .Query(tracked: false)
                     .Where(u =>
                         u.Id != entity.UserId &&
                         (
                             (u.CurrentLocationLatitude != null &&
-                             u.CurrentLocationLongitude != null &&
-                             new Point(u.CurrentLocationLongitude.Value, u.CurrentLocationLatitude.Value) { SRID = 4326 }
+                            u.CurrentLocationLongitude != null &&
+                            new Point(u.CurrentLocationLongitude.Value, u.CurrentLocationLatitude.Value) { SRID = 4326 }
                                 .Distance(caseLocation) <= NotifyRadiusM)
                             ||
                             (u.HomeLocationLatitude != null &&
-                             u.HomeLocationLongitude != null &&
-                             new Point(u.HomeLocationLongitude.Value, u.HomeLocationLatitude.Value) { SRID = 4326 }
+                            u.HomeLocationLongitude != null &&
+                            new Point(u.HomeLocationLongitude.Value, u.HomeLocationLatitude.Value) { SRID = 4326 }
                                 .Distance(caseLocation) <= NotifyRadiusM)
                         ))
-                    .Select(u => u.Id)
+                    .Select(u => new
+                    {
+                        u.Id,
+                        u.Email,
+                        FullName = $"{u.FName} {u.LName}"
+                    })
                     .ToListAsync();
 
-                if (nearbyUserIds.Count == 0)
-                {
+                if (!nearbyUsers.Any())
                     return;
-                }
 
                 var notificationContent =
                     $"🚨 توجد حالة عاجلة بالقرب منك.\n" +
@@ -252,26 +260,49 @@ namespace SafeTrace.Application.Services.Cases
                     $"العمر: {entity.Age}\n" +
                     $"آخر مكان: {entity.City} - {entity.Government}";
 
+                var subject = "🚨 حالة عاجلة بالقرب منك";
+
                 using var semaphore = new SemaphoreSlim(10);
 
-                var tasks = nearbyUserIds.Select(async recipientId =>
+                var tasks = nearbyUsers.Select(async user =>
                 {
                     await semaphore.WaitAsync();
+
                     try
                     {
+                        // Send Notification
                         await _notificationServices.SendNotificationAsync(new SendNotificationDTO
                         {
-                            UserId = recipientId,
+                            UserId = user.Id,
                             Content = notificationContent,
                             Type = NotificationType.Message,
                             NotificationDirectLink = NotificationBaseUrl + entity.Id
                         });
+
+                        // Send Email
+                        if (!string.IsNullOrWhiteSpace(user.Email))
+                        {
+                            var body = EmailTemplates.BuildUrgentCaseNotificationEmailTemplate(
+                                receiverName: user.FullName,
+                                caseCode: entity.CaseCode,
+                                age: entity.Age,
+                                government: entity.Government,
+                                city: entity.City,
+                                detailsUrl: $"{FrontendBaseUrl}/urgent-cases/{entity.Id}");
+
+                            await _emailService.SendEmailAsync(
+                                user.Email,
+                                subject,
+                                body);
+                        }
                     }
                     catch (Exception ex)
                     {
-                        _logger.LogError(ex,
-                            "Failed to notify user {UserId} about case {CaseCode}.",
-                            recipientId, entity.CaseCode);
+                        _logger.LogError(
+                            ex,
+                            "Failed to notify user {UserId} for urgent case {CaseCode}.",
+                            user.Id,
+                            entity.CaseCode);
                     }
                     finally
                     {
@@ -280,14 +311,15 @@ namespace SafeTrace.Application.Services.Cases
                 });
 
                 await Task.WhenAll(tasks);
-
-                _logger.LogInformation("Finished notifying nearby users for urgent case {CaseCode}.", entity.CaseCode);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "NotifyNearbyUsersAsync failed for urgent case {CaseCode}.", entity.CaseCode);
+                _logger.LogError(
+                    ex,
+                    "NotifyNearbyUsersAsync failed for urgent case {CaseCode}.",
+                    entity.CaseCode);
             }
         }
-    
+            
     }
 }
