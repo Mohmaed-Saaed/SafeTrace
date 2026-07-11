@@ -58,7 +58,7 @@ namespace SafeTrace.Application.Services
             {
                 CaseId = baseCase.Id,
                 CaseTitle = $"{baseCase.FName} {baseCase.SName} {baseCase.TName} {baseCase.LName}",
-                Status = baseCase.Status.ToString(),
+                CaseType = baseCase.CaseType,
 
                 CaseImage = primaryImage,
 
@@ -324,9 +324,16 @@ namespace SafeTrace.Application.Services
              totalCount,
              chatId);
 
+            var messageDtos = _mapper.Map<List<MessageDto>>(messages);
+
+            foreach(var message in messageDtos)
+            {
+                message.IsMine = message.SenderId == currentUserId;
+            }
+
             var result = new PaginationResponseDto<MessageDto>
             {
-                Items = _mapper.Map<List<MessageDto>>(messages),
+                Items = messageDtos,
                 TotalCount = totalCount,
                 PageNumber = page,
                 PageSize = pageSize

@@ -100,7 +100,9 @@ namespace SafeTrace.Infrastructure.DependencyInjection
                         var path = context.HttpContext.Request.Path;
 
                         if (!string.IsNullOrEmpty(accessToken) &&
-                            path.StartsWithSegments("/chatHub"))
+                             (path.StartsWithSegments("/chatHub") ||
+     path.StartsWithSegments("/SafeTrace.Application/Hubs/notifications")))
+
                         {
                             context.Token = accessToken;
                         }
