@@ -8,7 +8,8 @@ namespace SafeTrace.Application.DTOs.Complaints
     {
         public long Id { get; set; }
         public string UserId { get; set; } = null!;
-         public string? CaseCode { get; set; }
+        public string UserName { get; set; } = null!;
+        public string? CaseCode { get; set; }
         public string Message { get; set; } = null!;
         public DateTime CreatedAt { get; set; }
     }
