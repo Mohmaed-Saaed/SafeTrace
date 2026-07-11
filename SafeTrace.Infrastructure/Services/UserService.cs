@@ -153,6 +153,14 @@ namespace SafeTrace.Infrastructure.Services
             {
                 user.VerificationStatus = VerificationStatus.Verified;
             }
+            else
+            {
+                if(user.IdentificationImage != null)
+                {
+                    _fileStorageService.DeleteFile(user.IdentificationImage);
+                    user.IdentificationImage = null;
+                }
+            }
 
             var result = await _userManager.UpdateAsync(user);
 
