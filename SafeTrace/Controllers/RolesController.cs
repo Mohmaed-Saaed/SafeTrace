@@ -58,7 +58,7 @@ namespace SafeTrace.API.Controllers
         /// <summary>
         /// حذف دور (Role) من النظام.
         /// </summary>
-        /// <remarks>لا يمكن حذف الأدوار الأساسية (Admin, User, VerifiedUser) أو الأدوار المرتبطة بمستخدمين.</remarks>
+        /// <remarks>لا يمكن حذف الأدوار الأساسية (Admin, User, VerifiedUser, Moderator) أو الأدوار المرتبطة بمستخدمين.</remarks>
         /// <response code="200">تم حذف الدور بنجاح.</response>
         /// <response code="400">خطأ في عملية الحذف.</response>
         /// <response code="403">صلاحيات غير كافية أو محاولة حذف دور أساسي.</response>
@@ -97,8 +97,11 @@ namespace SafeTrace.API.Controllers
         /// <summary>
         /// تحديث صلاحيات دور (Role) معين.
         /// </summary>
+        /// <remarks>
+        /// كإجراء أمني، لا يمكن سحب أو تعديل صلاحيات الدور الإداري الأعلى (Admin) من خلال هذه الواجهة.
+        /// </remarks>
         /// <response code="200">تم تحديث الصلاحيات بنجاح.</response>
-        /// <response code="403">ليس لديك صلاحية لتعديل الصلاحيات.</response>
+        /// <response code="403">محاولة تعديل صلاحيات دور الـ (Admin)، أو ليس لديك صلاحية للوصول.</response>
         /// <response code="404">الدور المطلوب غير موجود.</response>
         [ProducesResponseType(typeof(ApiResponse<string>), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status403Forbidden)]

@@ -8,7 +8,6 @@ using SafeTrace.Application.DTOs.Responses;
 using SafeTrace.Application.Exceptions;
 using SafeTrace.Domain.Enums;
 using System.Net;
-using System.Security.Claims;
 using System.Text.Json;
 
 namespace SafeTrace.Infrastructure.Services

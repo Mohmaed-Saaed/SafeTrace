@@ -1,4 +1,6 @@
-﻿namespace SafeTrace.Application.Constants
+﻿using SafeTrace.Application.Helpers;
+
+namespace SafeTrace.Application.Constants
 {
     public static class EmailTemplates
     {
@@ -87,6 +89,122 @@
         </p>
 
     </div>";
+        }
+        public static string BuildAdminRegisteredTemplate(string fullName, string email, string password, string role)
+        {
+            return $@"
+            <div dir='rtl' style='font-family: ""Segoe UI"", Tahoma, Geneva, Verdana, sans-serif; max-width: 550px; margin: 0 auto; padding: 30px; border: 1px solid #eef2f5; border-radius: 12px; background-color: #ffffff; box-shadow: 0 4px 15px rgba(0,0,0,0.03); text-align: right;'>
+                <div style='text-align: center; margin-bottom: 25px;'>
+                    <h1 style='color: #2b5a8f; font-size: 28px; margin: 0; font-weight: 700;'>منصة لقاء</h1>
+                    <p style='color: #8c9ba5; font-size: 13px; margin: 5px 0 0 0;'>نظام تتبع وإعادة المفقودين الذكي</p>
+                </div>
+                <hr style='border: 0; border-top: 1px solid #f0f4f8; margin-bottom: 25px;' />
+                <h2 style='color: #1e293b; font-size: 20px; margin-top: 0; font-weight: 600;'>مرحباً، {fullName}</h2>
+                <p style='color: #475569; font-size: 15px; line-height: 1.6;'>تم إنشاء حساب جديد لك في منصة لقاء من قِبل الإدارة. يمكنك الآن تسجيل الدخول والمشاركة معنا باستخدام البيانات التالية:</p>
+                
+                <div style='background: #f8fafc; border: 1px dashed #cbd5e1; padding: 20px; border-radius: 10px; margin: 20px 0;'>
+                    <p style='margin: 8px 0; color: #334155;'><strong>البريد الإلكتروني:</strong> <span dir='ltr' style='color: #2563eb;'>{email}</span></p>
+                    <p style='margin: 8px 0; color: #334155;'><strong>كلمة المرور المؤقتة:</strong> <span dir='ltr' style='color: #2563eb; font-family: monospace; font-size: 16px;'>{password}</span></p>
+                    <p style='margin: 8px 0; color: #334155;'><strong>الدور الممنوح:</strong> {TranslateRoleToArabicHelper.TranslateRoleToArabic(role)}</p>
+                </div>
+                
+                <p style='color: #ef4444; font-size: 13px; font-weight: 600; margin-bottom: 25px;'>ملاحظة هامة: نوصي بشدة بتغيير كلمة المرور المؤقتة فور تسجيل دخولك لأول مرة لضمان أمان حسابك.</p>
+                <hr style='border: 0; border-top: 1px solid #f0f4f8; margin-bottom: 20px;' />
+                <p style='color: #475569; font-size: 14px; margin: 0; font-weight: 600;'>مع خالص التحية،<br/><span style='color: #2b5a8f;'>فريق عمل منصة لقاء</span></p>
+            </div>";
+        }
+
+        public static string BuildRoleChangedTemplate(string fullName, string newRole)
+        {
+            return $@"
+            <div dir='rtl' style='font-family: ""Segoe UI"", Tahoma, Geneva, Verdana, sans-serif; max-width: 550px; margin: 0 auto; padding: 30px; border: 1px solid #eef2f5; border-radius: 12px; background-color: #ffffff; box-shadow: 0 4px 15px rgba(0,0,0,0.03); text-align: right;'>
+                <div style='text-align: center; margin-bottom: 25px;'>
+                    <h1 style='color: #2b5a8f; font-size: 28px; margin: 0; font-weight: 700;'>منصة لقاء</h1>
+                </div>
+                <hr style='border: 0; border-top: 1px solid #f0f4f8; margin-bottom: 25px;' />
+                <h2 style='color: #1e293b; font-size: 20px; margin-top: 0; font-weight: 600;'>مرحباً، {fullName}</h2>
+                <p style='color: #475569; font-size: 15px; line-height: 1.6;'>نعلمك بأنه قد تم تحديث الصلاحية الإدارية (الدور) الخاص بحسابك في منصة لقاء بواسطة الإدارة.</p>
+                <div style='background: #f0fdf4; border: 1px solid #bbf7d0; padding: 15px; border-radius: 10px; margin: 20px 0; color: #166534; font-size: 16px; font-weight: 600; text-align: center;'>
+                    دورك الجديد هو: {TranslateRoleToArabicHelper.TranslateRoleToArabic(newRole)}
+                </div>
+                <hr style='border: 0; border-top: 1px solid #f0f4f8; margin-bottom: 20px; margin-top: 20px;' />
+                <p style='color: #475569; font-size: 14px; margin: 0; font-weight: 600;'>مع خالص التحية،<br/><span style='color: #2b5a8f;'>إدارة منصة لقاء</span></p>
+            </div>";
+        }
+
+        public static string BuildPermissionsChangedTemplate(string fullName)
+        {
+            return $@"
+            <div dir='rtl' style='font-family: ""Segoe UI"", Tahoma, Geneva, Verdana, sans-serif; max-width: 550px; margin: 0 auto; padding: 30px; border: 1px solid #eef2f5; border-radius: 12px; background-color: #ffffff; box-shadow: 0 4px 15px rgba(0,0,0,0.03); text-align: right;'>
+                <div style='text-align: center; margin-bottom: 25px;'>
+                    <h1 style='color: #2b5a8f; font-size: 28px; margin: 0; font-weight: 700;'>منصة لقاء</h1>
+                </div>
+                <hr style='border: 0; border-top: 1px solid #f0f4f8; margin-bottom: 25px;' />
+                <h2 style='color: #1e293b; font-size: 20px; margin-top: 0; font-weight: 600;'>مرحباً، {fullName}</h2>
+                <p style='color: #475569; font-size: 15px; line-height: 1.6;'>نعلمك بأنه قد تم تحديث <strong>الصلاحيات الفردية (الاستثنائية)</strong> الممنوحة لحسابك في منصة لقاء بواسطة الإدارة.</p>
+                <p style='color: #64748b; font-size: 14px;'>تم تخصيص هذه الصلاحيات لتتناسب مع مهامك الحالية في النظام.</p>
+                <hr style='border: 0; border-top: 1px solid #f0f4f8; margin-bottom: 20px; margin-top: 25px;' />
+                <p style='color: #475569; font-size: 14px; margin: 0; font-weight: 600;'>مع خالص التحية،<br/><span style='color: #2b5a8f;'>إدارة منصة لقاء</span></p>
+            </div>";
+        }
+
+        public static string BuildVerificationApprovedTemplate(string fullName)
+        {
+            return $@"
+            <div dir='rtl' style='font-family: ""Segoe UI"", Tahoma, Geneva, Verdana, sans-serif; max-width: 550px; margin: 0 auto; padding: 30px; border: 1px solid #eef2f5; border-radius: 12px; background-color: #ffffff; box-shadow: 0 4px 15px rgba(0,0,0,0.03); text-align: right;'>
+                <div style='text-align: center; margin-bottom: 25px;'>
+                    <h1 style='color: #2b5a8f; font-size: 28px; margin: 0; font-weight: 700;'>منصة لقاء</h1>
+                </div>
+                <hr style='border: 0; border-top: 1px solid #f0f4f8; margin-bottom: 25px;' />
+                <h2 style='color: #1e293b; font-size: 20px; margin-top: 0; font-weight: 600;'>تهانينا يا {fullName}!</h2>
+                <div style='text-align: center; margin: 20px 0;'>
+                    <span style='font-size: 50px;'>🎉</span>
+                </div>
+                <p style='color: #475569; font-size: 15px; line-height: 1.6;'>يسعدنا إخبارك بأنه تمت مراجعة صورة هويتك وقبولها بنجاح.</p>
+                <p style='color: #475569; font-size: 15px; line-height: 1.6;'>حسابك الآن موثق بالكامل ويمتلك صلاحيات <strong>مستخدم موثق</strong>، مما يتيح لك الاستفادة من ميزات إضافية مثل إضافة الحالات طويلة المدى وحالات مجهولي الهوية.</p>
+                <hr style='border: 0; border-top: 1px solid #f0f4f8; margin-bottom: 20px; margin-top: 25px;' />
+                <p style='color: #475569; font-size: 14px; margin: 0; font-weight: 600;'>مع خالص التحية،<br/><span style='color: #2b5a8f;'>إدارة منصة لقاء</span></p>
+            </div>";
+        }
+
+        public static string BuildVerificationRejectedTemplate(string fullName)
+        {
+            return $@"
+            <div dir='rtl' style='font-family: ""Segoe UI"", Tahoma, Geneva, Verdana, sans-serif; max-width: 550px; margin: 0 auto; padding: 30px; border: 1px solid #eef2f5; border-radius: 12px; background-color: #ffffff; box-shadow: 0 4px 15px rgba(0,0,0,0.03); text-align: right;'>
+                <div style='text-align: center; margin-bottom: 25px;'>
+                    <h1 style='color: #2b5a8f; font-size: 28px; margin: 0; font-weight: 700;'>منصة لقاء</h1>
+                </div>
+                <hr style='border: 0; border-top: 1px solid #f0f4f8; margin-bottom: 25px;' />
+                <h2 style='color: #1e293b; font-size: 20px; margin-top: 0; font-weight: 600;'>مرحباً، {fullName}</h2>
+                <div style='background: #fef2f2; border: 1px solid #fecaca; padding: 15px; border-radius: 10px; margin: 20px 0; color: #991b1b; font-size: 15px;'>
+                    عذراً، لم نتمكن من قبول صورة إثبات الهوية التي قمت برفعها.
+                </div>
+                <p style='color: #475569; font-size: 15px; line-height: 1.6;'>أسباب الرفض الشائعة تشمل: عدم وضوح الصورة، أو عدم وضوح البيانات، أو عدم تصوير الوجه الأمامي للبطاقة.</p>
+                <p style='color: #475569; font-size: 15px; line-height: 1.6;'>يرجى تسجيل الدخول إلى حسابك، والتوجه إلى الإعدادات، وإعادة رفع صورة واضحة ومقروءة (للوجه الأمامي) لبطاقة الهوية ليتمكن فريقنا من توثيق حسابك بنجاح.</p>
+                <hr style='border: 0; border-top: 1px solid #f0f4f8; margin-bottom: 20px; margin-top: 25px;' />
+                <p style='color: #475569; font-size: 14px; margin: 0; font-weight: 600;'>مع خالص التحية،<br/><span style='color: #2b5a8f;'>إدارة الدعم الفني - منصة لقاء</span></p>
+            </div>";
+        }
+
+        public static string BuildBlockStatusChangedTemplate(string fullName, bool isBlocked)
+        {
+            string status = isBlocked ? "حظر" : "إلغاء الحظر عن";
+            string message = isBlocked
+                ? "تم تعليق حسابك في منصة لقاء."
+                : "تم تفعيل حسابك مرة أخرى في منصة لقاء. يمكنك الآن تسجيل الدخول والمشاركة.";
+
+            return $@"
+            <div dir='rtl' style='font-family: ""Segoe UI"", sans-serif; max-width: 550px; margin: 0 auto; padding: 30px; border: 1px solid #eef2f5; border-radius: 12px; background-color: #ffffff; text-align: right;'>
+                <h1 style='color: #2b5a8f; text-align: center;'>منصة لقاء</h1>
+                <hr style='border: 0; border-top: 1px solid #f0f4f8; margin: 20px 0;' />
+                <h2 style='color: #1e293b;'>مرحباً {fullName}</h2>
+                <p style='color: #475569; font-size: 15px;'>تم تحديث حالة حسابك في منصة لقاء:</p>
+                <div style='background: #f8fafc; padding: 15px; border-radius: 8px; margin: 20px 0; font-weight: bold; color: #1e293b;'>
+                    الإجراء: {status} الحساب
+                </div>
+                <p style='color: #475569;'>{message}</p>
+                <p style='color: #94a3b8; font-size: 12px; margin-top: 20px;'>مع خالص التحية، فريق عمل منصة لقاء</p>
+            </div>";
         }
     }
 }
