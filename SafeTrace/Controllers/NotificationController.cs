@@ -30,7 +30,6 @@ namespace SafeTrace.API.Controllers
 
             return Ok();
         }
-
         #endregion
 
 

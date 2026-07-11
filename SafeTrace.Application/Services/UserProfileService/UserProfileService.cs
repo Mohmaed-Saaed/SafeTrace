@@ -60,11 +60,13 @@ namespace SafeTrace.Application.Services.UserProfileServices
             else
             {
                 var dto = _mapper.Map<GetUserInfoDTO>(user);
-                dto.Role = roles.Contains("Admin")
-                    ? "Admin"
-                    : roles.Contains("VerifiedUser")
-                        ? "VerifiedUser"
-                        : "User";
+                dto.Role = roles.Contains(UserRole.Admin.ToString())
+                    ? UserRole.Admin.ToString()
+                    : roles.Contains(UserRole.Moderator.ToString())
+                        ? UserRole.Moderator.ToString()
+                        : roles.Contains(UserRole.VerifiedUser.ToString())
+                            ? UserRole.VerifiedUser.ToString()
+                            : UserRole.User.ToString();
                 var request = _httpContextAccessor.HttpContext.Request;
 
                 string baseUrl = $"{request.Scheme}://{request.Host}";
