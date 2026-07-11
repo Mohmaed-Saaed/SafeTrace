@@ -15,6 +15,7 @@ namespace SafeTrace.Application.DTOs.Message
         public FileType? FileType { get; set; }
         public string? FilePath { get; set; }
         public bool IsRead { get; set; }
+        public bool IsMine { get; set; }
         public bool IsDeletedForEveryone { get; set; }
 
         public bool DeletedBySender { get; set; }

@@ -28,54 +28,65 @@
         }
 
         public static string BuildArabicNewMessageEmailTemplate(
-            string receiverName,
-            string senderName,
-            string messagePreview,
-            string chatLink)
+    string receiverName,
+    string senderName,
+    string messagePreview,
+    string chatLink)
         {
             return $@"
-            <div dir='rtl' style='font-family: ""Segoe UI"", Tahoma, Geneva, Verdana, sans-serif; max-width: 550px; margin: 0 auto; padding: 30px; border: 1px solid #eef2f5; border-radius: 12px; background-color: #ffffff; box-shadow: 0 4px 15px rgba(0,0,0,0.03); text-align: right;'>
+    <div dir='rtl' style='font-family: ""Segoe UI"", Tahoma, Geneva, Verdana, sans-serif; max-width: 550px; margin: 0 auto; padding: 30px; border: 1px solid #eef2f5; border-radius: 12px; background-color: #ffffff; box-shadow: 0 4px 15px rgba(0,0,0,0.03); text-align: right;'>
 
-                <div style='text-align: center; margin-bottom: 25px;'>
-                    <h1 style='color: #2b5a8f; font-size: 28px; margin: 0; font-weight: 700;'>منصة SafeTrace</h1>
-                    <p style='color: #8c9ba5; font-size: 13px; margin: 5px 0 0 0;'>نظام تتبع وإعادة المفقودين الذكي</p>
-                </div>
+        <div style='text-align: center; margin-bottom: 25px;'>
+            
+            <img src='https://localhost:7041/Images/logo.jpg'
+                 alt='لقاء Logo'
+                 style='width: 80px; height: 80px; object-fit: contain; margin-bottom: 10px;' />
 
-                <hr style='border: 0; border-top: 1px solid #f0f4f8; margin-bottom: 25px;' />
+            <h1 style='color: #2b5a8f; font-size: 28px; margin: 0; font-weight: 700;'>
+                لقاء
+            </h1>
 
-                <h2 style='color: #1e293b; font-size: 20px; margin-top: 0; font-weight: 600;'>
-                    مرحباً {receiverName}
-                </h2>
+            <p style='color: #8c9ba5; font-size: 13px; margin: 5px 0 0 0;'>
+                منصة التواصل الذكية
+            </p>
 
-                <p style='color: #475569; font-size: 15px; line-height: 1.7;'>
-                    لديك رسالة جديدة من <strong>{senderName}</strong>
-                </p>
+        </div>
 
-                <div style='background: #f8fafc; border: 1px solid #e2e8f0; padding: 15px; border-radius: 10px; margin: 20px 0; color: #334155; font-size: 14px;'>
-                    {messagePreview}
-                </div>
+        <hr style='border: 0; border-top: 1px solid #f0f4f8; margin-bottom: 25px;' />
 
-                <div style='text-align: center; margin: 30px 0;'>
-                    <a href='{chatLink}'
-                       style='background: #2563eb; color: #ffffff; padding: 12px 22px; border-radius: 8px; text-decoration: none; font-weight: 600; display: inline-block;'>
-                        عرض الرسالة
-                    </a>
-                </div>
+        <h2 style='color: #1e293b; font-size: 20px; margin-top: 0; font-weight: 600;'>
+            مرحباً {receiverName}
+        </h2>
 
-                <hr style='border: 0; border-top: 1px solid #f0f4f8; margin-bottom: 20px;' />
+        <p style='color: #475569; font-size: 15px; line-height: 1.7;'>
+            لديك رسالة جديدة من <strong>{senderName}</strong>
+        </p>
 
-                <p style='color: #94a3b8; font-size: 12px; line-height: 1.5; margin: 0;'>
-                    إذا لم تكن تتوقع هذه الرسالة، يمكنك تجاهل هذا البريد بأمان.
-                </p>
+        <div style='background: #f8fafc; border: 1px solid #e2e8f0; padding: 15px; border-radius: 10px; margin: 20px 0; color: #334155; font-size: 14px;'>
+            {messagePreview}
+        </div>
 
-                <br/>
+        <div style='text-align: center; margin: 30px 0;'>
+            <a href='{chatLink}'
+               style='background: #2563eb; color: #ffffff; padding: 12px 22px; border-radius: 8px; text-decoration: none; font-weight: 600; display: inline-block;'>
+                عرض الرسالة
+            </a>
+        </div>
 
-                <p style='color: #475569; font-size: 14px; margin: 0; font-weight: 600;'>
-                    مع خالص التحية،<br/>
-                    <span style='color: #2b5a8f;'>فريق عمل منصة SafeTrace</span>
-                </p>
+        <hr style='border: 0; border-top: 1px solid #f0f4f8; margin-bottom: 20px;' />
 
-            </div>";
+        <p style='color: #94a3b8; font-size: 12px; line-height: 1.5; margin: 0;'>
+            إذا لم تكن تتوقع هذه الرسالة، يمكنك تجاهل هذا البريد بأمان.
+        </p>
+
+        <br/>
+
+        <p style='color: #475569; font-size: 14px; margin: 0; font-weight: 600;'>
+            مع خالص التحية،<br/>
+            <span style='color: #2b5a8f;'>فريق عمل منصة لقاء</span>
+        </p>
+
+    </div>";
         }
     }
 }
