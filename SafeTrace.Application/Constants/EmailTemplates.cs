@@ -94,7 +94,7 @@ namespace SafeTrace.Application.Constants
                 <div style='background: #f8fafc; border: 1px dashed #cbd5e1; padding: 20px; border-radius: 10px; margin: 20px 0;'>
                     <p style='margin: 8px 0; color: #334155;'><strong>البريد الإلكتروني:</strong> <span dir='ltr' style='color: #2563eb;'>{email}</span></p>
                     <p style='margin: 8px 0; color: #334155;'><strong>كلمة المرور المؤقتة:</strong> <span dir='ltr' style='color: #2563eb; font-family: monospace; font-size: 16px;'>{password}</span></p>
-                    <p style='margin: 8px 0; color: #334155;'><strong>الصلاحية الممنوحة:</strong> {TranslateRoleToArabicHelper.TranslateRoleToArabic(role)}</p>
+                    <p style='margin: 8px 0; color: #334155;'><strong>الدور الممنوح:</strong> {TranslateRoleToArabicHelper.TranslateRoleToArabic(role)}</p>
                 </div>
                 
                 <p style='color: #ef4444; font-size: 13px; font-weight: 600; margin-bottom: 25px;'>ملاحظة هامة: نوصي بشدة بتغيير كلمة المرور المؤقتة فور تسجيل دخولك لأول مرة لضمان أمان حسابك.</p>
@@ -116,7 +116,6 @@ namespace SafeTrace.Application.Constants
                 <div style='background: #f0fdf4; border: 1px solid #bbf7d0; padding: 15px; border-radius: 10px; margin: 20px 0; color: #166534; font-size: 16px; font-weight: 600; text-align: center;'>
                     دورك الجديد هو: {TranslateRoleToArabicHelper.TranslateRoleToArabic(newRole)}
                 </div>
-                <p style='color: #64748b; font-size: 13px;'>يرجى تسجيل الخروج والدخول مجدداً لتفعيل الصلاحيات الجديدة. إذا كان لديك أي استفسار، يرجى التواصل مع الإدارة.</p>
                 <hr style='border: 0; border-top: 1px solid #f0f4f8; margin-bottom: 20px; margin-top: 20px;' />
                 <p style='color: #475569; font-size: 14px; margin: 0; font-weight: 600;'>مع خالص التحية،<br/><span style='color: #2b5a8f;'>إدارة منصة لقاء</span></p>
             </div>";
