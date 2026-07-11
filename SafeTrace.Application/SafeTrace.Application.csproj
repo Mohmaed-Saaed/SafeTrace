@@ -24,8 +24,4 @@
     <ProjectReference Include="..\SafeTrace.Domain\SafeTrace.Domain.csproj" />
   </ItemGroup>
 
-  <ItemGroup>
-    <Folder Include="Helpers/" />
-  </ItemGroup>
-
 </Project>
