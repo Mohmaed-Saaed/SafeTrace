@@ -30,8 +30,7 @@ namespace SafeTrace.Infrastructure.Services
             {
                 Id = r.Id,
                 Name = r.Name!
-            })
-                                                .ToListAsync();
+            }).ToListAsync();
 
             return ApiResponse<List<RoleDto>>.Ok(roles);
         }
