@@ -4,7 +4,7 @@ using SafeTrace.Application.DTOs.LongTermCase.Response;
 using SafeTrace.Application.DTOs.LongTermCase.Request;
 using SafeTrace.Application.DTOs.Cases.Request;
 using SafeTrace.Application.DTOs.Cases.Response;
-
+using SafeTrace.Application.Exceptions;
 
 namespace SafeTrace.Application.Services.Cases
 {
@@ -26,9 +26,6 @@ namespace SafeTrace.Application.Services.Cases
             _fileStorageService = fileStorage;
         }
 
-        /// <summary>
-        /// Deletes the police report image when a long-term case is permanently deleted.
-        /// </summary>
         protected override void DeleteAdditionalFiles(LongTermMissingCase entity)
         {
             if (!string.IsNullOrWhiteSpace(entity.PoliceReportImage))
@@ -37,14 +34,6 @@ namespace SafeTrace.Application.Services.Cases
             }
         }
 
-        /// <summary>
-        /// Creates a new long-term missing case with pending status.
-        /// Before creating, the user must be verified, and the case is checked against existing
-        /// active cases (via face + attribute matching):
-        /// - a match with the SAME case type (LongTerm) blocks creation entirely (true duplicate).
-        /// - a match with a DIFFERENT case type blocks creation and returns the matched case(s),
-        ///   unless forceCreate is true.
-        /// </summary>
         public async Task<ApiResponse<CreateCaseResultDto>> CreateAsync(string userId, CreateLongTermCaseDto dto, bool forceCreate = false)
         {
             await _caseHelper.ValidateVerifiedUserAsync(userId);
@@ -55,10 +44,20 @@ namespace SafeTrace.Application.Services.Cases
                 Age = dto.Age
             };
 
+            // قمنا بتمرير الـ Lambda لرمي الـ Exception المخصص لحالة الـ LongTerm هنا
             var duplicateCheck = await _caseHelper.CheckDuplicateCaseAsync(
                 CaseType.LongTerm,
                 subject,
                 dto.PrimaryImage,
+                onSameTypeMatchAsync: async (sameTypeDuplicate) =>
+                {
+                    _logger.LogInformation(
+                        "Duplicate case blocked. Existing case {CaseCode} already matches this person with the same type {CaseType}.",
+                        sameTypeDuplicate.CaseCode,
+                        CaseType.LongTerm);
+
+                    throw new BadRequestException($"توجد حالة مطابقة لنفس الشخص من نفس نوع الحالة بالفعل (كود الحالة: {sameTypeDuplicate.CaseCode}).");
+                },
                 forceCreate);
 
             if (duplicateCheck.RequiresConfirmation)
@@ -129,9 +128,6 @@ namespace SafeTrace.Application.Services.Cases
                 "تم إنشاء حالة الفقد طويلة المدة بنجاح.");
         }
 
-        /// <summary>
-        /// Updates a longTerm missing case with photo and police report management.
-        /// </summary>
         public async Task<ApiResponse<string>> UpdateAsync(long id, string userId, UpdateLongTermCaseDto dto)
         {
             var entity = await _caseHelper.GetValidCaseAsync<LongTermMissingCase>(
@@ -241,7 +237,5 @@ namespace SafeTrace.Application.Services.Cases
 
             return ApiResponse<string>.Ok(message: "تم تحديث حالة الفقد طويلة المدة بنجاح.");
         }
-
-
     }
 }

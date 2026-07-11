@@ -1,9 +1,9 @@
-using System.Linq.Expressions;
 using Microsoft.AspNetCore.Http;
 using SafeTrace.Application.Common.Enums;
+using SafeTrace.Application.DTOs.AiMatching.Response;
 using SafeTrace.Application.DTOs.Cases.Request;
 using SafeTrace.Application.DTOs.Cases.Response;
-
+using System.Linq.Expressions;
 
 namespace SafeTrace.Application.Interfaces.IServices.ICases
 {
@@ -43,16 +43,13 @@ namespace SafeTrace.Application.Interfaces.IServices.ICases
 
         /// <summary>
         /// Generic pre-create duplicate check used by all case types (LongTerm / Unknown / Urgent).
-        /// - No match found                            -> DuplicateCheckResult.None (safe to create).
-        /// - A match with the SAME case type            -> throws BadRequestException (true duplicate, never bypassable).
-        /// - A match with a DIFFERENT case type          -> returns RequiresConfirmation = true with the matches,
-        ///                                                   unless forceCreate = true, in which case it's bypassed.
+        /// Now accepts an asynchronous callback to delegate handling when a same-type duplicate is encountered.
         /// </summary>
         Task<DuplicateCheckResult> CheckDuplicateCaseAsync(
             CaseType currentCaseType,
             CaseMatchSubjectInfoDto subject,
             IFormFile primaryImage,
+            Func<MatchedCaseDto, Task> onSameTypeMatchAsync,
             bool forceCreate = false);
-
     }
 }
