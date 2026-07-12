@@ -30,8 +30,8 @@ namespace SafeTrace.API.Controllers
         [HasPermission(Permissions.Profile.GetUserInfo)]
         public async Task<IActionResult> GetUserInfo()
         {
-            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            var profile = await _user.GetProfileInfoAsync(userId);
+            //var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            var profile = await _user.GetProfileInfoAsync(GetCurrentUserId());
             return Ok(profile);
         }
 
@@ -44,8 +44,7 @@ namespace SafeTrace.API.Controllers
         [HasPermission(Permissions.Profile.UpdateName)]
         public async Task<IActionResult> UpdateName([FromForm] UpdateNameDTO dTO)
         {
-            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            var UpdateProfile = await _user.UpdateNameAsync(userId, dTO);
+            var UpdateProfile = await _user.UpdateNameAsync(GetCurrentUserId(), dTO);
             if (UpdateProfile == null)
                 return NotFound();
             return Ok(UpdateProfile);
@@ -59,8 +58,7 @@ namespace SafeTrace.API.Controllers
         [HasPermission(Permissions.Profile.UpdateProfileImage)]
         public async Task<IActionResult> UpdateProfileImage([FromForm] UpdateProfileImageDTO dTO)
         {
-            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            var UpdateProfile = await _user.UpdateProfilImageesync(userId, dTO);
+            var UpdateProfile = await _user.UpdateProfilImageesync(GetCurrentUserId(), dTO);
             if (UpdateProfile == null)
                 return NotFound();
             return Ok(UpdateProfile);
@@ -74,9 +72,8 @@ namespace SafeTrace.API.Controllers
         [HasPermission(Permissions.Profile.UpdateProfileImage)]
         public async Task<IActionResult> RemoveProfileImage()
         {
-            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
 
-            var result = await _user.RemoveProfileImageAsync(userId);
+            var result = await _user.RemoveProfileImageAsync(GetCurrentUserId());
 
             return Ok(result);
         }
@@ -88,8 +85,7 @@ namespace SafeTrace.API.Controllers
         [HasPermission(Permissions.Profile.UpdateIdImage)]
         public async Task<IActionResult> AddIdImage([FromForm] AddIdImageDTO dTO)
         {
-            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            var UpdateProfile = await _user.AddIdImageAsync(userId, dTO);
+            var UpdateProfile = await _user.AddIdImageAsync(GetCurrentUserId(), dTO);
             if (UpdateProfile == null)
                 return NotFound();
             return Ok(UpdateProfile);
@@ -102,12 +98,17 @@ namespace SafeTrace.API.Controllers
         [HasPermission(Permissions.Profile.UpdateHomeLocation)]
         public async Task<IActionResult> UpdateHomeLocation([FromForm] UpdateHomeLocationDTO dTO)
         {
-            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            var UpdateProfile = await _user.UpdateHomeLocationAsync(userId, dTO);
+            var UpdateProfile = await _user.UpdateHomeLocationAsync(GetCurrentUserId(), dTO);
             if (UpdateProfile == null)
                 return NotFound();
             return Ok(UpdateProfile);
         }
+
+        private string GetCurrentUserId()
+        {
+            return User.FindFirstValue(ClaimTypes.NameIdentifier) ?? throw new UnauthorizedAccessException("تعذر التحقق من هوية المستخدم.");
+        }
+
         #region Old Update End Point
 
         [HttpPut("UpdateInfo")]
