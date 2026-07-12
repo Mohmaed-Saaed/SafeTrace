@@ -33,6 +33,7 @@ namespace SafeTrace.Infrastructure.DependencyInjection
             services.AddScoped<IRolePermissionService, RolePermissionService>();
             services.AddScoped<IUserService, UserService>();
             services.AddScoped<IFaceRecognitionService, FaceRecognitionService>();
+            services.AddScoped<IPaymentService, PaymentService>();
 
             var awsOptions = configuration.GetAWSOptions("AWS");
             var accessKey = configuration["AWS:AccessKey"];

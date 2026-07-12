@@ -1,0 +1,31 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Text;
+
+namespace SafeTrace.Domain.Entities
+{
+    public class Donation
+    {
+        public string? UserId { get; set; }
+
+        public decimal Amount { get; set; }
+
+        public string Currency { get; set; } = "EGP";
+
+        public PaymentStatus PaymentStatus { get; set; }
+
+        public string PaymentGateway { get; set; } = "Paymob";
+
+        public string? TransactionId { get; set; }
+
+        public string? OrderId { get; set; }
+
+        public string? Message { get; set; }
+
+        public DateTime CreatedAt { get; set; }
+
+        public DateTime? PaidAt { get; set; }
+
+        public ApplicationUser? User { get; set; }
+    }
+}
