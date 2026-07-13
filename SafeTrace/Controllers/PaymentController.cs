@@ -1,11 +1,9 @@
 ﻿using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using SafeTrace.Application.DTOs.Payment.Request;
 using SafeTrace.Application.Interfaces.IServices;
 using System.Security.Claims;
 using System.Text.Json;
-using static Microsoft.EntityFrameworkCore.DbLoggerCategory;
 
 namespace SafeTrace.API.Controllers
 {
@@ -39,16 +37,15 @@ namespace SafeTrace.API.Controllers
         }
 
         [Authorize(Roles = "Admin")]
-        [HttpGet]
+        [HttpGet("get-donations")]
         public async Task<IActionResult> GetDonations([FromQuery] DonationAdminQueryDto query)
         {
             var response = await _paymentService.GetDonationsAsync(query);
-
             return Ok(response);
         }
 
         [Authorize(Roles = "User")]
-        [HttpGet("get-my-payments")]
+        [HttpGet("get-my-donations")]
         public async Task<IActionResult> GetMyDonations([FromQuery] DonationUserQueryDto query)
         {
             var response = await _paymentService.GetUserDonationsAsync(User.FindFirstValue(ClaimTypes.NameIdentifier), query);

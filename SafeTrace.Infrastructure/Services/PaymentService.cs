@@ -41,12 +41,11 @@ namespace SafeTrace.Infrastructure.Services
         {
             if (request.Amount <= 0)
             {
-                _logger.LogWarning("Attempted to create a donation with an invalid amount: {Amount}", request.Amount);
-                throw new BadRequestException("Amount must be greater than zero.");
+                _logger.LogWarning("حاول المستخدم إنشاء تبرع بمبلغ غير صالح: {Amount}", request.Amount);
+                throw new BadRequestException("المبلغ يجب أن يكون أكبر من صفر.");
             }
 
             ApplicationUser? user = null;
-
             if (!string.IsNullOrEmpty(currentUserId))
                 user = await _userManager.FindByIdAsync(currentUserId);
             
@@ -71,7 +70,7 @@ namespace SafeTrace.Infrastructure.Services
             var result = await _unitOfWork.SaveAsync();
 
             if (result <= 0)
-                throw new Exception("Failed to create donation.");
+                throw new Exception("فشل في إنشاء التبرع.");
 
             var requestBody = new CreateIntentionRequestDto
             {
@@ -86,7 +85,7 @@ namespace SafeTrace.Infrastructure.Services
 
                 Items = new()
     {
-        new PaymobItem
+        new PaymobItemDto
         {
             Name = "Leqaa Donation",
             Amount = (long)(request.Amount * 100),
@@ -99,7 +98,7 @@ namespace SafeTrace.Infrastructure.Services
                 {
                     FirstName = user?.FName ?? "Guest",
                     LastName = user?.LName ?? "User",
-                    Email = user?.Email ?? "guest@safetrace.com",
+                    Email = user?.Email ?? "guestLeqaa.com",
                     PhoneNumber = user?.PhoneNumber ?? "01000000000"
                 },
 
@@ -140,8 +139,7 @@ namespace SafeTrace.Infrastructure.Services
 
 
             if (resultResponse == null)
-                throw new Exception("Invalid response from Paymob.");
-
+                throw new Exception("استجابة غير صالحة من Paymob.");
 
             donation.OrderId = resultResponse.Id.ToString();
 
@@ -166,14 +164,14 @@ namespace SafeTrace.Infrastructure.Services
 
             if (string.IsNullOrEmpty(hmac))
             {
-                _logger.LogWarning("Received webhook with missing HMAC.");
-                throw new PaymentVerificationException("Missing HMAC.");
+                _logger.LogWarning("تم استلام Webhook بدون HMAC.");
+                throw new PaymentVerificationException("HMAC مفقود.");
             }
 
             if (!ValidateHmacPayload(obj, hmac))
             {
-                _logger.LogWarning("Received webhook with invalid HMAC. Received: {hmac}", hmac);
-                throw new PaymentVerificationException("Invalid HMAC.");
+                _logger.LogWarning("تم استلام Webhook مع HMAC غير صالح. المستلم: {hmac}", hmac);
+                throw new PaymentVerificationException("HMAC غير صالح.");
             }
 
             var donationId = long.Parse(obj.GetProperty("order").GetProperty("merchant_order_id").GetString()!);
@@ -181,11 +179,11 @@ namespace SafeTrace.Infrastructure.Services
             var donation = await _unitOfWork.Repository<Donation>().GetByIdAsync(donationId);
 
             if (donation == null)
-                throw new NotFoundException("Donation not found.");
+                throw new NotFoundException("التبرع غير موجود.");
 
             if (donation.PaymentStatus == PaymentStatus.Succeeded)
             {
-                _logger.LogInformation("Donation with ID {DonationId} has already been processed successfully.", donationId);
+                _logger.LogInformation("تمت معالجة التبرع بالمعرف {DonationId} بنجاح بالفعل.", donationId);
                 return;
             }
 
@@ -194,8 +192,8 @@ namespace SafeTrace.Infrastructure.Services
 
             if (amount != expectedAmount)
             {
-                _logger.LogWarning("Amount mismatch for donation ID {DonationId}. Expected: {ExpectedAmount}, Received: {ReceivedAmount}", donationId, expectedAmount, amount);
-                throw new PaymentVerificationException("Amount mismatch.");
+                _logger.LogWarning("خطأ في المبلغ للتبرع بالمعرف {DonationId}. المتوقع: {ExpectedAmount}, المستلم: {ReceivedAmount}", donationId, expectedAmount, amount);
+                throw new PaymentVerificationException("خطأ في المبلغ.");
             }
 
             donation.TransactionId = obj.GetProperty("id").ToString();
@@ -225,16 +223,33 @@ namespace SafeTrace.Infrastructure.Services
         {
             if (query == null)
             {
-                _logger.LogWarning("Received null query collection in GetPaymentResultAsync.");
+                _logger.LogWarning("تم استلام مجموعة استعلام فارغة في GetPaymentResultAsync.");
                 throw new ArgumentNullException(nameof(query));
             }
 
             if (!ValidateHmacQuery(query))
             {
-                _logger.LogWarning("Received webhook with invalid HMAC. Received: {ReceivedHmac}", query["hmac"]!);
-                throw new PaymentVerificationException("Invalid HMAC.");
+                _logger.LogWarning("تم استلام رد الاتصال مع HMAC غير صالح. HMAC: {Hmac}", query["hmac"]!);
+                throw new PaymentVerificationException("HMAC غير صالح.");
             }
-            return ApiResponse<string>.Ok("Thank you");
+
+            if (!query.TryGetValue("success", out var successValue) ||!bool.TryParse(successValue, out var isSuccess))
+            {
+                _logger.LogWarning("معامل success مفقود أو غير صالح.");
+                throw new PaymentVerificationException("استجابة الدفع غير صالحة.");
+            }
+
+            if (!isSuccess)
+            {
+                _logger.LogInformation(
+                    "فشل الدفع. معرف المعاملة: {TransactionId}, معرف الطلب: {OrderId}",
+                    query["id"],
+                    query["merchant_order_id"]);
+
+                return ApiResponse<string>.Fail("فشل الدفع أو تم إلغاؤه.");
+            }
+
+            return ApiResponse<string>.Ok("شكراً لتبرعك.");
         }
         private bool ValidateHmacQuery(IQueryCollection query)
         {
@@ -306,12 +321,12 @@ namespace SafeTrace.Infrastructure.Services
         private bool ValidateHmac(string concatenatedData, string receivedHmac)
         {
             if (string.IsNullOrWhiteSpace(receivedHmac))
-                throw new PaymentVerificationException("Missing HMAC.");
+                throw new PaymentVerificationException("HMAC مفقود.");
 
             var secret = _config["Paymob:WebhookSecret"];
 
             if (string.IsNullOrWhiteSpace(secret))
-                throw new InvalidOperationException("Paymob Webhook Secret is not configured.");
+                throw new InvalidOperationException("Paymob Webhook Secret غير مهيأ.");
 
             using var hmac = new HMACSHA512(Encoding.UTF8.GetBytes(secret));
 
@@ -325,15 +340,14 @@ namespace SafeTrace.Infrastructure.Services
         }
         public async Task<PaginationResponseDto<DonationUserListDto>> GetUserDonationsAsync(string? userId, DonationUserQueryDto query)
         {
-
             if (string.IsNullOrWhiteSpace(userId))
-                throw new BadRequestException("User ID is required.");
+                throw new BadRequestException("معرف المستخدم مطلوب.");
 
             var donationsQuery = _unitOfWork.Repository<Donation>().Query(tracked: false).Where(d => d.UserId == userId && d.PaymentStatus == PaymentStatus.Succeeded);
 
             var totalCount = donationsQuery.Count();
 
-            var donations = donationsQuery.OrderByDescending(f => f.PaidAt)
+            var donations = await donationsQuery.OrderByDescending(f => f.PaidAt)
                 .Skip((query.Page - 1) * query.PageSize).Take(query.PageSize).ToListAsync();
 
             var items = _mapper.Map<List<DonationUserListDto>>(donations);
@@ -370,6 +384,5 @@ namespace SafeTrace.Infrastructure.Services
             };
             return response;
         }
-
     }
 }

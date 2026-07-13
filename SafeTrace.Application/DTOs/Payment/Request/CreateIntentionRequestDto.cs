@@ -17,7 +17,7 @@ namespace SafeTrace.Application.DTOs.Payment.Request
         public List<int> PaymentMethods { get; set; } = [];
 
         [JsonPropertyName("items")]
-        public List<PaymobItem> Items { get; set; } = [];
+        public List<PaymobItemDto> Items { get; set; } = [];
 
         [JsonPropertyName("billing_data")]
         public BillingData BillingData { get; set; } = new();

@@ -14,8 +14,10 @@ namespace SafeTrace.Application.Mapping
             CreateMap<Donation, DonationAdminListDto>()
                 .ForMember(dest => dest.UserEmail, opt => opt.MapFrom(src => src.User != null ? src.User.Email : "Guest"))
                 .ForMember(dest => dest.CreateAt, opt => opt.MapFrom(src => src.CreatedAt))
-                .ForMember(dest => dest.PaidAt, opt => opt.MapFrom(src => src.PaidAt ?? DateTime.MinValue));
+                .ForMember(dest => dest.PaidAt, opt => opt.MapFrom(src => src.PaidAt));
 
+            CreateMap<Donation, DonationUserListDto>()
+                .ForMember(dest => dest.PaidAt, opt => opt.MapFrom(src => src.PaidAt));
         }
     }
 }

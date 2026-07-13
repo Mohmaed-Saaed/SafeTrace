@@ -4,7 +4,7 @@ using System.Text;
 
 namespace SafeTrace.Application.DTOs.Payment.Request
 {
-    public class PaymobItem
+    public class PaymobItemDto
     {
         public string Name { get; set; } = string.Empty;
 

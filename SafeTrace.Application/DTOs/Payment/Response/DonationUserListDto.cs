@@ -9,6 +9,6 @@ namespace SafeTrace.Application.DTOs.Payment.Response
         public decimal Amount { get; set; }
         public PaymentStatus PaymentStatus { get; set; }
         public string? Message { get; set; }
-        public DateTime PaidAt { get; set; }
+        public DateTime? PaidAt { get; set; }
     }
 }

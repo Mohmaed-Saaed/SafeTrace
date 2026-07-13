@@ -8,10 +8,10 @@ namespace SafeTrace.Application.DTOs.Payment.Response
     public class CreateIntentionResponseDto
     {
         [JsonPropertyName("id")]
-        public string Id { get; set; }
+        public string? Id { get; set; }
 
         [JsonPropertyName("client_secret")]
-        public string ClientSecret { get; set; } = "";
+        public string? ClientSecret { get; set; }
 
         [JsonPropertyName("intention_order_id")]
         public long IntentionOrderId { get; set; }

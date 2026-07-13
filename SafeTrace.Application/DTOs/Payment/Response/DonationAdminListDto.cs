@@ -11,6 +11,6 @@ namespace SafeTrace.Application.DTOs.Payment.Response
         public PaymentStatus PaymentStatus { get; set; }
         public DateTime CreateAt { get; set; }
         public string? Message { get; set; }
-        public DateTime PaidAt { get; set; }
+        public DateTime? PaidAt { get; set; }
     }
 }
