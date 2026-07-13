@@ -13,10 +13,10 @@ namespace SafeTrace.Application.Mapping
 
 
 
-    //        CreateMap<Case, MyCaseListItemDto>()
-    //.ForMember(d => d.FullName,
-    //    o => o.MapFrom(s =>
-    //        $"{s.FName} {s.SName} {s.TName} {s.LName}".Trim()));
+            CreateMap<Case, MyCaseListItemDto>()
+    .ForMember(d => d.FullName,
+        o => o.MapFrom(s =>
+            $"{s.FName} {s.SName} {s.TName} {s.LName}".Trim()));
 
             CreateMap<ApplicationUser, GetUserInfoDTO>()
     .ForMember(dest => dest.FullName,
