@@ -12,7 +12,8 @@ namespace SafeTrace.Application.DTOs.User_Profiel_DTOS
         public string? ProfileImage { get; set; }
         public VerificationStatus VerificationStatus { get; set; } = VerificationStatus.Unverified;
         public string? IdentificationImage { get; set; }
-        public ICollection<Case> Cases { get; set; } = new List<Case>();
+        public ICollection<MyCaseListItemDto> Cases { get; set; }
+            = new List<MyCaseListItemDto>();
         public string Role { get; set; } = string.Empty;
 
     }
