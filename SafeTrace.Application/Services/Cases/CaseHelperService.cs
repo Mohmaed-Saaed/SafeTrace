@@ -226,8 +226,8 @@ namespace SafeTrace.Application.Services.Cases
 
             return new MatchedCasesResult
             {
-                HasMatched = matchedCases.Count != 0,
-                DuplicateCases = matchedCases
+                HasMatches = matchedCases.Count != 0,
+                MatchedCases = matchedCases
             };
         }
 
@@ -238,7 +238,8 @@ namespace SafeTrace.Application.Services.Cases
             Func<MatchedCaseDto, Task> onSameTypeMatchAsync,
             bool forceCreate = false)
         {
-            var matchResult = await FindMatchedCasesAsync(subject, primaryImage);
+            var sameType = matches.MatchedCases
+                .FirstOrDefault(x => x.CaseType == currentCaseType);
 
             if (!matchResult.HasMatched)
                 return DuplicateCheckResult.None;
@@ -248,11 +249,12 @@ namespace SafeTrace.Application.Services.Cases
 
             if (sameTypeDuplicate != null)
             {
-                // نمرر الحالة المتطابقة للـ Callback الخارجي ليتعامل معها حسب نوع السيرفيس
-                await onSameTypeMatchAsync(sameTypeDuplicate);
+                _logger.LogInformation(
+                    "Duplicate case blocked. Existing case {CaseCode} already matches this person with the same type {CaseType}.",
+                    sameTypeDuplicate.CaseCode,
+                    currentCaseType);
 
-                // لو السيرفيس مرامتش Exception (زي كود الـ Unknown بعد الدمج)، بنكمل ونرجع None
-                return DuplicateCheckResult.None;
+                throw new BadRequestException($"توجد حالة مطابقة لنفس الشخص من نفس نوع الحالة بالفعل (كود الحالة: {sameTypeDuplicate.CaseCode}).");
             }
 
             if (forceCreate)
@@ -266,8 +268,8 @@ namespace SafeTrace.Application.Services.Cases
 
             return new DuplicateCheckResult
             {
-                RequiresConfirmation = true,
-                MatchedCases = matchResult.DuplicateCases
+                SameTypeMatch = sameType,
+                CrossTypeMatches = crossType
             };
         }
 

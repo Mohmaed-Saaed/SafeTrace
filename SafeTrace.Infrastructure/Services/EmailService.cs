@@ -56,7 +56,7 @@ namespace SafeTrace.Infrastructure.Services
             {
                 throw new UnauthorizedException("فشلت عملية المصادقة مع خادم البريد الإلكتروني. يرجى التأكد من إعدادات الإرسال.");
             }
-            catch (SmtpCommandException ex)
+            catch (SmtpCommandException)
             {
                 throw new BadRequestException("رفض خادم البريد الإلكتروني إرسال الرسالة.");
             }

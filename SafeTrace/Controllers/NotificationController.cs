@@ -1,6 +1,7 @@
 ﻿using System.Security.Claims;
 using Microsoft.AspNetCore.Mvc;
 using SafeTrace.Application.Constants;
+using SafeTrace.Application.DTOs.NotificationDTOS;
 using SafeTrace.Application.Interfaces.IServices.INotificationSewrvice;
 using SafeTrace.Infrastructure.Authorization;
 
@@ -18,15 +19,29 @@ namespace SafeTrace.API.Controllers
         }
 
 
+        #region test
+        [HttpPut("SendNotify")]
+        public async Task<IActionResult> SendNotify([FromBody] SendNotificationDTO dto)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
 
+            await _notificationService.SendNotificationAsync(dto);
+
+            return Ok();
+        }
+        #endregion
 
 
         [HttpGet("my-Notifications")]
         [HasPermission(Permissions.Notifications.GetMyNotifications)]
-        public async Task<IActionResult> GetMyNotifications()
+        public async Task<IActionResult> GetMyNotifications(
+            [FromQuery] int page = 1,
+    [FromQuery] int pageSize = 10)
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            var notifications = await _notificationService.GetUserNotificationsAsync(userId!);
+            var notifications = await _notificationService.GetUserNotificationsAsync(userId!, page,
+        pageSize);
             return Ok(notifications);
         }
 

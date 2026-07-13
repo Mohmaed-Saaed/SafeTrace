@@ -1,16 +1,19 @@
-﻿using ElmahCore.Sql;
+using ElmahCore.Mvc;
+using ElmahCore.Sql;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.IdentityModel.Tokens;
 using SafeTrace.Application.Interfaces;
 using SafeTrace.Application.Services;
 using SafeTrace.Infrastructure.Authorization;
+using SafeTrace.Infrastructure.Filters;
 using SafeTrace.Infrastructure.Options;
 using SafeTrace.Infrastructure.Persistence;
 using System.Text;
-using ElmahCore.Mvc;
 
 namespace SafeTrace.Infrastructure.DependencyInjection
 {
@@ -32,6 +35,7 @@ namespace SafeTrace.Infrastructure.DependencyInjection
             services.AddScoped<IRolePermissionService, RolePermissionService>();
             services.AddScoped<IUserService, UserService>();
             services.AddScoped<IFaceRecognitionService, FaceRecognitionService>();
+            services.AddHttpClient<IPaymentService, PaymentService>();
 
             var awsOptions = configuration.GetAWSOptions("AWS");
             var accessKey = configuration["AWS:AccessKey"];
@@ -99,7 +103,9 @@ namespace SafeTrace.Infrastructure.DependencyInjection
                         var path = context.HttpContext.Request.Path;
 
                         if (!string.IsNullOrEmpty(accessToken) &&
-                            path.StartsWithSegments("/chatHub"))
+                             (path.StartsWithSegments("/chatHub") ||
+     path.StartsWithSegments("/SafeTrace.Application/Hubs/notifications")))
+
                         {
                             context.Token = accessToken;
                         }
@@ -148,10 +154,55 @@ namespace SafeTrace.Infrastructure.DependencyInjection
 
                 options.ConnectionString = configuration.GetConnectionString("DefaultConnection");
 
+                options.Filters.Add(new BusinessExceptionFilter());
+
                 //options.OnPermissionCheck = context =>
                 //    context.User.Identity != null &&
                 //    context.User.Identity.IsAuthenticated &&
                 //    context.User.IsInRole("Admin");
+            });
+
+            // --- Rate Limiting Configuration ---
+            services.AddRateLimiter(options =>
+            {
+                options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+
+                options.OnRejected = async (context, token) =>
+                {
+                    context.HttpContext.Response.StatusCode = StatusCodes.Status429TooManyRequests;
+                    context.HttpContext.Response.ContentType = "application/json";
+                    await context.HttpContext.Response.WriteAsJsonAsync(new ProblemDetails
+                    {
+                        Status = 429,
+                        Title = "Too Many Requests",
+                        Detail = "لقد تجاوزت الحد المسموح به من الطلبات. يرجى المحاولة لاحقاً.",
+                        Instance = context.HttpContext.Request.Path
+                    });
+                };
+
+                // 1. Global Policy (Default for endpoints changing data)
+                options.GlobalLimiter = System.Threading.RateLimiting.PartitionedRateLimiter.Create<HttpContext, string>(httpContext =>
+                    System.Threading.RateLimiting.RateLimitPartition.GetFixedWindowLimiter(
+                        partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? httpContext.Request.Headers.Host.ToString(),
+                        factory: partition => new System.Threading.RateLimiting.FixedWindowRateLimiterOptions
+                        {
+                            AutoReplenishment = true,
+                            PermitLimit = 100,
+                            QueueLimit = 0,
+                            Window = TimeSpan.FromMinutes(1)
+                        }));
+
+                // 2. Auth Policy (Strict limits for Login, Register, OTP)
+                options.AddPolicy("AuthLimit", httpContext =>
+                    System.Threading.RateLimiting.RateLimitPartition.GetFixedWindowLimiter(
+                        partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? httpContext.Request.Headers.Host.ToString(),
+                        factory: partition => new System.Threading.RateLimiting.FixedWindowRateLimiterOptions
+                        {
+                            AutoReplenishment = true,
+                            PermitLimit = 10,
+                            QueueLimit = 0,
+                            Window = TimeSpan.FromMinutes(15)
+                        }));
             });
 
             return services;

@@ -1,4 +1,4 @@
-﻿using AutoMapper;
+using AutoMapper;
 using Microsoft.Extensions.Logging;
 using Microsoft.AspNetCore.Http;
 using SafeTrace.Application.Constants;
@@ -8,8 +8,10 @@ using SafeTrace.Application.DTOs.Responses;
 using SafeTrace.Application.Exceptions;
 using SafeTrace.Domain.Enums;
 using System.Net;
-using System.Security.Claims;
 using System.Text.Json;
+using SafeTrace.Application.DTOs.NotificationDTOS;
+using SafeTrace.Application.Interfaces.IServices.INotificationSewrvice;
+using UAParser;
 
 namespace SafeTrace.Infrastructure.Services
 {
@@ -24,6 +26,7 @@ namespace SafeTrace.Infrastructure.Services
         private readonly IOtpService _otpService;
         private readonly HttpClient _httpClient;
         private readonly IHttpContextAccessor _httpContextAccessor;
+        private readonly INotificationServices _notificationService;
 
         public AccountService(
             UserManager<ApplicationUser> userManager,
@@ -33,7 +36,8 @@ namespace SafeTrace.Infrastructure.Services
             IMapper mapper,
             IOtpService otpService,
             ILogger<AccountService> logger,
-            IHttpContextAccessor httpContextAccessor)
+            IHttpContextAccessor httpContextAccessor,
+            INotificationServices notificationService)
         {
             _userManager = userManager;
             _tokenService = tokenService;
@@ -44,6 +48,7 @@ namespace SafeTrace.Infrastructure.Services
             _otpService = otpService;
             _httpClient = new HttpClient();
             _httpContextAccessor = httpContextAccessor;
+            _notificationService = notificationService;
         }
 
         public async Task<ApiResponse<string>> RegisterAsync(RegisterDto registerDto)
@@ -113,6 +118,9 @@ namespace SafeTrace.Infrastructure.Services
             {
                 var authResult = await GenerateAuthTokensAndSaveAsync(user);
                 await _unitOfWork.CommitTransactionAsync();
+
+                await SendLoginAlertAsync(user);
+
                 return ApiResponse<AuthResponseDto>.Ok(authResult, "تم تسجيل الدخول بنجاح.");
             }
             catch
@@ -134,6 +142,16 @@ namespace SafeTrace.Infrastructure.Services
             await _userManager.UpdateAsync(user);
 
             _logger.LogInformation("User {Email} has successfully confirmed their email address.", email);
+
+            var mailBody = EmailTemplates.BuildEmailConfirmedSuccessTemplate(user.FName);
+            _ = _emailService.SendEmailAsync(user.Email!, "لقاء - تم تأكيد بريدك الإلكتروني", mailBody);
+
+            _ = _notificationService.SendNotificationAsync(new SendNotificationDTO
+            {
+                UserId = user.Id,
+                Content = "تهانينا! تم تأكيد عنوان بريدك الإلكتروني بنجاح.",
+                Type = NotificationType.System
+            });
 
             return ApiResponse<string>.Ok(null, "تم تأكيد البريد الإلكتروني بنجاح.");
         }
@@ -200,6 +218,16 @@ namespace SafeTrace.Infrastructure.Services
 
                 _logger.LogInformation("User {Email} has successfully reset their password and all sessions were revoked.", user.Email);
 
+                var mailBody = EmailTemplates.BuildPasswordResetSuccessTemplate(user.FName);
+                _ = _emailService.SendEmailAsync(user.Email!, "لقاء - تأكيد إعادة تعيين كلمة المرور", mailBody);
+
+                _ = _notificationService.SendNotificationAsync(new SendNotificationDTO
+                {
+                    UserId = user.Id,
+                    Content = "تم إعادة تعيين كلمة المرور بنجاح وتسجيل الخروج من كافة الأجهزة.",
+                    Type = NotificationType.System
+                });
+
                 return ApiResponse<string>.Ok(null, "تم إعادة تعيين كلمة المرور بنجاح.");
             }
             catch
@@ -229,6 +257,17 @@ namespace SafeTrace.Infrastructure.Services
                 await RevokeAllActiveSessionsAsync(userId, currentRefreshToken);
 
                 await _unitOfWork.CommitTransactionAsync();
+
+                var mailBody = EmailTemplates.BuildPasswordResetSuccessTemplate(user.FName);
+                _ = _emailService.SendEmailAsync(user.Email!, "لقاء - تأكيد تغيير كلمة المرور", mailBody);
+
+                _ = _notificationService.SendNotificationAsync(new SendNotificationDTO
+                {
+                    UserId = user.Id,
+                    Content = "تم تغيير كلمة المرور بنجاح وتسجيل الخروج من كافة الأجهزة الأخرى.",
+                    Type = NotificationType.System
+                });
+
                 return ApiResponse<string>.Ok(null, "تم تغيير كلمة المرور بنجاح وتسجيل الخروج من جميع الأجهزة الأخرى.");
             }
             catch
@@ -312,10 +351,16 @@ namespace SafeTrace.Infrastructure.Services
 
                 if (!storedRefreshToken.IsActive)
                 {
-                    await RevokeAllActiveSessionsAsync(userId!);
-                    await _unitOfWork.SaveAsync();
-                    await _unitOfWork.CommitTransactionAsync();
-                    throw new UnauthorizedException("تم اكتشاف نشاط مريب في الجلسة، تم تسجيل الخروج من جميع الأجهزة كإجراء أمني.");
+                    if (storedRefreshToken.ReplacedByToken != null)
+                    {
+                        await RevokeAllActiveSessionsAsync(userId!);
+                        await _unitOfWork.SaveAsync();
+                        await _unitOfWork.CommitTransactionAsync();
+                        _logger.LogWarning("Token reuse detected for user {UserId}. Revoking all active sessions.", userId);
+                        throw new UnauthorizedException("تم اكتشاف نشاط مريب في الجلسة، تم تسجيل الخروج من جميع الأجهزة كإجراء أمني.");
+                    }
+
+                    throw new UnauthorizedException("انتهت صلاحية الجلسة، يرجى تسجيل الدخول من جديد.");
                 }
 
                 var user = await _userManager.FindByIdAsync(userId!);
@@ -438,6 +483,8 @@ namespace SafeTrace.Infrastructure.Services
                 var responseData = await GenerateAuthTokensAndSaveAsync(user);
                 await _unitOfWork.CommitTransactionAsync();
 
+                await SendLoginAlertAsync(user);
+
                 return ApiResponse<AuthResponseDto>.Ok(responseData, "تم تسجيل الدخول بنجاح.");
             }
             catch
@@ -477,6 +524,41 @@ namespace SafeTrace.Infrastructure.Services
                     token.RevokedAt = DateTime.UtcNow;
                     _unitOfWork.Repository<RefreshToken>().Update(token);
                 }
+                await _unitOfWork.SaveAsync();
+            }
+        }
+
+        private async Task SendLoginAlertAsync(ApplicationUser user)
+        {
+            try
+            {
+                var ipAddress = _httpContextAccessor.HttpContext?.Connection?.RemoteIpAddress?.ToString() ?? "غير معروف";
+                var userAgentStr = _httpContextAccessor.HttpContext?.Request?.Headers["User-Agent"].ToString();
+                
+                string browser = "غير معروف";
+                string os = "غير معروف";
+
+                if (!string.IsNullOrEmpty(userAgentStr))
+                {
+                    var uaParser = Parser.GetDefault();
+                    var clientInfo = uaParser.Parse(userAgentStr);
+                    browser = clientInfo.UA.Family;
+                    os = clientInfo.OS.Family;
+                }
+
+                var mailBody = EmailTemplates.BuildLoginAlertTemplate(user.FName, ipAddress, browser, os);
+                _ = _emailService.SendEmailAsync(user.Email!, "لقاء - تنبيه أمني: تسجيل دخول جديد", mailBody);
+
+                _ = _notificationService.SendNotificationAsync(new SendNotificationDTO
+                {
+                    UserId = user.Id,
+                    Content = $"تم تسجيل دخول جديد لحسابك من جهاز: {os} ({browser}). إذا لم تكن أنت، يرجى تغيير كلمة المرور فوراً.",
+                    Type = NotificationType.System
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to send login alert for User {Email}", user.Email);
             }
         }
 

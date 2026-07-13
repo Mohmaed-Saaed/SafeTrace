@@ -34,6 +34,14 @@ namespace SafeTrace.Application.Services.Cases
             }
         }
 
+        /// <summary>
+        /// Creates a new long-term missing case with pending status.
+        /// Before creating, the user must be verified, and the case is checked against existing
+        /// active cases (via face + attribute matching):
+        /// - a match with the SAME case type (LongTerm) blocks creation entirely (true duplicate).
+        /// - a match with a DIFFERENT case type blocks creation and returns the matched case(s),
+        ///   unless forceCreate is true.
+        /// </summary>
         public async Task<ApiResponse<CreateCaseResultDto>> CreateAsync(string userId, CreateLongTermCaseDto dto, bool forceCreate = false)
         {
             await _caseHelper.ValidateVerifiedUserAsync(userId);
@@ -44,31 +52,22 @@ namespace SafeTrace.Application.Services.Cases
                 Age = dto.Age
             };
 
-            // قمنا بتمرير الـ Lambda لرمي الـ Exception المخصص لحالة الـ LongTerm هنا
             var duplicateCheck = await _caseHelper.CheckDuplicateCaseAsync(
                 CaseType.LongTerm,
                 subject,
                 dto.PrimaryImage,
-                onSameTypeMatchAsync: async (sameTypeDuplicate) =>
-                {
-                    _logger.LogInformation(
-                        "Duplicate case blocked. Existing case {CaseCode} already matches this person with the same type {CaseType}.",
-                        sameTypeDuplicate.CaseCode,
-                        CaseType.LongTerm);
-
-                    throw new BadRequestException($"توجد حالة مطابقة لنفس الشخص من نفس نوع الحالة بالفعل (كود الحالة: {sameTypeDuplicate.CaseCode}).");
-                },
                 forceCreate);
 
-            if (duplicateCheck.RequiresConfirmation)
+            var checkResult = _caseHelper.CheckDuplicateCase(CaseType.LongTerm, matches);
+
+            if (checkResult.HasSameTypeMatch)
             {
-                return ApiResponse<CreateCaseResultDto>.Ok(
-                    new CreateCaseResultDto
-                    {
-                        IsCreated = false,
-                        MatchedCases = duplicateCheck.MatchedCases
-                    },
-                    "تم العثور على حالة مشابهة من نوع مختلف. يمكنك التواصل مع صاحب الحالة، أو إعادة الإرسال مع forceCreate=true لتجاهل التطابق.");
+                throw new BadRequestException($"توجد حالة بنفس النوع بالفعل (كود الحالة: {checkResult?.SameTypeMatch?.CaseCode}).");
+            }
+
+            if (checkResult.HasCrossTypeMatches && !forceCreate)
+            {
+                throw new DuplicateCasesFoundException(checkResult.CrossTypeMatches);
             }
 
             var entity = _mapper.Map<LongTermMissingCase>(dto);
@@ -111,7 +110,7 @@ namespace SafeTrace.Application.Services.Cases
 
                     _logger.LogError(
                         ex,
-                        "Failed to create unknown case for user {UserId}",
+                        "Failed to create longTerm case for user {UserId}",
                         userId);
                 });
 
@@ -119,13 +118,7 @@ namespace SafeTrace.Application.Services.Cases
                 "Created longTerm missing case. CaseId={CaseId}, CaseCode={CaseCode}, UserId={UserId}",
                 entity.Id, entity.CaseCode, userId);
 
-            return ApiResponse<CreateCaseResultDto>.Ok(
-                new CreateCaseResultDto
-                {
-                    IsCreated = true,
-                    CaseId = entity.Id
-                },
-                "تم إنشاء حالة الفقد طويلة المدة بنجاح.");
+            return ApiResponse<string>.Ok("تم إنشاء حالة الفقد طويلة المدة بنجاح.");
         }
 
         public async Task<ApiResponse<string>> UpdateAsync(long id, string userId, UpdateLongTermCaseDto dto)
@@ -237,5 +230,7 @@ namespace SafeTrace.Application.Services.Cases
 
             return ApiResponse<string>.Ok(message: "تم تحديث حالة الفقد طويلة المدة بنجاح.");
         }
+
+
     }
 }

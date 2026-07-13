@@ -1,5 +1,6 @@
 ﻿using SafeTrace.Application.DTOs.NotificationDTOS;
 using SafeTrace.Application.DTOs.User_Profiel_DTOS;
+using SafeTrace.Application.DTOs.User_Profiel_DTOS.Update_Profile_DTOS;
 using SafeTrace.Domain.Entities;
 
 namespace SafeTrace.Application.Mapping
@@ -8,13 +9,24 @@ namespace SafeTrace.Application.Mapping
     {
         public MappingProfile()
         {
+
+
+
+
+            CreateMap<Case, MyCaseListItemDto>()
+    .ForMember(d => d.FullName,
+        o => o.MapFrom(s =>
+            $"{s.FName} {s.SName} {s.TName} {s.LName}".Trim()));
+
             CreateMap<ApplicationUser, GetUserInfoDTO>()
-        .ForMember(dest => dest.FullName,
-            opt => opt.MapFrom(src => $"{src.FName} {src.LName}"))
-        .ForMember(dest => dest.HomeLocation,
-            opt => opt.MapFrom(src =>
-                $"{src.HomeLocationLatitude},{src.HomeLocationLongitude}"))
-        .ReverseMap();
+    .ForMember(dest => dest.FullName,
+        opt => opt.MapFrom(src => $"{src.FName} {src.LName}"))
+    .ForMember(dest => dest.HomeLatitude,
+        opt => opt.MapFrom(src => src.HomeLocationLatitude))
+    .ForMember(dest => dest.HomeLongitude,
+        opt => opt.MapFrom(src => src.HomeLocationLongitude))
+    .ForMember(dest => dest.Cases,
+        opt => opt.MapFrom(src => src.Cases));
 
 
             #region test method dto
@@ -28,9 +40,31 @@ namespace SafeTrace.Application.Mapping
 
             #endregion
 
+            CreateMap<UpdateNameDTO, ApplicationUser>()
+                 .ForMember(dest => dest.FName, opt => opt.MapFrom(src => src.FirstName))
+                 .ForMember(dest => dest.LName, opt => opt.MapFrom(src => src.LastName))
+                 .ReverseMap();
+
+            CreateMap<UpdateHomeLocationDTO, ApplicationUser>()
+                .ForMember(dest => dest.HomeLocationLatitude, opt => opt.MapFrom(src => src.HomeLatitude))
+                .ForMember(dest => dest.HomeLocationLongitude, opt => opt.MapFrom(src => src.HomeLongitude))
+                .ReverseMap();
+
+            CreateMap<UpdateProfileImageDTO, ApplicationUser>();
+            CreateMap<AddIdImageDTO, ApplicationUser>();
+
+
+
+
+
             CreateMap<UpdateProfileInfoDTO, ApplicationUser>()
                 .ForMember(dest => dest.FName, opt => opt.MapFrom(src => src.FirstName))
                 .ForMember(dest => dest.LName, opt => opt.MapFrom(src => src.LastName))
+                .ForMember(dest => dest.HomeLocationLatitude,
+        opt => opt.MapFrom(src => src.HomeLatitude))
+
+    .ForMember(dest => dest.HomeLocationLongitude,
+        opt => opt.MapFrom(src => src.HomeLongitude))
                 .ReverseMap();
 
             CreateMap<SendNotificationDTO, Notification>().ReverseMap();

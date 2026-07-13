@@ -9,7 +9,7 @@ namespace SafeTrace.Application.DTOs.Cases.Response
     ///   MatchedCases holds the candidate(s); the client should offer the user the choice to
     ///   chat with the case owner, or resend the request with forceCreate = true to ignore the match.
     /// </summary>
-    public class CreateCaseResultDto
+    public class CreateCaseResponseDto
     {
         public bool IsCreated { get; set; }
 
