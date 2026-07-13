@@ -1,7 +1,8 @@
-﻿    using Microsoft.AspNetCore.Diagnostics;
-    using Microsoft.AspNetCore.Mvc;
-    using SafeTrace.Application.Exceptions;
-    using System.Net;
+using ElmahCore;
+using Microsoft.AspNetCore.Diagnostics;
+using Microsoft.AspNetCore.Mvc;
+using SafeTrace.Application.Exceptions;
+using System.Net;
 
     namespace SafeTrace.API.ExceptionHandlers
     {
@@ -39,15 +40,13 @@
                     }
             _logger.LogError(exception, "An exception occurred while processing the request.");
 
-                var statusCode = exception switch
-                {
-                    NotFoundException => HttpStatusCode.NotFound,
-                    BadRequestException => HttpStatusCode.BadRequest,
-                    UnauthorizedException => HttpStatusCode.Unauthorized,
-                    ForbiddenException => HttpStatusCode.Forbidden,
-                    ConflictException => HttpStatusCode.Conflict,
-                    KeyNotFoundException => HttpStatusCode.NotFound,
-                    UnauthorizedAccessException => HttpStatusCode.Unauthorized,
+            var statusCode = exception switch
+            {
+                NotFoundException => HttpStatusCode.NotFound,
+                BadRequestException => HttpStatusCode.BadRequest,
+                UnauthorizedException => HttpStatusCode.Unauthorized,
+                ForbiddenException => HttpStatusCode.Forbidden,
+                ConflictException => HttpStatusCode.Conflict,
 
                     _ => HttpStatusCode.InternalServerError
                 };

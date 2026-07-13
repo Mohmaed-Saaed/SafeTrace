@@ -19,20 +19,46 @@ namespace SafeTrace.API.Controllers
             _chatService = chatService;
         }
 
+
         /// <summary>
-        /// Starts a new chat between two users.
+        /// Retrieves the information required to display the Start Chat page.
         /// </summary>
         /// <remarks>
-        /// Creates a chat if one does not already exist between the participants.
-        /// Returns the existing chat otherwise.
+        /// Returns the case summary, participant information, and whether a chat
+        /// already exists between the current user and the case owner.
+        /// This endpoint does not create a chat.
         /// </remarks>
-        /// <response code="200">Chat created or already exists.</response>
-        /// <response code="400">Invalid request.</response>
+        /// <param name="caseId">The ID of the case.</param>
+        /// <response code="200">Start chat context retrieved successfully.</response>
+        /// <response code="400">The current user cannot start a chat for their own case.</response>
         /// <response code="401">Unauthorized.</response>
-        /// <response code="403">User does not have permission.</response>
-        [HttpPost("start")]
+        /// <response code="404">The specified case was not found.</response>
+        [HttpGet("start-context/{caseId}")]
+        [HasPermission(Permissions.Chat.StartContext)]
+        public async Task<IActionResult> GetStartContext(long caseId)
+        {
+            var userId = GetCurrentUserId();
+            var result = await _chatService.GetStartChatContextAsync(caseId, userId);
+            return Ok(result);  
+        }
+
+        /// <summary>
+        /// Creates a new chat or returns the existing one.
+        /// </summary>
+        /// <remarks>
+        /// Starts a conversation between the current user and the owner of the specified case.
+        /// If a chat already exists between both participants for the same case,
+        /// the existing chat is returned instead of creating a new one.
+        /// </remarks>
+        /// <param name="request">Contains the case identifier.</param>
+        /// <response code="200">Chat created successfully or an existing chat was returned.</response>
+        /// <response code="400">Invalid request or the user attempted to start a chat on their own case.</response>
+        /// <response code="401">Unauthorized.</response>
+        /// <response code="403">The user does not have permission to create chats.</response>
+        /// <response code="404">The specified case was not found.</response>
+        [HttpPost("create")]
         [HasPermission(Permissions.Chat.Create)]
-        public async Task<IActionResult> StartChat([FromBody] StartChatRequest request)
+        public async Task<IActionResult> CreateChat([FromBody] StartChatRequest request)
         {
             var userId = GetCurrentUserId();
             var chat = await _chatService.StartOrGetChatAsync(request.CaseId, userId);

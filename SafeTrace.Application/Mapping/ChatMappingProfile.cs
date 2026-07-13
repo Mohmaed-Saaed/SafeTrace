@@ -14,7 +14,20 @@ namespace SafeTrace.Application.Mapping
             // Chat → ChatDetailsResponse
 
             CreateMap<Chat, ChatDetailsDto>()
-            .ForMember(dest => dest.ChatId, opt => opt.MapFrom(src => src.Id));
+            .ForMember(dest => dest.ChatId, opt => opt.MapFrom(src => src.Id))
+
+            .ForMember(d => d.CaseTitle,
+            opt => opt.MapFrom(s =>
+                $"{s.Case.FName} {s.Case.SName} {s.Case.TName} {s.Case.LName}"))
+            .ForMember(d => d.SenderName,
+            opt => opt.MapFrom(s =>
+                $"{s.Sender.FName} {s.Sender.LName}"))
+            .ForMember(d => d.ReceiverName,
+            opt => opt.MapFrom(s =>
+                $"{s.Receiver.FName} {s.Receiver.LName}"));
+            
+
+            
 
             // Message → MessageResponse
             CreateMap<Message, MessageDto>();

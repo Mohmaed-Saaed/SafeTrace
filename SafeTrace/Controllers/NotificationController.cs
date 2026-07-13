@@ -1,6 +1,7 @@
 ﻿using System.Security.Claims;
 using Microsoft.AspNetCore.Mvc;
 using SafeTrace.Application.Constants;
+using SafeTrace.Application.DTOs.NotificationDTOS;
 using SafeTrace.Application.Interfaces.IServices.INotificationSewrvice;
 using SafeTrace.Infrastructure.Authorization;
 
@@ -18,7 +19,18 @@ namespace SafeTrace.API.Controllers
         }
 
 
+        #region test
+        [HttpPut("SendNotify")]
+        public async Task<IActionResult> SendNotify([FromBody] SendNotificationDTO dto)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
 
+            await _notificationService.SendNotificationAsync(dto);
+
+            return Ok();
+        }
+        #endregion
 
 
         [HttpGet("my-Notifications")]

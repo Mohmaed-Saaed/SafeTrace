@@ -45,6 +45,8 @@ namespace SafeTrace.Application.Services.NotificationServices
             _logger.LogInformation("Sending notification to UserId: {UserId} at {date}", dto.UserId, DateTime.UtcNow);
 
             var notification = _mapper.Map<Notification>(dto);
+            notification.CreatedAt = DateTime.UtcNow;
+            notification.IsRead = false;
 
             await _UNIT.Repository<Notification>().CreateAsync(notification);
             await _UNIT.SaveAsync();
@@ -55,8 +57,7 @@ namespace SafeTrace.Application.Services.NotificationServices
                .CountAsync(n => n.UserId == dto.UserId && !n.IsRead);
 
             var responseDto = _mapper.Map<GetUserNotificationsDTO>(notification);
-            responseDto.CreatedAt = DateTime.UtcNow;
-            responseDto.IsRead = false;
+
 
             var payload = new
             {
@@ -190,25 +191,61 @@ namespace SafeTrace.Application.Services.NotificationServices
             _logger.LogInformation("Marked {Count} notifications as read for UserId: {UserId}", affected, userId);
         }
 
-        public async Task<ApiResponse<IEnumerable<GetUserNotificationsDTO>>> GetUserNotificationsAsync(string userId, int page = 1, int pageSize = 10)
-        {
-            _logger.LogInformation("Fetching notifications for UserId: {UserId}, Page: {Page}, PageSize: {PageSize}", userId, page, pageSize);
+        //public async Task<ApiResponse<IEnumerable<GetUserNotificationsDTO>>> GetUserNotificationsAsync(string userId, int page = 1, int pageSize = 10)
+        //{
+        //    _logger.LogInformation("Fetching notifications for UserId: {UserId}, Page: {Page}, PageSize: {PageSize}", userId, page, pageSize);
 
-            var notifications = await _UNIT.Repository<Notification>()
+        //    var notifications = await _UNIT.Repository<Notification>()
+        //        .Query(
+        //            tracked: false,
+        //            orderBy: n => n.CreatedAt,
+        //            orderByDirection: OrderBy.Descending)
+        //        .Where(n => n.UserId == userId)
+        //        .Skip((page - 1) * pageSize)
+        //        .Take(pageSize)
+        //        .ToListAsync();
+
+        //    var res = _mapper.Map<IEnumerable<GetUserNotificationsDTO>>(notifications);
+        //    return ApiResponse<IEnumerable<GetUserNotificationsDTO>>.Ok(res, "تم جلب الاشعارات بنجاح.");
+        //}
+
+        public async Task<ApiResponse<NotificationPageDto>> GetUserNotificationsAsync(
+    string userId,
+    int page = 1,
+    int pageSize = 10)
+        {
+            _logger.LogInformation(
+                "Fetching notifications for UserId: {UserId}, Page: {Page}, PageSize: {PageSize}",
+                userId, page, pageSize);
+
+            var query = _UNIT.Repository<Notification>()
                 .Query(
                     tracked: false,
                     orderBy: n => n.CreatedAt,
                     orderByDirection: OrderBy.Descending)
-                .Where(n => n.UserId == userId)
+                .Where(n => n.UserId == userId);
+
+            var totalCount = await query.CountAsync();
+
+            var notifications = await query
                 .Skip((page - 1) * pageSize)
                 .Take(pageSize)
                 .ToListAsync();
 
-            var res = _mapper.Map<IEnumerable<GetUserNotificationsDTO>>(notifications);
-            return ApiResponse<IEnumerable<GetUserNotificationsDTO>>.Ok(res, "تم جلب الاشعارات بنجاح.");
+            var result = new NotificationPageDto
+            {
+                Items = _mapper.Map<IEnumerable<GetUserNotificationsDTO>>(notifications),
+                Page = page,
+                PageSize = pageSize,
+                TotalCount = totalCount,
+                TotalPages = (int)Math.Ceiling(totalCount / (double)pageSize),
+                HasMore = page < (int)Math.Ceiling(totalCount / (double)pageSize)
+
+            };
+            return ApiResponse<NotificationPageDto>.Ok(
+                result,
+                "تم جلب الاشعارات بنجاح.");
         }
-
-
     }
 
 }
