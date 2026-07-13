@@ -18,10 +18,10 @@ namespace SafeTrace.API.Controllers
         public PaymentController(IPaymentService paymentService) { 
             _paymentService = paymentService;
         }
-        [HttpPost("create-payment")]
-        public async Task<IActionResult> CreatePaymentPaymobIntent([FromBody] CreateDonationRequestDto request)
+        [HttpPost("create-donation")]
+        public async Task<IActionResult> CreateDonationPaymobIntent([FromBody] CreateDonationRequestDto request)
         {
-          var response = await  _paymentService.CreatePaymentPaymobAsync(request.Amount, request.Message, CurrentUserId);
+          var response = await  _paymentService.CreateDonationPaymobAsync(request, CurrentUserId);
           return Ok(response);
         }
 
@@ -40,27 +40,18 @@ namespace SafeTrace.API.Controllers
 
         [Authorize(Roles = "Admin")]
         [HttpGet]
-        public async Task<IActionResult> GetPayments([FromQuery] DonationQueryDto query)
+        public async Task<IActionResult> GetDonations([FromQuery] DonationAdminQueryDto query)
         {
-            var response = await _paymentService.GetPaymentsAsync(query);
+            var response = await _paymentService.GetDonationsAsync(query);
 
             return Ok(response);
         }
 
-        [Authorize(Roles = "Admin")]
-        [HttpGet("{id:int}")]
-        public async Task<IActionResult> GetPayment(int id)
-        {
-            var response = await _paymentService.GetPaymentByIdAsync(id);
-
-            return Ok(response);
-        }
         [Authorize(Roles = "User")]
         [HttpGet("get-my-payments")]
-        public async Task<IActionResult> GetMyPayments()
+        public async Task<IActionResult> GetMyDonations([FromQuery] DonationUserQueryDto query)
         {
-            var response = await _paymentService.GetUserPaymentsAsync(User.FindFirstValue(ClaimTypes.NameIdentifier));
-
+            var response = await _paymentService.GetUserDonationsAsync(User.FindFirstValue(ClaimTypes.NameIdentifier), query);
             return Ok(response);
         }
     }

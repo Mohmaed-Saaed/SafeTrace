@@ -1,4 +1,5 @@
 ﻿using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
 using SafeTrace.Application.DTOs.Payment.Request;
 using SafeTrace.Application.DTOs.Payment.Response;
 using System;
@@ -10,11 +11,10 @@ namespace SafeTrace.Application.Interfaces.IServices
 {
     public interface IPaymentService
     {
-        public Task<ApiResponse<CreatePaymentResponseDto>> CreatePaymentPaymobAsync(decimal amount, string? message,string? CurrentUserId);
+        public Task<ApiResponse<CreateDonationResponseDto>> CreateDonationPaymobAsync(CreateDonationRequestDto request, string? CurrentUserId);
         public Task ProcessWebhookPaymobAsync(JsonElement payload, string? query);
         Task<ApiResponse<string>> GetPaymentResultAsync(IQueryCollection query);
-        Task<PaginationResponseDto<DonationDto>> GetUserPaymentsAsync(string userId);
-        Task<PaginationResponseDto<DonationDto>> GetPaymentsAsync(DonationQueryDto query);
-        Task<ApiResponse<DonationDto>> GetPaymentByIdAsync(int id);
+        Task<PaginationResponseDto<DonationAdminListDto>> GetDonationsAsync(DonationAdminQueryDto query);
+        Task<PaginationResponseDto<DonationUserListDto>> GetUserDonationsAsync(string? id, DonationUserQueryDto query);
     }
 }

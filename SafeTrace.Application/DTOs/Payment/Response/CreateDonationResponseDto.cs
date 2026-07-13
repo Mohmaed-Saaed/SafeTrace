@@ -4,7 +4,7 @@ using System.Text;
 
 namespace SafeTrace.Application.DTOs.Payment.Response
 {
-    public class CreatePaymentResponseDto
+    public class CreateDonationResponseDto
     {
         public long DonationId { get; set; }
 

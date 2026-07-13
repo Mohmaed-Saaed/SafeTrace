@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Http;
+﻿using AutoMapper;
+using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 using SafeTrace.Application.DTOs.Payment.Request;
 using SafeTrace.Application.DTOs.Payment.Response;
@@ -17,28 +18,30 @@ namespace SafeTrace.Infrastructure.Services
     {
         private readonly IConfiguration _config;
         private readonly IUnitOfWork _unitOfWork;
-
         private readonly ILogger<PaymentService> _logger;
-
+        private readonly IMapper _mapper;
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly HttpClient _httpClient;
         public PaymentService(IConfiguration confg,
             IUnitOfWork unitOfWork,
             UserManager<ApplicationUser> userManager,
             HttpClient httpClient,
-            ILogger<PaymentService> logger)
+            ILogger<PaymentService> logger,
+            IMapper mapper
+            )
         {
             _config = confg;
             _unitOfWork = unitOfWork;
             _userManager = userManager;
             _httpClient = httpClient;
             _logger = logger;
+            _mapper = mapper;
         }
-        public async Task<ApiResponse<CreatePaymentResponseDto>> CreatePaymentPaymobAsync(decimal amount, string? message, string? currentUserId)
+        public async Task<ApiResponse<CreateDonationResponseDto>> CreateDonationPaymobAsync(CreateDonationRequestDto request, string? currentUserId)
         {
-            if (amount <= 0)
+            if (request.Amount <= 0)
             {
-                _logger.LogWarning("Attempted to create a payment with an invalid amount: {Amount}", amount);
+                _logger.LogWarning("Attempted to create a donation with an invalid amount: {Amount}", request.Amount);
                 throw new BadRequestException("Amount must be greater than zero.");
             }
 
@@ -56,9 +59,9 @@ namespace SafeTrace.Infrastructure.Services
             var donation = new Donation
             {
                 UserId = currentUserId,
-                Amount = amount,
+                Amount = request.Amount,
                 Currency = "EGP",
-                Message = message,
+                Message = request.Message,
                 PaymentStatus = PaymentStatus.Pending,
                 CreatedAt = DateTime.UtcNow
             };
@@ -72,7 +75,7 @@ namespace SafeTrace.Infrastructure.Services
 
             var requestBody = new CreateIntentionRequestDto
             {
-                Amount = (long)(amount * 100),
+                Amount = (long)(request.Amount * 100),
 
                 Currency = "EGP",
 
@@ -86,8 +89,8 @@ namespace SafeTrace.Infrastructure.Services
         new PaymobItem
         {
             Name = "Leqaa Donation",
-            Amount = (long)(amount * 100),
-            Description = message ?? "Donation",
+            Amount = (long)(request.Amount * 100),
+            Description = request.Message ?? "Donation",
             Quantity = 1
         }
     },
@@ -151,7 +154,7 @@ namespace SafeTrace.Infrastructure.Services
             var checkoutUrl =
                 $"{baseUrl}/unifiedcheckout/?publicKey={publicKey}&clientSecret={clientSecret}";
 
-            return ApiResponse<CreatePaymentResponseDto>.Ok(new()
+            return ApiResponse<CreateDonationResponseDto>.Ok(new()
             {
                 DonationId = donation.Id,
                 CheckoutUrl = checkoutUrl
@@ -320,36 +323,53 @@ namespace SafeTrace.Infrastructure.Services
                 Encoding.UTF8.GetBytes(calculatedHmac),
                 Encoding.UTF8.GetBytes(receivedHmac.ToLowerInvariant()));
         }
-
-        public Task<PaginationResponseDto<DonationDto>> GetUserPaymentsAsync(string userId)
+        public async Task<PaginationResponseDto<DonationUserListDto>> GetUserDonationsAsync(string? userId, DonationUserQueryDto query)
         {
-            //throw new NotImplementedException();
-                
-            var donations = _unitOfWork.Repository<Donation>().Query().Where(d => d.UserId == userId)
-                .Where(d => d.UserId == userId)
-                .OrderByDescending(d => d.CreatedAt)
-                .Select(d => new DonationDto
-                {
-                    Amount = d.Amount,
-                    Date = d.CreatedAt,
 
-                })
-                .ToList();
+            if (string.IsNullOrWhiteSpace(userId))
+                throw new BadRequestException("User ID is required.");
 
-            return Task.FromResult(new PaginationResponseDto<DonationDto>
+            var donationsQuery = _unitOfWork.Repository<Donation>().Query(tracked: false).Where(d => d.UserId == userId && d.PaymentStatus == PaymentStatus.Succeeded);
+
+            var totalCount = donationsQuery.Count();
+
+            var donations = donationsQuery.OrderByDescending(f => f.PaidAt)
+                .Skip((query.Page - 1) * query.PageSize).Take(query.PageSize).ToListAsync();
+
+            var items = _mapper.Map<List<DonationUserListDto>>(donations);
+
+            var response = new PaginationResponseDto<DonationUserListDto>
             {
-                Items = donations,
-            });
+                Items = items,
+                TotalCount = totalCount,
+                PageNumber = query.Page,
+                PageSize = query.PageSize
+            };
+            return response;
+
+        }
+        public async Task<PaginationResponseDto<DonationAdminListDto>> GetDonationsAsync(DonationAdminQueryDto query)
+        {
+
+            var donationsQuery = _unitOfWork.Repository<Donation>()
+                .Query(tracked:false,includes: d => d.User).Where(query.Status != null ? d => d.PaymentStatus == query.Status : d => true);
+
+            var totalCount = await donationsQuery.CountAsync();
+
+            var donations = await donationsQuery.OrderByDescending(f => f.CreatedAt)
+                .Skip((query.Page - 1) * query.PageSize).Take(query.PageSize).ToListAsync();
+
+            var items = _mapper.Map<List<DonationAdminListDto>>(donations);
+
+            var response = new PaginationResponseDto<DonationAdminListDto>
+            {
+                Items = items,
+                TotalCount = totalCount,
+                PageNumber = query.Page,
+                PageSize = query.PageSize
+            };
+            return response;
         }
 
-        public Task<PaginationResponseDto<DonationDto>> GetPaymentsAsync(DonationQueryDto query)
-        {
-            throw new NotImplementedException();
-        }
-
-        public Task<ApiResponse<DonationDto>> GetPaymentByIdAsync(int id)
-        {
-            throw new NotImplementedException();
-        }
     }
 }
