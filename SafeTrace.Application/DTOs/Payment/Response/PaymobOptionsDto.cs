@@ -4,7 +4,7 @@ using System.Text;
 
 namespace SafeTrace.Application.DTOs.Payment.Response
 {
-    public class PaymobOptions
+    public class PaymobOptionsDto
     {
         public const string SectionName = "Paymob";
 

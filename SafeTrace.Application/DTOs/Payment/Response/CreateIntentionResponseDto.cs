@@ -5,10 +5,10 @@ using System.Text.Json.Serialization;
 
 namespace SafeTrace.Application.DTOs.Payment.Response
 {
-    public class CreateIntentionResponse
+    public class CreateIntentionResponseDto
     {
         [JsonPropertyName("id")]
-        public long Id { get; set; }
+        public string Id { get; set; }
 
         [JsonPropertyName("client_secret")]
         public string ClientSecret { get; set; } = "";

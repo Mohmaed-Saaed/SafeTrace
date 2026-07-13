@@ -29,6 +29,7 @@ namespace SafeTrace.API.ExceptionHandlers
                 BadRequestException => HttpStatusCode.BadRequest,
                 UnauthorizedException => HttpStatusCode.Unauthorized,
                 ForbiddenException => HttpStatusCode.Forbidden,
+                PaymentVerificationException => HttpStatusCode.Unauthorized,
                 ConflictException => HttpStatusCode.Conflict,
 
                 _ => HttpStatusCode.InternalServerError

@@ -5,7 +5,7 @@ using System.Text.Json.Serialization;
 
 namespace SafeTrace.Application.DTOs.Payment.Request
 {
-    public class CreateIntentionRequest
+    public class CreateIntentionRequestDto
     {
         [JsonPropertyName("amount")]
         public long Amount { get; set; }

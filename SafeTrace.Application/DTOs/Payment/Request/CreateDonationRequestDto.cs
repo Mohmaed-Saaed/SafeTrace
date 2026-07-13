@@ -4,7 +4,7 @@ using System.Text;
 
 namespace SafeTrace.Application.DTOs.Payment.Request
 {
-    public class CreateDonationRequest
+    public class CreateDonationRequestDto
     {
         public decimal Amount { get; set; }
 
