@@ -74,7 +74,7 @@ namespace SafeTrace.Application.Services.Cases
                 throw new BadRequestException($"لا يمكن تنفيذ هذا الإجراء على حالة بحالة '{entity.Status}'.");
             }
         }
-        
+
         /// <summary>
         /// Ensures the user exists and has a verified account.
         /// </summary>
@@ -116,7 +116,7 @@ namespace SafeTrace.Application.Services.Cases
 
             return $"{prefix}-{number}";
         }
-        
+
         private static readonly Dictionary<CaseCodePrefix, string> SequenceNames = new()
         {
             { CaseCodePrefix.LNG, "LongTermCaseSequence" },
@@ -177,7 +177,7 @@ namespace SafeTrace.Application.Services.Cases
                 CreatedAt = DateTime.UtcNow
             };
         }
-       
+
         /// <summary>
         /// Sets the primary image for a case.
         /// </summary>
@@ -198,7 +198,7 @@ namespace SafeTrace.Application.Services.Cases
                 image.IsPrimary = image.Id == primaryPhotoId;
             }
         }
-        
+
         private static readonly HashSet<string> VideoExtensions = new(StringComparer.OrdinalIgnoreCase)
         {
             ".mp4",
@@ -238,7 +238,7 @@ namespace SafeTrace.Application.Services.Cases
                 _logger.LogWarning(ex, "Failed to delete faces for case {CaseId}", caseId);
             }
         }
-    
+
         /// <summary>
         /// Finds existing cases that match the provided subject and face image.
         /// </summary>
@@ -256,8 +256,27 @@ namespace SafeTrace.Application.Services.Cases
 
             return new MatchedCasesResult
             {
-                HasMatched = matchedCases.Count != 0,
-                DuplicateCases = matchedCases
+                HasMatches = matchedCases.Count != 0,
+                MatchedCases = matchedCases
+            };
+        }
+        
+        /// <summary>
+        /// Analyzes matched cases and separates same-type matches from cross-type matches.
+        /// </summary>
+        public DuplicateCheckResult CheckDuplicateCase(CaseType currentCaseType, MatchedCasesResult matches)
+        {
+            var sameType = matches.MatchedCases
+                .FirstOrDefault(x => x.CaseType == currentCaseType);
+
+            var crossType = matches.MatchedCases
+                .Where(x => x.CaseType != currentCaseType)
+                .ToList();
+
+            return new DuplicateCheckResult
+            {
+                SameTypeMatch = sameType,
+                CrossTypeMatches = crossType
             };
         }
 
@@ -271,10 +290,10 @@ namespace SafeTrace.Application.Services.Cases
             return faceMatches
                 .Where(x => !string.IsNullOrWhiteSpace(x.FaceId))
                 .GroupBy(x => x.FaceId)
-                .Select(g => new FaceMatchResult{FaceId = g.Key!, Similarity = g.Max(x => x.Similarity ?? 0)})
+                .Select(g => new FaceMatchResult { FaceId = g.Key!, Similarity = g.Max(x => x.Similarity ?? 0) })
                 .ToList();
         }
- 
+
         private async Task<List<Case>> LoadCandidateCasesAsync(IReadOnlyCollection<FaceMatchResult> faceMatches)
         {
             var faceIds = faceMatches.Select(x => x.FaceId).ToList();
@@ -287,7 +306,7 @@ namespace SafeTrace.Application.Services.Cases
                 .Where(c => c.Status == CaseStatus.Active && c.CaseFiles.Any(f => f.FaceId != null && faceIds.Contains(f.FaceId)))
                 .ToListAsync();
         }
- 
+
         private List<MatchedCaseDto> FilterMatchedCases(IReadOnlyCollection<Case> candidateCases, IReadOnlyCollection<FaceMatchResult> faceMatches, CaseMatchSubjectInfoDto subject)
         {
             var matchedCases = new List<MatchedCaseDto>();
@@ -325,7 +344,7 @@ namespace SafeTrace.Application.Services.Cases
 
             return matchedCases;
         }
-        
+
         private static bool PassesVerification(Case candidate, float similarity, CaseMatchSubjectInfoDto subject)
         {
             if (similarity < MinimumSimilarity)
@@ -339,6 +358,6 @@ namespace SafeTrace.Application.Services.Cases
 
             return true;
         }
-    
+
     }
 }
