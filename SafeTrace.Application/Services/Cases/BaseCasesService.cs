@@ -437,7 +437,7 @@ namespace SafeTrace.Application.Services.Cases
         }
         
         // Applies filtering, sorting, and pagination, then maps the result to the requested DTO.
-        private async Task<PaginationResponseDto<TDto>> GetPagedResultAsync<TDto>(IQueryable<TEntity> query, TFilterDto filter)
+        protected async Task<PaginationResponseDto<TDto>> GetPagedResultAsync<TDto>(IQueryable<TEntity> query, TFilterDto filter)
         {
             query = ApplyFilter(query, filter);
 
@@ -456,9 +456,9 @@ namespace SafeTrace.Application.Services.Cases
                 TotalCount = totalCount
             };
         }
-        
+
         // Retrieves a case by ID, validates its status if required, and maps it to the requested DTO.
-        private async Task<TDto> GetByIdInternalAsync<TDto>(long id, bool activeOnly, params Expression<Func<TEntity, object>>[] includes)
+        protected  async Task<TDto> GetByIdInternalAsync<TDto>(long id, bool activeOnly, params Expression<Func<TEntity, object>>[] includes)
         {
             var entity = await _caseHelper.GetValidCaseAsync<TEntity>(
                 id,
