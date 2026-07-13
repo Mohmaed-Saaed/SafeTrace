@@ -1,4 +1,4 @@
-﻿using AutoMapper;
+using AutoMapper;
 using AutoMapper.QueryableExtensions;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Logging;
@@ -25,7 +25,6 @@ namespace SafeTrace.Infrastructure.Services
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly RoleManager<IdentityRole> _roleManager;
         private readonly IUnitOfWork _unitOfWork;
-        private readonly ApplicationDbContext _context;
         private readonly IMapper _mapper;
         private readonly IFileStorageService _fileStorageService;
         private readonly IEmailService _emailService;
@@ -36,7 +35,6 @@ namespace SafeTrace.Infrastructure.Services
             UserManager<ApplicationUser> userManager,
             RoleManager<IdentityRole> roleManager,
             IUnitOfWork unitOfWork,
-            ApplicationDbContext context,
             IMapper mapper,
             IFileStorageService fileStorageService,
             IEmailService emailService,
@@ -46,7 +44,6 @@ namespace SafeTrace.Infrastructure.Services
             _userManager = userManager;
             _roleManager = roleManager;
             _unitOfWork = unitOfWork;
-            _context = context;
             _mapper = mapper;
             _fileStorageService = fileStorageService;
             _emailService = emailService;
@@ -74,7 +71,7 @@ namespace SafeTrace.Infrastructure.Services
 
             if (!string.IsNullOrWhiteSpace(filterDto.RoleId))
             {
-                var userIdsInRole = _context.UserRoles
+                var userIdsInRole = _unitOfWork.Repository<IdentityUserRole<string>>().Query()
                     .Where(ur => ur.RoleId == filterDto.RoleId)
                     .Select(ur => ur.UserId);
 
@@ -87,13 +84,18 @@ namespace SafeTrace.Infrastructure.Services
                                    .Take(filterDto.PageSize)
                                    .ToListAsync();
 
+            var userIds = users.Select(u => u.Id).ToList();
+            var userRoles = await (from ur in _unitOfWork.Repository<IdentityUserRole<string>>().Query()
+                                   join r in _unitOfWork.Repository<IdentityRole>().Query() on ur.RoleId equals r.Id
+                                   where userIds.Contains(ur.UserId)
+                                   select new { ur.UserId, RoleName = r.Name })
+                                   .ToListAsync();
+
             var userDtos = _mapper.Map<List<GetUserDto>>(users);
 
             foreach (var dto in userDtos)
             {
-                var userEntity = users.First(u => u.Id == dto.Id);
-                var roles = await _userManager.GetRolesAsync(userEntity);
-                dto.Role = roles.FirstOrDefault()!;
+                dto.Role = userRoles.FirstOrDefault(ur => ur.UserId == dto.Id)?.RoleName!;
             }
 
             var paginatedResult = new PaginationResponseDto<GetUserDto>
@@ -174,7 +176,7 @@ namespace SafeTrace.Infrastructure.Services
             }
 
             var emailBody = EmailTemplates.BuildRoleChangedTemplate(user.FName, dto.NewRole);
-            await _emailService.SendEmailAsync(user.Email!, "تحديث دورك في منصة لقاء", emailBody);
+            await _emailService.SendEmailAsync(user.Email!, "لقاء - تحديث دورك في منصة لقاء", emailBody);
 
             await _notificationService.SendNotificationAsync(new SendNotificationDTO
             {
@@ -230,7 +232,7 @@ namespace SafeTrace.Infrastructure.Services
                 await _unitOfWork.CommitTransactionAsync();
 
                 var emailBody = EmailTemplates.BuildAdminRegisteredTemplate(user.FName, user.Email, dto.Password, dto.Role);
-                await _emailService.SendEmailAsync(user.Email, "تم إنشاء حساب لك في منصة لقاء", emailBody);
+                await _emailService.SendEmailAsync(user.Email, "لقاء - تم إنشاء حساب لك في منصة لقاء", emailBody);
 
                 await _notificationService.SendNotificationAsync(new SendNotificationDTO
                 {
@@ -280,7 +282,7 @@ namespace SafeTrace.Infrastructure.Services
             }
 
             var emailBody = EmailTemplates.BuildVerificationApprovedTemplate(user.FName);
-            await _emailService.SendEmailAsync(user.Email!, "تم قبول طلب توثيق حسابك", emailBody);
+            await _emailService.SendEmailAsync(user.Email!, "لقاء - تم قبول طلب توثيق حسابك", emailBody);
 
             await _notificationService.SendNotificationAsync(new SendNotificationDTO
             {
@@ -320,7 +322,7 @@ namespace SafeTrace.Infrastructure.Services
             }
 
             var emailBody = EmailTemplates.BuildVerificationRejectedTemplate(user.FName);
-            await _emailService.SendEmailAsync(user.Email!, "تم رفض طلب توثيق حسابك", emailBody);
+            await _emailService.SendEmailAsync(user.Email!, "لقاء - تم رفض طلب توثيق حسابك", emailBody);
 
             await _notificationService.SendNotificationAsync(new SendNotificationDTO
             {
@@ -357,7 +359,7 @@ namespace SafeTrace.Infrastructure.Services
                 await _userManager.SetLockoutEndDateAsync(targetUser, null);
 
                 var emailBody = EmailTemplates.BuildBlockStatusChangedTemplate(targetUser.FName, false);
-                await _emailService.SendEmailAsync(targetUser.Email!, "تم فك الحظر عن حسابك في منصة لقاء", emailBody);
+                await _emailService.SendEmailAsync(targetUser.Email!, "لقاء - تم إلغاء الحظر عن حسابك في منصة لقاء", emailBody);
 
                 await _notificationService.SendNotificationAsync(new SendNotificationDTO
                 {
@@ -387,7 +389,7 @@ namespace SafeTrace.Infrastructure.Services
                 await _unitOfWork.SaveAsync();
 
                 var emailBody = EmailTemplates.BuildBlockStatusChangedTemplate(targetUser.FName, true);
-                await _emailService.SendEmailAsync(targetUser.Email!, "تنبيه: تم حظر حسابك في منصة لقاء", emailBody);
+                await _emailService.SendEmailAsync(targetUser.Email!, "لقاء - تنبيه: تم حظر حسابك في منصة لقاء", emailBody);
 
                 await _notificationService.SendNotificationAsync(new SendNotificationDTO
                 {
@@ -463,7 +465,7 @@ namespace SafeTrace.Infrastructure.Services
             }
 
             var emailBody = EmailTemplates.BuildPermissionsChangedTemplate(user.FName);
-            await _emailService.SendEmailAsync(user.Email!, "تحديث صلاحياتك في منصة لقاء", emailBody);
+            await _emailService.SendEmailAsync(user.Email!, "لقاء - تحديث الصلاحيات في منصة لقاء", emailBody);
 
             await _notificationService.SendNotificationAsync(new SendNotificationDTO
             {

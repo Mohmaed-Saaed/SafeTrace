@@ -37,6 +37,7 @@
 		</PackageReference>
 		<PackageReference Include="SixLabors.ImageSharp" Version="4.0.0" />
 		<PackageReference Include="System.Data.SqlClient" Version="4.8.6" />
+		<PackageReference Include="UAParser" Version="3.1.47" />
 	</ItemGroup>
 
 	<ItemGroup>
