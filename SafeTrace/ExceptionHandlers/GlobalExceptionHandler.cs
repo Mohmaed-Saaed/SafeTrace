@@ -1,26 +1,43 @@
-﻿using ElmahCore;
+using ElmahCore;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
 using SafeTrace.Application.Exceptions;
 using System.Net;
 
-namespace SafeTrace.API.ExceptionHandlers
-{
-    public sealed class GlobalExceptionHandler : IExceptionHandler
+    namespace SafeTrace.API.ExceptionHandlers
     {
-        private readonly ILogger _logger;
-        private readonly IWebHostEnvironment _environment;
-
-        public GlobalExceptionHandler(
-            ILogger<GlobalExceptionHandler> logger,
-            IWebHostEnvironment environment)
+        public sealed class GlobalExceptionHandler : IExceptionHandler
         {
-            _logger = logger;
-            _environment = environment;
-        }
+            private readonly ILogger _logger;
+            private readonly IWebHostEnvironment _environment;
 
-        public async ValueTask<bool> TryHandleAsync(HttpContext httpContext, Exception exception, CancellationToken cancellationToken)
-        {
+            public GlobalExceptionHandler(
+                ILogger<GlobalExceptionHandler> logger,
+                IWebHostEnvironment environment)
+            {
+                _logger = logger;
+                _environment = environment;
+            }
+
+            public async ValueTask<bool> TryHandleAsync(HttpContext httpContext, Exception exception, CancellationToken cancellationToken)
+            {
+                if (exception is UnknownCaseMatchException matchException)
+                    {
+                        _logger.LogInformation("تم العثور على حالات مجهولة مشابهة للصور المرفوعة. يتم إرسال المقترحات إلى المستخدم.");
+
+                        httpContext.Response.StatusCode = StatusCodes.Status200OK; 
+                        httpContext.Response.ContentType = "application/json";
+
+                        var responseBody = new
+                        {
+                            status = 200,
+                            message = matchException.Message,
+                            matches = matchException.Matches
+                        };
+
+                        await httpContext.Response.WriteAsJsonAsync(responseBody, cancellationToken);
+                        return true; 
+                    }
             _logger.LogError(exception, "An exception occurred while processing the request.");
 
             var statusCode = exception switch
@@ -29,48 +46,49 @@ namespace SafeTrace.API.ExceptionHandlers
                 BadRequestException => HttpStatusCode.BadRequest,
                 UnauthorizedException => HttpStatusCode.Unauthorized,
                 ForbiddenException => HttpStatusCode.Forbidden,
+                PaymentVerificationException => HttpStatusCode.Unauthorized,
                 ConflictException => HttpStatusCode.Conflict,
 
-                _ => HttpStatusCode.InternalServerError
-            };
+                    _ => HttpStatusCode.InternalServerError
+                };
 
-            var problemDetails = new ProblemDetails
+                var problemDetails = new ProblemDetails
+                {
+                    Status = (int)statusCode,
+                    Title = GetTitle(statusCode),
+                    Detail = GetDetail(exception, statusCode),
+                    Instance = httpContext.Request.Path
+                };
+
+                httpContext.Response.StatusCode = (int)statusCode;
+
+                await httpContext.Response.WriteAsJsonAsync(problemDetails, cancellationToken);
+
+                return true;
+            }
+
+            private string GetDetail(Exception exception, HttpStatusCode statusCode)
             {
-                Status = (int)statusCode,
-                Title = GetTitle(statusCode),
-                Detail = GetDetail(exception, statusCode),
-                Instance = httpContext.Request.Path
-            };
+                if (statusCode != HttpStatusCode.InternalServerError)
+                    return exception.Message;
 
-            httpContext.Response.StatusCode = (int)statusCode;
+                return _environment.IsDevelopment()
+                    ? exception.Message
+                    : "An unexpected error occurred.";
+            }
 
-            await httpContext.Response.WriteAsJsonAsync(problemDetails, cancellationToken);
-
-            return true;
-        }
-
-        private string GetDetail(Exception exception, HttpStatusCode statusCode)
-        {
-            if (statusCode != HttpStatusCode.InternalServerError)
-                return exception.Message;
-
-            return _environment.IsDevelopment()
-                ? exception.Message
-                : "An unexpected error occurred.";
-        }
-
-        private static string GetTitle(HttpStatusCode statusCode)
-        {
-            return statusCode switch
+            private static string GetTitle(HttpStatusCode statusCode)
             {
-                HttpStatusCode.BadRequest => "Bad Request",
-                HttpStatusCode.Unauthorized => "Unauthorized",
-                HttpStatusCode.Forbidden => "Forbidden",
-                HttpStatusCode.NotFound => "Not Found",
-                HttpStatusCode.Conflict => "Conflict",
-                _ => "Internal Server Error"
-            };
-        }
+                return statusCode switch
+                {
+                    HttpStatusCode.BadRequest => "Bad Request",
+                    HttpStatusCode.Unauthorized => "Unauthorized",
+                    HttpStatusCode.Forbidden => "Forbidden",
+                    HttpStatusCode.NotFound => "Not Found",
+                    HttpStatusCode.Conflict => "Conflict",
+                    _ => "Internal Server Error"
+                };
+            }
 
+        }
     }
-}

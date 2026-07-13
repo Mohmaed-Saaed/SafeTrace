@@ -14,7 +14,6 @@ namespace SafeTrace.Application.Services.Cases
         protected readonly IMapper _mapper;
         protected readonly ICaseHelperService _caseHelper;
         protected readonly ILogger _logger;
-        private const int DefaultPageSize = 10;
 
         protected BaseCasesService(
             IUnitOfWork unitOfWork,
@@ -433,7 +432,7 @@ namespace SafeTrace.Application.Services.Cases
         {
             filter.Page = Math.Max(filter.Page, 1);
 
-            return query.Skip((filter.Page - 1) * DefaultPageSize).Take(DefaultPageSize);
+            return query.Skip((filter.Page - 1) * filter.PageSize).Take(filter.PageSize);
         }
         
         // Applies filtering, sorting, and pagination, then maps the result to the requested DTO.
@@ -452,7 +451,7 @@ namespace SafeTrace.Application.Services.Cases
             {
                 Items = _mapper.Map<List<TDto>>(items),
                 PageNumber = filter.Page,
-                PageSize = DefaultPageSize,
+                PageSize = filter.PageSize,
                 TotalCount = totalCount
             };
         }

@@ -20,7 +20,7 @@ namespace SafeTrace.API.Controllers
 
         // GET /api/complaints?pageNumber=1&pageSize=10&caseCode=ABC
         [HttpGet]
-        //[Authorize] // أو [Authorize(Roles = "Admin")] لو Admin بس
+
         public async Task<IActionResult> GetAll([FromQuery] ComplaintFilterDto filter)
         {
             var result = await _complaintService.GetAllAsync(filter);
@@ -29,7 +29,7 @@ namespace SafeTrace.API.Controllers
 
         // GET /api/complaints/5
         [HttpGet("{id:long}")]
-        //[Authorize]
+
         public async Task<IActionResult> GetById(long id)
         {
             var result = await _complaintService.GetByIdAsync(id);
@@ -38,7 +38,7 @@ namespace SafeTrace.API.Controllers
 
         // POST /api/complaints
         [HttpPost]
-        //[Authorize]
+
         public async Task<IActionResult> Create([FromBody] CreateComplaintDto dto)
         {
             // var userId = User.FindFirstValue(ClaimTypes.NameIdentifier)!; ---> for test
@@ -51,7 +51,7 @@ namespace SafeTrace.API.Controllers
 
         // DELETE /api/complaints/5
         [HttpDelete("{id:long}")]
-       // [Authorize] // أو Admin only
+        // [Authorize] // أو Admin only
         public async Task<IActionResult> Delete(long id)
         {
             await _complaintService.DeleteAsync(id);

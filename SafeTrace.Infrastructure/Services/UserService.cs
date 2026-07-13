@@ -1,13 +1,17 @@
-﻿using AutoMapper;
+using AutoMapper;
 using AutoMapper.QueryableExtensions;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Logging;
 using SafeTrace.Application.Constants;
+using SafeTrace.Application.DTOs.NotificationDTOS;
 using SafeTrace.Application.DTOs.Responses;
 using SafeTrace.Application.DTOs.User.Request;
 using SafeTrace.Application.DTOs.User.Response;
 using SafeTrace.Application.Exceptions;
+using SafeTrace.Application.Helpers;
 using SafeTrace.Application.Interfaces.IServices;
+using SafeTrace.Application.Interfaces.IServices.INotificationSewrvice;
+using SafeTrace.Application.Services.NotificationServices;
 using SafeTrace.Domain.Enums;
 using SafeTrace.Domain.Interfaces.IUnitOfWork;
 using SafeTrace.Infrastructure.DataAccess;
@@ -21,26 +25,29 @@ namespace SafeTrace.Infrastructure.Services
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly RoleManager<IdentityRole> _roleManager;
         private readonly IUnitOfWork _unitOfWork;
-        private readonly ApplicationDbContext _context;
         private readonly IMapper _mapper;
         private readonly IFileStorageService _fileStorageService;
+        private readonly IEmailService _emailService;
+        private readonly INotificationServices _notificationService;
         private readonly ILogger<UserService> _logger;
 
         public UserService(
             UserManager<ApplicationUser> userManager,
             RoleManager<IdentityRole> roleManager,
             IUnitOfWork unitOfWork,
-            ApplicationDbContext context,
             IMapper mapper,
             IFileStorageService fileStorageService,
+            IEmailService emailService,
+            INotificationServices notificationService,
             ILogger<UserService> logger)
         {
             _userManager = userManager;
             _roleManager = roleManager;
             _unitOfWork = unitOfWork;
-            _context = context;
             _mapper = mapper;
             _fileStorageService = fileStorageService;
+            _emailService = emailService;
+            _notificationService = notificationService;
             _logger = logger;
         }
 
@@ -64,7 +71,7 @@ namespace SafeTrace.Infrastructure.Services
 
             if (!string.IsNullOrWhiteSpace(filterDto.RoleId))
             {
-                var userIdsInRole = _context.UserRoles
+                var userIdsInRole = _unitOfWork.Repository<IdentityUserRole<string>>().Query()
                     .Where(ur => ur.RoleId == filterDto.RoleId)
                     .Select(ur => ur.UserId);
 
@@ -77,13 +84,18 @@ namespace SafeTrace.Infrastructure.Services
                                    .Take(filterDto.PageSize)
                                    .ToListAsync();
 
+            var userIds = users.Select(u => u.Id).ToList();
+            var userRoles = await (from ur in _unitOfWork.Repository<IdentityUserRole<string>>().Query()
+                                   join r in _unitOfWork.Repository<IdentityRole>().Query() on ur.RoleId equals r.Id
+                                   where userIds.Contains(ur.UserId)
+                                   select new { ur.UserId, RoleName = r.Name })
+                                   .ToListAsync();
+
             var userDtos = _mapper.Map<List<GetUserDto>>(users);
 
             foreach (var dto in userDtos)
             {
-                var userEntity = users.First(u => u.Id == dto.Id);
-                var roles = await _userManager.GetRolesAsync(userEntity);
-                dto.Role = roles.FirstOrDefault()!;
+                dto.Role = userRoles.FirstOrDefault(ur => ur.UserId == dto.Id)?.RoleName!;
             }
 
             var paginatedResult = new PaginationResponseDto<GetUserDto>
@@ -125,24 +137,53 @@ namespace SafeTrace.Infrastructure.Services
 
             var currentRoles = await _userManager.GetRolesAsync(user);
 
-            foreach (var role in currentRoles)
-            {
-                if(role != "User")
-                {
-                    user.VerificationStatus = VerificationStatus.Unverified;
-                }
-            }
-
             var removeResult = await _userManager.RemoveFromRolesAsync(user, currentRoles);
             if (!removeResult.Succeeded) throw new BadRequestException("فشل في إزالة الأدوار الحالية للمستخدم.");
 
             var addResult = await _userManager.AddToRoleAsync(user, dto.NewRole);
             if (!addResult.Succeeded) throw new BadRequestException("فشل في تعيين الدور الجديد للمستخدم.");
 
+            foreach (var role in currentRoles)
+            {
+                if (role != "User")
+                {
+                    user.VerificationStatus = VerificationStatus.Unverified;
+                }
+            }
+
             if (dto.NewRole != "User")
             {
                 user.VerificationStatus = VerificationStatus.Verified;
             }
+            else
+            {
+                if(user.IdentificationImage != null)
+                {
+                    _fileStorageService.DeleteFile(user.IdentificationImage);
+                    user.IdentificationImage = null;
+                }
+            }
+
+            var result = await _userManager.UpdateAsync(user);
+
+            if (!result.Succeeded)
+            {
+                _logger.LogError("Failed to change user role for UserId: {UserId}. Errors: {Errors}",
+                user.Id,
+                string.Join(", ", result.Errors.Select(e => e.Description)));
+
+                throw new BadRequestException("تعذر تغيير دور المستخدم. يرجى المحاولة مرة أخرى.");
+            }
+
+            var emailBody = EmailTemplates.BuildRoleChangedTemplate(user.FName, dto.NewRole);
+            await _emailService.SendEmailAsync(user.Email!, "لقاء - تحديث دورك في منصة لقاء", emailBody);
+
+            await _notificationService.SendNotificationAsync(new SendNotificationDTO
+            {
+                UserId = user.Id,
+                Content = $"تم تغيير دورك في النظام إلى: {TranslateRoleToArabicHelper.TranslateRoleToArabic(dto.NewRole)}",
+                Type = NotificationType.System
+            });
 
             _logger.LogWarning($"Role changed for User with ID: {dto.UserId} from {string.Join(",", currentRoles)} to {dto.NewRole}");
             return ApiResponse<string>.Ok(null, "تم تحديث دور المستخدم بنجاح.");
@@ -188,8 +229,17 @@ namespace SafeTrace.Infrastructure.Services
                 }
 
                 await _userManager.AddToRoleAsync(user, dto.Role);
-
                 await _unitOfWork.CommitTransactionAsync();
+
+                var emailBody = EmailTemplates.BuildAdminRegisteredTemplate(user.FName, user.Email, dto.Password, dto.Role);
+                await _emailService.SendEmailAsync(user.Email, "لقاء - تم إنشاء حساب لك في منصة لقاء", emailBody);
+
+                await _notificationService.SendNotificationAsync(new SendNotificationDTO
+                {
+                    UserId = user.Id,
+                    Content = "مرحباً بك في منصة لقاء! تم تفعيل حسابك من قِبل الإدارة.",
+                    Type = NotificationType.System
+                });
 
                 _logger.LogInformation("Admin successfully created user {Email} and assigned role {Role}.", user.Email, dto.Role);
 
@@ -220,7 +270,6 @@ namespace SafeTrace.Infrastructure.Services
             if (!addResult.Succeeded) throw new BadRequestException("فشل في ترقية حساب المستخدم إلى 'مستخدم موثق'.");
 
             user.VerificationStatus = VerificationStatus.Verified;
-            await _userManager.UpdateAsync(user);
 
             var result = await _userManager.UpdateAsync(user);
             if (!result.Succeeded)
@@ -231,6 +280,16 @@ namespace SafeTrace.Infrastructure.Services
 
                 throw new BadRequestException("تعذر الموافقة على طلب توثيق المستخدم. يرجى المحاولة مرة أخرى.");
             }
+
+            var emailBody = EmailTemplates.BuildVerificationApprovedTemplate(user.FName);
+            await _emailService.SendEmailAsync(user.Email!, "لقاء - تم قبول طلب توثيق حسابك", emailBody);
+
+            await _notificationService.SendNotificationAsync(new SendNotificationDTO
+            {
+                UserId = user.Id,
+                Content = "تمت مراجعة هويتك بنجاح. حسابك الآن يمتلك صلاحيات مستخدم موثق.",
+                Type = NotificationType.System
+            });
 
             _logger.LogWarning($"Role changed for User with ID: {userId} from {string.Join(",", currentRoles)} to VerifiedUser");
             return ApiResponse<string>.Ok(null, "تمت الموافقة على توثيق المستخدم بنجاح.");
@@ -262,6 +321,16 @@ namespace SafeTrace.Infrastructure.Services
                 throw new BadRequestException("تعذر رفض طلب توثيق المستخدم. يرجى المحاولة مرة أخرى.");
             }
 
+            var emailBody = EmailTemplates.BuildVerificationRejectedTemplate(user.FName);
+            await _emailService.SendEmailAsync(user.Email!, "لقاء - تم رفض طلب توثيق حسابك", emailBody);
+
+            await _notificationService.SendNotificationAsync(new SendNotificationDTO
+            {
+                UserId = user.Id,
+                Content = "تم رفض طلب توثيق هويتك. يرجى إعادة رفع صورة هوية أكثر وضوحاً.",
+                Type = NotificationType.System
+            });
+
             return ApiResponse<string>.Ok(null, "تم رفض طلب توثيق المستخدم بنجاح.");
         }
 
@@ -289,6 +358,16 @@ namespace SafeTrace.Infrastructure.Services
             {
                 await _userManager.SetLockoutEndDateAsync(targetUser, null);
 
+                var emailBody = EmailTemplates.BuildBlockStatusChangedTemplate(targetUser.FName, false);
+                await _emailService.SendEmailAsync(targetUser.Email!, "لقاء - تم إلغاء الحظر عن حسابك في منصة لقاء", emailBody);
+
+                await _notificationService.SendNotificationAsync(new SendNotificationDTO
+                {
+                    UserId = targetUser.Id,
+                    Content = "تم إلغاء الحظر عن حسابك. يمكنك استخدام المنصة الآن.",
+                    Type = NotificationType.System
+                });
+
                 _logger.LogInformation("User {Email} has been unblocked by Admin.", targetUser.Email);
                 return ApiResponse<string>.Ok(null, "تم فك الحظر عن المستخدم بنجاح.");
             }
@@ -308,6 +387,16 @@ namespace SafeTrace.Infrastructure.Services
                     _unitOfWork.Repository<RefreshToken>().Update(token);
                 }
                 await _unitOfWork.SaveAsync();
+
+                var emailBody = EmailTemplates.BuildBlockStatusChangedTemplate(targetUser.FName, true);
+                await _emailService.SendEmailAsync(targetUser.Email!, "لقاء - تنبيه: تم حظر حسابك في منصة لقاء", emailBody);
+
+                await _notificationService.SendNotificationAsync(new SendNotificationDTO
+                {
+                    UserId = targetUser.Id,
+                    Content = "تم حظر حسابك بواسطة الإدارة.",
+                    Type = NotificationType.System
+                });
 
                 _logger.LogInformation("User {Email} has been blocked and all active sessions revoked.", targetUser.Email);
                 return ApiResponse<string>.Ok(null, "تم حظر المستخدم وإنهاء جميع جلساته النشطة بنجاح.");
@@ -374,6 +463,16 @@ namespace SafeTrace.Infrastructure.Services
                 var addResult = await _userManager.AddClaimAsync(user, new Claim("Permission", permission));
                 if (!addResult.Succeeded) throw new BadRequestException("فشل في تعيين الصلاحيات الجديدة للمستخدم.");
             }
+
+            var emailBody = EmailTemplates.BuildPermissionsChangedTemplate(user.FName);
+            await _emailService.SendEmailAsync(user.Email!, "لقاء - تحديث الصلاحيات في منصة لقاء", emailBody);
+
+            await _notificationService.SendNotificationAsync(new SendNotificationDTO
+            {
+                UserId = user.Id,
+                Content = "قامت إدارة النظام بتحديث صلاحياتك الفردية (الاستثنائية).",
+                Type = NotificationType.System
+            });
 
             _logger.LogWarning($"New permissions assigned for User with ID: {dto.UserId}");
             return ApiResponse<string>.Ok(null, "تم تحديث الصلاحيات الخاصة بالمستخدم بنجاح.");
