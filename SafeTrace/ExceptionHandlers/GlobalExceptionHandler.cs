@@ -1,4 +1,4 @@
-using ElmahCore;
+﻿using ElmahCore;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
 using SafeTrace.Application.Exceptions;

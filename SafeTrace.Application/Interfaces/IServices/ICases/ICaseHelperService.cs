@@ -1,9 +1,9 @@
-using System.Linq.Expressions;
 using Microsoft.AspNetCore.Http;
 using SafeTrace.Application.Common.Enums;
+using SafeTrace.Application.DTOs.AiMatching.Response;
 using SafeTrace.Application.DTOs.Cases.Request;
 using SafeTrace.Application.DTOs.Cases.Response;
-
+using System.Linq.Expressions;
 
 namespace SafeTrace.Application.Interfaces.IServices.ICases
 {

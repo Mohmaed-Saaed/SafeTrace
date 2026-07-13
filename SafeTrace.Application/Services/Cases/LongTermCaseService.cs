@@ -3,8 +3,8 @@ using SafeTrace.Application.Common.Enums;
 using SafeTrace.Application.DTOs.LongTermCase.Response;
 using SafeTrace.Application.DTOs.LongTermCase.Request;
 using SafeTrace.Application.DTOs.Cases.Request;
+using SafeTrace.Application.DTOs.Cases.Response;
 using SafeTrace.Application.Exceptions;
-
 
 namespace SafeTrace.Application.Services.Cases
 {
@@ -26,9 +26,6 @@ namespace SafeTrace.Application.Services.Cases
             _fileStorageService = fileStorage;
         }
 
-        /// <summary>
-        /// Deletes the police report image when a long-term case is permanently deleted.
-        /// </summary>
         protected override void DeleteAdditionalFiles(LongTermMissingCase entity)
         {
             if (!string.IsNullOrWhiteSpace(entity.PoliceReportImage))
@@ -45,7 +42,7 @@ namespace SafeTrace.Application.Services.Cases
         /// - a match with a DIFFERENT case type blocks creation and returns the matched case(s),
         ///   unless forceCreate is true.
         /// </summary>
-        public async Task<ApiResponse<string>> CreateAsync(string userId, CreateLongTermCaseDto dto, bool forceCreate = false)
+        public async Task<ApiResponse<CreateCaseResultDto>> CreateAsync(string userId, CreateLongTermCaseDto dto, bool forceCreate = false)
         {
             await _caseHelper.ValidateVerifiedUserAsync(userId);
 
@@ -55,7 +52,11 @@ namespace SafeTrace.Application.Services.Cases
                 Age = dto.Age
             };
 
-            var matches = await _caseHelper.FindMatchedCasesAsync(subject, dto.PrimaryImage);
+            var duplicateCheck = await _caseHelper.CheckDuplicateCaseAsync(
+                CaseType.LongTerm,
+                subject,
+                dto.PrimaryImage,
+                forceCreate);
 
             var checkResult = _caseHelper.CheckDuplicateCase(CaseType.LongTerm, matches);
 
@@ -120,9 +121,6 @@ namespace SafeTrace.Application.Services.Cases
             return ApiResponse<string>.Ok("تم إنشاء حالة الفقد طويلة المدة بنجاح.");
         }
 
-        /// <summary>
-        /// Updates a longTerm missing case with photo and police report management.
-        /// </summary>
         public async Task<ApiResponse<string>> UpdateAsync(long id, string userId, UpdateLongTermCaseDto dto)
         {
             var entity = await _caseHelper.GetValidCaseAsync<LongTermMissingCase>(
@@ -232,6 +230,7 @@ namespace SafeTrace.Application.Services.Cases
 
             return ApiResponse<string>.Ok(message: "تم تحديث حالة الفقد طويلة المدة بنجاح.");
         }
+
 
     }
 }
