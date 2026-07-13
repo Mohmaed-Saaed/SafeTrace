@@ -19,62 +19,28 @@ namespace SafeTrace.Application.Services.Cases
             : base(unitOfWork, mapper, caseHelper, logger)
         {
         }
+    //    var duplicateCheck = await _caseHelper.CheckDuplicateCaseAsync(
+    //CaseType.Unknown,
+    //subject,
+    //dto.PrimaryImage,
+    //onSameTypeMatchAsync: async (duplicateCase) =>
+    //{
+    //    _logger.LogInformation(
+    //        "Duplicate Unknown case found. Initiating merge with existing case {CaseCode}.",
+    //        duplicateCase.CaseCode);
 
-        /// <summary>
-        /// Creates a new unknown case with pending status.
-        /// </summary>
-        //public async Task<ApiResponse<string>> CreateUnknownCaseAsync(string userId, CreateUnknownDto dto)
-        //{
-        //    await _caseHelper.ValidateVerifiedUserAsync(userId);
+    //    // 1. نادي الـ Logic بتاع الـ Merge بتاعك هنا
+    //    await MergeUnknownCasesAsync(existingCaseId: duplicateCase.Id, newCaseData: dto);
 
-        //    var entity = _mapper.Map<UnknownCase>(dto);
-
-        //    entity.UserId = userId;
-        //    entity.Status = CaseStatus.Pending;
-        //    entity.CaseType = CaseType.Unknown;
-        //    entity.AgeCategoryId = await _caseHelper.ResolveAgeCategoryIdAsync(entity.Age);
-        //    entity.CaseCode = await _caseHelper.GenerateCaseCodeAsync(CaseCodePrefix.UNK);
-        //    entity.CreatedAt = DateTime.UtcNow;
-
-        //    var uploadedFiles = new List<CaseFile>();
-
-        //    await ExecuteInTransactionAsync(
-        //        action: async () =>
-        //        {
-        //            uploadedFiles = await _caseHelper.CreateCaseFilesAsync(
-        //                dto.PrimaryImage,
-        //                dto.AdditionalImages,
-        //                dto.Video,
-        //                FolderName);
-
-        //            entity.CaseFiles = uploadedFiles;
-
-        //            await _unitOfWork.Repository<UnknownCase>().CreateAsync(entity);
-
-        //            return true;
-        //        },
-        //        onFailureAsync: async ex =>
-        //        {
-        //            _caseHelper.CleanupPhysicalFiles(uploadedFiles.Select(p => p.ImagePath));
-        //            await _caseHelper.DeleteFacesAsync(entity.CaseFiles.Select(x => x.FaceId), entity.Id);
-
-        //            _logger.LogError(
-        //                ex,
-        //                "Failed to create unknown case for user {UserId}",
-        //                userId);
-        //        });
-
-        //    _logger.LogInformation(
-        //        "Unknown case {CaseCode} created successfully by user {UserId}.",
-        //        entity.CaseCode,
-        //        userId);
-
-        //    return ApiResponse<string>.Ok(message: "تم إنشاء حالة مجهول الهوية بنجاح");
-        //}
-        public async Task<ApiResponse<string>> CreateUnknownCaseAsync(
-    string userId,
-    CreateUnknownDto dto)
+    //    // 2. بنرمي Custom Exception عشان يوقف الـ Flow بتاع الـ Creation الجديد
+    //    // لأننا خلاص دمجنا البيانات في الحالة القديمة ومش عايزين نـ Create حالة جديدة
+    //    throw new CaseMergedException(duplicateCase.CaseCode);
+    //},
+    //forceCreate);
+        public async Task<ApiResponse<string>> CreateUnknownCaseAsync(string userId,CreateUnknownDto dto)
         {
+
+
             await _caseHelper.ValidateVerifiedUserAsync(userId);
 
             var entity = _mapper.Map<UnknownCase>(dto);
@@ -95,20 +61,11 @@ namespace SafeTrace.Application.Services.Cases
 
                 action: async () =>
                 {
-                    //--------------------------------------------------
-                    // Save Case
-                    //--------------------------------------------------
-
                     await _unitOfWork
                         .Repository<UnknownCase>()
                         .CreateAsync(entity);
 
                     await _unitOfWork.SaveAsync();
-
-                    //--------------------------------------------------
-                    // Upload Files
-                    //--------------------------------------------------
-
                     uploadedFiles = await _caseHelper.CreateCaseFilesAsync(
                         dto.PrimaryImage,
                         dto.AdditionalImages,
@@ -117,19 +74,9 @@ namespace SafeTrace.Application.Services.Cases
                         entity.Id);
 
                     entity.CaseFiles = uploadedFiles;
-
-                    //--------------------------------------------------
-                    // Link Duplicate Group
-                    //--------------------------------------------------
-
                     await _caseHelper.LinkCaseToDuplicateGroupAsync(
                         entity,
                         dto.PrimaryImage);
-
-                    //--------------------------------------------------
-                    // Update Case
-                    //--------------------------------------------------
-
                     _unitOfWork
                         .Repository<UnknownCase>()
                         .Update(entity);
@@ -161,6 +108,91 @@ namespace SafeTrace.Application.Services.Cases
             return ApiResponse<string>.Ok(
                 message: "تم إنشاء حالة مجهول الهوية بنجاح");
         }
+
+        public override async Task<ApiResponse<PaginationResponseDto<UnknownCaseListDto>>> GetAllAsync(
+        UnknownCasesFilterDto filter)
+        {
+            var query = _unitOfWork
+                .Repository<UnknownCase>()
+                .Query(
+                    tracked: false,
+                    includes:
+                    [
+                        x => x.CaseFiles,
+                x => x.DuplicateGroups
+                    ])
+                .Where(x => x.Status == CaseStatus.Active);
+            query = query
+    .GroupBy(x =>
+        x.DuplicateGroups.Any()
+            ? x.DuplicateGroups.First().DuplicateGroupId
+            : -x.Id)
+    .Select(g => g
+        .OrderByDescending(x => x.CreatedAt)
+        .First());
+
+            var response = await GetPagedResultAsync<UnknownCaseListDto>(
+                query,
+                filter);
+
+            return ApiResponse<PaginationResponseDto<UnknownCaseListDto>>
+                .Ok(response, "تم استرجاع الحالات بنجاح.");
+        }
+
+     public override async Task<ApiResponse<UnknownCaseDetailDto>> GetByIdAsync(long id)
+        { 
+    var dto = await GetByIdInternalAsync<UnknownCaseDetailDto>(
+        id,
+        activeOnly: true,
+        includes:
+        [
+            x => x.CaseFiles,
+            x => x.User,
+            x => x.AgeCategory
+        ]);
+    var groupId = await _unitOfWork
+        .Repository<DuplicateGroupCase>()
+        .Query(tracked: false)
+        .Where(x => x.CaseId == id)
+        .Select(x => (long?)x.DuplicateGroupId)
+        .FirstOrDefaultAsync();
+
+    if (groupId != null)
+    {
+        var relatedCases = await _unitOfWork
+            .Repository<DuplicateGroupCase>()
+            .Query(
+                tracked: false,
+                includes:
+                [
+                    x => x.Case,
+                    x => x.Case.CaseFiles
+                ])
+            .Where(x =>
+                x.DuplicateGroupId == groupId &&
+                x.CaseId != id)
+            .OrderByDescending(x => x.Case.CreatedAt)
+            .ToListAsync();
+
+        dto.RelatedCases = relatedCases
+            .Select(x => new RelatedUnknownCaseDto
+            {
+                Id = x.Case.Id,
+                CaseCode = x.Case.CaseCode,
+                CreatedAt = x.Case.CreatedAt,
+                Similarity = (float)x.SimilarityScore,
+                MainPhotoPath = x.Case.CaseFiles
+                    .Where(f => f.IsPrimary)
+                    .Select(f => f.ImagePath)
+                    .FirstOrDefault() ?? string.Empty
+            })
+            .ToList();
+    }
+
+    return ApiResponse<UnknownCaseDetailDto>.Ok(
+        dto,
+        "تم استرجاع بيانات الحالة بنجاح.");
+}
         /// <summary>
         /// Updates an existing unknown case with photo management.
         /// </summary>

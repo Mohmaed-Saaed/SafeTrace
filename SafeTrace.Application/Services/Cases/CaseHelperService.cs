@@ -354,7 +354,13 @@ namespace SafeTrace.Application.Services.Cases
     IFormFile primaryImage)
         {
             var matches = await _faceRecognitionService.SearchByImageAsync(primaryImage);
-
+            foreach (var match in matches)
+            {
+                _logger.LogInformation(
+                    "FaceId: {FaceId}, Similarity: {Similarity}",
+                    match.FaceId,
+                    match.Similarity);
+            }
             if (matches == null || !matches.Any())
             {
                 await CreateDuplicateGroupAsync(newCase);
@@ -362,47 +368,44 @@ namespace SafeTrace.Application.Services.Cases
                 return;
             }
 
-            var bestMatch = matches
-                .OrderByDescending(x => x.Similarity)
-                .First();
+            var orderedMatches = matches
+     .OrderByDescending(x => x.Similarity);
 
-            if ((bestMatch.Similarity ?? 0) < 95)
+            foreach (var match in orderedMatches)
             {
-                await CreateDuplicateGroupAsync(newCase);
+                if ((match.Similarity ?? 0) < 95)
+                    continue;
+
+                var matchedCase = await GetMatchedCaseAsync(match.FaceId!, newCase.Id);
+
+                if (matchedCase == null)
+                    continue;
+
+                var groupLink = await _unitOfWork
+                    .Repository<DuplicateGroupCase>()
+                    .Query(tracked: true)
+                    .FirstOrDefaultAsync(x => x.CaseId == matchedCase.Id);
+
+                if (groupLink == null)
+                {
+                    await CreateDuplicateGroupWithCasesAsync(
+                        matchedCase,
+                        newCase,
+                        (decimal)(match.Similarity ?? 100));
+
+                    return;
+                }
+
+                await AddCaseToGroupAsync(
+                    groupLink.DuplicateGroupId,
+                    newCase.Id,
+                    (decimal)(match.Similarity ?? 100));
 
                 return;
             }
 
-            var matchedCase = await GetMatchedCaseAsync(
-                bestMatch.FaceId!,
-                newCase.Id);
-
-            if (matchedCase == null)
-            {
-                await CreateDuplicateGroupAsync(newCase);
-
-                return;
-            }
-
-            var groupLink = await _unitOfWork
-                .Repository<DuplicateGroupCase>()
-                .Query(tracked: true)
-                .FirstOrDefaultAsync(x => x.CaseId == matchedCase.Id);
-
-            if (groupLink == null)
-            {
-                await CreateDuplicateGroupWithCasesAsync(
-                    matchedCase,
-                    newCase,
-                    (decimal)(bestMatch.Similarity ?? 100));
-
-                return;
-            }
-
-            await AddCaseToGroupAsync(
-                groupLink.DuplicateGroupId,
-                newCase.Id,
-               (decimal)(bestMatch.Similarity ?? 100));
+            // لو مفيش أي Match صالح
+            await CreateDuplicateGroupAsync(newCase);
         }
         public async Task<UnknownCase?> GetMatchedCaseAsync(
     string faceId,
@@ -420,7 +423,8 @@ namespace SafeTrace.Application.Services.Cases
                     x.FaceId == faceId &&
                     x.CaseId != currentCaseId &&
                     x.Case is UnknownCase &&
-                    x.Case.Status == CaseStatus.Active)
+                    x.Case.Status != CaseStatus.Deleted
+                    )
                 .Select(x => (UnknownCase)x.Case)
                 .FirstOrDefaultAsync();
         }
