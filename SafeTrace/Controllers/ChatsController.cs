@@ -34,6 +34,7 @@ namespace SafeTrace.API.Controllers
         /// <response code="401">Unauthorized.</response>
         /// <response code="404">The specified case was not found.</response>
         [HttpGet("start-context/{caseId}")]
+        [HasPermission(Permissions.Chat.StartContext)]
         public async Task<IActionResult> GetStartContext(long caseId)
         {
             var userId = GetCurrentUserId();
