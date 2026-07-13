@@ -18,6 +18,8 @@ namespace SafeTrace.Application.Services.NotificationServices
 
     public class NotificationService : INotificationServices
     {
+
+
         private readonly IUnitOfWork _UNIT;
         private readonly IHubContext<NotificationsHub> _hubContext;
         private readonly IMapper _mapper;
@@ -217,13 +219,17 @@ namespace SafeTrace.Application.Services.NotificationServices
             _logger.LogInformation(
                 "Fetching notifications for UserId: {UserId}, Page: {Page}, PageSize: {PageSize}",
                 userId, page, pageSize);
+            _logger.LogInformation("Page = {page}, PageSize = {pageSize}", page, pageSize);
 
-            var query = _UNIT.Repository<Notification>()
-                .Query(
-                    tracked: false,
-                    orderBy: n => n.CreatedAt,
-                    orderByDirection: OrderBy.Descending)
-                .Where(n => n.UserId == userId);
+
+            var query =
+
+                        _UNIT.Repository<Notification>()
+                            .Query(
+                                tracked: false,
+                                orderBy: n => n.CreatedAt,
+                                orderByDirection: OrderBy.Descending)
+                            .Where(n => n.UserId == userId);
 
             var totalCount = await query.CountAsync();
 

@@ -35,10 +35,13 @@ namespace SafeTrace.API.Controllers
 
         [HttpGet("my-Notifications")]
         [HasPermission(Permissions.Notifications.GetMyNotifications)]
-        public async Task<IActionResult> GetMyNotifications()
+        public async Task<IActionResult> GetMyNotifications(
+            [FromQuery] int page = 1,
+    [FromQuery] int pageSize = 10)
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            var notifications = await _notificationService.GetUserNotificationsAsync(userId!);
+            var notifications = await _notificationService.GetUserNotificationsAsync(userId!, page,
+        pageSize);
             return Ok(notifications);
         }
 
