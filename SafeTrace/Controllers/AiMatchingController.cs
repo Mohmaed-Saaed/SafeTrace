@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SafeTrace.Application.Constants;
 using SafeTrace.Application.DTOs.AiMatching.Request;
@@ -9,6 +9,7 @@ namespace SafeTrace.API.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
+    [Microsoft.AspNetCore.RateLimiting.DisableRateLimiting]
     public class AiMatchingController : ControllerBase
     {
         private readonly IFaceRecognitionService _faceRecognitionService;

@@ -110,6 +110,8 @@ namespace SafeTrace
             app.UseStaticFiles();
             app.UseCors("CorsPolicy");
 
+            app.UseRateLimiter(); // Apply Rate Limiting before Auth
+            
             app.UseAuthentication();
             app.UseAuthorization();
 

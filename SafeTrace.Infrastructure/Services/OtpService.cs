@@ -1,7 +1,8 @@
-﻿using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging;
 using SafeTrace.Application.Interfaces.IServices;
 using SafeTrace.Domain.Enums;
 using SafeTrace.Domain.Interfaces.IUnitOfWork;
+using System.Security.Cryptography;
 
 namespace SafeTrace.Infrastructure.Services
 {
@@ -27,7 +28,7 @@ namespace SafeTrace.Infrastructure.Services
                 _unitOfWork.Repository<UserOtp>().Update(existingOtp);
             }
 
-            var randomCode = new Random().Next(100000, 999999).ToString();
+            var randomCode = RandomNumberGenerator.GetInt32(100000, 999999).ToString();
             var userOtp = new UserOtp
             {
                 Code = randomCode,
