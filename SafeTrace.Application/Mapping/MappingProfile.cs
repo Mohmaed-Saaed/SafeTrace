@@ -9,13 +9,24 @@ namespace SafeTrace.Application.Mapping
     {
         public MappingProfile()
         {
+
+
+
+
+            CreateMap<Case, MyCaseListItemDto>()
+    .ForMember(d => d.FullName,
+        o => o.MapFrom(s =>
+            $"{s.FName} {s.SName} {s.TName} {s.LName}".Trim()));
+
             CreateMap<ApplicationUser, GetUserInfoDTO>()
-        .ForMember(dest => dest.FullName,
-            opt => opt.MapFrom(src => $"{src.FName} {src.LName}"))
-        .ForMember(dest => dest.HomeLatitude,
+    .ForMember(dest => dest.FullName,
+        opt => opt.MapFrom(src => $"{src.FName} {src.LName}"))
+    .ForMember(dest => dest.HomeLatitude,
         opt => opt.MapFrom(src => src.HomeLocationLatitude))
     .ForMember(dest => dest.HomeLongitude,
-        opt => opt.MapFrom(src => src.HomeLocationLongitude));
+        opt => opt.MapFrom(src => src.HomeLocationLongitude))
+    .ForMember(dest => dest.Cases,
+        opt => opt.MapFrom(src => src.Cases));
 
 
             #region test method dto

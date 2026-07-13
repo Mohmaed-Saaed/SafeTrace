@@ -50,7 +50,10 @@ namespace SafeTrace.Application.Services.UserProfileServices
         public async Task<ApiResponse<GetUserInfoDTO?>> GetProfileInfoAsync(string userId)
         {
             _logger.LogInformation("Fetching profile for UserId: {userId} at {Time}", userId, DateTime.UtcNow);
-            var user = await _userManager.FindByIdAsync(userId);
+            //var user = await _userManager.FindByIdAsync(userId);
+            var user = await _userManager.Users
+    .Include(u => u.Cases)
+    .FirstOrDefaultAsync(u => u.Id == userId);
             var roles = await _userManager.GetRolesAsync(user);
             if (user == null)
             {
@@ -87,6 +90,7 @@ namespace SafeTrace.Application.Services.UserProfileServices
         public async Task<ApiResponse<bool>> AddIdImageAsync(string userId, AddIdImageDTO dto)
         {
             var user = await _userManager.FindByIdAsync(userId);
+
             if (dto.IdentificationImage is not null)
             {
                 if (user.VerificationStatus == VerificationStatus.Verified)
