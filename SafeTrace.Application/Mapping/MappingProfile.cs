@@ -1,4 +1,5 @@
 ﻿using SafeTrace.Application.DTOs.NotificationDTOS;
+using SafeTrace.Application.DTOs.User.Response;
 using SafeTrace.Application.DTOs.User_Profiel_DTOS;
 using SafeTrace.Application.DTOs.User_Profiel_DTOS.Update_Profile_DTOS;
 using SafeTrace.Domain.Entities;
@@ -28,6 +29,10 @@ namespace SafeTrace.Application.Mapping
     .ForMember(dest => dest.Cases,
         opt => opt.MapFrom(src => src.Cases));
 
+            CreateMap<ApplicationUser, VisitUserDTO>()
+    .ForMember(dest => dest.FullName,
+        opt => opt.MapFrom(src => $"{src.FName} {src.LName}"));
+
 
             #region test method dto
             CreateMap<ApplicationUser, GetAllDTO>()
@@ -52,8 +57,7 @@ namespace SafeTrace.Application.Mapping
 
             CreateMap<UpdateProfileImageDTO, ApplicationUser>();
             CreateMap<AddIdImageDTO, ApplicationUser>();
-
-
+            CreateMap<ChangePhoneNumberDTO, ApplicationUser>();
 
 
 
@@ -62,10 +66,11 @@ namespace SafeTrace.Application.Mapping
                 .ForMember(dest => dest.LName, opt => opt.MapFrom(src => src.LastName))
                 .ForMember(dest => dest.HomeLocationLatitude,
         opt => opt.MapFrom(src => src.HomeLatitude))
-
     .ForMember(dest => dest.HomeLocationLongitude,
         opt => opt.MapFrom(src => src.HomeLongitude))
                 .ReverseMap();
+
+
 
             CreateMap<SendNotificationDTO, Notification>().ReverseMap();
 
