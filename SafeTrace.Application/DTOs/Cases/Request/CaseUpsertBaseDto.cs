@@ -38,7 +38,7 @@ namespace SafeTrace.Application.DTOs.Cases.Request
         /// </summary>
         [Required(ErrorMessage = "Event date is required.")]
         [DataType(DataType.Date)]
-        public DateTime EventDate { get; set; }
+        public DateTime? EventDate { get; set; }
 
         // OPTIONAL FIELDS
 
