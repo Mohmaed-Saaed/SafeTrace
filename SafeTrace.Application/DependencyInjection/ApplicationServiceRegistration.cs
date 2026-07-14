@@ -29,7 +29,6 @@ namespace SafeTrace.Application.DependencyInjection
             services.AddScoped<IMessageService, MessageService>();
 
             services.AddScoped<IAIMatchingService, AIMatchingService>();
-
             services.AddAutoMapper(cfg => { }, typeof(ApplicationServiceRegistration).Assembly);
             
             return services;
