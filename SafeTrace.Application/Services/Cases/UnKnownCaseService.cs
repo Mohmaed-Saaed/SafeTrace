@@ -19,11 +19,11 @@ namespace SafeTrace.Application.Services.Cases
             : base(unitOfWork, mapper, caseHelper, logger)
         {
         }
-    //    var duplicateCheck = await _caseHelper.CheckDuplicateCaseAsync(
-    //CaseType.Unknown,
+        //    var duplicateCheck = await _caseHelper.CheckDuplicateCaseAsync(
+    //    CaseType.Unknown,
     //subject,
     //dto.PrimaryImage,
-    //onSameTypeMatchAsync: async (duplicateCase) =>
+    //onSameTypeMatchAsync: async(duplicateCase) =>
     //{
     //    _logger.LogInformation(
     //        "Duplicate Unknown case found. Initiating merge with existing case {CaseCode}.",

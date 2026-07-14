@@ -1,4 +1,5 @@
 using System.Linq.Expressions;
+using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.Http;
 using SafeTrace.Application.Common.Enums;
 using SafeTrace.Application.DTOs.AiMatching.Response;
@@ -238,7 +239,7 @@ namespace SafeTrace.Application.Services.Cases
             Func<MatchedCaseDto, Task> onSameTypeMatchAsync,
             bool forceCreate = false)
         {
-            var sameType = matches.MatchedCases
+            var sameType = match.MatchedCases
                 .FirstOrDefault(x => x.CaseType == currentCaseType);
 
             if (!matchResult.HasMatched)
