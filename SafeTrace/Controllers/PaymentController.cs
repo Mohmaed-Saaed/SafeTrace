@@ -1,7 +1,9 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using SafeTrace.Application.Constants;
 using SafeTrace.Application.DTOs.Payment.Request;
 using SafeTrace.Application.Interfaces.IServices;
+using SafeTrace.Infrastructure.Authorization;
 using System.Security.Claims;
 using System.Text.Json;
 
@@ -16,7 +18,9 @@ namespace SafeTrace.API.Controllers
         public PaymentController(IPaymentService paymentService) { 
             _paymentService = paymentService;
         }
+
         [HttpPost("create-donation")]
+        [AllowAnonymous]
         public async Task<IActionResult> CreateDonationPaymobIntent([FromBody] CreateDonationRequestDto request)
         {
           var response = await  _paymentService.CreateDonationPaymobAsync(request, CurrentUserId);
@@ -24,28 +28,30 @@ namespace SafeTrace.API.Controllers
         }
 
         [HttpPost("webhook")]
+        [AllowAnonymous]
         public async Task WebhookPaymob([FromBody] JsonElement payload)
         {
             await _paymentService.ProcessWebhookPaymobAsync(payload, Request.Query["hmac"]);
         }
 
         [HttpGet("payment-result")]
+        [AllowAnonymous]
         public async Task<IActionResult> GetPaymentResult()
         {
             var response = await _paymentService.GetPaymentResultAsync(Request.Query);
             return Ok(response);
         }
 
-        [Authorize(Roles = "Admin")]
         [HttpGet("get-donations")]
+        [HasPermission(Permissions.Donations.GetDonations)]
         public async Task<IActionResult> GetDonations([FromQuery] DonationAdminQueryDto query)
         {
             var response = await _paymentService.GetDonationsAsync(query);
             return Ok(response);
         }
 
-        [Authorize(Roles = "User")]
         [HttpGet("get-my-donations")]
+        [HasPermission(Permissions.Donations.GetMyDonations)]
         public async Task<IActionResult> GetMyDonations([FromQuery] DonationUserQueryDto query)
         {
             var response = await _paymentService.GetUserDonationsAsync(User.FindFirstValue(ClaimTypes.NameIdentifier), query);

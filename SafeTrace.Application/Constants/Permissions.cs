@@ -55,11 +55,13 @@ namespace SafeTrace.Application.Constants
         public static class Profile
         {
             public const string GetUserInfo = "Profile.GetUserInfo";
+            public const string GetVisitedUserInfo = "Profile.GetVisitedUserInfo";
             public const string UpdateName = "Profile.UpdateName";
             public const string UpdateHomeLocation = "Profile.UpdateHomeLocation";
             public const string UpdateProfileImage = "Profile.UpdateProfileImage";
             public const string UpdateIdImage = "Profile.UpdateIdImage";
             public const string UpdateUserInfo = "Profile.UpdateUserInfo";
+            public const string UpdatePhoneNumber = "Profile.UpdatePhoneNumber";
         }
 
         public static class Dashboard
@@ -84,6 +86,12 @@ namespace SafeTrace.Application.Constants
         public static class Account
         {
             public const string ChangePassword = "Account.ChangePassword";
+        }
+
+        public static class Donations
+        {
+            public const string GetDonations = "Donations.GetDonations";
+            public const string GetMyDonations = "Donations.GetMyDonations";
         }
 
         public static class Roles

@@ -42,7 +42,7 @@ namespace SafeTrace.API.Controllers
         /// <param name="Id">معرف المستخدم.</param>
         /// <returns>بيانات الملف الشخصي للمستخدم.</returns>
         [HttpGet("GetVisitedUserInfo/{Id}")]
-
+        [HasPermission(Permissions.Profile.GetVisitedUserInfo)]
         public async Task<IActionResult> GetVisitedUserInfo([FromRoute] string Id)
         {
             var profile = await _user.GetVisitedUserAsync(Id);
@@ -119,6 +119,7 @@ namespace SafeTrace.API.Controllers
         /// <returns></returns>
 
         [HttpPut("UpdatePhoneNumber")]
+        [HasPermission(Permissions.Profile.UpdatePhoneNumber)]
         public async Task<IActionResult> UpdatePhoneNumber([FromForm] ChangePhoneNumberDTO dto)
         {
             var result = await _user.UpdatePhoneNumberAsync(GetCurrentUserId(), dto);

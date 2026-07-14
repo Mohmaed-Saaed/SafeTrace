@@ -72,22 +72,43 @@ namespace SafeTrace.Infrastructure.Services
 
             var totalCount = await query.CountAsync();
 
-            var users = await query.Skip((filterDto.PageNumber - 1) * filterDto.PageSize)
+            var userDtosQuery = query.Select(u => new GetUserDto
+            {
+                Id = u.Id,
+                FName = u.FName,
+                LName = u.LName,
+                Email = u.Email ?? string.Empty,
+                PhoneNumber = u.PhoneNumber ?? string.Empty,
+                VerificationStatus = u.VerificationStatus,
+                IsBlocked = u.LockoutEnd.HasValue && u.LockoutEnd > DateTimeOffset.UtcNow
+            });
+
+            var userDtos = await userDtosQuery
+                                   .Skip((filterDto.PageNumber - 1) * filterDto.PageSize)
                                    .Take(filterDto.PageSize)
                                    .ToListAsync();
 
-            var userIds = users.Select(u => u.Id).ToList();
-            var userRoles = await (from ur in _unitOfWork.Repository<IdentityUserRole<string>>().Query()
-                                   join r in _unitOfWork.Repository<IdentityRole>().Query() on ur.RoleId equals r.Id
-                                   where userIds.Contains(ur.UserId)
-                                   select new { ur.UserId, RoleName = r.Name })
-                                   .ToListAsync();
-
-            var userDtos = _mapper.Map<List<GetUserDto>>(users);
-
-            foreach (var dto in userDtos)
+            if (userDtos.Any())
             {
-                dto.Role = userRoles.FirstOrDefault(ur => ur.UserId == dto.Id)?.RoleName!;
+                var userIds = userDtos.Select(u => u.Id).ToList();
+
+                var roleQuery = _unitOfWork.Repository<IdentityRole>().Query();
+                var userRoleQuery = _unitOfWork.Repository<IdentityUserRole<string>>().Query();
+
+                var userRoles = await (from ur in userRoleQuery
+                                       join r in roleQuery on ur.RoleId equals r.Id
+                                       where userIds.Contains(ur.UserId)
+                                       select new { ur.UserId, RoleName = r.Name })
+                                       .ToListAsync();
+
+                var rolesGroupedByUserId = userRoles
+                                            .GroupBy(ur => ur.UserId)
+                                            .ToDictionary(g => g.Key, g => g.Select(x => x.RoleName).FirstOrDefault() ?? "User");
+
+                foreach (var dto in userDtos)
+                {
+                    dto.Role = rolesGroupedByUserId.TryGetValue(dto.Id, out var role) ? role : "User";
+                }
             }
 
             var paginatedResult = new PaginationResponseDto<GetUserDto>
@@ -110,7 +131,7 @@ namespace SafeTrace.Infrastructure.Services
             var userDto = _mapper.Map<GetUserByIdDto>(user);
 
             var roles = await _userManager.GetRolesAsync(user);
-            userDto.Role = roles.FirstOrDefault()!;
+            userDto.Role = roles.FirstOrDefault() ?? "User";
 
             return ApiResponse<GetUserByIdDto>.Ok(userDto);
         }
@@ -128,6 +149,7 @@ namespace SafeTrace.Infrastructure.Services
             if (!roleExists) throw new BadRequestException("الدور (Role) المحدد غير موجود.");
 
             var currentRoles = await _userManager.GetRolesAsync(user);
+            var currentRole = currentRoles.FirstOrDefault() ?? "User";
 
             var removeResult = await _userManager.RemoveFromRolesAsync(user, currentRoles);
             if (!removeResult.Succeeded) throw new BadRequestException("فشل في إزالة الأدوار الحالية للمستخدم.");
@@ -135,12 +157,9 @@ namespace SafeTrace.Infrastructure.Services
             var addResult = await _userManager.AddToRoleAsync(user, dto.NewRole);
             if (!addResult.Succeeded) throw new BadRequestException("فشل في تعيين الدور الجديد للمستخدم.");
 
-            foreach (var role in currentRoles)
+            if (currentRole != "User")
             {
-                if (role != "User")
-                {
-                    user.VerificationStatus = VerificationStatus.Unverified;
-                }
+                user.VerificationStatus = VerificationStatus.Unverified;
             }
 
             if (dto.NewRole != "User")
@@ -177,7 +196,7 @@ namespace SafeTrace.Infrastructure.Services
                 Type = NotificationType.System
             });
 
-            _logger.LogWarning($"Role changed for User with ID: {dto.UserId} from {string.Join(",", currentRoles)} to {dto.NewRole}");
+            _logger.LogWarning($"Role changed for User with ID: {dto.UserId} from {currentRole} to {dto.NewRole}");
             return ApiResponse<string>.Ok(null, "تم تحديث دور المستخدم بنجاح.");
         }
 
@@ -254,6 +273,7 @@ namespace SafeTrace.Infrastructure.Services
             if (user.VerificationStatus != VerificationStatus.Pending) throw new BadRequestException("لا يمكن قبول طلب التوثيق لأنه ليس في حالة انتظار المراجعة.");
 
             var currentRoles = await _userManager.GetRolesAsync(user);
+            var currentRole = currentRoles.FirstOrDefault() ?? "User";
 
             var removeResult = await _userManager.RemoveFromRolesAsync(user, currentRoles);
             if (!removeResult.Succeeded) throw new BadRequestException("فشل في إزالة الدور الحالي للمستخدم.");
@@ -283,7 +303,7 @@ namespace SafeTrace.Infrastructure.Services
                 Type = NotificationType.System
             });
 
-            _logger.LogWarning($"Role changed for User with ID: {userId} from {string.Join(",", currentRoles)} to VerifiedUser");
+            _logger.LogWarning($"Role changed for User with ID: {userId} from {currentRole} to VerifiedUser");
             return ApiResponse<string>.Ok(null, "تمت الموافقة على توثيق المستخدم بنجاح.");
         }
 
@@ -339,7 +359,10 @@ namespace SafeTrace.Infrastructure.Services
             var currentUserRoles = await _userManager.GetRolesAsync(currentUser!);
             var targetUserRoles = await _userManager.GetRolesAsync(targetUser);
 
-            if ((targetUserRoles.Contains("Admin") || targetUserRoles.Contains("Moderator")) && currentUserRoles.Contains("Moderator"))
+            var currentUserRole = currentUserRoles.FirstOrDefault();
+            var targetUserRole = targetUserRoles.FirstOrDefault();
+
+            if ((targetUserRole == "Admin" || targetUserRole == "Moderator") && currentUserRole == "Moderator")
             {
                 throw new ForbiddenException("غير مسموح للمشرف (Moderator) بحظر أو فك حظر مديري النظام (Admins) أو المشرفين الأخرين.");
             }
