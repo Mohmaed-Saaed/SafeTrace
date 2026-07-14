@@ -58,9 +58,9 @@ namespace SafeTrace.Infrastructure.Services
             if (!string.IsNullOrWhiteSpace(filterDto.SearchTerm))
             {
                 var term = filterDto.SearchTerm.Trim().ToLower();
-                query = query.Where(u => u.FName.ToLower().Contains(term) ||
-                                         u.LName.ToLower().Contains(term) ||
-                                         u.Email!.ToLower().Contains(term) ||
+                query = query.Where(u => u.FName.Contains(term) ||
+                                         u.LName.Contains(term) ||
+                                         u.Email!.Contains(term) ||
                                          u.PhoneNumber!.Contains(term));
             }
 
@@ -413,18 +413,7 @@ namespace SafeTrace.Infrastructure.Services
                                                     .Select(c => c.Value)
                                                     .ToList();
 
-            var allPermissions = new List<string>();
-            var modules = typeof(Application.Constants.Permissions).GetNestedTypes(BindingFlags.Public | BindingFlags.Static);
-
-            foreach (var module in modules)
-            {
-                var fields = module.GetFields(BindingFlags.Public | BindingFlags.Static | BindingFlags.FlattenHierarchy);
-                foreach (var field in fields)
-                {
-                    var value = field.GetValue(null)?.ToString();
-                    if (value != null) allPermissions.Add(value);
-                }
-            }
+            var allPermissions = Application.Constants.Permissions.GetAllPermissions();
 
             var response = new UserPermissionsResponseDto
             {
@@ -449,20 +438,27 @@ namespace SafeTrace.Infrastructure.Services
 
             if (user.Email == SystemConstants.RootAdminEmail) throw new ForbiddenException("غير مسموح بتعديل الصلاحيات المباشرة للمالك الأساسي للنظام.");
 
-            var existingClaims = await _userManager.GetClaimsAsync(user);
-            var permissionClaims = existingClaims.Where(c => c.Type == "Permission");
+            var repo = _unitOfWork.Repository<IdentityUserClaim<string>>();
+            
+            var existingUserClaims = await repo.Query()
+                .Where(c => c.UserId == user.Id && c.ClaimType == "Permission")
+                .ToListAsync();
 
-            foreach (var claim in permissionClaims)
+            repo.RemoveRange(existingUserClaims);
+
+            if (dto.SelectedPermissions != null && dto.SelectedPermissions.Any())
             {
-                var removeResult = await _userManager.RemoveClaimAsync(user, claim);
-                if (!removeResult.Succeeded) throw new BadRequestException("فشل في مسح الصلاحيات الحالية للمستخدم.");
+                var newClaims = dto.SelectedPermissions.Select(p => new IdentityUserClaim<string>
+                {
+                    UserId = user.Id,
+                    ClaimType = "Permission",
+                    ClaimValue = p
+                });
+                
+                await repo.CreateRangeAsync(newClaims);
             }
 
-            foreach (var permission in dto.SelectedPermissions)
-            {
-                var addResult = await _userManager.AddClaimAsync(user, new Claim("Permission", permission));
-                if (!addResult.Succeeded) throw new BadRequestException("فشل في تعيين الصلاحيات الجديدة للمستخدم.");
-            }
+            await _unitOfWork.SaveAsync();
 
             var emailBody = EmailTemplates.BuildPermissionsChangedTemplate(user.FName);
             await _emailService.SendEmailAsync(user.Email!, "لقاء - تحديث الصلاحيات في منصة لقاء", emailBody);
