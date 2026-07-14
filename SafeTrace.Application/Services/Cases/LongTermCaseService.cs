@@ -3,8 +3,8 @@ using SafeTrace.Application.Common.Enums;
 using SafeTrace.Application.DTOs.LongTermCase.Response;
 using SafeTrace.Application.DTOs.LongTermCase.Request;
 using SafeTrace.Application.DTOs.Cases.Request;
+using SafeTrace.Application.DTOs.Cases.Response;
 using SafeTrace.Application.Exceptions;
-
 
 namespace SafeTrace.Application.Services.Cases
 {
@@ -26,9 +26,6 @@ namespace SafeTrace.Application.Services.Cases
             _fileStorageService = fileStorage;
         }
 
-        /// <summary>
-        /// Deletes the police report image when a long-term case is permanently deleted.
-        /// </summary>
         protected override void DeleteAdditionalFiles(LongTermMissingCase entity)
         {
             if (!string.IsNullOrWhiteSpace(entity.PoliceReportImage))
@@ -45,7 +42,10 @@ namespace SafeTrace.Application.Services.Cases
         /// - a match with a DIFFERENT case type blocks creation and returns the matched case(s),
         ///   unless forceCreate is true.
         /// </summary>
-        public async Task<ApiResponse<string>> CreateAsync(string userId, CreateLongTermCaseDto dto, bool forceCreate = false)
+        public async Task<ApiResponse<CreateCaseResultDto>> CreateAsync(
+            string userId,
+            CreateLongTermCaseDto dto,
+            bool forceCreate = false)
         {
             await _caseHelper.ValidateVerifiedUserAsync(userId);
 
@@ -55,18 +55,26 @@ namespace SafeTrace.Application.Services.Cases
                 Age = dto.Age
             };
 
-            var matches = await _caseHelper.FindMatchedCasesAsync(subject, dto.PrimaryImage);
+            var checkResult = await _caseHelper.CheckDuplicateCaseAsync(
+                CaseType.LongTerm,
+                subject,
+                dto.PrimaryImage,
+                onSameTypeMatchAsync: duplicate =>
+                {
+                    throw new BadRequestException(
+                        $"توجد حالة بنفس النوع بالفعل (كود الحالة: {duplicate.CaseCode}).");
+                },
+                forceCreate);
 
-            var checkResult = _caseHelper.CheckDuplicateCase(CaseType.LongTerm, matches);
-
-            if (checkResult.HasSameTypeMatch)
+            // يوجد حالات من نوع مختلف، اعرضها للمستخدم وانتظر قراره
+            if (checkResult.RequiresConfirmation)
             {
-                throw new BadRequestException($"توجد حالة بنفس النوع بالفعل (كود الحالة: {checkResult?.SameTypeMatch?.CaseCode}).");
-            }
-
-            if (checkResult.HasCrossTypeMatches && !forceCreate)
-            {
-                throw new DuplicateCasesFoundException(checkResult.CrossTypeMatches);
+                return ApiResponse<CreateCaseResultDto>.Ok(
+                    new CreateCaseResultDto
+                    {
+                        IsCreated = false,
+                        MatchedCases = checkResult.MatchedCases
+                    });
             }
 
             var entity = _mapper.Map<LongTermMissingCase>(dto);
@@ -81,7 +89,9 @@ namespace SafeTrace.Application.Services.Cases
 
             if (dto.PoliceReportImage is not null)
             {
-                entity.PoliceReportImage = await _fileStorageService.SaveFileAsync(dto.PoliceReportImage, PoliceReportsFolder);
+                entity.PoliceReportImage = await _fileStorageService.SaveFileAsync(
+                    dto.PoliceReportImage,
+                    PoliceReportsFolder);
             }
 
             await ExecuteInTransactionAsync(
@@ -97,32 +107,41 @@ namespace SafeTrace.Application.Services.Cases
                     foreach (var photo in uploadedPhotos)
                         entity.CaseFiles.Add(photo);
 
-                    await _unitOfWork.Repository<LongTermMissingCase>().CreateAsync(entity);
+                    await _unitOfWork.Repository<LongTermMissingCase>()
+                        .CreateAsync(entity);
 
                     return true;
                 },
                 onFailureAsync: async ex =>
                 {
-                    _caseHelper.CleanupPhysicalFiles(entity.CaseFiles.Select(x => x.ImagePath));
+                    _caseHelper.CleanupPhysicalFiles(
+                        entity.CaseFiles.Select(x => x.ImagePath));
+
                     _fileStorageService.DeleteFile(entity.PoliceReportImage);
-                    await _caseHelper.DeleteFacesAsync(entity.CaseFiles.Select(x => x.FaceId), entity.Id);
+
+                    await _caseHelper.DeleteFacesAsync(
+                        entity.CaseFiles.Select(x => x.FaceId),
+                        entity.Id);
 
                     _logger.LogError(
                         ex,
-                        "Failed to create longTerm case for user {UserId}",
+                        "Failed to create LongTerm case for user {UserId}",
                         userId);
                 });
 
             _logger.LogInformation(
-                "Created longTerm missing case. CaseId={CaseId}, CaseCode={CaseCode}, UserId={UserId}",
-                entity.Id, entity.CaseCode, userId);
+                "Created LongTerm case. CaseId={CaseId}, CaseCode={CaseCode}, UserId={UserId}",
+                entity.Id,
+                entity.CaseCode,
+                userId);
 
-            return ApiResponse<string>.Ok("تم إنشاء حالة الفقد طويلة المدة بنجاح.");
+            return ApiResponse<CreateCaseResultDto>.Ok(
+                new CreateCaseResultDto
+                {
+                    IsCreated = true,
+                    CaseId = entity.Id
+                });
         }
-
-        /// <summary>
-        /// Updates a longTerm missing case with photo and police report management.
-        /// </summary>
         public async Task<ApiResponse<string>> UpdateAsync(long id, string userId, UpdateLongTermCaseDto dto)
         {
             var entity = await _caseHelper.GetValidCaseAsync<LongTermMissingCase>(
@@ -232,6 +251,7 @@ namespace SafeTrace.Application.Services.Cases
 
             return ApiResponse<string>.Ok(message: "تم تحديث حالة الفقد طويلة المدة بنجاح.");
         }
+
 
     }
 }

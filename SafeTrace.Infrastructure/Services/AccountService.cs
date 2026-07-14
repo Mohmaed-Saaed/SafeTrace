@@ -298,7 +298,7 @@ namespace SafeTrace.Infrastructure.Services
 
                 return await ProcessExternalUserFlowAsync(email, firstName!, lastName!, "Google");
             }
-            catch (Exception ex) when (ex is not WebException && ex is not UnauthorizedException && ex is not BadRequestException)
+            catch (Exception ex) when (ex is not WebException && ex is not UnauthorizedException && ex is not BadRequestException && ex is not ForbiddenException)
             {
                 _logger.LogError(ex, "Critical external network execution exception failure inside Google authentication payload handling.");
                 throw new BadRequestException("حدث خطأ أثناء محاولة تسجيل الدخول بواسطة جوجل.");
@@ -326,7 +326,7 @@ namespace SafeTrace.Infrastructure.Services
 
                 return await ProcessExternalUserFlowAsync(email!, firstName!, lastName!, "Facebook");
             }
-            catch (Exception ex) when (ex is not WebException && ex is not UnauthorizedException && ex is not BadRequestException)
+            catch (Exception ex) when (ex is not WebException && ex is not UnauthorizedException && ex is not BadRequestException && ex is not ForbiddenException)
             {
                 _logger.LogError(ex, "Critical provider identity synchronization validation error during Facebook runtime execution.");
                 throw new BadRequestException("حدث خطأ أثناء محاولة تسجيل الدخول بواسطة فيسبوك.");
@@ -378,7 +378,8 @@ namespace SafeTrace.Infrastructure.Services
                 await _unitOfWork.CommitTransactionAsync();
 
                 var roles = await _userManager.GetRolesAsync(user);
-                var newAccessToken = _tokenService.GenerateAccessToken(user, roles);
+                var role = roles.FirstOrDefault() ?? "User";
+                var newAccessToken = _tokenService.GenerateAccessToken(user, role);
 
                 SetRefreshTokenCookie(newRefreshToken.Token, newRefreshToken.ExpiresAt);
 
@@ -420,7 +421,8 @@ namespace SafeTrace.Infrastructure.Services
         private async Task<AuthResponseDto> GenerateAuthTokensAndSaveAsync(ApplicationUser user)
         {
             var roles = await _userManager.GetRolesAsync(user);
-            var accessToken = _tokenService.GenerateAccessToken(user, roles);
+            var role = roles.FirstOrDefault() ?? "User";
+            var accessToken = _tokenService.GenerateAccessToken(user, role);
             var refreshToken = _tokenService.GenerateRefreshToken();
 
             refreshToken.UserId = user.Id;

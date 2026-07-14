@@ -34,9 +34,6 @@ namespace SafeTrace.Application.Services.Cases
             _logger = logger;
         }
 
-        /// <summary>
-        /// Retrieves a case by ID with optional ownership and status validation.
-        /// </summary>
         public async Task<TEntity> GetValidCaseAsync<TEntity>(
             long id,
             string? userId = null,
@@ -64,9 +61,6 @@ namespace SafeTrace.Application.Services.Cases
             return entity;
         }
 
-        /// <summary>
-        /// Validates that a case can be modified (not Found, Expired, or Deleted).
-        /// </summary>
         public void ValidateCaseIsEditable(Case entity)
         {
             if (entity.Status == CaseStatus.Found || entity.Status == CaseStatus.Expired || entity.Status == CaseStatus.Deleted)
@@ -75,9 +69,6 @@ namespace SafeTrace.Application.Services.Cases
             }
         }
 
-        /// <summary>
-        /// Ensures the user exists and has a verified account.
-        /// </summary>
         public async Task ValidateVerifiedUserAsync(string userId)
         {
             var user = await _unitOfWork.Repository<ApplicationUser>()
@@ -90,9 +81,6 @@ namespace SafeTrace.Application.Services.Cases
                 throw new UnauthorizedException("يجب توثيق حسابك قبل تنفيذ هذا الإجراء.");
         }
 
-        /// <summary>
-        /// Resolves the age category ID for a given age.
-        /// </summary>
         public async Task<int> ResolveAgeCategoryIdAsync(int age)
         {
             var category = await _unitOfWork.Repository<AgeCategory>()
@@ -104,9 +92,6 @@ namespace SafeTrace.Application.Services.Cases
             return category.Id;
         }
 
-        /// <summary>
-        /// Generates a unique case code with the specified prefix.
-        /// </summary>
         public async Task<string> GenerateCaseCodeAsync(CaseCodePrefix prefix)
         {
             if (!SequenceNames.TryGetValue(prefix, out var sequenceName))
@@ -124,9 +109,6 @@ namespace SafeTrace.Application.Services.Cases
             { CaseCodePrefix.UNK, "UnknownCaseSequence" }
         };
 
-        /// <summary>
-        /// Creates case file entities from uploaded files.
-        /// </summary>
         public async Task<List<CaseFile>> CreateCaseFilesAsync(IFormFile primaryImage, IEnumerable<IFormFile>? additionalImages, IFormFile? video, string folderName, long caseId = 0)
         {
             var files = new List<CaseFile>
@@ -178,9 +160,6 @@ namespace SafeTrace.Application.Services.Cases
             };
         }
 
-        /// <summary>
-        /// Sets the primary image for a case.
-        /// </summary>
         public void SetPrimaryImage(ICollection<CaseFile> files, long primaryPhotoId)
         {
             var images = files
@@ -206,9 +185,6 @@ namespace SafeTrace.Application.Services.Cases
             ".webm"
         };
 
-        /// <summary>
-        /// Deletes physical files from storage with error logging.
-        /// </summary>
         public void CleanupPhysicalFiles(IEnumerable<string> filePaths)
         {
             foreach (var path in filePaths.Where(p => !string.IsNullOrWhiteSpace(p)))
@@ -224,9 +200,6 @@ namespace SafeTrace.Application.Services.Cases
             }
         }
 
-        /// <summary>
-        /// Deletes face records from the recognition service.
-        /// </summary>
         public async Task DeleteFacesAsync(IEnumerable<string>? faceIds, long caseId)
         {
             try
@@ -239,9 +212,6 @@ namespace SafeTrace.Application.Services.Cases
             }
         }
 
-        /// <summary>
-        /// Finds existing cases that match the provided subject and face image.
-        /// </summary>
         public async Task<MatchedCasesResult> FindMatchedCasesAsync(CaseMatchSubjectInfoDto subject, IFormFile primaryImage)
         {
             var faceMatches = await SearchFacesAsync(primaryImage);
@@ -256,27 +226,46 @@ namespace SafeTrace.Application.Services.Cases
 
             return new MatchedCasesResult
             {
-                HasMatches = matchedCases.Count != 0,
-                MatchedCases = matchedCases
+                HasMatched = matchedCases.Count != 0,
+                DuplicateCases = matchedCases
             };
         }
-        
-        /// <summary>
-        /// Analyzes matched cases and separates same-type matches from cross-type matches.
-        /// </summary>
-        public DuplicateCheckResult CheckDuplicateCase(CaseType currentCaseType, MatchedCasesResult matches)
+
+        public async Task<DuplicateCheckResult> CheckDuplicateCaseAsync(
+            CaseType currentCaseType,
+            CaseMatchSubjectInfoDto subject,
+            IFormFile primaryImage,
+            Func<MatchedCaseDto, Task> onSameTypeMatchAsync,
+            bool forceCreate = false)
         {
-            var sameType = matches.MatchedCases
+            var matchResult = await FindMatchedCasesAsync(subject, primaryImage);
+
+            if (!matchResult.HasMatched)
+                return DuplicateCheckResult.None;
+
+            var sameTypeDuplicate = matchResult.DuplicateCases
                 .FirstOrDefault(x => x.CaseType == currentCaseType);
 
-            var crossType = matches.MatchedCases
-                .Where(x => x.CaseType != currentCaseType)
-                .ToList();
+            if (sameTypeDuplicate != null)
+            {
+                await onSameTypeMatchAsync(sameTypeDuplicate);
+
+                return DuplicateCheckResult.None;
+            }
+
+            if (forceCreate)
+            {
+                _logger.LogInformation(
+                    "Cross-type duplicate(s) found but forceCreate=true."
+                );
+
+                return DuplicateCheckResult.None;
+            }
 
             return new DuplicateCheckResult
             {
-                SameTypeMatch = sameType,
-                CrossTypeMatches = crossType
+                RequiresConfirmation = true,
+                MatchedCases = matchResult.DuplicateCases
             };
         }
 
@@ -358,6 +347,5 @@ namespace SafeTrace.Application.Services.Cases
 
             return true;
         }
-
     }
 }

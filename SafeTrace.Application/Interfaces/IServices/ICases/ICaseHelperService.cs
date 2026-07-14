@@ -1,8 +1,9 @@
-using System.Linq.Expressions;
 using Microsoft.AspNetCore.Http;
 using SafeTrace.Application.Common.Enums;
+using SafeTrace.Application.DTOs.AiMatching.Response;
 using SafeTrace.Application.DTOs.Cases.Request;
 using SafeTrace.Application.DTOs.Cases.Response;
+using System.Linq.Expressions;
 
 
 namespace SafeTrace.Application.Interfaces.IServices.ICases
@@ -31,7 +32,7 @@ namespace SafeTrace.Application.Interfaces.IServices.ICases
             IEnumerable<IFormFile>? additionalImages,
             IFormFile? video,
             string folderName,
-            long caseId = 0);
+            long caseId = 0);   
 
         void SetPrimaryImage(ICollection<CaseFile> files, long primaryPhotoId);
 
@@ -41,6 +42,18 @@ namespace SafeTrace.Application.Interfaces.IServices.ICases
 
         Task<MatchedCasesResult> FindMatchedCasesAsync(CaseMatchSubjectInfoDto subject, IFormFile primaryImage);
 
-        DuplicateCheckResult CheckDuplicateCase(CaseType currentCaseType, MatchedCasesResult matches);
+        /// <summary>
+        /// Generic pre-create duplicate DETECTION used by all case types (LongTerm / Unknown / Urgent).
+        /// This only detects and categorizes matches — it does NOT decide what to do with them.
+        /// Each case service inspects the result (SameTypeMatch / CrossTypeMatches) and applies
+        /// its own behavior (e.g. block, merge, or ask for confirmation).
+        /// </summary>
+        Task<DuplicateCheckResult> CheckDuplicateCaseAsync(
+            CaseType currentCaseType,
+            CaseMatchSubjectInfoDto subject,
+            IFormFile primaryImage,
+            Func<MatchedCaseDto, Task> onSameTypeMatchAsync,
+            bool forceCreate = false);
+
     }
 }

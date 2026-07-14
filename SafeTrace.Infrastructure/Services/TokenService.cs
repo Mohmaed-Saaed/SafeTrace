@@ -1,4 +1,4 @@
-﻿using Microsoft.Extensions.Options;
+using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using SafeTrace.Application.Interfaces.IServices;
 using SafeTrace.Infrastructure.Options;
@@ -18,7 +18,7 @@ namespace SafeTrace.Infrastructure.Services
             _jwtOptions = jwtOptions.Value;
         }
 
-        public string GenerateAccessToken(ApplicationUser user, IList<string> roles)
+        public string GenerateAccessToken(ApplicationUser user, string role)
         {
             var authClaims = new List<Claim>
             {
@@ -27,7 +27,7 @@ namespace SafeTrace.Infrastructure.Services
                 new("VerificationStatus", user.VerificationStatus.ToString().ToLower())
             };
 
-            foreach (var role in roles)
+            if (!string.IsNullOrEmpty(role))
             {
                 authClaims.Add(new Claim(ClaimTypes.Role, role));
             }

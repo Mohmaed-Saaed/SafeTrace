@@ -21,11 +21,13 @@ namespace SafeTrace.API.Controllers
             _user = userProfileService;
         }
 
+
+
+        #region Get Info
         /// <summary>
         /// لاظهار البيانات الخاصة بالمستخدم 
         /// </summary>
         /// <returns></returns>
-
         [HttpGet("GetInfo")]
         [HasPermission(Permissions.Profile.GetUserInfo)]
         public async Task<IActionResult> GetUserInfo()
@@ -34,6 +36,19 @@ namespace SafeTrace.API.Controllers
             var profile = await _user.GetProfileInfoAsync(GetCurrentUserId());
             return Ok(profile);
         }
+        /// <summary>
+        /// الحصول على بيانات الملف الشخصي لمستخدم عن طريق معرفه.
+        /// </summary>
+        /// <param name="Id">معرف المستخدم.</param>
+        /// <returns>بيانات الملف الشخصي للمستخدم.</returns>
+        [HttpGet("GetVisitedUserInfo/{Id}")]
+        [HasPermission(Permissions.Profile.GetVisitedUserInfo)]
+        public async Task<IActionResult> GetVisitedUserInfo([FromRoute] string Id)
+        {
+            var profile = await _user.GetVisitedUserAsync(Id);
+            return Ok(profile);
+        }
+        #endregion
 
         #region  Update
         /// <summary>
@@ -44,10 +59,9 @@ namespace SafeTrace.API.Controllers
         [HasPermission(Permissions.Profile.UpdateName)]
         public async Task<IActionResult> UpdateName([FromForm] UpdateNameDTO dTO)
         {
-            var UpdateProfile = await _user.UpdateNameAsync(GetCurrentUserId(), dTO);
-            if (UpdateProfile == null)
-                return NotFound();
-            return Ok(UpdateProfile);
+            var result = await _user.UpdateNameAsync(GetCurrentUserId(), dTO);
+
+            return Ok(result);
         }
 
         /// <summary>
@@ -58,10 +72,8 @@ namespace SafeTrace.API.Controllers
         [HasPermission(Permissions.Profile.UpdateProfileImage)]
         public async Task<IActionResult> UpdateProfileImage([FromForm] UpdateProfileImageDTO dTO)
         {
-            var UpdateProfile = await _user.UpdateProfilImageesync(GetCurrentUserId(), dTO);
-            if (UpdateProfile == null)
-                return NotFound();
-            return Ok(UpdateProfile);
+            var result = await _user.UpdateProfilImageesync(GetCurrentUserId(), dTO);
+            return Ok(result);
         }
 
         /// <summary>
@@ -85,10 +97,9 @@ namespace SafeTrace.API.Controllers
         [HasPermission(Permissions.Profile.UpdateIdImage)]
         public async Task<IActionResult> AddIdImage([FromForm] AddIdImageDTO dTO)
         {
-            var UpdateProfile = await _user.AddIdImageAsync(GetCurrentUserId(), dTO);
-            if (UpdateProfile == null)
-                return NotFound();
-            return Ok(UpdateProfile);
+            var result = await _user.AddIdImageAsync(GetCurrentUserId(), dTO);
+
+            return Ok(result);
         }
         /// <summary>
         /// تعديل محل الاقامة او موقع المنزل
@@ -98,11 +109,23 @@ namespace SafeTrace.API.Controllers
         [HasPermission(Permissions.Profile.UpdateHomeLocation)]
         public async Task<IActionResult> UpdateHomeLocation([FromForm] UpdateHomeLocationDTO dTO)
         {
-            var UpdateProfile = await _user.UpdateHomeLocationAsync(GetCurrentUserId(), dTO);
-            if (UpdateProfile == null)
-                return NotFound();
-            return Ok(UpdateProfile);
+            var result = await _user.UpdateHomeLocationAsync(GetCurrentUserId(), dTO);
+            return Ok(result);
         }
+
+        /// <summary>
+        /// تعديل رقم الهاتف
+        /// </summary>
+        /// <returns></returns>
+
+        [HttpPut("UpdatePhoneNumber")]
+        [HasPermission(Permissions.Profile.UpdatePhoneNumber)]
+        public async Task<IActionResult> UpdatePhoneNumber([FromForm] ChangePhoneNumberDTO dto)
+        {
+            var result = await _user.UpdatePhoneNumberAsync(GetCurrentUserId(), dto);
+            return Ok(result);
+        }
+
 
         private string GetCurrentUserId()
         {
