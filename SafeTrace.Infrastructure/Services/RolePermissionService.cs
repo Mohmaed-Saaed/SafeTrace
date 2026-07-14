@@ -1,13 +1,8 @@
-using Microsoft.AspNetCore.Identity;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using SafeTrace.Application.DTOs.Responses;
 using SafeTrace.Application.DTOs.RolePermission.Request;
 using SafeTrace.Application.DTOs.RolePermission.Response;
 using SafeTrace.Application.Exceptions;
-using SafeTrace.Application.Interfaces.IServices;
-using System.Reflection;
-using System.Security.Claims;
 
 namespace SafeTrace.Infrastructure.Services
 {
@@ -15,14 +10,14 @@ namespace SafeTrace.Infrastructure.Services
     {
         private readonly RoleManager<IdentityRole> _roleManager;
         private readonly UserManager<ApplicationUser> _userManager;
-        private readonly SafeTrace.Domain.Interfaces.IUnitOfWork.IUnitOfWork _unitOfWork;
+        private readonly IUnitOfWork _unitOfWork;
         private readonly ILogger<RolePermissionService> _logger;
 
         public RolePermissionService(
             RoleManager<IdentityRole> roleManager, 
             ILogger<RolePermissionService> logger, 
             UserManager<ApplicationUser> userManager,
-            SafeTrace.Domain.Interfaces.IUnitOfWork.IUnitOfWork unitOfWork)
+            IUnitOfWork unitOfWork)
         {
             _roleManager = roleManager;
             _logger = logger;

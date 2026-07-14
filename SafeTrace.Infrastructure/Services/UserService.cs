@@ -1,6 +1,4 @@
 using AutoMapper;
-using AutoMapper.QueryableExtensions;
-using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Logging;
 using SafeTrace.Application.Constants;
 using SafeTrace.Application.DTOs.NotificationDTOS;
@@ -9,14 +7,8 @@ using SafeTrace.Application.DTOs.User.Request;
 using SafeTrace.Application.DTOs.User.Response;
 using SafeTrace.Application.Exceptions;
 using SafeTrace.Application.Helpers;
-using SafeTrace.Application.Interfaces.IServices;
 using SafeTrace.Application.Interfaces.IServices.INotificationSewrvice;
-using SafeTrace.Application.Services.NotificationServices;
 using SafeTrace.Domain.Enums;
-using SafeTrace.Domain.Interfaces.IUnitOfWork;
-using SafeTrace.Infrastructure.DataAccess;
-using System.Reflection;
-using System.Security.Claims;
 
 namespace SafeTrace.Infrastructure.Services
 {
