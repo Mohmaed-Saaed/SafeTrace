@@ -227,8 +227,8 @@ namespace SafeTrace.Application.Services.Cases
 
             return new MatchedCasesResult
             {
-                HasMatches = matchedCases.Count != 0,
-                MatchedCases = matchedCases
+                HasMatched = matchedCases.Count != 0,
+                DuplicateCases = matchedCases
             };
         }
 
@@ -239,38 +239,34 @@ namespace SafeTrace.Application.Services.Cases
             Func<MatchedCaseDto, Task> onSameTypeMatchAsync,
             bool forceCreate = false)
         {
-            var sameType = match.MatchedCases
-                .FirstOrDefault(x => x.CaseType == currentCaseType);
+            var matchResult = await FindMatchedCasesAsync(subject, primaryImage);
 
             if (!matchResult.HasMatched)
                 return DuplicateCheckResult.None;
 
             var sameTypeDuplicate = matchResult.DuplicateCases
-                .FirstOrDefault(c => c.CaseType == currentCaseType);
+                .FirstOrDefault(x => x.CaseType == currentCaseType);
 
             if (sameTypeDuplicate != null)
             {
-                _logger.LogInformation(
-                    "Duplicate case blocked. Existing case {CaseCode} already matches this person with the same type {CaseType}.",
-                    sameTypeDuplicate.CaseCode,
-                    currentCaseType);
+                await onSameTypeMatchAsync(sameTypeDuplicate);
 
-                throw new BadRequestException($"توجد حالة مطابقة لنفس الشخص من نفس نوع الحالة بالفعل (كود الحالة: {sameTypeDuplicate.CaseCode}).");
+                return DuplicateCheckResult.None;
             }
 
             if (forceCreate)
             {
                 _logger.LogInformation(
-                    "Cross-type case match(es) found for type {CaseType} but forceCreate was set; proceeding with creation.",
-                    currentCaseType);
+                    "Cross-type duplicate(s) found but forceCreate=true."
+                );
 
                 return DuplicateCheckResult.None;
             }
 
             return new DuplicateCheckResult
             {
-                SameTypeMatch = sameType,
-                CrossTypeMatches = crossType
+                RequiresConfirmation = true,
+                MatchedCases = matchResult.DuplicateCases
             };
         }
 

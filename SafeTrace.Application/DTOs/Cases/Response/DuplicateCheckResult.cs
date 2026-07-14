@@ -4,12 +4,21 @@ namespace SafeTrace.Application.DTOs.Cases.Response
 {
     public class DuplicateCheckResult
     {
-        public MatchedCaseDto? SameTypeMatch { get; init; }
+        /// <summary>
+        /// True when cross-type duplicates exist and the client should ask
+        /// the user whether to continue with forceCreate.
+        /// </summary>
+        public bool RequiresConfirmation { get; init; }
 
-        public IReadOnlyList<MatchedCaseDto> CrossTypeMatches { get; init; } = [];
+        /// <summary>
+        /// Cross-type matched cases.
+        /// </summary>
+        public IReadOnlyList<MatchedCaseDto> MatchedCases { get; init; } = [];
 
-        public bool HasSameTypeMatch => SameTypeMatch is not null;
-
-        public bool HasCrossTypeMatches => CrossTypeMatches.Count > 0;
+        public static DuplicateCheckResult None => new()
+        {
+            RequiresConfirmation = false,
+            MatchedCases = []
+        };
     }
-}   
+}

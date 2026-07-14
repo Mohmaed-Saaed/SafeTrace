@@ -32,7 +32,12 @@ namespace SafeTrace.API.Controllers
         }
         #endregion
 
-
+        /// <summary>
+        /// للحصول علي اشعاراتي
+        /// </summary>
+        /// <param name="page"></param>
+        /// <param name="pageSize"></param>
+        /// <returns></returns>
         [HttpGet("my-Notifications")]
         [HasPermission(Permissions.Notifications.GetMyNotifications)]
         public async Task<IActionResult> GetMyNotifications(
@@ -45,6 +50,11 @@ namespace SafeTrace.API.Controllers
             return Ok(notifications);
         }
 
+        /// <summary>
+        /// لحذف اشعار معين 
+        /// </summary>
+        /// <param name="id"></param>
+        /// <returns></returns>
         [HttpDelete("{id}")]
         [HasPermission(Permissions.Notifications.DeleteNotification)]
         public async Task<IActionResult> DeleteNotification(long id)
@@ -53,7 +63,11 @@ namespace SafeTrace.API.Controllers
             if (!result.Data) return NotFound();
             return Ok(result);
         }
-
+        /// <summary>
+        /// تحديد اشعار معين كمقروء
+        /// </summary>
+        /// <param name="id"></param>
+        /// <returns></returns>
         [HttpPut("{id}/MarkAsRead")]
         [HasPermission(Permissions.Notifications.MarkAsRead)]
         public async Task<IActionResult> MarkAsRead(long id)
@@ -61,7 +75,10 @@ namespace SafeTrace.API.Controllers
             await _notificationService.MarkAsReadAsync(id);
             return Ok();
         }
-
+        /// <summary>
+        /// تحديد كل الاشعارات كمقروء 
+        /// </summary>
+        /// <returns></returns>
         [HttpPut("MarkAllAsRead")]
         [HasPermission(Permissions.Notifications.MarkAllAsRead)]
         public async Task<IActionResult> MarkAllAsRead()

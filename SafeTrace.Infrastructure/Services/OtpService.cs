@@ -1,7 +1,5 @@
 using Microsoft.Extensions.Logging;
-using SafeTrace.Application.Interfaces.IServices;
 using SafeTrace.Domain.Enums;
-using SafeTrace.Domain.Interfaces.IUnitOfWork;
 using System.Security.Cryptography;
 
 namespace SafeTrace.Infrastructure.Services

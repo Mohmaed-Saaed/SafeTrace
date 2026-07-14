@@ -1,4 +1,4 @@
-﻿using SafeTrace.Domain.Enums;
+using SafeTrace.Domain.Enums;
 
 namespace SafeTrace.Application.DTOs.User.Response
 {
