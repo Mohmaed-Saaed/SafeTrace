@@ -305,33 +305,7 @@ namespace SafeTrace.Infrastructure.Services
             }
         }
 
-        public async Task<ApiResponse<AuthResponseDto>> FacebookLoginAsync(ExternalLoginDto externalLoginDto)
-        {
-            try
-            {
-                var verifyUrl = $"https://graph.facebook.com/me?fields=id,email,first_name,last_name&access_token={externalLoginDto.ProviderToken}";
-                var fbResponse = await _httpClient.GetAsync(verifyUrl);
-                if (!fbResponse.IsSuccessStatusCode)
-                    throw new UnauthorizedException("فشل التحقق من حساب فيسبوك الخاص بك.");
 
-                using var doc = JsonDocument.Parse(await fbResponse.Content.ReadAsStringAsync());
-                var root = doc.RootElement;
-
-                if (!root.TryGetProperty("email", out var emailProp) || string.IsNullOrEmpty(emailProp.GetString()))
-                    throw new BadRequestException("لم نتمكن من الحصول على البريد الإلكتروني من حساب فيسبوك. يرجى إعطاء الصلاحية للوصول للبريد الإلكتروني.");
-
-                var email = emailProp.GetString();
-                var firstName = root.TryGetProperty("first_name", out var fName) ? fName.GetString() : "Facebook";
-                var lastName = root.TryGetProperty("last_name", out var lName) ? lName.GetString() : "User";
-
-                return await ProcessExternalUserFlowAsync(email!, firstName!, lastName!, "Facebook");
-            }
-            catch (Exception ex) when (ex is not WebException && ex is not UnauthorizedException && ex is not BadRequestException && ex is not ForbiddenException)
-            {
-                _logger.LogError(ex, "Critical provider identity synchronization validation error during Facebook runtime execution.");
-                throw new BadRequestException("حدث خطأ أثناء محاولة تسجيل الدخول بواسطة فيسبوك.");
-            }
-        }
 
         public async Task<ApiResponse<AuthResponseDto>> RefreshTokenAsync()
         {

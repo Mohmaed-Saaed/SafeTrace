@@ -34,6 +34,7 @@ namespace SafeTrace.Infrastructure.DependencyInjection
             services.AddScoped<IOtpService, OtpService>();
             services.AddScoped<IRolePermissionService, RolePermissionService>();
             services.AddScoped<IUserService, UserService>();
+            services.AddScoped<IAuthCleanupService, AuthCleanupService>();
             services.AddScoped<IFaceRecognitionService, FaceRecognitionService>();
             services.AddHttpClient<IPaymentService, PaymentService>();
 
