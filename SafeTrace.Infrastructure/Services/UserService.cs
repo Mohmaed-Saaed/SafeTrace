@@ -61,6 +61,19 @@ namespace SafeTrace.Infrastructure.Services
                 query = query.Where(u => u.VerificationStatus == filterDto.VerificationStatus.Value);
             }
 
+            if (filterDto.IsBlocked.HasValue)
+            {
+                var now = DateTimeOffset.UtcNow;
+                if (filterDto.IsBlocked.Value)
+                {
+                    query = query.Where(u => u.LockoutEnd.HasValue && u.LockoutEnd > now);
+                }
+                else
+                {
+                    query = query.Where(u => !u.LockoutEnd.HasValue || u.LockoutEnd <= now);
+                }
+            }
+
             if (!string.IsNullOrWhiteSpace(filterDto.RoleId))
             {
                 var userIdsInRole = _unitOfWork.Repository<IdentityUserRole<string>>().Query()
