@@ -13,8 +13,8 @@ using SafeTrace.Infrastructure.DataAccess;
 namespace SafeTrace.Infrastructure.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20260713032033_AddingPaymentMethodProperty")]
-    partial class AddingPaymentMethodProperty
+    [Migration("20260715224147_Initial")]
+    partial class Initial
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -601,6 +601,10 @@ namespace SafeTrace.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<string>("Reference")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<string>("TransactionId")
                         .HasColumnType("nvarchar(max)");
 
@@ -630,12 +634,7 @@ namespace SafeTrace.Infrastructure.Migrations
                         .HasMaxLength(10)
                         .HasColumnType("nvarchar(10)");
 
-                    b.Property<long?>("MasterCaseId")
-                        .HasColumnType("bigint");
-
                     b.HasKey("Id");
-
-                    b.HasIndex("MasterCaseId");
 
                     b.ToTable("DuplicateGroups", (string)null);
                 });
@@ -1096,15 +1095,6 @@ namespace SafeTrace.Infrastructure.Migrations
                         .HasForeignKey("UserId");
 
                     b.Navigation("User");
-                });
-
-            modelBuilder.Entity("SafeTrace.Domain.Entities.DuplicateGroup", b =>
-                {
-                    b.HasOne("SafeTrace.Domain.Entities.Case", "MasterCase")
-                        .WithMany()
-                        .HasForeignKey("MasterCaseId");
-
-                    b.Navigation("MasterCase");
                 });
 
             modelBuilder.Entity("SafeTrace.Domain.Entities.DuplicateGroupCase", b =>

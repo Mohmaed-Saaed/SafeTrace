@@ -61,6 +61,7 @@ namespace SafeTrace.Infrastructure.Services
                 Amount = request.Amount,
                 Currency = "EGP",
                 Message = request.Message,
+                Reference = $"DON-{Guid.NewGuid():N}"[..20],
                 PaymentStatus = PaymentStatus.Pending,
                 CreatedAt = DateTime.UtcNow
             };
@@ -107,7 +108,7 @@ namespace SafeTrace.Infrastructure.Services
         { "Donation", true }
     },
 
-                SpecialReference = donation.Id.ToString(),
+                SpecialReference = donation.Reference,
 
                 Expiration = 3600,
 
@@ -174,16 +175,16 @@ namespace SafeTrace.Infrastructure.Services
                 throw new PaymentVerificationException("HMAC غير صالح.");
             }
 
-            var donationId = long.Parse(obj.GetProperty("order").GetProperty("merchant_order_id").GetString()!);
+            var reference = obj.GetProperty("order").GetProperty("merchant_order_id").GetString();
 
-            var donation = await _unitOfWork.Repository<Donation>().GetByIdAsync(donationId);
+            var donation = await _unitOfWork.Repository<Donation>().Query().FirstOrDefaultAsync(d => d.Reference == reference);
 
             if (donation == null)
                 throw new NotFoundException("التبرع غير موجود.");
 
             if (donation.PaymentStatus == PaymentStatus.Succeeded)
             {
-                _logger.LogInformation("تمت معالجة التبرع بالمعرف {DonationId} بنجاح بالفعل.", donationId);
+                _logger.LogInformation("تمت معالجة التبرع بالمعرف {reference} بنجاح بالفعل.", reference);
                 return;
             }
 
@@ -192,7 +193,7 @@ namespace SafeTrace.Infrastructure.Services
 
             if (amount != expectedAmount)
             {
-                _logger.LogWarning("خطأ في المبلغ للتبرع بالمعرف {DonationId}. المتوقع: {ExpectedAmount}, المستلم: {ReceivedAmount}", donationId, expectedAmount, amount);
+                _logger.LogWarning("خطأ في المبلغ للتبرع بالمعرف {reference}. المتوقع: {ExpectedAmount}, المستلم: {ReceivedAmount}", reference, expectedAmount, amount);
                 throw new PaymentVerificationException("خطأ في المبلغ.");
             }
 

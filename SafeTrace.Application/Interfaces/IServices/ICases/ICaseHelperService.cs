@@ -64,25 +64,13 @@ namespace SafeTrace.Application.Interfaces.IServices.ICases
             long currentCaseId);
 
 
-        Task AddCaseToGroupAsync(
-    long groupId,
-    long caseId,
-    decimal similarity);
+        Task<DuplicateCheckResult> CheckDuplicateCaseAsync(
+           CaseType currentCaseType,
+           CaseMatchSubjectInfoDto subject,
+           IFormFile primaryImage,
+           Func<MatchedCaseDto, Task> onSameTypeMatchAsync,
+           bool forceCreate = false);
 
-        Task CreateDuplicateGroupWithCasesAsync(
-         UnknownCase oldCase,
-         UnknownCase newCase,
-         decimal similarity);
-        Task CreateDuplicateGroupAsync(
-   UnknownCase newCase);
-
-
-    //    Task<UnknownCase?> GetMatchedCaseAsync(
-    //string faceId,
-    //long currentCaseId);
-        Task<UnknownCase?> GetMatchedCaseAsync(
-            long caseId,
-            long currentCaseId);
 
 
         Task LinkCaseToDuplicateGroupAsync(
