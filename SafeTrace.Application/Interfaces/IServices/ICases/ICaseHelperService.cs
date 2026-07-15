@@ -54,13 +54,18 @@ namespace SafeTrace.Application.Interfaces.IServices.ICases
          decimal similarity);
         Task CreateDuplicateGroupAsync(
    UnknownCase newCase);
+
+
+    //    Task<UnknownCase?> GetMatchedCaseAsync(
+    //string faceId,
+    //long currentCaseId);
         Task<UnknownCase?> GetMatchedCaseAsync(
-    string faceId,
-    long currentCaseId);
+            long caseId,
+            long currentCaseId);
+
 
         Task LinkCaseToDuplicateGroupAsync(
-    UnknownCase newCase,
-    IFormFile primaryImage);
-
+                   UnknownCase newCase,
+                   MatchedCaseDto? sameTypeMatch);
     }
 }
