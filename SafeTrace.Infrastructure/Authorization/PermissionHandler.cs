@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using SafeTrace.Infrastructure.DataAccess;
 using System.Security.Claims;
@@ -40,9 +40,11 @@ namespace SafeTrace.Infrastructure.Authorization
             }
 
             var userRoles = await _userManager.GetRolesAsync(user);
-            foreach (var roleName in userRoles)
+            var userRole = userRoles.FirstOrDefault();
+            
+            if (userRole != null)
             {
-                var role = await _roleManager.FindByNameAsync(roleName);
+                var role = await _roleManager.FindByNameAsync(userRole);
                 if (role != null)
                 {
                     var roleClaims = await _roleManager.GetClaimsAsync(role);

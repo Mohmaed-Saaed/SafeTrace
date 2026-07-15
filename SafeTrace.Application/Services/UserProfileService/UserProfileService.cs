@@ -7,6 +7,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using SafeTrace.Application.DTOs.NotificationDTOS;
 using SafeTrace.Application.DTOs.Responses;
+using SafeTrace.Application.DTOs.User.Response;
 using SafeTrace.Application.DTOs.User_Profiel_DTOS;
 using SafeTrace.Application.DTOs.User_Profiel_DTOS.Update_Profile_DTOS;
 using SafeTrace.Application.Exceptions;
@@ -16,8 +17,11 @@ using SafeTrace.Application.Interfaces.IServices.IUserProfile;
 using SafeTrace.Application.Services.NotificationServices;
 using SafeTrace.Domain.Entities;
 using SafeTrace.Domain.Enums;
+using SafeTrace.Domain.Interfaces.IRepository;
 using static System.Net.Mime.MediaTypeNames;
 using static SafeTrace.Application.Constants.Permissions;
+
+using Chat = SafeTrace.Domain.Entities.Chat;
 
 namespace SafeTrace.Application.Services.UserProfileServices
 {
@@ -36,7 +40,8 @@ namespace SafeTrace.Application.Services.UserProfileServices
             ILogger<UserProfileService> logger,
             IFileStorageService Image,
             INotificationServices Notify,
-            IHttpContextAccessor httpContextAccessor
+            IHttpContextAccessor httpContextAccessor,
+          IUserService User
             )
         {
 
@@ -47,11 +52,20 @@ namespace SafeTrace.Application.Services.UserProfileServices
             _Notify = Notify;
             _httpContextAccessor = httpContextAccessor;
         }
+        private async Task<ApplicationUser?> GetUser(string userId)
+        {
+            return await _userManager.FindByIdAsync(userId);
+        }
+
+        #region Profile Info
         public async Task<ApiResponse<GetUserInfoDTO?>> GetProfileInfoAsync(string userId)
         {
             _logger.LogInformation("Fetching profile for UserId: {userId} at {Time}", userId, DateTime.UtcNow);
-            var user = await _userManager.FindByIdAsync(userId);
-            var roles = await _userManager.GetRolesAsync(user);
+            //var user = await _userManager.FindByIdAsync(userId);
+            var user = await _userManager.Users
+    .Include(u => u.Cases)
+    .FirstOrDefaultAsync(u => u.Id == userId);
+
             if (user == null)
             {
                 _logger.LogWarning("User With Id : {UserId} Not Found at {Time}", userId, DateTime.UtcNow);
@@ -59,6 +73,8 @@ namespace SafeTrace.Application.Services.UserProfileServices
             }
             else
             {
+                var roles = await _userManager.GetRolesAsync(user);
+                var phoneNumber = await _userManager.GetPhoneNumberAsync(user);
                 var dto = _mapper.Map<GetUserInfoDTO>(user);
                 dto.Role = roles.Contains(UserRole.Admin.ToString())
                     ? UserRole.Admin.ToString()
@@ -82,11 +98,31 @@ namespace SafeTrace.Application.Services.UserProfileServices
             }
         }
 
+        public async Task<ApiResponse<VisitUserDTO?>> GetVisitedUserAsync(string userId)
+        {
+            var user = await _userManager.FindByIdAsync(userId);
+            if (user is null) throw new NotFoundException($"المستخدم غير موجود");
 
+            var phoneNumber = await _userManager.GetPhoneNumberAsync(user);
+            var role = await _userManager.GetRolesAsync(user);
+            var profile = _mapper.Map<VisitUserDTO>(user);
+
+            profile.Role = role.Contains(UserRole.Admin.ToString()) ? UserRole.Admin.ToString()
+                : role.Contains(UserRole.Moderator.ToString()) ? UserRole.Moderator.ToString()
+                : role.Contains(UserRole.VerifiedUser.ToString()) ? UserRole.VerifiedUser.ToString()
+                : UserRole.User.ToString();
+
+            return ApiResponse<VisitUserDTO?>.Ok(profile, "تم جلب الملف الشخصي");
+        }
+
+        #endregion
         #region Update
+
+
         public async Task<ApiResponse<bool>> AddIdImageAsync(string userId, AddIdImageDTO dto)
         {
             var user = await _userManager.FindByIdAsync(userId);
+
             if (dto.IdentificationImage is not null)
             {
                 if (user.VerificationStatus == VerificationStatus.Verified)
@@ -191,6 +227,25 @@ namespace SafeTrace.Application.Services.UserProfileServices
 
             return ApiResponse<bool>.Ok(true, "تم حذف الصورة الشخصية بنجاح.");
         }
+
+        public async Task<ApiResponse<bool>> UpdatePhoneNumberAsync(string userId, ChangePhoneNumberDTO dto)
+        {
+            var user = await _userManager.FindByIdAsync(userId);
+            if (user == null)
+            {
+                throw new NotFoundException("المستخدم غير موجود");
+            }
+
+            var newPhoneNumber = _mapper.Map(dto, user);
+            var result = await _userManager.UpdateAsync(newPhoneNumber);
+            if (!result.Succeeded)
+            {
+                return ApiResponse<bool>.Fail("حدث خطأ اثناء تغيير رقم الهاتف");
+            }
+            return ApiResponse<bool>.Ok(true, "تم تغيير رقم الهاتف بنجاح");
+
+        }
+
 
         #region UPDATE OLD 
         public async Task<ApiResponse<bool>> UpdateProfileInfoAsync(string userId, UpdateProfileInfoDTO dto)
@@ -324,6 +379,8 @@ namespace SafeTrace.Application.Services.UserProfileServices
             return ApiResponse<bool>.Ok(true, "تم تعديل البيانات بنجاح");
 
         }
+
+
         #endregion
 
         #endregion

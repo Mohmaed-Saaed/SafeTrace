@@ -1,6 +1,4 @@
-﻿using AutoMapper;
-using AutoMapper.QueryableExtensions;
-using Microsoft.AspNetCore.Identity;
+using AutoMapper;
 using Microsoft.Extensions.Logging;
 using SafeTrace.Application.Constants;
 using SafeTrace.Application.DTOs.NotificationDTOS;
@@ -9,14 +7,8 @@ using SafeTrace.Application.DTOs.User.Request;
 using SafeTrace.Application.DTOs.User.Response;
 using SafeTrace.Application.Exceptions;
 using SafeTrace.Application.Helpers;
-using SafeTrace.Application.Interfaces.IServices;
 using SafeTrace.Application.Interfaces.IServices.INotificationSewrvice;
-using SafeTrace.Application.Services.NotificationServices;
 using SafeTrace.Domain.Enums;
-using SafeTrace.Domain.Interfaces.IUnitOfWork;
-using SafeTrace.Infrastructure.DataAccess;
-using System.Reflection;
-using System.Security.Claims;
 
 namespace SafeTrace.Infrastructure.Services
 {
@@ -25,7 +17,6 @@ namespace SafeTrace.Infrastructure.Services
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly RoleManager<IdentityRole> _roleManager;
         private readonly IUnitOfWork _unitOfWork;
-        private readonly ApplicationDbContext _context;
         private readonly IMapper _mapper;
         private readonly IFileStorageService _fileStorageService;
         private readonly IEmailService _emailService;
@@ -36,7 +27,6 @@ namespace SafeTrace.Infrastructure.Services
             UserManager<ApplicationUser> userManager,
             RoleManager<IdentityRole> roleManager,
             IUnitOfWork unitOfWork,
-            ApplicationDbContext context,
             IMapper mapper,
             IFileStorageService fileStorageService,
             IEmailService emailService,
@@ -46,7 +36,6 @@ namespace SafeTrace.Infrastructure.Services
             _userManager = userManager;
             _roleManager = roleManager;
             _unitOfWork = unitOfWork;
-            _context = context;
             _mapper = mapper;
             _fileStorageService = fileStorageService;
             _emailService = emailService;
@@ -61,9 +50,9 @@ namespace SafeTrace.Infrastructure.Services
             if (!string.IsNullOrWhiteSpace(filterDto.SearchTerm))
             {
                 var term = filterDto.SearchTerm.Trim().ToLower();
-                query = query.Where(u => u.FName.ToLower().Contains(term) ||
-                                         u.LName.ToLower().Contains(term) ||
-                                         u.Email!.ToLower().Contains(term) ||
+                query = query.Where(u => u.FName.Contains(term) ||
+                                         u.LName.Contains(term) ||
+                                         u.Email!.Contains(term) ||
                                          u.PhoneNumber!.Contains(term));
             }
 
@@ -72,9 +61,22 @@ namespace SafeTrace.Infrastructure.Services
                 query = query.Where(u => u.VerificationStatus == filterDto.VerificationStatus.Value);
             }
 
+            if (filterDto.IsBlocked.HasValue)
+            {
+                var now = DateTimeOffset.UtcNow;
+                if (filterDto.IsBlocked.Value)
+                {
+                    query = query.Where(u => u.LockoutEnd.HasValue && u.LockoutEnd > now);
+                }
+                else
+                {
+                    query = query.Where(u => !u.LockoutEnd.HasValue || u.LockoutEnd <= now);
+                }
+            }
+
             if (!string.IsNullOrWhiteSpace(filterDto.RoleId))
             {
-                var userIdsInRole = _context.UserRoles
+                var userIdsInRole = _unitOfWork.Repository<IdentityUserRole<string>>().Query()
                     .Where(ur => ur.RoleId == filterDto.RoleId)
                     .Select(ur => ur.UserId);
 
@@ -83,17 +85,43 @@ namespace SafeTrace.Infrastructure.Services
 
             var totalCount = await query.CountAsync();
 
-            var users = await query.Skip((filterDto.PageNumber - 1) * filterDto.PageSize)
+            var userDtosQuery = query.Select(u => new GetUserDto
+            {
+                Id = u.Id,
+                FName = u.FName,
+                LName = u.LName,
+                Email = u.Email ?? string.Empty,
+                PhoneNumber = u.PhoneNumber ?? string.Empty,
+                VerificationStatus = u.VerificationStatus,
+                IsBlocked = u.LockoutEnd.HasValue && u.LockoutEnd > DateTimeOffset.UtcNow
+            });
+
+            var userDtos = await userDtosQuery
+                                   .Skip((filterDto.PageNumber - 1) * filterDto.PageSize)
                                    .Take(filterDto.PageSize)
                                    .ToListAsync();
 
-            var userDtos = _mapper.Map<List<GetUserDto>>(users);
-
-            foreach (var dto in userDtos)
+            if (userDtos.Any())
             {
-                var userEntity = users.First(u => u.Id == dto.Id);
-                var roles = await _userManager.GetRolesAsync(userEntity);
-                dto.Role = roles.FirstOrDefault()!;
+                var userIds = userDtos.Select(u => u.Id).ToList();
+
+                var roleQuery = _unitOfWork.Repository<IdentityRole>().Query();
+                var userRoleQuery = _unitOfWork.Repository<IdentityUserRole<string>>().Query();
+
+                var userRoles = await (from ur in userRoleQuery
+                                       join r in roleQuery on ur.RoleId equals r.Id
+                                       where userIds.Contains(ur.UserId)
+                                       select new { ur.UserId, RoleName = r.Name })
+                                       .ToListAsync();
+
+                var rolesGroupedByUserId = userRoles
+                                            .GroupBy(ur => ur.UserId)
+                                            .ToDictionary(g => g.Key, g => g.Select(x => x.RoleName).FirstOrDefault() ?? "User");
+
+                foreach (var dto in userDtos)
+                {
+                    dto.Role = rolesGroupedByUserId.TryGetValue(dto.Id, out var role) ? role : "User";
+                }
             }
 
             var paginatedResult = new PaginationResponseDto<GetUserDto>
@@ -116,7 +144,7 @@ namespace SafeTrace.Infrastructure.Services
             var userDto = _mapper.Map<GetUserByIdDto>(user);
 
             var roles = await _userManager.GetRolesAsync(user);
-            userDto.Role = roles.FirstOrDefault()!;
+            userDto.Role = roles.FirstOrDefault() ?? "User";
 
             return ApiResponse<GetUserByIdDto>.Ok(userDto);
         }
@@ -134,6 +162,7 @@ namespace SafeTrace.Infrastructure.Services
             if (!roleExists) throw new BadRequestException("الدور (Role) المحدد غير موجود.");
 
             var currentRoles = await _userManager.GetRolesAsync(user);
+            var currentRole = currentRoles.FirstOrDefault() ?? "User";
 
             var removeResult = await _userManager.RemoveFromRolesAsync(user, currentRoles);
             if (!removeResult.Succeeded) throw new BadRequestException("فشل في إزالة الأدوار الحالية للمستخدم.");
@@ -141,12 +170,9 @@ namespace SafeTrace.Infrastructure.Services
             var addResult = await _userManager.AddToRoleAsync(user, dto.NewRole);
             if (!addResult.Succeeded) throw new BadRequestException("فشل في تعيين الدور الجديد للمستخدم.");
 
-            foreach (var role in currentRoles)
+            if (currentRole != "User")
             {
-                if (role != "User")
-                {
-                    user.VerificationStatus = VerificationStatus.Unverified;
-                }
+                user.VerificationStatus = VerificationStatus.Unverified;
             }
 
             if (dto.NewRole != "User")
@@ -174,7 +200,7 @@ namespace SafeTrace.Infrastructure.Services
             }
 
             var emailBody = EmailTemplates.BuildRoleChangedTemplate(user.FName, dto.NewRole);
-            await _emailService.SendEmailAsync(user.Email!, "تحديث دورك في منصة لقاء", emailBody);
+            await _emailService.SendEmailAsync(user.Email!, "لقاء - تحديث دورك في منصة لقاء", emailBody);
 
             await _notificationService.SendNotificationAsync(new SendNotificationDTO
             {
@@ -183,7 +209,7 @@ namespace SafeTrace.Infrastructure.Services
                 Type = NotificationType.System
             });
 
-            _logger.LogWarning($"Role changed for User with ID: {dto.UserId} from {string.Join(",", currentRoles)} to {dto.NewRole}");
+            _logger.LogWarning($"Role changed for User with ID: {dto.UserId} from {currentRole} to {dto.NewRole}");
             return ApiResponse<string>.Ok(null, "تم تحديث دور المستخدم بنجاح.");
         }
 
@@ -230,7 +256,7 @@ namespace SafeTrace.Infrastructure.Services
                 await _unitOfWork.CommitTransactionAsync();
 
                 var emailBody = EmailTemplates.BuildAdminRegisteredTemplate(user.FName, user.Email, dto.Password, dto.Role);
-                await _emailService.SendEmailAsync(user.Email, "تم إنشاء حساب لك في منصة لقاء", emailBody);
+                await _emailService.SendEmailAsync(user.Email, "لقاء - تم إنشاء حساب لك في منصة لقاء", emailBody);
 
                 await _notificationService.SendNotificationAsync(new SendNotificationDTO
                 {
@@ -260,6 +286,7 @@ namespace SafeTrace.Infrastructure.Services
             if (user.VerificationStatus != VerificationStatus.Pending) throw new BadRequestException("لا يمكن قبول طلب التوثيق لأنه ليس في حالة انتظار المراجعة.");
 
             var currentRoles = await _userManager.GetRolesAsync(user);
+            var currentRole = currentRoles.FirstOrDefault() ?? "User";
 
             var removeResult = await _userManager.RemoveFromRolesAsync(user, currentRoles);
             if (!removeResult.Succeeded) throw new BadRequestException("فشل في إزالة الدور الحالي للمستخدم.");
@@ -280,7 +307,7 @@ namespace SafeTrace.Infrastructure.Services
             }
 
             var emailBody = EmailTemplates.BuildVerificationApprovedTemplate(user.FName);
-            await _emailService.SendEmailAsync(user.Email!, "تم قبول طلب توثيق حسابك", emailBody);
+            await _emailService.SendEmailAsync(user.Email!, "لقاء - تم قبول طلب توثيق حسابك", emailBody);
 
             await _notificationService.SendNotificationAsync(new SendNotificationDTO
             {
@@ -289,7 +316,7 @@ namespace SafeTrace.Infrastructure.Services
                 Type = NotificationType.System
             });
 
-            _logger.LogWarning($"Role changed for User with ID: {userId} from {string.Join(",", currentRoles)} to VerifiedUser");
+            _logger.LogWarning($"Role changed for User with ID: {userId} from {currentRole} to VerifiedUser");
             return ApiResponse<string>.Ok(null, "تمت الموافقة على توثيق المستخدم بنجاح.");
         }
 
@@ -320,7 +347,7 @@ namespace SafeTrace.Infrastructure.Services
             }
 
             var emailBody = EmailTemplates.BuildVerificationRejectedTemplate(user.FName);
-            await _emailService.SendEmailAsync(user.Email!, "تم رفض طلب توثيق حسابك", emailBody);
+            await _emailService.SendEmailAsync(user.Email!, "لقاء - تم رفض طلب توثيق حسابك", emailBody);
 
             await _notificationService.SendNotificationAsync(new SendNotificationDTO
             {
@@ -345,7 +372,10 @@ namespace SafeTrace.Infrastructure.Services
             var currentUserRoles = await _userManager.GetRolesAsync(currentUser!);
             var targetUserRoles = await _userManager.GetRolesAsync(targetUser);
 
-            if ((targetUserRoles.Contains("Admin") || targetUserRoles.Contains("Moderator")) && currentUserRoles.Contains("Moderator"))
+            var currentUserRole = currentUserRoles.FirstOrDefault();
+            var targetUserRole = targetUserRoles.FirstOrDefault();
+
+            if ((targetUserRole == "Admin" || targetUserRole == "Moderator") && currentUserRole == "Moderator")
             {
                 throw new ForbiddenException("غير مسموح للمشرف (Moderator) بحظر أو فك حظر مديري النظام (Admins) أو المشرفين الأخرين.");
             }
@@ -357,7 +387,7 @@ namespace SafeTrace.Infrastructure.Services
                 await _userManager.SetLockoutEndDateAsync(targetUser, null);
 
                 var emailBody = EmailTemplates.BuildBlockStatusChangedTemplate(targetUser.FName, false);
-                await _emailService.SendEmailAsync(targetUser.Email!, "تم فك الحظر عن حسابك في منصة لقاء", emailBody);
+                await _emailService.SendEmailAsync(targetUser.Email!, "لقاء - تم إلغاء الحظر عن حسابك في منصة لقاء", emailBody);
 
                 await _notificationService.SendNotificationAsync(new SendNotificationDTO
                 {
@@ -387,7 +417,7 @@ namespace SafeTrace.Infrastructure.Services
                 await _unitOfWork.SaveAsync();
 
                 var emailBody = EmailTemplates.BuildBlockStatusChangedTemplate(targetUser.FName, true);
-                await _emailService.SendEmailAsync(targetUser.Email!, "تنبيه: تم حظر حسابك في منصة لقاء", emailBody);
+                await _emailService.SendEmailAsync(targetUser.Email!, "لقاء - تنبيه: تم حظر حسابك في منصة لقاء", emailBody);
 
                 await _notificationService.SendNotificationAsync(new SendNotificationDTO
                 {
@@ -411,18 +441,7 @@ namespace SafeTrace.Infrastructure.Services
                                                     .Select(c => c.Value)
                                                     .ToList();
 
-            var allPermissions = new List<string>();
-            var modules = typeof(Application.Constants.Permissions).GetNestedTypes(BindingFlags.Public | BindingFlags.Static);
-
-            foreach (var module in modules)
-            {
-                var fields = module.GetFields(BindingFlags.Public | BindingFlags.Static | BindingFlags.FlattenHierarchy);
-                foreach (var field in fields)
-                {
-                    var value = field.GetValue(null)?.ToString();
-                    if (value != null) allPermissions.Add(value);
-                }
-            }
+            var allPermissions = Application.Constants.Permissions.GetAllPermissions();
 
             var response = new UserPermissionsResponseDto
             {
@@ -447,23 +466,30 @@ namespace SafeTrace.Infrastructure.Services
 
             if (user.Email == SystemConstants.RootAdminEmail) throw new ForbiddenException("غير مسموح بتعديل الصلاحيات المباشرة للمالك الأساسي للنظام.");
 
-            var existingClaims = await _userManager.GetClaimsAsync(user);
-            var permissionClaims = existingClaims.Where(c => c.Type == "Permission");
+            var repo = _unitOfWork.Repository<IdentityUserClaim<string>>();
+            
+            var existingUserClaims = await repo.Query()
+                .Where(c => c.UserId == user.Id && c.ClaimType == "Permission")
+                .ToListAsync();
 
-            foreach (var claim in permissionClaims)
+            repo.RemoveRange(existingUserClaims);
+
+            if (dto.SelectedPermissions != null && dto.SelectedPermissions.Any())
             {
-                var removeResult = await _userManager.RemoveClaimAsync(user, claim);
-                if (!removeResult.Succeeded) throw new BadRequestException("فشل في مسح الصلاحيات الحالية للمستخدم.");
+                var newClaims = dto.SelectedPermissions.Select(p => new IdentityUserClaim<string>
+                {
+                    UserId = user.Id,
+                    ClaimType = "Permission",
+                    ClaimValue = p
+                });
+                
+                await repo.CreateRangeAsync(newClaims);
             }
 
-            foreach (var permission in dto.SelectedPermissions)
-            {
-                var addResult = await _userManager.AddClaimAsync(user, new Claim("Permission", permission));
-                if (!addResult.Succeeded) throw new BadRequestException("فشل في تعيين الصلاحيات الجديدة للمستخدم.");
-            }
+            await _unitOfWork.SaveAsync();
 
             var emailBody = EmailTemplates.BuildPermissionsChangedTemplate(user.FName);
-            await _emailService.SendEmailAsync(user.Email!, "تحديث صلاحياتك في منصة لقاء", emailBody);
+            await _emailService.SendEmailAsync(user.Email!, "لقاء - تحديث الصلاحيات في منصة لقاء", emailBody);
 
             await _notificationService.SendNotificationAsync(new SendNotificationDTO
             {
