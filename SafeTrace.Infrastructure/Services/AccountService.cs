@@ -101,8 +101,22 @@ namespace SafeTrace.Infrastructure.Services
         public async Task<ApiResponse<AuthResponseDto>> LoginAsync(LoginDto loginDto)
         {
             var user = await _userManager.FindByEmailAsync(loginDto.Email);
-            if (user == null || !await _userManager.CheckPasswordAsync(user, loginDto.Password))
+            if (user == null)
             {
+                throw new UnauthorizedException("البريد الإلكتروني أو كلمة المرور غير صحيحة.");
+            }
+
+            CheckIfUserIsBlocked(user);
+
+            if (!await _userManager.CheckPasswordAsync(user, loginDto.Password))
+            {
+                await _userManager.AccessFailedAsync(user);
+                
+                if (await _userManager.IsLockedOutAsync(user))
+                {
+                    throw new ForbiddenException("تم حظر الحساب مؤقتاً لتجاوز الحد المسموح لمحاولات الدخول الخاطئة. يرجى المحاولة لاحقاً.");
+                }
+
                 throw new UnauthorizedException("البريد الإلكتروني أو كلمة المرور غير صحيحة.");
             }
 
@@ -111,7 +125,7 @@ namespace SafeTrace.Infrastructure.Services
                 throw new ForbiddenException("يرجى تأكيد بريدك الإلكتروني أولاً قبل تسجيل الدخول.");
             }
 
-            CheckIfUserIsBlocked(user);
+            await _userManager.ResetAccessFailedCountAsync(user);
 
             await _unitOfWork.BeginTransactionAsync();
             try
@@ -305,33 +319,7 @@ namespace SafeTrace.Infrastructure.Services
             }
         }
 
-        public async Task<ApiResponse<AuthResponseDto>> FacebookLoginAsync(ExternalLoginDto externalLoginDto)
-        {
-            try
-            {
-                var verifyUrl = $"https://graph.facebook.com/me?fields=id,email,first_name,last_name&access_token={externalLoginDto.ProviderToken}";
-                var fbResponse = await _httpClient.GetAsync(verifyUrl);
-                if (!fbResponse.IsSuccessStatusCode)
-                    throw new UnauthorizedException("فشل التحقق من حساب فيسبوك الخاص بك.");
 
-                using var doc = JsonDocument.Parse(await fbResponse.Content.ReadAsStringAsync());
-                var root = doc.RootElement;
-
-                if (!root.TryGetProperty("email", out var emailProp) || string.IsNullOrEmpty(emailProp.GetString()))
-                    throw new BadRequestException("لم نتمكن من الحصول على البريد الإلكتروني من حساب فيسبوك. يرجى إعطاء الصلاحية للوصول للبريد الإلكتروني.");
-
-                var email = emailProp.GetString();
-                var firstName = root.TryGetProperty("first_name", out var fName) ? fName.GetString() : "Facebook";
-                var lastName = root.TryGetProperty("last_name", out var lName) ? lName.GetString() : "User";
-
-                return await ProcessExternalUserFlowAsync(email!, firstName!, lastName!, "Facebook");
-            }
-            catch (Exception ex) when (ex is not WebException && ex is not UnauthorizedException && ex is not BadRequestException && ex is not ForbiddenException)
-            {
-                _logger.LogError(ex, "Critical provider identity synchronization validation error during Facebook runtime execution.");
-                throw new BadRequestException("حدث خطأ أثناء محاولة تسجيل الدخول بواسطة فيسبوك.");
-            }
-        }
 
         public async Task<ApiResponse<AuthResponseDto>> RefreshTokenAsync()
         {
@@ -500,8 +488,16 @@ namespace SafeTrace.Infrastructure.Services
         {
             if (user.LockoutEnd.HasValue && user.LockoutEnd.Value > DateTimeOffset.UtcNow)
             {
-                _logger.LogWarning("Action denied. Blocked user {Email} attempted an account mutation operation.", user.Email);
-                throw new ForbiddenException("هذا الحساب محظور من قبل الإدارة.");
+                if (user.LockoutEnd.Value == DateTimeOffset.MaxValue)
+                {
+                    _logger.LogWarning("Action denied. Blocked user {Email} attempted an account mutation operation.", user.Email);
+                    throw new ForbiddenException("هذا الحساب محظور من قبل الإدارة.");
+                }
+                else
+                {
+                    _logger.LogWarning("Action denied. Temporarily locked out user {Email} attempted an account operation.", user.Email);
+                    throw new ForbiddenException("تم حظر الحساب مؤقتاً لتجاوز الحد المسموح لمحاولات تسجيل الدخول. يرجى المحاولة لاحقاً.");
+                }
             }
         }
 

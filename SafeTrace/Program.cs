@@ -1,11 +1,14 @@
 using ElmahCore.Mvc;
 using Microsoft.AspNetCore.Mvc;
+using SafeTrace.API.BackgroundServices;
 using SafeTrace.API.ExceptionHandlers;
 using SafeTrace.API.ExtensionMethods;
 using SafeTrace.API.Hubs;
 using SafeTrace.Application.DependencyInjection;
 using SafeTrace.Application.Hubs;
 using SafeTrace.Application.Interfaces.IServices;
+using SafeTrace.Application.Interfaces.IServices.ICases;
+using SafeTrace.Application.Services.Cases;
 using SafeTrace.Infrastructure.DependencyInjection;
 using Serilog;
 using System.Reflection;
@@ -71,6 +74,11 @@ namespace SafeTrace
             builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
             builder.Services.AddProblemDetails();
             builder.Services.AddSignalR();
+            
+            // Background Services
+            builder.Services.AddScoped<ICaseCleanupService, CaseCleanupService>();
+            builder.Services.AddHostedService<UrgentCaseCleanupBackgroundService>();
+            builder.Services.AddHostedService<AuthCleanupBackgroundService>();
 
             var app = builder.Build();
 
