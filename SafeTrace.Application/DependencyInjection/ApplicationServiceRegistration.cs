@@ -19,6 +19,7 @@ namespace SafeTrace.Application.DependencyInjection
             services.AddScoped<ILongTermCaseService, LongTermCaseService>();  
             services.AddScoped<IUnknownCaseService,UnKnownCaseService>();
             services.AddScoped<IUrgentCaseService, UrgentCaseService>();
+            services.AddScoped<ICaseCleanupService, CaseCleanupService>();
 
             services.AddScoped<IFoundedService, FoundedService>();
 
