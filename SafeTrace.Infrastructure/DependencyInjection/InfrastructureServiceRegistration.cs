@@ -190,7 +190,7 @@ namespace SafeTrace.Infrastructure.DependencyInjection
                         factory: partition => new System.Threading.RateLimiting.FixedWindowRateLimiterOptions
                         {
                             AutoReplenishment = true,
-                            PermitLimit = 100,
+                            PermitLimit = 1000,
                             QueueLimit = 0,
                             Window = TimeSpan.FromMinutes(1)
                         }));
