@@ -26,7 +26,6 @@ namespace SafeTrace.Application.Constants
                 <p style='color: #94a3b8; font-size: 12px; line-height: 1.5; margin: 0;'>إذا لم تقم بإنشاء هذا الحساب أو تقديم هذا الطلب، يمكنك تجاهل هذا البريد الإلكتروني بأمان دون اتخاذ أي إجراء إضافي.</p>
                 <br/>
                 <p style='color: #475569; font-size: 14px; margin: 0; font-weight: 600;'>مع خالص التحية،<br/><span style='color: #2b5a8f;'>فريق عمل منصة لقاء</span></p>
-                <span style='display:none;'>{Guid.NewGuid()}</span>
             </div>";
         }
 
@@ -113,7 +112,6 @@ namespace SafeTrace.Application.Constants
                 <p style='color: #ef4444; font-size: 13px; font-weight: 600; margin-bottom: 25px;'>ملاحظة هامة: نوصي بشدة بتغيير كلمة المرور المؤقتة فور تسجيل دخولك لأول مرة لضمان أمان حسابك.</p>
                 <hr style='border: 0; border-top: 1px solid #f0f4f8; margin-bottom: 20px;' />
                 <p style='color: #475569; font-size: 14px; margin: 0; font-weight: 600;'>مع خالص التحية،<br/><span style='color: #2b5a8f;'>فريق عمل منصة لقاء</span></p>
-                <span style='display:none;'>{Guid.NewGuid()}</span>
             </div>";
         }
 
@@ -133,7 +131,6 @@ namespace SafeTrace.Application.Constants
                 </div>
                 <hr style='border: 0; border-top: 1px solid #f0f4f8; margin-bottom: 20px; margin-top: 25px;' />
                 <p style='color: #475569; font-size: 14px; margin: 0; font-weight: 600;'>مع خالص التحية،<br/><span style='color: #2b5a8f;'>فريق عمل منصة لقاء</span></p>
-                <span style='display:none;'>{Guid.NewGuid()}</span>
             </div>";
         }
 
@@ -155,7 +152,6 @@ namespace SafeTrace.Application.Constants
                 
                 <hr style='border: 0; border-top: 1px solid #f0f4f8; margin-bottom: 20px; margin-top: 25px;' />
                 <p style='color: #475569; font-size: 14px; margin: 0; font-weight: 600;'>مع خالص التحية،<br/><span style='color: #2b5a8f;'>فريق عمل منصة لقاء</span></p>
-                <span style='display:none;'>{Guid.NewGuid()}</span>
             </div>";
         }
 
@@ -178,7 +174,6 @@ namespace SafeTrace.Application.Constants
                 </div>
                 <hr style='border: 0; border-top: 1px solid #f0f4f8; margin-bottom: 20px; margin-top: 25px;' />
                 <p style='color: #475569; font-size: 14px; margin: 0; font-weight: 600;'>مع خالص التحية،<br/><span style='color: #2b5a8f;'>فريق عمل منصة لقاء</span></p>
-                <span style='display:none;'>{Guid.NewGuid()}</span>
             </div>";
         }
 
@@ -202,7 +197,6 @@ namespace SafeTrace.Application.Constants
                 
                 <hr style='border: 0; border-top: 1px solid #f0f4f8; margin-bottom: 20px; margin-top: 25px;' />
                 <p style='color: #475569; font-size: 14px; margin: 0; font-weight: 600;'>مع خالص التحية،<br/><span style='color: #2b5a8f;'>فريق عمل منصة لقاء</span></p>
-                <span style='display:none;'>{Guid.NewGuid()}</span>
             </div>";
         }
 
@@ -233,7 +227,6 @@ namespace SafeTrace.Application.Constants
                 
                 <hr style='border: 0; border-top: 1px solid #f0f4f8; margin-bottom: 20px; margin-top: 25px;' />
                 <p style='color: #475569; font-size: 14px; margin: 0; font-weight: 600;'>مع خالص التحية،<br/><span style='color: #2b5a8f;'>فريق عمل منصة لقاء</span></p>
-                <span style='display:none;'>{Guid.NewGuid()}</span>
             </div>";
         }
 
@@ -259,7 +252,6 @@ namespace SafeTrace.Application.Constants
                 
                 <hr style='border: 0; border-top: 1px solid #f0f4f8; margin-bottom: 20px; margin-top: 25px;' />
                 <p style='color: #475569; font-size: 14px; margin: 0; font-weight: 600;'>مع خالص التحية،<br/><span style='color: #2b5a8f;'>فريق الأمان - منصة لقاء</span></p>
-                <span style='display:none;'>{Guid.NewGuid()}</span>
             </div>";
         }
 
@@ -284,7 +276,6 @@ namespace SafeTrace.Application.Constants
                 
                 <hr style='border: 0; border-top: 1px solid #f0f4f8; margin-bottom: 20px; margin-top: 25px;' />
                 <p style='color: #475569; font-size: 14px; margin: 0; font-weight: 600;'>مع خالص التحية،<br/><span style='color: #2b5a8f;'>فريق عمل منصة لقاء</span></p>
-                <span style='display:none;'>{Guid.NewGuid()}</span>
             </div>";
         }
 
@@ -308,7 +299,6 @@ namespace SafeTrace.Application.Constants
                 
                 <hr style='border: 0; border-top: 1px solid #f0f4f8; margin-bottom: 20px; margin-top: 25px;' />
                 <p style='color: #475569; font-size: 14px; margin: 0; font-weight: 600;'>مع خالص التحية،<br/><span style='color: #2b5a8f;'>فريق عمل منصة لقاء</span></p>
-                <span style='display:none;'>{Guid.NewGuid()}</span>
             </div>";
         }
 

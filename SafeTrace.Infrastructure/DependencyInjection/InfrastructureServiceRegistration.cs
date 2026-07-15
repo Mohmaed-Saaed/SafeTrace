@@ -162,7 +162,6 @@ namespace SafeTrace.Infrastructure.DependencyInjection
                 //    context.User.IsInRole("Admin");
             });
 
-            // --- Rate Limiting Configuration ---
             services.AddRateLimiter(options =>
             {
                 options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
@@ -175,12 +174,11 @@ namespace SafeTrace.Infrastructure.DependencyInjection
                     {
                         Status = 429,
                         Title = "Too Many Requests",
-                        Detail = "لقد تجاوزت الحد المسموح به من الطلبات. يرجى المحاولة لاحقاً.",
+                        Detail = "لقد تجاوزت الحد المسموح به. يرجى المحاولة لاحقاً.",
                         Instance = context.HttpContext.Request.Path
                     });
                 };
 
-                // 1. Global Policy (Default for endpoints changing data)
                 options.GlobalLimiter = System.Threading.RateLimiting.PartitionedRateLimiter.Create<HttpContext, string>(httpContext =>
                     System.Threading.RateLimiting.RateLimitPartition.GetFixedWindowLimiter(
                         partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? httpContext.Request.Headers.Host.ToString(),
@@ -192,7 +190,6 @@ namespace SafeTrace.Infrastructure.DependencyInjection
                             Window = TimeSpan.FromMinutes(1)
                         }));
 
-                // 2. Auth Policy (Strict limits for Login, Register, OTP)
                 options.AddPolicy("AuthLimit", httpContext =>
                     System.Threading.RateLimiting.RateLimitPartition.GetFixedWindowLimiter(
                         partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? httpContext.Request.Headers.Host.ToString(),

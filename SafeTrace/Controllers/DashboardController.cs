@@ -1,6 +1,8 @@
 ﻿using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using SafeTrace.Application.Constants;
 using SafeTrace.Application.Interfaces.IServices;
+using SafeTrace.Infrastructure.Authorization;
 
 namespace SafeTrace.API.Controllers.Dashboard
 {
@@ -31,6 +33,7 @@ namespace SafeTrace.API.Controllers.Dashboard
         /// <response code="200">Dashboard data retrieved successfully.</response>
         /// <response code="500">An unexpected error occurred while retrieving dashboard data.</response>
         [HttpGet]
+        [HasPermission(Permissions.Dashboard.GetStatistics)]
         public async Task<IActionResult> GetDashboardData()
         {
            var response = await _dashboardService.GetDashboardAsync();
