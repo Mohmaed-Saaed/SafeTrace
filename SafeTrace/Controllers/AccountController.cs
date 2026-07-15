@@ -90,28 +90,7 @@ namespace SafeTrace.API.Controllers
             return Ok(response);
         }
 
-        /// <summary>
-        /// تسجيل الدخول باستخدام حساب فيسبوك.
-        /// </summary>
-        /// <remarks>
-        /// يستقبل الـ Provider Token من فيسبوك للتحقق من هوية المستخدم وتسجيل دخوله.
-        /// </remarks>
-        /// <response code="200">تم تسجيل الدخول بنجاح.</response>
-        /// <response code="400">فشل في استخراج البريد الإلكتروني أو خطأ في عملية التسجيل.</response>
-        /// <response code="401">رمز فيسبوك (Provider Token) غير صالح.</response>
-        /// <response code="403">الحساب محظور من قبل الإدارة.</response>
-        [ProducesResponseType(typeof(ApiResponse<AuthResponseDto>), StatusCodes.Status200OK)]
-        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
-        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
-        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
-        [AllowAnonymous]
-        [Microsoft.AspNetCore.RateLimiting.EnableRateLimiting("AuthLimit")]
-        [HttpPost("facebook-login")]
-        public async Task<IActionResult> FacebookLogin([FromBody] ExternalLoginDto externalLoginDto)
-        {
-            var response = await _accountService.FacebookLoginAsync(externalLoginDto);
-            return Ok(response);
-        }
+
 
         /// <summary>
         /// تأكيد البريد الإلكتروني باستخدام رمز الـ OTP.

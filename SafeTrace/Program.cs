@@ -78,6 +78,7 @@ namespace SafeTrace
             // Background Services
             builder.Services.AddScoped<ICaseCleanupService, CaseCleanupService>();
             builder.Services.AddHostedService<UrgentCaseCleanupBackgroundService>();
+            builder.Services.AddHostedService<AuthCleanupBackgroundService>();
 
             var app = builder.Build();
 

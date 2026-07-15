@@ -43,18 +43,26 @@ namespace SafeTrace.Application.Interfaces.IServices.ICases
 
         Task<MatchedCasesResult> FindMatchedCasesAsync(CaseMatchSubjectInfoDto subject, IFormFile primaryImage);
 
-        /// <summary>
-        /// Generic pre-create duplicate DETECTION used by all case types (LongTerm / Unknown / Urgent).
-        /// This only detects and categorizes matches — it does NOT decide what to do with them.
-        /// Each case service inspects the result (SameTypeMatch / CrossTypeMatches) and applies
-        /// its own behavior (e.g. block, merge, or ask for confirmation).
-        /// </summary>
-        Task<DuplicateCheckResult> CheckDuplicateCaseAsync(
-            CaseType currentCaseType,
-            CaseMatchSubjectInfoDto subject,
-            IFormFile primaryImage,
-            Func<MatchedCaseDto, Task> onSameTypeMatchAsync,
-            bool forceCreate = false);
+        Task AddCaseToGroupAsync(
+    long groupId,
+    long caseId,
+    decimal similarity);
+
+        Task CreateDuplicateGroupWithCasesAsync(
+         UnknownCase oldCase,
+         UnknownCase newCase,
+         decimal similarity);
+        Task CreateDuplicateGroupAsync(
+   UnknownCase newCase);
+
+
+    //    Task<UnknownCase?> GetMatchedCaseAsync(
+    //string faceId,
+    //long currentCaseId);
+        Task<UnknownCase?> GetMatchedCaseAsync(
+            long caseId,
+            long currentCaseId);
+
 
         Task AddCaseToGroupAsync(
     long groupId,

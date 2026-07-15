@@ -239,7 +239,8 @@ namespace SafeTrace.Application.Services.Cases
             Func<MatchedCaseDto, Task> onSameTypeMatchAsync,
             bool forceCreate = false)
         {
-            var matchResult = await FindMatchedCasesAsync(subject, primaryImage);
+            var sameType = match.MatchedCases
+                .FirstOrDefault(x => x.CaseType == currentCaseType);
 
             if (!matchResult.HasMatched)
                 return DuplicateCheckResult.None;
