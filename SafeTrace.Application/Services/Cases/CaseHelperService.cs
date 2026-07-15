@@ -231,16 +231,14 @@ namespace SafeTrace.Application.Services.Cases
                 DuplicateCases = matchedCases
             };
         }
-
         public async Task<DuplicateCheckResult> CheckDuplicateCaseAsync(
-            CaseType currentCaseType,
-            CaseMatchSubjectInfoDto subject,
-            IFormFile primaryImage,
-            Func<MatchedCaseDto, Task> onSameTypeMatchAsync,
-            bool forceCreate = false)
+           CaseType currentCaseType,
+           CaseMatchSubjectInfoDto subject,
+           IFormFile primaryImage,
+           Func<MatchedCaseDto, Task> onSameTypeMatchAsync,
+           bool forceCreate = false)
         {
-            var sameType = match.MatchedCases
-                .FirstOrDefault(x => x.CaseType == currentCaseType);
+            var matchResult = await FindMatchedCasesAsync(subject, primaryImage);
 
             if (!matchResult.HasMatched)
                 return DuplicateCheckResult.None;
@@ -270,7 +268,6 @@ namespace SafeTrace.Application.Services.Cases
                 MatchedCases = matchResult.DuplicateCases
             };
         }
-
         private async Task<List<FaceMatchResult>> SearchFacesAsync(IFormFile primaryImage)
         {
             var faceMatches = await _faceRecognitionService.SearchByImageAsync(primaryImage);
