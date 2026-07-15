@@ -12,6 +12,18 @@ namespace SafeTrace.Infrastructure.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
+            migrationBuilder.CreateSequence<int>(
+                name: "LongTermCaseSequence",
+                startValue: 1000L);
+
+            migrationBuilder.CreateSequence<int>(
+                name: "UnknownCaseSequence",
+                startValue: 1000L);
+
+            migrationBuilder.CreateSequence<int>(
+                name: "UrgentCaseSequence",
+                startValue: 1000L);
+
             migrationBuilder.CreateTable(
                 name: "AgeCategories",
                 columns: table => new
@@ -73,6 +85,20 @@ namespace SafeTrace.Infrastructure.Migrations
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_AspNetRoles", x => x.Id);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "DuplicateGroups",
+                columns: table => new
+                {
+                    Id = table.Column<long>(type: "bigint", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    GroupStatus = table.Column<string>(type: "nvarchar(10)", maxLength: 10, nullable: false),
+                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_DuplicateGroups", x => x.Id);
                 });
 
             migrationBuilder.CreateTable(
@@ -233,6 +259,35 @@ namespace SafeTrace.Infrastructure.Migrations
                         principalTable: "ApplicationUsers",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "Donations",
+                columns: table => new
+                {
+                    Id = table.Column<long>(type: "bigint", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    UserId = table.Column<string>(type: "nvarchar(450)", nullable: true),
+                    Amount = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
+                    Currency = table.Column<string>(type: "nvarchar(3)", maxLength: 3, nullable: false),
+                    PaymentStatus = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    PaymentGateway = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    TransactionId = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    OrderId = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    Reference = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    Message = table.Column<string>(type: "nvarchar(1000)", maxLength: 1000, nullable: true),
+                    PaymentMethod = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    PaidAt = table.Column<DateTime>(type: "datetime2", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_Donations", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_Donations_ApplicationUsers_UserId",
+                        column: x => x.UserId,
+                        principalTable: "ApplicationUsers",
+                        principalColumn: "Id");
                 });
 
             migrationBuilder.CreateTable(
@@ -406,6 +461,35 @@ namespace SafeTrace.Infrastructure.Migrations
                         name: "FK_Chats_Cases_CaseId",
                         column: x => x.CaseId,
                         principalTable: "Cases",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "DuplicateGroupCases",
+                columns: table => new
+                {
+                    Id = table.Column<long>(type: "bigint", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    DuplicateGroupId = table.Column<long>(type: "bigint", nullable: false),
+                    CaseId = table.Column<long>(type: "bigint", nullable: false),
+                    SimilarityScore = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
+                    MatchedBy = table.Column<string>(type: "nvarchar(10)", maxLength: 10, nullable: false),
+                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_DuplicateGroupCases", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_DuplicateGroupCases_Cases_CaseId",
+                        column: x => x.CaseId,
+                        principalTable: "Cases",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_DuplicateGroupCases_DuplicateGroups_DuplicateGroupId",
+                        column: x => x.DuplicateGroupId,
+                        principalTable: "DuplicateGroups",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
                 });
@@ -599,6 +683,21 @@ namespace SafeTrace.Infrastructure.Migrations
                 column: "UserId");
 
             migrationBuilder.CreateIndex(
+                name: "IX_Donations_UserId",
+                table: "Donations",
+                column: "UserId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_DuplicateGroupCases_CaseId",
+                table: "DuplicateGroupCases",
+                column: "CaseId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_DuplicateGroupCases_DuplicateGroupId",
+                table: "DuplicateGroupCases",
+                column: "DuplicateGroupId");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_FoundPersonInfos_CaseId",
                 table: "FoundPersonInfos",
                 column: "CaseId",
@@ -674,6 +773,12 @@ namespace SafeTrace.Infrastructure.Migrations
                 name: "Complaints");
 
             migrationBuilder.DropTable(
+                name: "Donations");
+
+            migrationBuilder.DropTable(
+                name: "DuplicateGroupCases");
+
+            migrationBuilder.DropTable(
                 name: "FoundPersonInfos");
 
             migrationBuilder.DropTable(
@@ -692,6 +797,9 @@ namespace SafeTrace.Infrastructure.Migrations
                 name: "AspNetRoles");
 
             migrationBuilder.DropTable(
+                name: "DuplicateGroups");
+
+            migrationBuilder.DropTable(
                 name: "Chats");
 
             migrationBuilder.DropTable(
@@ -702,6 +810,15 @@ namespace SafeTrace.Infrastructure.Migrations
 
             migrationBuilder.DropTable(
                 name: "ApplicationUsers");
+
+            migrationBuilder.DropSequence(
+                name: "LongTermCaseSequence");
+
+            migrationBuilder.DropSequence(
+                name: "UnknownCaseSequence");
+
+            migrationBuilder.DropSequence(
+                name: "UrgentCaseSequence");
         }
     }
 }
