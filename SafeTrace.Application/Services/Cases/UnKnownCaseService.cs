@@ -1,5 +1,8 @@
 using Microsoft.AspNetCore.Identity;
 using SafeTrace.Application.Common.Enums;
+using SafeTrace.Application.DTOs.AiMatching.Response;
+using SafeTrace.Application.DTOs.Cases.Request;
+using SafeTrace.Application.DTOs.Cases.Response;
 using SafeTrace.Application.DTOs.UnKnownCase.Request;
 using SafeTrace.Application.DTOs.UnKnownCase.Response;
 using SafeTrace.Application.Exceptions;
@@ -19,32 +22,44 @@ namespace SafeTrace.Application.Services.Cases
             : base(unitOfWork, mapper, caseHelper, logger)
         {
         }
-        //    var duplicateCheck = await _caseHelper.CheckDuplicateCaseAsync(
-    //    CaseType.Unknown,
-    //subject,
-    //dto.PrimaryImage,
-    //onSameTypeMatchAsync: async(duplicateCase) =>
-    //{
-    //    _logger.LogInformation(
-    //        "Duplicate Unknown case found. Initiating merge with existing case {CaseCode}.",
-    //        duplicateCase.CaseCode);
-
-    //    // 1. نادي الـ Logic بتاع الـ Merge بتاعك هنا
-    //    await MergeUnknownCasesAsync(existingCaseId: duplicateCase.Id, newCaseData: dto);
-
-    //    // 2. بنرمي Custom Exception عشان يوقف الـ Flow بتاع الـ Creation الجديد
-    //    // لأننا خلاص دمجنا البيانات في الحالة القديمة ومش عايزين نـ Create حالة جديدة
-    //    throw new CaseMergedException(duplicateCase.CaseCode);
-    //},
-    //forceCreate);
-        public async Task<ApiResponse<string>> CreateUnknownCaseAsync(string userId,CreateUnknownDto dto)
+      
+        public async Task<ApiResponse<CreateCaseResultDto>> CreateUnknownCaseAsync(string userId, CreateUnknownDto dto, bool forceCreate = false)
         {
-
-
             await _caseHelper.ValidateVerifiedUserAsync(userId);
 
-            var entity = _mapper.Map<UnknownCase>(dto);
+            var subject = new CaseMatchSubjectInfoDto
+            {
+                Gender = dto.Gender,
+                Age = dto.Age
+            };
 
+            // نلتقط الـ match الجاهز من CheckDuplicateCaseAsync بدل تنفيذ Logic
+            // بيعتمد على entity.Id، وهو لسه مش موجود في اللحظة دي
+            MatchedCaseDto? pendingSameTypeMatch = null;
+
+            var checkResult = await _caseHelper.CheckDuplicateCaseAsync(
+                CaseType.Unknown,
+                subject,
+                dto.PrimaryImage,
+                onSameTypeMatchAsync: duplicate =>
+                {
+                    pendingSameTypeMatch = duplicate;
+                    return Task.CompletedTask;
+                },
+                forceCreate);
+
+            // Unknown + LongTerm/Urgent -> نفس السلوك الحالي بالظبط: نرجع للمستخدم يقرر
+            if (checkResult.RequiresConfirmation)
+            {
+                return ApiResponse<CreateCaseResultDto>.Ok(
+                    new CreateCaseResultDto
+                    {
+                        IsCreated = false,
+                        MatchedCases = checkResult.MatchedCases
+                    });
+            }
+
+            var entity = _mapper.Map<UnknownCase>(dto);
             entity.UserId = userId;
             entity.Status = CaseStatus.Pending;
             entity.CaseType = CaseType.Unknown;
@@ -66,6 +81,7 @@ namespace SafeTrace.Application.Services.Cases
                         .CreateAsync(entity);
 
                     await _unitOfWork.SaveAsync();
+
                     uploadedFiles = await _caseHelper.CreateCaseFilesAsync(
                         dto.PrimaryImage,
                         dto.AdditionalImages,
@@ -74,9 +90,14 @@ namespace SafeTrace.Application.Services.Cases
                         entity.Id);
 
                     entity.CaseFiles = uploadedFiles;
+
+                    // entity.Id موجود دلوقتي، ونستخدم الـ match اللي اتلقط قبل كده
+                    // (نفس الـ 80% + Gender + Age اللي CheckDuplicateCaseAsync استخدمهم)
+                    // بدل عمل بحث Face Recognition جديد بمعايير مختلفة (95% بدون فلترة)
                     await _caseHelper.LinkCaseToDuplicateGroupAsync(
                         entity,
-                        dto.PrimaryImage);
+                        pendingSameTypeMatch);
+
                     _unitOfWork
                         .Repository<UnknownCase>()
                         .Update(entity);
@@ -105,8 +126,12 @@ namespace SafeTrace.Application.Services.Cases
                 "Unknown case {CaseCode} created successfully.",
                 entity.CaseCode);
 
-            return ApiResponse<string>.Ok(
-                message: "تم إنشاء حالة مجهول الهوية بنجاح");
+            return ApiResponse<CreateCaseResultDto>.Ok(
+                new CreateCaseResultDto
+                {
+                    IsCreated = true,
+                    CaseId = entity.Id
+                });
         }
 
         public override async Task<ApiResponse<PaginationResponseDto<UnknownCaseListDto>>> GetAllAsync(

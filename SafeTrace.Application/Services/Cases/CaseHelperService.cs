@@ -291,10 +291,20 @@ namespace SafeTrace.Application.Services.Cases
             if (faceIds.Count == 0)
                 return [];
 
+   
             return await _unitOfWork.Repository<Case>()
-                .Query(tracked: false, includes: [c => c.CaseFiles, c => c.User])
-                .Where(c => c.Status == CaseStatus.Active && c.CaseFiles.Any(f => f.FaceId != null && faceIds.Contains(f.FaceId)))
-                .ToListAsync();
+    .Query(tracked: false, includes: [c => c.CaseFiles, c => c.User])
+    .Where(c =>
+        (
+            (c.CaseType == CaseType.Unknown && c.Status != CaseStatus.Deleted)
+            ||
+            (c.CaseType != CaseType.Unknown && c.Status == CaseStatus.Active)
+        )
+        &&
+        c.CaseFiles.Any(f =>
+            f.FaceId != null &&
+            faceIds.Contains(f.FaceId)))
+    .ToListAsync();
         }
 
         private List<MatchedCaseDto> FilterMatchedCases(IReadOnlyCollection<Case> candidateCases, IReadOnlyCollection<FaceMatchResult> faceMatches, CaseMatchSubjectInfoDto subject)
@@ -348,89 +358,78 @@ namespace SafeTrace.Application.Services.Cases
 
             return true;
         }
-        
+
         #region unknown Func 
+
+        /// <summary>
+        /// يربط الحالة الجديدة (Unknown) بمجموعة التكرار الخاصة بالحالة المطابقة (لو موجودة)،
+        /// أو ينشئ مجموعة جديدة لو مفيش تطابق.
+        /// ملحوظة: بقى بياخد نتيجة الـ match الجاهزة من CheckDuplicateCaseAsync 
+        /// بدل ما يعمل بحث Face Recognition جديد، عشان نتجنب استدعاء الخدمة مرتين
+        /// وبمعايير مختلفة لنفس الصورة.
+        /// </summary>
         public async Task LinkCaseToDuplicateGroupAsync(
-    UnknownCase newCase,
-    IFormFile primaryImage)
+            UnknownCase newCase,
+            MatchedCaseDto? sameTypeMatch)
         {
-            var matches = await _faceRecognitionService.SearchByImageAsync(primaryImage);
-            foreach (var match in matches)
-            {
-                _logger.LogInformation(
-                    "FaceId: {FaceId}, Similarity: {Similarity}",
-                    match.FaceId,
-                    match.Similarity);
-            }
-            if (matches == null || !matches.Any())
+            if (sameTypeMatch == null)
             {
                 await CreateDuplicateGroupAsync(newCase);
-
                 return;
             }
 
-            var orderedMatches = matches
-     .OrderByDescending(x => x.Similarity);
+            var matchedCase = await GetMatchedCaseAsync(sameTypeMatch.Id, newCase.Id);
 
-            foreach (var match in orderedMatches)
+            if (matchedCase == null)
             {
-                if ((match.Similarity ?? 0) < 95)
-                    continue;
+                // الحالة كانت متطابقة وقت CheckDuplicateCaseAsync لكن بقت غير صالحة
+                // (مثلاً اتحذفت في نفس الوقت) -> نتعامل معاها كأنه مفيش match
+                await CreateDuplicateGroupAsync(newCase);
+                return;
+            }
 
-                var matchedCase = await GetMatchedCaseAsync(match.FaceId!, newCase.Id);
+            var groupLink = await _unitOfWork
+                .Repository<DuplicateGroupCase>()
+                .Query(tracked: true)
+                .FirstOrDefaultAsync(x => x.CaseId == matchedCase.Id);
 
-                if (matchedCase == null)
-                    continue;
-
-                var groupLink = await _unitOfWork
-                    .Repository<DuplicateGroupCase>()
-                    .Query(tracked: true)
-                    .FirstOrDefaultAsync(x => x.CaseId == matchedCase.Id);
-
-                if (groupLink == null)
-                {
-                    await CreateDuplicateGroupWithCasesAsync(
-                        matchedCase,
-                        newCase,
-                        (decimal)(match.Similarity ?? 100));
-
-                    return;
-                }
-
-                await AddCaseToGroupAsync(
-                    groupLink.DuplicateGroupId,
-                    newCase.Id,
-                    (decimal)(match.Similarity ?? 100));
+            if (groupLink == null)
+            {
+                await CreateDuplicateGroupWithCasesAsync(
+                    matchedCase,
+                    newCase,
+                    (decimal)sameTypeMatch.Similarity);
 
                 return;
             }
 
-            // لو مفيش أي Match صالح
-            await CreateDuplicateGroupAsync(newCase);
+            await AddCaseToGroupAsync(
+                groupLink.DuplicateGroupId,
+                newCase.Id,
+                (decimal)sameTypeMatch.Similarity);
         }
+
+        /// <summary>
+        /// يتحقق من صحة الحالة المطابقة (لسه موجودة/Unknown/مش محذوفة) 
+        /// عن طريق الـ Id مباشرة (بدل البحث بالـ FaceId من جديد، لأن التطابق 
+        /// اتأكد بالفعل جوه CheckDuplicateCaseAsync).
+        /// </summary>
         public async Task<UnknownCase?> GetMatchedCaseAsync(
-    string faceId,
-    long currentCaseId)
+            long caseId,
+            long currentCaseId)
         {
             return await _unitOfWork
-                .Repository<CaseFile>()
-                .Query(
-                    tracked: true,
-                    includes:
-                    [
-                        x => x.Case
-                    ])
+                .Repository<UnknownCase>()
+                .Query(tracked: true)
                 .Where(x =>
-                    x.FaceId == faceId &&
-                    x.CaseId != currentCaseId &&
-                    x.Case is UnknownCase &&
-                    x.Case.Status != CaseStatus.Deleted
-                    )
-                .Select(x => (UnknownCase)x.Case)
+                    x.Id == caseId &&
+                    x.Id != currentCaseId &&
+                    x.Status != CaseStatus.Deleted)
                 .FirstOrDefaultAsync();
         }
+
         public async Task CreateDuplicateGroupAsync(
-    UnknownCase newCase)
+            UnknownCase newCase)
         {
             var group = new DuplicateGroup
             {
@@ -456,9 +455,9 @@ namespace SafeTrace.Application.Services.Cases
 
 
         public async Task CreateDuplicateGroupWithCasesAsync(
-     UnknownCase oldCase,
-     UnknownCase newCase,
-     decimal similarity)
+            UnknownCase oldCase,
+            UnknownCase newCase,
+            decimal similarity)
         {
             var group = new DuplicateGroup
             {
@@ -493,16 +492,16 @@ namespace SafeTrace.Application.Services.Cases
                 });
         }
         public async Task AddCaseToGroupAsync(
-    long groupId,
-    long caseId,
-    decimal similarity)
+            long groupId,
+            long caseId,
+            decimal similarity)
         {
             var exists = await _unitOfWork
-        .Repository<DuplicateGroupCase>()
-        .Query()
-        .AnyAsync(x =>
-        x.DuplicateGroupId == groupId &&
-        x.CaseId == caseId);
+                .Repository<DuplicateGroupCase>()
+                .Query()
+                .AnyAsync(x =>
+                    x.DuplicateGroupId == groupId &&
+                    x.CaseId == caseId);
 
             if (exists)
                 return;
