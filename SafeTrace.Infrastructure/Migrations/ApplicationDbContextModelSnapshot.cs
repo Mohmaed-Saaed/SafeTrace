@@ -598,6 +598,10 @@ namespace SafeTrace.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<string>("Reference")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<string>("TransactionId")
                         .HasColumnType("nvarchar(max)");
 
@@ -627,12 +631,7 @@ namespace SafeTrace.Infrastructure.Migrations
                         .HasMaxLength(10)
                         .HasColumnType("nvarchar(10)");
 
-                    b.Property<long?>("MasterCaseId")
-                        .HasColumnType("bigint");
-
                     b.HasKey("Id");
-
-                    b.HasIndex("MasterCaseId");
 
                     b.ToTable("DuplicateGroups", (string)null);
                 });
@@ -1093,15 +1092,6 @@ namespace SafeTrace.Infrastructure.Migrations
                         .HasForeignKey("UserId");
 
                     b.Navigation("User");
-                });
-
-            modelBuilder.Entity("SafeTrace.Domain.Entities.DuplicateGroup", b =>
-                {
-                    b.HasOne("SafeTrace.Domain.Entities.Case", "MasterCase")
-                        .WithMany()
-                        .HasForeignKey("MasterCaseId");
-
-                    b.Navigation("MasterCase");
                 });
 
             modelBuilder.Entity("SafeTrace.Domain.Entities.DuplicateGroupCase", b =>
