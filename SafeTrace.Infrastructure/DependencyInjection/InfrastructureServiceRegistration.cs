@@ -34,6 +34,7 @@ namespace SafeTrace.Infrastructure.DependencyInjection
             services.AddScoped<IOtpService, OtpService>();
             services.AddScoped<IRolePermissionService, RolePermissionService>();
             services.AddScoped<IUserService, UserService>();
+            services.AddScoped<IAuthCleanupService, AuthCleanupService>();
             services.AddScoped<IFaceRecognitionService, FaceRecognitionService>();
             services.AddHttpClient<IPaymentService, PaymentService>();
 
@@ -65,6 +66,10 @@ namespace SafeTrace.Infrastructure.DependencyInjection
                 options.Password.RequireUppercase = true;
                 options.Password.RequireLowercase = true;
                 options.Password.RequireDigit = true;
+
+                options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(15);
+                options.Lockout.MaxFailedAccessAttempts = 5;
+                options.Lockout.AllowedForNewUsers = true;
 
                 options.User.RequireUniqueEmail = true;
             })
