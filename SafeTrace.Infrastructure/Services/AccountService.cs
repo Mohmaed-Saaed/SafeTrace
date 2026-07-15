@@ -101,8 +101,22 @@ namespace SafeTrace.Infrastructure.Services
         public async Task<ApiResponse<AuthResponseDto>> LoginAsync(LoginDto loginDto)
         {
             var user = await _userManager.FindByEmailAsync(loginDto.Email);
-            if (user == null || !await _userManager.CheckPasswordAsync(user, loginDto.Password))
+            if (user == null)
             {
+                throw new UnauthorizedException("البريد الإلكتروني أو كلمة المرور غير صحيحة.");
+            }
+
+            CheckIfUserIsBlocked(user);
+
+            if (!await _userManager.CheckPasswordAsync(user, loginDto.Password))
+            {
+                await _userManager.AccessFailedAsync(user);
+                
+                if (await _userManager.IsLockedOutAsync(user))
+                {
+                    throw new ForbiddenException("تم حظر الحساب مؤقتاً لتجاوز الحد المسموح لمحاولات الدخول الخاطئة. يرجى المحاولة لاحقاً.");
+                }
+
                 throw new UnauthorizedException("البريد الإلكتروني أو كلمة المرور غير صحيحة.");
             }
 
@@ -111,7 +125,7 @@ namespace SafeTrace.Infrastructure.Services
                 throw new ForbiddenException("يرجى تأكيد بريدك الإلكتروني أولاً قبل تسجيل الدخول.");
             }
 
-            CheckIfUserIsBlocked(user);
+            await _userManager.ResetAccessFailedCountAsync(user);
 
             await _unitOfWork.BeginTransactionAsync();
             try
@@ -474,8 +488,16 @@ namespace SafeTrace.Infrastructure.Services
         {
             if (user.LockoutEnd.HasValue && user.LockoutEnd.Value > DateTimeOffset.UtcNow)
             {
-                _logger.LogWarning("Action denied. Blocked user {Email} attempted an account mutation operation.", user.Email);
-                throw new ForbiddenException("هذا الحساب محظور من قبل الإدارة.");
+                if (user.LockoutEnd.Value == DateTimeOffset.MaxValue)
+                {
+                    _logger.LogWarning("Action denied. Blocked user {Email} attempted an account mutation operation.", user.Email);
+                    throw new ForbiddenException("هذا الحساب محظور من قبل الإدارة.");
+                }
+                else
+                {
+                    _logger.LogWarning("Action denied. Temporarily locked out user {Email} attempted an account operation.", user.Email);
+                    throw new ForbiddenException("تم حظر الحساب مؤقتاً لتجاوز الحد المسموح لمحاولات تسجيل الدخول. يرجى المحاولة لاحقاً.");
+                }
             }
         }
 
