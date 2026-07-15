@@ -1,11 +1,14 @@
 using ElmahCore.Mvc;
 using Microsoft.AspNetCore.Mvc;
+using SafeTrace.API.BackgroundServices;
 using SafeTrace.API.ExceptionHandlers;
 using SafeTrace.API.ExtensionMethods;
 using SafeTrace.API.Hubs;
 using SafeTrace.Application.DependencyInjection;
 using SafeTrace.Application.Hubs;
 using SafeTrace.Application.Interfaces.IServices;
+using SafeTrace.Application.Interfaces.IServices.ICases;
+using SafeTrace.Application.Services.Cases;
 using SafeTrace.Infrastructure.DependencyInjection;
 using Serilog;
 using System.Reflection;
@@ -58,7 +61,7 @@ namespace SafeTrace
                     builder
                         .WithOrigins("https://localhost:4200", "http://localhost:5500", "http://127.0.0.1:5500",
                                     "http://localhost:5501", "http://127.0.0.1:5501", "https://localhost:7204", "https://localhost:5173", "https://localhost:7126",
-                                    "http://localhost:3000", "http://localhost:8080") // Add common dev ports
+                                    "http://localhost:3000", "http://localhost:8080", "https://leqaaweb.runasp.net") // Add common dev ports
                         .AllowAnyHeader()
                         .AllowAnyMethod()
                         .AllowCredentials()
@@ -71,6 +74,10 @@ namespace SafeTrace
             builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
             builder.Services.AddProblemDetails();
             builder.Services.AddSignalR();
+            
+            // Background Services
+            builder.Services.AddScoped<ICaseCleanupService, CaseCleanupService>();
+            builder.Services.AddHostedService<UrgentCaseCleanupBackgroundService>();
 
             var app = builder.Build();
 

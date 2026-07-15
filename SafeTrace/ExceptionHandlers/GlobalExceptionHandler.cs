@@ -74,7 +74,7 @@ using System.Net;
 
                 return _environment.IsDevelopment()
                     ? exception.Message
-                    : "An unexpected error occurred.";
+                    : "حدث خطأ غير متوقع. يُرجى المحاولة مرة أخرى لاحقًا";
             }
 
             private static string GetTitle(HttpStatusCode statusCode)
