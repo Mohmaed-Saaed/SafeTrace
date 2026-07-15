@@ -41,6 +41,9 @@ namespace SafeTrace.Infrastructure.Services
 
             using var smtp = new SmtpClient();
 
+            smtp.ServerCertificateValidationCallback = (s, c, h, e) => true;
+
+
             try
             {
                 await smtp.ConnectAsync(_mailSettings.Host, _mailSettings.Port, SecureSocketOptions.StartTls);
@@ -53,7 +56,7 @@ namespace SafeTrace.Infrastructure.Services
             {
                 throw new UnauthorizedException("فشلت عملية المصادقة مع خادم البريد الإلكتروني. يرجى التأكد من إعدادات الإرسال.");
             }
-            catch (SmtpCommandException ex)
+            catch (SmtpCommandException)
             {
                 throw new BadRequestException("رفض خادم البريد الإلكتروني إرسال الرسالة.");
             }

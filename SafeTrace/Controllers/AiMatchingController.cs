@@ -1,12 +1,15 @@
-﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using SafeTrace.Application.Constants;
 using SafeTrace.Application.DTOs.AiMatching.Request;
 using SafeTrace.Application.Interfaces.IServices;
+using SafeTrace.Infrastructure.Authorization;
 
 namespace SafeTrace.API.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
+    [Microsoft.AspNetCore.RateLimiting.DisableRateLimiting]
     public class AiMatchingController : ControllerBase
     {
         private readonly IFaceRecognitionService _faceRecognitionService;
@@ -18,7 +21,7 @@ namespace SafeTrace.API.Controllers
         }
 
         [HttpPost("search")]
-        [AllowAnonymous]
+        [HasPermission(Permissions.AiMatching.Search)]
         public async Task<IActionResult> SearchMatchingCases([FromForm] AiMatchingDto aiMatchingDto)
         {
             var response = await _aiMatchingService.GetMatchingCasesAsync(aiMatchingDto.Image);
@@ -27,14 +30,14 @@ namespace SafeTrace.API.Controllers
 
         //test
         [HttpPost("searchtest")]
-        public async Task<IActionResult> Get([FromForm] test t)
+        public async Task<IActionResult> Get([FromForm] AiMatchingDto t)
         {
             var response = await _faceRecognitionService.SearchByImageAsync(t.Image);
             return Ok(response);
         }
 
         [HttpPost("save")]
-        public async Task<IActionResult> save([FromForm] test t)
+        public async Task<IActionResult> save([FromForm] AiMatchingDto t)
         {
             var response = await _faceRecognitionService.IndexFaceAsync(t.Image);
             return Ok(response);

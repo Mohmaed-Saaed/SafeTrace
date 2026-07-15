@@ -8,8 +8,10 @@ namespace SafeTrace.Domain.Entities
     public class DuplicateGroup
     {
         public long Id { get; set; }
+        //Master relation only not for cases
         public DuplicateGroupStatus GroupStatus { get; set; } 
         public DateTime CreatedAt { get; set; } = DateTime.Now;
+
         public ICollection<DuplicateGroupCase> DuplicateCases { get; set; }= new List<DuplicateGroupCase>();
     }
 }

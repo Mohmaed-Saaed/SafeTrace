@@ -1,22 +1,18 @@
-﻿using Microsoft.AspNetCore.Authentication.JwtBearer;
+using ElmahCore.Mvc;
+using ElmahCore.Sql;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.IdentityModel.Tokens;
 using SafeTrace.Application.Interfaces;
-using SafeTrace.Application.Interfaces.IServices;
-using SafeTrace.Domain.Interfaces.IUnitOfWork;
+using SafeTrace.Application.Services;
 using SafeTrace.Infrastructure.Authorization;
-using SafeTrace.Infrastructure.DataAccess;
+using SafeTrace.Infrastructure.Filters;
 using SafeTrace.Infrastructure.Options;
 using SafeTrace.Infrastructure.Persistence;
-using SafeTrace.Infrastructure.Repositories.UnitOfWork;
-using SafeTrace.Infrastructure.Service.Founded;
-using SafeTrace.Infrastructure.Services;
 using System.Text;
 
 namespace SafeTrace.Infrastructure.DependencyInjection
@@ -31,6 +27,7 @@ namespace SafeTrace.Infrastructure.DependencyInjection
             services.AddScoped<IDBInitializer, DBInitializer>();
             services.AddScoped<IUnitOfWork, UnitOfWork>();
             services.AddScoped<IFileStorageService, FileStorageService>();
+            services.AddScoped<IDashboardService, DashboardService>();
             services.AddScoped<IEmailService, EmailService>();
             services.AddScoped<ITokenService, TokenService>();
             services.AddScoped<IAccountService, AccountService>();
@@ -38,6 +35,7 @@ namespace SafeTrace.Infrastructure.DependencyInjection
             services.AddScoped<IRolePermissionService, RolePermissionService>();
             services.AddScoped<IUserService, UserService>();
             services.AddScoped<IFaceRecognitionService, FaceRecognitionService>();
+            services.AddHttpClient<IPaymentService, PaymentService>();
 
             var awsOptions = configuration.GetAWSOptions("AWS");
             var accessKey = configuration["AWS:AccessKey"];
@@ -57,8 +55,9 @@ namespace SafeTrace.Infrastructure.DependencyInjection
             services.AddSingleton<IAuthorizationPolicyProvider, PermissionPolicyProvider>();
             services.AddScoped<IAuthorizationHandler, PermissionHandler>();
 
-            services.AddScoped<IFoundedService, FoundedService>();
             
+            services.AddScoped<IComplaintService, ComplaintService>();
+
             services.AddIdentity<ApplicationUser, IdentityRole>(options =>
             {
                 options.Password.RequiredLength = 8;
@@ -97,6 +96,22 @@ namespace SafeTrace.Infrastructure.DependencyInjection
 
                 o.Events = new JwtBearerEvents
                 {
+                    OnMessageReceived = context =>
+                    {
+                        var accessToken = context.Request.Query["access_token"];
+
+                        var path = context.HttpContext.Request.Path;
+
+                        if (!string.IsNullOrEmpty(accessToken) &&
+                             (path.StartsWithSegments("/chatHub") ||
+     path.StartsWithSegments("/SafeTrace.Application/Hubs/notifications")))
+
+                        {
+                            context.Token = accessToken;
+                        }
+                        return Task.CompletedTask;
+                    },
+
                     OnChallenge = async context =>
                     {
                         context.HandleResponse();
@@ -132,6 +147,60 @@ namespace SafeTrace.Infrastructure.DependencyInjection
             });
 
             services.AddAuthorization();
+
+            services.AddElmah<SqlErrorLog>(options =>
+            {
+                options.Path = "/elmah";
+
+                options.ConnectionString = configuration.GetConnectionString("DefaultConnection");
+
+                options.Filters.Add(new BusinessExceptionFilter());
+
+                //options.OnPermissionCheck = context =>
+                //    context.User.Identity != null &&
+                //    context.User.Identity.IsAuthenticated &&
+                //    context.User.IsInRole("Admin");
+            });
+
+            services.AddRateLimiter(options =>
+            {
+                options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+
+                options.OnRejected = async (context, token) =>
+                {
+                    context.HttpContext.Response.StatusCode = StatusCodes.Status429TooManyRequests;
+                    context.HttpContext.Response.ContentType = "application/json";
+                    await context.HttpContext.Response.WriteAsJsonAsync(new ProblemDetails
+                    {
+                        Status = 429,
+                        Title = "Too Many Requests",
+                        Detail = "لقد تجاوزت الحد المسموح به. يرجى المحاولة لاحقاً.",
+                        Instance = context.HttpContext.Request.Path
+                    });
+                };
+
+                options.GlobalLimiter = System.Threading.RateLimiting.PartitionedRateLimiter.Create<HttpContext, string>(httpContext =>
+                    System.Threading.RateLimiting.RateLimitPartition.GetFixedWindowLimiter(
+                        partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? httpContext.Request.Headers.Host.ToString(),
+                        factory: partition => new System.Threading.RateLimiting.FixedWindowRateLimiterOptions
+                        {
+                            AutoReplenishment = true,
+                            PermitLimit = 100,
+                            QueueLimit = 0,
+                            Window = TimeSpan.FromMinutes(1)
+                        }));
+
+                options.AddPolicy("AuthLimit", httpContext =>
+                    System.Threading.RateLimiting.RateLimitPartition.GetFixedWindowLimiter(
+                        partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? httpContext.Request.Headers.Host.ToString(),
+                        factory: partition => new System.Threading.RateLimiting.FixedWindowRateLimiterOptions
+                        {
+                            AutoReplenishment = true,
+                            PermitLimit = 10,
+                            QueueLimit = 0,
+                            Window = TimeSpan.FromMinutes(15)
+                        }));
+            });
 
             return services;
         }

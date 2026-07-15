@@ -2,8 +2,6 @@
 {
         public class LongTermMissingCase : Case
         {
-
-
             public string? PoliceReportImage { get; set; }
         }
 }

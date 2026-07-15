@@ -1,4 +1,4 @@
-﻿namespace SafeTrace.Application.Constants
+namespace SafeTrace.Application.Constants
 {
     public static class Permissions
     {
@@ -55,12 +55,23 @@
         public static class Profile
         {
             public const string GetUserInfo = "Profile.GetUserInfo";
+            public const string GetVisitedUserInfo = "Profile.GetVisitedUserInfo";
+            public const string UpdateName = "Profile.UpdateName";
+            public const string UpdateHomeLocation = "Profile.UpdateHomeLocation";
+            public const string UpdateProfileImage = "Profile.UpdateProfileImage";
+            public const string UpdateIdImage = "Profile.UpdateIdImage";
             public const string UpdateUserInfo = "Profile.UpdateUserInfo";
+            public const string UpdatePhoneNumber = "Profile.UpdatePhoneNumber";
         }
 
         public static class Dashboard
         {
             public const string GetStatistics = "Dashboard.GetStatistics";
+        }
+
+        public static class AiMatching
+        {
+            public const string Search = "AiMatching.Search";
         }
 
         public static class Complaints
@@ -75,6 +86,12 @@
         public static class Account
         {
             public const string ChangePassword = "Account.ChangePassword";
+        }
+
+        public static class Donations
+        {
+            public const string GetDonations = "Donations.GetDonations";
+            public const string GetMyDonations = "Donations.GetMyDonations";
         }
 
         public static class Roles
@@ -104,8 +121,9 @@
             public const string GetAll = "Chat.GetAll";
             public const string GetMyChats = "Chat.GetMyChats";
             public const string GetById = "Chat.GetById";
-            public const string GetMessages  = "Chat.GetMessages";
+            public const string GetMessages = "Chat.GetMessages";
             public const string SendMessage = "Chat.SendMessage";
+            public const string StartContext = "Chat.StartContext";
             public const string Create = "Chat.Create";
             public const string MarkAsRead = "Chat.MarkAsRead";
             public const string HardDelete = "Chat.HardDelete";
@@ -113,5 +131,23 @@
             public const string DeleteMessage = "Chat.DeleteMessage";
             public const string DeleteMessageForEveryone = "Chat.DeleteMessageForEveryone";
         }
+
+        private static readonly Lazy<List<string>> _allPermissions = new Lazy<List<string>>(() =>
+        {
+            var allPermissions = new List<string>();
+            var modules = typeof(Permissions).GetNestedTypes(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static);
+            foreach (var module in modules)
+            {
+                var fields = module.GetFields(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.FlattenHierarchy);
+                foreach (var field in fields)
+                {
+                    var value = field.GetValue(null)?.ToString();
+                    if (value != null) allPermissions.Add(value);
+                }
+            }
+            return allPermissions;
+        });
+
+        public static List<string> GetAllPermissions() => _allPermissions.Value;
     }
 }
