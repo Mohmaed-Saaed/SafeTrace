@@ -28,6 +28,17 @@ namespace SafeTrace.Application.Services
             var casesQuery = _unitOfWork.Repository<Case>()
                 .Query(tracked: false);
 
+            var DonationQuery =  _unitOfWork.Repository<Donation>()
+                .Query(tracked: false);
+
+            decimal TotalSumDonations = await  DonationQuery.Where(x => x.PaymentStatus == PaymentStatus.Succeeded).SumAsync(x => x.Amount);
+
+            int TotalCountFailedDonations = await  DonationQuery.Where(x => x.PaymentStatus == PaymentStatus.Failed).CountAsync();
+
+            int TotalCountSucceededDonations = await  DonationQuery.Where(x => x.PaymentStatus == PaymentStatus.Succeeded).CountAsync();
+
+            int TotalCountPendingDonations = await  DonationQuery.Where(x => x.PaymentStatus == PaymentStatus.Pending).CountAsync();
+
             var users = await _userManager.GetUsersInRoleAsync("User");
 
             var totalCases = await casesQuery.CountAsync();
@@ -35,6 +46,8 @@ namespace SafeTrace.Application.Services
             var totalActive = await casesQuery.CountAsync(x => x.Status == CaseStatus.Active);
             var totalDeleted = await casesQuery.CountAsync(x => x.Status == CaseStatus.Deleted);
             var totalPending = await casesQuery.CountAsync(x => x.Status == CaseStatus.Pending);
+            var totalExpired = await casesQuery.CountAsync(x => x.Status == CaseStatus.Expired);
+            var totalRejected = await casesQuery.CountAsync(x => x.Status == CaseStatus.Rejected);
 
             var caseTypes = await casesQuery
                 .GroupBy(x => x.CaseType)
@@ -42,9 +55,12 @@ namespace SafeTrace.Application.Services
                 {
                     CaseType = g.Key.ToString(),
                     Total = g.Count(),
+                    Pending = g.Count(x => x.Status == CaseStatus.Pending),
                     Active = g.Count(x => x.Status == CaseStatus.Active),
                     Deleted = g.Count(x => x.Status == CaseStatus.Deleted),
-                    Closed = g.Count(x => x.Status == CaseStatus.Deleted)
+                    Found = g.Count(x => x.Status == CaseStatus.Found),
+                    Rejected = g.Count(x => x.Status == CaseStatus.Rejected),
+                    Expired = g.Count(x => x.Status == CaseStatus.Expired)
                 })
                 .ToListAsync();
 
@@ -57,6 +73,12 @@ namespace SafeTrace.Application.Services
                     TotalActiveCases = totalActive,
                     TotalDeletedCases = totalDeleted,
                     TotalPendingCases = totalPending,
+                    TotalExpiredCases = totalExpired,
+                    TotalRejectedCases = totalRejected,
+                    TotalSumDonations = TotalSumDonations,
+                    TotalCountFailedDonations = TotalCountFailedDonations,
+                    TotalCountSucceededDonations = TotalCountSucceededDonations,
+                    TotalCountPendingDonations = TotalCountPendingDonations,
                     CaseTypes = caseTypes
                 });
         }
