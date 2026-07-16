@@ -7,7 +7,9 @@ namespace SafeTrace.Application.DTOs.Dashboard.Response
     public class DashboardDto
     {
         public int TotalUsers { get; set; }
-
+        public decimal TotalSumDonations { get; set; }
+        public int TotalCountFailedDonations { get; set; }
+        public int TotalCountSucceededDonations { get; set; }
         public int TotalCases { get; set; }
         public int TotalFoundedCases { get; set; }
         public int TotalActiveCases { get; set; }

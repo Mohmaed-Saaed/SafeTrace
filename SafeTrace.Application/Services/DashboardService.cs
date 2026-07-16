@@ -28,6 +28,18 @@ namespace SafeTrace.Application.Services
             var casesQuery = _unitOfWork.Repository<Case>()
                 .Query(tracked: false);
 
+            var DonationQuery = _unitOfWork.Repository<Donation>()
+                .Query(tracked: false);
+
+            var TotalSumDonations = await DonationQuery.Where(x => x.PaymentStatus == PaymentStatus.Succeeded)
+                                                    .SumAsync(x => x.Amount);
+
+            var TotalCountFailedDonations = await DonationQuery.Where(x => x.PaymentStatus == PaymentStatus.Failed)
+                                                    .Count();
+
+            var TotalCountSucceededDonations = await DonationQuery.Where(x => x.PaymentStatus == PaymentStatus.Succeeded)
+                                                    .Count();
+
             var users = await _userManager.GetUsersInRoleAsync("User");
 
             var totalCases = await casesQuery.CountAsync();
@@ -43,8 +55,9 @@ namespace SafeTrace.Application.Services
                     CaseType = g.Key.ToString(),
                     Total = g.Count(),
                     Active = g.Count(x => x.Status == CaseStatus.Active),
+                    Pending = g.Count(x => x.Status == CaseStatus.Pending),
                     Deleted = g.Count(x => x.Status == CaseStatus.Deleted),
-                    Closed = g.Count(x => x.Status == CaseStatus.Deleted)
+                    Closed = g.Count(x => x.Status == CaseStatus.Closed)
                 })
                 .ToListAsync();
 
@@ -57,6 +70,9 @@ namespace SafeTrace.Application.Services
                     TotalActiveCases = totalActive,
                     TotalDeletedCases = totalDeleted,
                     TotalPendingCases = totalPending,
+                    TotalSumDonations = TotalSumDonations,
+                    TotalCountFailedDonations = TotalCountFailedDonations,
+                    TotalCountSucceededDonations = TotalCountSucceededDonations,
                     CaseTypes = caseTypes
                 });
         }

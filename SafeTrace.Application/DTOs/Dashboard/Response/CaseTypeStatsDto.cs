@@ -11,6 +11,7 @@ namespace SafeTrace.Application.DTOs.Dashboard.Response
         public int Total { get; set; }
         public int Active { get; set; }
         public int Deleted { get; set; }
+        public int Pending { get; set; }
         public int Closed { get; set; }
     }
 }
