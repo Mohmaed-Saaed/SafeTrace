@@ -1,14 +1,11 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-
+﻿using SafeTrace.Domain.Enums;
 
 namespace SafeTrace.Application.DTOs.Complaints
 {
     public class ComplaintFilterDto
     {
-        public string? UserId { get; set; }
         public string? CaseCode { get; set; }
+        public ComplaintStatus? Status { get; set; }
         public int PageNumber { get; set; } = 1;
         public int PageSize { get; set; } = 10;
     }

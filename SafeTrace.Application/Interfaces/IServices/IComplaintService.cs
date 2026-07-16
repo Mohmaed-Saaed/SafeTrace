@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Text;
 using SafeTrace.Application.DTOs.Complaints;
 using SafeTrace.Application.DTOs.Responses;
+using SafeTrace.Domain.Enums;
 
 namespace SafeTrace.Application.Interfaces.IServices
 {
@@ -12,5 +13,6 @@ namespace SafeTrace.Application.Interfaces.IServices
         Task<ComplaintResponseDto> GetByIdAsync(long id);
         Task<ComplaintResponseDto> CreateAsync(string userId, CreateComplaintDto dto);
         Task DeleteAsync(long id);
+        Task ResolveAsync(long id, ResolveComplaintDto dto);  
     }
 }
