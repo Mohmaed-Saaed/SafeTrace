@@ -6,6 +6,7 @@ namespace SafeTrace.Application.Interfaces.IServices
     public interface IFaceRecognitionService
     {
         Task<bool> CreateCollectionAsync();
+        Task ResetCollectionAsync();
         Task<string> IndexFaceAsync(IFormFile image);
         Task<List<FaceMatchResult>> SearchByImageAsync(IFormFile image);
         Task<bool> DeleteFaceAsync(string faceId);

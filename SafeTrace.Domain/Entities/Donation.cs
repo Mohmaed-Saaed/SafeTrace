@@ -14,6 +14,7 @@ namespace SafeTrace.Domain.Entities
         public string PaymentGateway { get; set; } = "Paymob";
         public string? TransactionId { get; set; }
         public string? OrderId { get; set; }
+        public string Reference { get; set; } = default!;
         public string? Message { get; set; }
         public string? PaymentMethod { get; set; }
         public DateTime CreatedAt { get; set; }

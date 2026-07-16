@@ -21,13 +21,13 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\SafeTrace.Application\SafeTrace.Application.csproj" />
-    <ProjectReference Include="..\SafeTrace.Infrastructure\SafeTrace.Infrastructure.csproj" />
+    <Folder Include="wwwroot\Images\" />
+    <Folder Include="wwwroot\Videos\" />
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="wwwroot\Images\Identification\" />
-    <Folder Include="wwwroot\Images\ProfileImages\" />
+    <ProjectReference Include="..\SafeTrace.Application\SafeTrace.Application.csproj" />
+    <ProjectReference Include="..\SafeTrace.Infrastructure\SafeTrace.Infrastructure.csproj" />
   </ItemGroup>
 
 </Project>

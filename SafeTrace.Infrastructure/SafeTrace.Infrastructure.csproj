@@ -8,10 +8,13 @@
 
 	<ItemGroup>
 		<Compile Remove="Licenses\**" />
+		<Compile Remove="License\**" />
 		<Compile Remove="Service\**" />
 		<EmbeddedResource Remove="Licenses\**" />
+		<EmbeddedResource Remove="License\**" />
 		<EmbeddedResource Remove="Service\**" />
 		<None Remove="Licenses\**" />
+		<None Remove="License\**" />
 		<None Remove="Service\**" />
 	</ItemGroup>
 
@@ -35,7 +38,6 @@
 			<PrivateAssets>all</PrivateAssets>
 			<IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
 		</PackageReference>
-		<PackageReference Include="SixLabors.ImageSharp" Version="4.0.0" />
 		<PackageReference Include="System.Data.SqlClient" Version="4.8.6" />
 		<PackageReference Include="UAParser" Version="3.1.47" />
 	</ItemGroup>
@@ -43,10 +45,6 @@
 	<ItemGroup>
 		<ProjectReference Include="..\SafeTrace.Application\SafeTrace.Application.csproj" />
 		<ProjectReference Include="..\SafeTrace.Domain\SafeTrace.Domain.csproj" />
-	</ItemGroup>
-
-	<ItemGroup>
-	  <Folder Include="License\" />
 	</ItemGroup>
 
 </Project>
