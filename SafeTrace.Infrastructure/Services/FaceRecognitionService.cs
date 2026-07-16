@@ -53,6 +53,32 @@ namespace SafeTrace.Infrastructure.Services
             }
         }
 
+        public async Task ResetCollectionAsync()
+        {
+            var collectionId = _collectionId;
+
+            try
+            {
+                var deleteRequest = new DeleteCollectionRequest
+                {
+                    CollectionId = collectionId
+                };
+                await _rekognitionClient.DeleteCollectionAsync(deleteRequest);
+                _logger.LogInformation("تم مسح الكوليكشن القديمة بنجاح.");
+            }
+            catch (ResourceNotFoundException)
+            {
+                _logger.LogWarning("الكوليكشن مش موجودة ليتم مسحها، سيتم إنشاؤها الآن.");
+            }
+
+            var createRequest = new CreateCollectionRequest
+            {
+                CollectionId = collectionId
+            };
+            await _rekognitionClient.CreateCollectionAsync(createRequest);
+            _logger.LogInformation("تم إنشاء كوليكشن جديدة وفاضية بنجاح.");
+        }
+
         public async Task<string> IndexFaceAsync(IFormFile image)
         {
             ValidateIsImage(image);
