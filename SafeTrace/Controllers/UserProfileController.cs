@@ -7,6 +7,7 @@ using SafeTrace.Application.DTOs.User_Profiel_DTOS;
 using SafeTrace.Application.DTOs.User_Profiel_DTOS.Update_Profile_DTOS;
 using SafeTrace.Application.Interfaces.IServices;
 using SafeTrace.Application.Interfaces.IServices.IUserProfile;
+using SafeTrace.Application.Services.UserProfileServices;
 using SafeTrace.Infrastructure.Authorization;
 namespace SafeTrace.API.Controllers
 {
@@ -145,6 +146,17 @@ namespace SafeTrace.API.Controllers
             return Ok(UpdateProfile);
         }
         #endregion 
+        #endregion
+    
+        #region My Cases
+        [HttpGet("MyCases")]
+        [ProducesResponseType(typeof(ApiResponse<PaginationResponseDto<MyCaseListItemDto>>), StatusCodes.Status200OK)]
+        public async Task<IActionResult> GetMyCases([FromQuery] MyCasesFilterDto filter)
+        {
+            var result = await _user.GetMyCasesAsync(GetCurrentUserId(), filter);
+
+            return Ok(result);
+        }
         #endregion
     }
 }

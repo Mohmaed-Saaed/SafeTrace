@@ -367,7 +367,8 @@ namespace SafeTrace.Infrastructure.Services
         {
 
             var donationsQuery = _unitOfWork.Repository<Donation>()
-                .Query(tracked:false,includes: d => d.User).Where(query.Status != null ? d => d.PaymentStatus == query.Status : d => true);
+                .Query(tracked:false,includes: d => d.User).Where(query.Status != null ? d => d.PaymentStatus == query.Status : d => true
+                && string.IsNullOrEmpty(query.userEmail) || d.User.Email.Contains(query.userEmail));
 
             var totalCount = await donationsQuery.CountAsync();
 

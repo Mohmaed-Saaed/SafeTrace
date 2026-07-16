@@ -1,4 +1,3 @@
-using Microsoft.AspNetCore.Identity;
 using SafeTrace.Application.Common.Enums;
 using SafeTrace.Application.DTOs.AiMatching.Response;
 using SafeTrace.Application.DTOs.Cases.Request;
