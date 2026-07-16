@@ -33,7 +33,7 @@ namespace SafeTrace.Application.Services.UserProfileServices
         private readonly IFileStorageService _Image;
         private readonly INotificationServices _Notify;
         private readonly IHttpContextAccessor _httpContextAccessor;
-
+        private readonly IUnitOfWork _unitOfWork;
 
         public UserProfileService(UserManager<ApplicationUser> userManager,
             IMapper mapper,
@@ -41,7 +41,8 @@ namespace SafeTrace.Application.Services.UserProfileServices
             IFileStorageService Image,
             INotificationServices Notify,
             IHttpContextAccessor httpContextAccessor,
-          IUserService User
+            IUserService User,
+            IUnitOfWork unitOfWork
             )
         {
 
@@ -51,6 +52,7 @@ namespace SafeTrace.Application.Services.UserProfileServices
             _Image = Image;
             _Notify = Notify;
             _httpContextAccessor = httpContextAccessor;
+            _unitOfWork = unitOfWork;
         }
         private async Task<ApplicationUser?> GetUser(string userId)
         {
@@ -382,8 +384,67 @@ namespace SafeTrace.Application.Services.UserProfileServices
 
 
         #endregion
-
         #endregion
+    
+        #region My Cases
+        /// <summary>
+        /// Retrieves paginated cases created by the current user,
+        /// excluding soft-deleted cases.
+        /// </summary>
+        public async Task<ApiResponse<PaginationResponseDto<MyCaseListItemDto>>> GetMyCasesAsync(string userId, MyCasesFilterDto filter)
+        {
+            var query = _unitOfWork.Repository<Case>()
+                .Query(
+                    tracked: false,
+                    includes: x => x.AgeCategory)
+                .Where(x =>
+                    x.UserId == userId &&
+                    x.Status != CaseStatus.Deleted);
+
+            if (!string.IsNullOrWhiteSpace(filter.FullName))
+            {
+                var name = filter.FullName.Trim();
+
+                query = query.Where(x =>
+                    (x.FName ?? "").Contains(name) ||
+                    (x.SName ?? "").Contains(name) ||
+                    (x.TName ?? "").Contains(name) ||
+                    (x.LName ?? "").Contains(name));
+            }
+
+            if (!string.IsNullOrWhiteSpace(filter.CaseCode))
+            {
+                query = query.Where(x => x.CaseCode.Contains(filter.CaseCode));
+            }
+
+            if (filter.CaseType.HasValue)
+            {
+                query = query.Where(x => x.CaseType == filter.CaseType.Value);
+            }
+
+            query = query.OrderByDescending(x => x.CreatedAt);
+
+            var totalCount = await query.CountAsync();
+
+            var entities = await query
+                .Skip((filter.Page - 1) * filter.PageSize)
+                .Take(filter.PageSize)
+                .ToListAsync();
+
+            var items = _mapper.Map<List<MyCaseListItemDto>>(entities);
+
+            var result = new PaginationResponseDto<MyCaseListItemDto>
+            {
+                Items = items,
+                TotalCount = totalCount,
+                PageNumber = filter.Page,
+                PageSize = filter.PageSize
+            };
+
+            return ApiResponse<PaginationResponseDto<MyCaseListItemDto>>.Ok(result, "تم استرجاع الحالات الخاصة بالمستخدم بنجاح.");
+        }
+        #endregion
+    
     }
 
 }

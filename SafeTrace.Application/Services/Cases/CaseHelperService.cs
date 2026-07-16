@@ -1,5 +1,4 @@
 using System.Linq.Expressions;
-using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.Http;
 using SafeTrace.Application.Common.Enums;
 using SafeTrace.Application.DTOs.AiMatching.Response;
@@ -335,7 +334,7 @@ namespace SafeTrace.Application.Services.Cases
 
                 var dto = _mapper.Map<MatchedCaseDto>(candidate);
                 dto.Similarity = similarity;
-                dto.MainPhotoPath = matchedPhoto.ImagePath;
+                dto.MainPhoto = matchedPhoto.ImagePath;
 
                 matchedCases.Add(dto);
             }

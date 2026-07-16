@@ -38,16 +38,6 @@ namespace SafeTrace.API.Controllers
             return Ok(await _unKnownServiceCase.AdminGetAllAsync(filter));
         }
 
-        [HttpGet("GetMyCases")]
-        [HasPermission(Permissions.UnknownCases.GetMyCases)]
-        public async Task<IActionResult> GetMyCases([FromQuery] UnknownCasesFilterDto filter)
-        {
-            if (string.IsNullOrEmpty(CurrentUserId))
-                throw new UnauthorizedException("User identity could not be verified from token.");
-
-            return Ok(await _unKnownServiceCase.GetMyCasesAsync(CurrentUserId, filter));
-        }
-
         [HttpGet("GetCaseDetails/{id:long}")]
         [AllowAnonymous]
         public async Task<IActionResult> GetById(long id)
