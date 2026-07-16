@@ -7,7 +7,6 @@ namespace SafeTrace.Application.Interfaces.IServices.ICases
     {
         Task<ApiResponse<PaginationResponseDto<TListDto>>> GetAllAsync(TFilterDto filter);
         Task<ApiResponse<PaginationResponseDto<TDetailDto>>> AdminGetAllAsync(TFilterDto filter);
-        Task<ApiResponse<PaginationResponseDto<TListDto>>> GetMyCasesAsync(string userId, TFilterDto filter);
         Task<ApiResponse<TDetailDto>> GetByIdAsync(long id);
         Task<ApiResponse<TDetailDto>> AdminGetByIdAsync(long id);
  

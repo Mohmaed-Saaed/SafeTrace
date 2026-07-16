@@ -14,10 +14,15 @@ namespace SafeTrace.Application.Mapping
 
 
 
-            CreateMap<Case, MyCaseListItemDto>()
-    .ForMember(d => d.FullName,
-        o => o.MapFrom(s =>
-            $"{s.FName} {s.SName} {s.TName} {s.LName}".Trim()));
+    CreateMap<Case, MyCaseListItemDto>()
+        .ForMember(
+            d => d.FullName,
+            o => o.MapFrom(s =>
+                (s.FName ?? "") +
+                (string.IsNullOrEmpty(s.SName) ? "" : " " + s.SName) +
+                (string.IsNullOrEmpty(s.TName) ? "" : " " + s.TName) +
+                (string.IsNullOrEmpty(s.LName) ? "" : " " + s.LName)))
+        .ForMember(d => d.AgeCategory, o => o.MapFrom(s => s.AgeCategory));
 
             CreateMap<ApplicationUser, GetUserInfoDTO>()
     .ForMember(dest => dest.FullName,
