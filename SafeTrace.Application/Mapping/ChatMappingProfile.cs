@@ -25,12 +25,35 @@ namespace SafeTrace.Application.Mapping
             .ForMember(d => d.ReceiverName,
             opt => opt.MapFrom(s =>
                 $"{s.Receiver.FName} {s.Receiver.LName}"));
-            
 
-            
+
+
 
             // Message → MessageResponse
-            CreateMap<Message, MessageDto>();
+            CreateMap<Message, MessageDto>()
+            .ForMember(
+            dest => dest.SendAt,
+            opt => opt.MapFrom(src =>
+            DateTime.SpecifyKind(src.SendAt, DateTimeKind.Utc))
+            )
+            .ForMember(
+             dest => dest.ForEveryoneDeletedAt,
+             opt => opt.MapFrom(src =>
+             src.ForEveryoneDeletedAt.HasValue
+                ? DateTime.SpecifyKind(src.ForEveryoneDeletedAt.Value, DateTimeKind.Utc)
+                : (DateTime?)null))
+             .ForMember(
+              dest => dest.SenderDeletedAt,
+               opt => opt.MapFrom(src =>
+               src.SenderDeletedAt.HasValue
+                ? DateTime.SpecifyKind(src.SenderDeletedAt.Value, DateTimeKind.Utc)
+                : (DateTime?)null))
+             .ForMember(
+                 dest => dest.ReceiverDeletedAt,
+                opt => opt.MapFrom(src =>
+                src.ReceiverDeletedAt.HasValue
+                ? DateTime.SpecifyKind(src.ReceiverDeletedAt.Value, DateTimeKind.Utc)
+                : (DateTime?)null));
         }
     }
      

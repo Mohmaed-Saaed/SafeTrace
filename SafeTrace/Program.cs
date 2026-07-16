@@ -51,8 +51,12 @@ namespace SafeTrace
 
             builder.Services.AddInfrastructure(builder.Configuration);
             builder.Services.AddApplication();
-            builder.Services.AddSignalR();
-            builder.Services.AddScoped<IChatNotifier, SignalRChatNotifier>();
+            builder.Services.AddSignalR()
+                .AddJsonProtocol(options =>
+                {
+                    options.PayloadSerializerOptions.Converters.Add(
+                        new JsonStringEnumConverter());
+                }); builder.Services.AddScoped<IChatNotifier, SignalRChatNotifier>();
 
             builder.Services.AddCors(options =>
             {

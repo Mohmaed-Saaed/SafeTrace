@@ -124,6 +124,11 @@ namespace SafeTrace.Application.Services
 
             var messageDto = _mapper.Map<MessageDto>(message);
 
+            _logger.LogInformation(
+                "API SendMessage => SendAt={SendAt}, Kind={Kind}",
+             messageDto.SendAt,
+                 messageDto.SendAt.Kind);
+
             await _chatNotifier.SendMessageAsync(messageDto);
 
             string notificationContent;
@@ -156,7 +161,7 @@ namespace SafeTrace.Application.Services
                 UserId = receiverId,
                 Content = notificationContent,
                 Type = NotificationType.Message,
-                NotificationDirectLink = $"/Chats/{request.ChatId}"
+                NotificationDirectLink = $"/chat/chat/{request.ChatId}"
 
             });
             var receiver = chat.SenderId == senderId
@@ -268,9 +273,15 @@ namespace SafeTrace.Application.Services
 
         public async Task<ApiResponse<MessageDto>> DeleteMessageForEveryoneAsync(long messageId, string userId)
         {
+            _logger.LogInformation("delete for every one started");
             var message = await _unitOfWork.Repository<Message>()
                 .GetByIdAsync(messageId)
                 ?? throw new NotFoundException("لم يتم العثور على الرسالة.");
+            _logger.LogInformation(
+            "Delete For Everyone => Message SenderId: {SenderId}, Current UserId: {UserId}",
+            message.SenderId,
+            userId
+                );
 
             if (message.SenderId != userId)
             {
