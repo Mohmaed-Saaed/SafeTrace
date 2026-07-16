@@ -34,6 +34,7 @@ namespace SafeTrace.Infrastructure.DependencyInjection
             services.AddScoped<IOtpService, OtpService>();
             services.AddScoped<IRolePermissionService, RolePermissionService>();
             services.AddScoped<IUserService, UserService>();
+            services.AddScoped<IAuthCleanupService, AuthCleanupService>();
             services.AddScoped<IFaceRecognitionService, FaceRecognitionService>();
             services.AddHttpClient<IPaymentService, PaymentService>();
 
@@ -65,6 +66,10 @@ namespace SafeTrace.Infrastructure.DependencyInjection
                 options.Password.RequireUppercase = true;
                 options.Password.RequireLowercase = true;
                 options.Password.RequireDigit = true;
+
+                options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(15);
+                options.Lockout.MaxFailedAccessAttempts = 5;
+                options.Lockout.AllowedForNewUsers = true;
 
                 options.User.RequireUniqueEmail = true;
             })
@@ -162,7 +167,6 @@ namespace SafeTrace.Infrastructure.DependencyInjection
                 //    context.User.IsInRole("Admin");
             });
 
-            // --- Rate Limiting Configuration ---
             services.AddRateLimiter(options =>
             {
                 options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
@@ -175,24 +179,22 @@ namespace SafeTrace.Infrastructure.DependencyInjection
                     {
                         Status = 429,
                         Title = "Too Many Requests",
-                        Detail = "لقد تجاوزت الحد المسموح به من الطلبات. يرجى المحاولة لاحقاً.",
+                        Detail = "لقد تجاوزت الحد المسموح به. يرجى المحاولة لاحقاً.",
                         Instance = context.HttpContext.Request.Path
                     });
                 };
 
-                // 1. Global Policy (Default for endpoints changing data)
                 options.GlobalLimiter = System.Threading.RateLimiting.PartitionedRateLimiter.Create<HttpContext, string>(httpContext =>
                     System.Threading.RateLimiting.RateLimitPartition.GetFixedWindowLimiter(
                         partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? httpContext.Request.Headers.Host.ToString(),
                         factory: partition => new System.Threading.RateLimiting.FixedWindowRateLimiterOptions
                         {
                             AutoReplenishment = true,
-                            PermitLimit = 100,
+                            PermitLimit = 1000,
                             QueueLimit = 0,
                             Window = TimeSpan.FromMinutes(1)
                         }));
 
-                // 2. Auth Policy (Strict limits for Login, Register, OTP)
                 options.AddPolicy("AuthLimit", httpContext =>
                     System.Threading.RateLimiting.RateLimitPartition.GetFixedWindowLimiter(
                         partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? httpContext.Request.Headers.Host.ToString(),

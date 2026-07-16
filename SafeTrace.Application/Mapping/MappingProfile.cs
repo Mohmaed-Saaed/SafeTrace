@@ -1,4 +1,5 @@
 ﻿using SafeTrace.Application.DTOs.NotificationDTOS;
+using SafeTrace.Application.DTOs.User.Response;
 using SafeTrace.Application.DTOs.User_Profiel_DTOS;
 using SafeTrace.Application.DTOs.User_Profiel_DTOS.Update_Profile_DTOS;
 using SafeTrace.Domain.Entities;
@@ -13,10 +14,15 @@ namespace SafeTrace.Application.Mapping
 
 
 
-            CreateMap<Case, MyCaseListItemDto>()
-    .ForMember(d => d.FullName,
-        o => o.MapFrom(s =>
-            $"{s.FName} {s.SName} {s.TName} {s.LName}".Trim()));
+    CreateMap<Case, MyCaseListItemDto>()
+        .ForMember(
+            d => d.FullName,
+            o => o.MapFrom(s =>
+                (s.FName ?? "") +
+                (string.IsNullOrEmpty(s.SName) ? "" : " " + s.SName) +
+                (string.IsNullOrEmpty(s.TName) ? "" : " " + s.TName) +
+                (string.IsNullOrEmpty(s.LName) ? "" : " " + s.LName)))
+        .ForMember(d => d.AgeCategory, o => o.MapFrom(s => s.AgeCategory));
 
             CreateMap<ApplicationUser, GetUserInfoDTO>()
     .ForMember(dest => dest.FullName,
@@ -27,6 +33,10 @@ namespace SafeTrace.Application.Mapping
         opt => opt.MapFrom(src => src.HomeLocationLongitude))
     .ForMember(dest => dest.Cases,
         opt => opt.MapFrom(src => src.Cases));
+
+            CreateMap<ApplicationUser, VisitUserDTO>()
+    .ForMember(dest => dest.FullName,
+        opt => opt.MapFrom(src => $"{src.FName} {src.LName}"));
 
 
             #region test method dto
@@ -52,8 +62,7 @@ namespace SafeTrace.Application.Mapping
 
             CreateMap<UpdateProfileImageDTO, ApplicationUser>();
             CreateMap<AddIdImageDTO, ApplicationUser>();
-
-
+            CreateMap<ChangePhoneNumberDTO, ApplicationUser>();
 
 
 
@@ -62,10 +71,11 @@ namespace SafeTrace.Application.Mapping
                 .ForMember(dest => dest.LName, opt => opt.MapFrom(src => src.LastName))
                 .ForMember(dest => dest.HomeLocationLatitude,
         opt => opt.MapFrom(src => src.HomeLatitude))
-
     .ForMember(dest => dest.HomeLocationLongitude,
         opt => opt.MapFrom(src => src.HomeLongitude))
                 .ReverseMap();
+
+
 
             CreateMap<SendNotificationDTO, Notification>().ReverseMap();
 

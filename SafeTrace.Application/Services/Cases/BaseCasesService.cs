@@ -56,21 +56,6 @@ namespace SafeTrace.Application.Services.Cases
         }
         
         /// <summary>
-        /// Retrieves paginated cases created by the current user,
-        /// excluding soft-deleted cases.
-        /// </summary>
-        public virtual async Task<ApiResponse<PaginationResponseDto<TListDto>>> GetMyCasesAsync(string userId, TFilterDto filter)
-        {
-            var query = _unitOfWork.Repository<TEntity>()
-                .Query(tracked: false, includes: x => x.CaseFiles)
-                .Where(x => x.UserId == userId && x.Status != CaseStatus.Deleted);
-
-            var response = await GetPagedResultAsync<TListDto>(query, filter);
-
-            return ApiResponse<PaginationResponseDto<TListDto>>.Ok(response, "تم استرجاع الحالات الخاصة بالمستخدم بنجاح.");
-        }
-        
-        /// <summary>
         /// Retrieves the details of a specific active case by its ID.
         /// </summary>
         public virtual async Task<ApiResponse<TDetailDto>> GetByIdAsync(long id)
@@ -436,7 +421,7 @@ namespace SafeTrace.Application.Services.Cases
         }
         
         // Applies filtering, sorting, and pagination, then maps the result to the requested DTO.
-        private async Task<PaginationResponseDto<TDto>> GetPagedResultAsync<TDto>(IQueryable<TEntity> query, TFilterDto filter)
+        protected async Task<PaginationResponseDto<TDto>> GetPagedResultAsync<TDto>(IQueryable<TEntity> query, TFilterDto filter)
         {
             query = ApplyFilter(query, filter);
 
@@ -455,9 +440,9 @@ namespace SafeTrace.Application.Services.Cases
                 TotalCount = totalCount
             };
         }
-        
+
         // Retrieves a case by ID, validates its status if required, and maps it to the requested DTO.
-        private async Task<TDto> GetByIdInternalAsync<TDto>(long id, bool activeOnly, params Expression<Func<TEntity, object>>[] includes)
+        protected  async Task<TDto> GetByIdInternalAsync<TDto>(long id, bool activeOnly, params Expression<Func<TEntity, object>>[] includes)
         {
             var entity = await _caseHelper.GetValidCaseAsync<TEntity>(
                 id,
