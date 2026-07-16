@@ -149,7 +149,7 @@ namespace SafeTrace.API.Controllers
         #endregion
     
         #region My Cases
-        [HttpGet("my-cases")]
+        [HttpGet("MyCases")]
         [ProducesResponseType(typeof(ApiResponse<PaginationResponseDto<MyCaseListItemDto>>), StatusCodes.Status200OK)]
         public async Task<IActionResult> GetMyCases([FromQuery] MyCasesFilterDto filter)
         {
