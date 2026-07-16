@@ -396,7 +396,7 @@ namespace SafeTrace.Application.Services.UserProfileServices
             var query = _unitOfWork.Repository<Case>()
                 .Query(
                     tracked: false,
-                    includes: x => x.AgeCategory)
+                    includes: [x => x.AgeCategory,x => x.CaseFiles])
                 .Where(x =>
                     x.UserId == userId &&
                     x.Status != CaseStatus.Deleted);
