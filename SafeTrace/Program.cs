@@ -1,9 +1,17 @@
+using ElmahCore.Mvc;
 using Microsoft.AspNetCore.Mvc;
+using SafeTrace.API.BackgroundServices;
 using SafeTrace.API.ExceptionHandlers;
 using SafeTrace.API.ExtensionMethods;
+using SafeTrace.API.Hubs;
 using SafeTrace.Application.DependencyInjection;
+using SafeTrace.Application.Hubs;
+using SafeTrace.Application.Interfaces.IServices;
+using SafeTrace.Application.Interfaces.IServices.ICases;
+using SafeTrace.Application.Services.Cases;
 using SafeTrace.Infrastructure.DependencyInjection;
 using Serilog;
+using System.Reflection;
 using System.Text.Json.Serialization;
 
 namespace SafeTrace
@@ -24,6 +32,8 @@ namespace SafeTrace
 
             builder.Services.AddEndpointsApiExplorer();
 
+            builder.Services.AddHttpContextAccessor();
+
             builder.Services.AddControllers()
                             .AddJsonOptions(options =>
                             {
@@ -31,19 +41,29 @@ namespace SafeTrace
                                     new JsonStringEnumConverter());
                             });
 
-            builder.Services.AddSwaggerGen();
+            builder.Services.AddSwaggerGen(options =>
+            {
+                var xmlFile = $"{Assembly.GetExecutingAssembly().GetName().Name}.xml";
+                var xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFile);
+
+                options.IncludeXmlComments(xmlPath);
+            });
 
             builder.Services.AddInfrastructure(builder.Configuration);
             builder.Services.AddApplication();
+            builder.Services.AddSignalR();
+            builder.Services.AddScoped<IChatNotifier, SignalRChatNotifier>();
 
             builder.Services.AddCors(options =>
             {
                 options.AddPolicy("CorsPolicy", builder =>
                 {
                     builder
-                        .WithOrigins("http://localhost:5500", "http://127.0.0.1:5500",
+                        .WithOrigins("https://localhost:4200", "http://localhost:5500", "http://127.0.0.1:5500",
                                     "http://localhost:5501", "http://127.0.0.1:5501", "https://localhost:7204", "https://localhost:5173", "https://localhost:7126",
-                                    "http://localhost:3000", "http://localhost:8080") // Add common dev ports
+                                    "http://localhost:3000", "http://localhost:8080", 
+                                    "https://leqaaweb.runasp.net"
+                                    , "https://rearview-manual-coke.ngrok-free.dev") // Add common dev ports
                         .AllowAnyHeader()
                         .AllowAnyMethod()
                         .AllowCredentials()
@@ -55,10 +75,17 @@ namespace SafeTrace
 
             builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
             builder.Services.AddProblemDetails();
+            builder.Services.AddSignalR();
+            
+            // Background Services
+            builder.Services.AddScoped<ICaseCleanupService, CaseCleanupService>();
+            builder.Services.AddHostedService<UrgentCaseCleanupBackgroundService>();
+            builder.Services.AddHostedService<AuthCleanupBackgroundService>();
 
             var app = builder.Build();
 
             app.UseExceptionHandler();
+            app.UseElmah();
             app.UseStatusCodePages(async context =>
             {
                 var response = context.HttpContext.Response;
@@ -69,7 +96,7 @@ namespace SafeTrace
                     {
                         Status = 404,
                         Title = "Not Found",
-                        Detail = "The requested endpoint was not found.",
+                        Detail = "لم يتم العثور على المسار المطلوب.",
                         Instance = context.HttpContext.Request.Path
                     });
                 }
@@ -82,19 +109,27 @@ namespace SafeTrace
                 app.UseSwaggerUI();
             }
 
-            app.UseCors("CorsPolicy");
+
 
             await app.SeedDataAsync();
             await app.ApplyPendingMigrationsAsync();
+            await app.SetupAwsResourcesAsync();
+
 
             app.UseHttpsRedirection();
             app.UseStaticFiles();
+            app.UseCors("CorsPolicy");
 
+            app.UseRateLimiter(); // Apply Rate Limiting before Auth
+            
             app.UseAuthentication();
             app.UseAuthorization();
 
             app.MapControllers();
-            
+            app.MapHub<NotificationsHub>("/SafeTrace.Application/Hubs/notifications");
+            app.MapHub<ChatHub>("/chatHub");
+
+
             app.Run();
         }
     }

@@ -9,30 +9,83 @@ namespace SafeTrace.Infrastructure.Services
     {
         private readonly IWebHostEnvironment _environment;
 
-        private static readonly string[] AllowedExtensions = { ".jpg", ".jpeg", ".png", ".webp" };
-        private static readonly string[] AllowedContentTypes = { "image/jpeg", "image/png", "image/webp", "image/jpg" };
-        private const long MaxFileSize = 5 * 1024 * 1024; // 5 MB
+        private static readonly string[] AllowedImageExtensions = { ".jpg", ".jpeg", ".png", ".webp" };
+        private static readonly string[] AllowedImageContentTypes = { "image/jpeg", "image/png", "image/webp", "image/jpg" };
+        private const long MaxImageFileSize = 5 * 1024 * 1024; // 5 MB
+
+        private static readonly string[] AllowedVideoExtensions = { ".mp4", ".mov", ".webm" };
+        private static readonly string[] AllowedVideoContentTypes = { "video/mp4", "video/quicktime", "video/webm" };
+        private const long MaxVideoFileSize = 50 * 1024 * 1024; // 50 MB
 
         public FileStorageService(IWebHostEnvironment environment)
         {
             _environment = environment;
         }
 
+        public async Task<List<string>> SaveFilesAsync(IEnumerable<IFormFile> files, string folderName)
+        {
+            if (files == null || !files.Any())
+                throw new BadRequestException("لم يتم رفع أي ملفات.");
+
+            var fileList = files.ToList();
+
+            if (fileList.Count > 5)
+                throw new BadRequestException("الحد الأقصى للملفات المرفوعة هو 5 ملفات في المرة الواحدة.");
+
+            int videoCount = fileList.Count(f =>
+            {
+                var ext = Path.GetExtension(f.FileName).ToLowerInvariant();
+                return AllowedVideoExtensions.Contains(ext) || f.ContentType.StartsWith("video/");
+            });
+
+            if (videoCount > 1)
+                throw new BadRequestException("الحد الأقصى للفيديوهات المرفوعة هو فيديو واحد فقط.");
+
+            var savedFileUrls = new List<string>();
+
+            try
+            {
+                foreach (var file in fileList)
+                {
+                    var fileUrl = await SaveFileAsync(file, folderName);
+                    savedFileUrls.Add(fileUrl);
+                }
+            }
+            catch (Exception)
+            {
+                foreach (var url in savedFileUrls)
+                {
+                    DeleteFile(url);
+                }
+                throw;
+            }
+
+            return savedFileUrls;
+        }
+
         public async Task<string> SaveFileAsync(IFormFile file, string folderName)
         {
             if (file == null || file.Length == 0)
-                throw new BadRequestException("No file was uploaded.");
-
-            if (file.Length > MaxFileSize)
-                throw new BadRequestException("File size cannot exceed 5 MB.");
+                throw new BadRequestException("لم يتم رفع أي ملف أو أن الملف فارغ.");
 
             string extension = Path.GetExtension(file.FileName).ToLowerInvariant();
 
-            if (!AllowedExtensions.Contains(extension) || !AllowedContentTypes.Contains(file.ContentType))
-                throw new BadRequestException("Only .jpg, .jpeg, .png, and .webp files are allowed.");
+            bool isImage = AllowedImageExtensions.Contains(extension) && AllowedImageContentTypes.Contains(file.ContentType);
+            bool isVideo = AllowedVideoExtensions.Contains(extension) && AllowedVideoContentTypes.Contains(file.ContentType);
 
-            string wwwRootPath = _environment.WebRootPath;
-            string contentPath = Path.Combine(wwwRootPath, "Images", folderName);
+            if (!isImage && !isVideo)
+                throw new BadRequestException("صيغة الملف غير مدعومة. الصور المسموحة (jpg, jpeg, png, webp) والفيديوهات المسموحة (mp4, mov, webm).");
+
+            if (isImage && file.Length > MaxImageFileSize)
+                throw new BadRequestException("حجم الصورة لا يمكن أن يتجاوز 5 ميجابايت.");
+
+            if (isVideo && file.Length > MaxVideoFileSize)
+                throw new BadRequestException("حجم الفيديو لا يمكن أن يتجاوز 50 ميجابايت.");
+
+            string baseFolder = isVideo ? "Videos" : "Images";
+
+            string wwwRootPath = Path.Combine(_environment.ContentRootPath, "wwwroot");
+            string contentPath = Path.Combine(wwwRootPath, baseFolder, folderName);
 
             if (!Directory.Exists(contentPath))
                 Directory.CreateDirectory(contentPath);
@@ -45,21 +98,21 @@ namespace SafeTrace.Infrastructure.Services
                 using var fileStream = new FileStream(fullPath, FileMode.Create);
                 await file.CopyToAsync(fileStream);
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 if (File.Exists(fullPath)) File.Delete(fullPath);
-
-                throw new BadRequestException($"Failed to save the uploaded file: {ex.Message}");
+                throw new BadRequestException("حدث خطأ أثناء حفظ الملف.");
             }
 
-            return $"/Images/{folderName}/{uniqueFileName}";
+            return $"/{baseFolder}/{folderName}/{uniqueFileName}";
         }
 
         public bool DeleteFile(string fileUrl)
         {
-            if (string.IsNullOrEmpty(fileUrl)) return false;
+            if (string.IsNullOrWhiteSpace(fileUrl))
+                return false;
 
-            string wwwRootPath = _environment.WebRootPath;
+            string wwwRootPath = Path.Combine(_environment.ContentRootPath, "wwwroot");
 
             string cleanedPath = fileUrl.TrimStart('/');
             string fullPath = Path.Combine(wwwRootPath, cleanedPath);

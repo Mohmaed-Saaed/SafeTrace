@@ -7,11 +7,9 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Folder Include="DTOs\Auth\" />
-    <Folder Include="DTOs\Dashboard\Request\" />
-    <Folder Include="Helpers\" />
-    <Folder Include="Mapping/" />
-    <Folder Include="Services/" />
+    <Compile Remove="Specifications\**" />
+    <EmbeddedResource Remove="Specifications\**" />
+    <None Remove="Specifications\**" />
   </ItemGroup>
 
   <ItemGroup>
