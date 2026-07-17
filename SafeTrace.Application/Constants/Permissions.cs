@@ -6,7 +6,6 @@ namespace SafeTrace.Application.Constants
         {
             public const string GetAll = "UrgentCases.GetAll";
             public const string GetById = "UrgentCases.GetById";
-            public const string GetMyCases = "UrgentCases.GetMyCases";
             public const string Create = "UrgentCases.Create";
             public const string Update = "UrgentCases.Update";
             public const string SoftDelete = "UrgentCases.SoftDelete";
@@ -20,7 +19,6 @@ namespace SafeTrace.Application.Constants
         {
             public const string GetAll = "LongTermCases.GetAll";
             public const string GetById = "LongTermCases.GetById";
-            public const string GetMyCases = "LongTermCases.GetMyCases";
             public const string Create = "LongTermCases.Create";
             public const string Update = "LongTermCases.Update";
             public const string SoftDelete = "LongTermCases.SoftDelete";
@@ -34,7 +32,6 @@ namespace SafeTrace.Application.Constants
         {
             public const string GetAll = "UnknownCases.GetAll";
             public const string GetById = "UnknownCases.GetById";
-            public const string GetMyCases = "UnknownCases.GetMyCases";
             public const string Create = "UnknownCases.Create";
             public const string Update = "UnknownCases.Update";
             public const string SoftDelete = "UnknownCases.SoftDelete";
@@ -62,6 +59,7 @@ namespace SafeTrace.Application.Constants
             public const string UpdateIdImage = "Profile.UpdateIdImage";
             public const string UpdateUserInfo = "Profile.UpdateUserInfo";
             public const string UpdatePhoneNumber = "Profile.UpdatePhoneNumber";
+            public const string GetMyCases = "Profile.GetMyCases";
         }
 
         public static class Dashboard

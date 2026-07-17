@@ -1,4 +1,4 @@
-﻿using Amazon.Rekognition;
+using Amazon.Rekognition;
 using Amazon.Rekognition.Model;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
@@ -6,8 +6,6 @@ using Microsoft.Extensions.Logging;
 using SafeTrace.Application.DTOs.AiMatching.Response;
 using SafeTrace.Application.Exceptions;
 using SafeTrace.Application.Interfaces.IServices;
-using SixLabors.ImageSharp.Formats.Jpeg;
-using SixLabors.ImageSharp.Processing;
 using System.Net;
 
 namespace SafeTrace.Infrastructure.Services
@@ -20,6 +18,7 @@ namespace SafeTrace.Infrastructure.Services
 
         private static readonly string[] AllowedImageExtensions = { ".jpg", ".jpeg", ".png", ".webp" };
         private static readonly string[] AllowedImageContentTypes = { "image/jpeg", "image/png", "image/webp", "image/jpg" };
+        private const long MaxImageFileSize = 5 * 1024 * 1024; // 5 MB
 
         public FaceRecognitionService(
             IAmazonRekognition rekognitionClient,
@@ -53,13 +52,39 @@ namespace SafeTrace.Infrastructure.Services
             }
         }
 
+        public async Task ResetCollectionAsync()
+        {
+            var collectionId = _collectionId;
+
+            try
+            {
+                var deleteRequest = new DeleteCollectionRequest
+                {
+                    CollectionId = collectionId
+                };
+                await _rekognitionClient.DeleteCollectionAsync(deleteRequest);
+                _logger.LogInformation("تم مسح الكوليكشن القديمة بنجاح.");
+            }
+            catch (ResourceNotFoundException)
+            {
+                _logger.LogWarning("الكوليكشن مش موجودة ليتم مسحها، سيتم إنشاؤها الآن.");
+            }
+
+            var createRequest = new CreateCollectionRequest
+            {
+                CollectionId = collectionId
+            };
+            await _rekognitionClient.CreateCollectionAsync(createRequest);
+            _logger.LogInformation("تم إنشاء كوليكشن جديدة وفاضية بنجاح.");
+        }
+
         public async Task<string> IndexFaceAsync(IFormFile image)
         {
             ValidateIsImage(image);
 
             try
             {
-                using var memoryStream = await CompressAndResizeImageAsync(image);
+                using var memoryStream = await GetImageMemoryStreamAsync(image);
 
                 var request = new IndexFacesRequest
                 {
@@ -107,7 +132,7 @@ namespace SafeTrace.Infrastructure.Services
         {
             ValidateIsImage(image);
 
-            using var memoryStream = await CompressAndResizeImageAsync(image);
+            using var memoryStream = await GetImageMemoryStreamAsync(image);
             var awsImage = new Amazon.Rekognition.Model.Image { Bytes = memoryStream };
 
             try
@@ -205,27 +230,18 @@ namespace SafeTrace.Infrastructure.Services
                 _logger.LogWarning("Attempted to process a non-image file: {FileName}", file.FileName);
                 throw new BadRequestException("الملف المرفوع ليس صورة. يرجى التأكد من رفع صور فقط.");
             }
+
+            if (file.Length > MaxImageFileSize)
+            {
+                throw new BadRequestException("حجم الصورة لا يمكن أن يتجاوز 5 ميجابايت.");
+            }
         }
 
-        private async Task<MemoryStream> CompressAndResizeImageAsync(IFormFile imageFile)
+        private async Task<MemoryStream> GetImageMemoryStreamAsync(IFormFile imageFile)
         {
             var outputStream = new MemoryStream();
-
-            using var img = await SixLabors.ImageSharp.Image.LoadAsync(imageFile.OpenReadStream());
-
-            var resizeOptions = new ResizeOptions
-            {
-                Size = new SixLabors.ImageSharp.Size(800, 800),
-                Mode = ResizeMode.Max
-            };
-
-            img.Mutate(x => x.Resize(resizeOptions));
-
-            var encoder = new JpegEncoder { Quality = 75 };
-            await img.SaveAsync(outputStream, encoder);
-
+            await imageFile.CopyToAsync(outputStream);
             outputStream.Position = 0;
-
             return outputStream;
         }
     }

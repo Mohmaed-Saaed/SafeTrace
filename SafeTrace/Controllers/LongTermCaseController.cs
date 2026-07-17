@@ -51,18 +51,6 @@ namespace SafeTrace.API.Controllers
             return Ok(await _service.AdminGetAllAsync(filter));
         }
 
-        /// <summary>Gets the current user's own long-term cases.</summary>
-        /// <param name="filter">Filtering, sorting and pagination options.</param>
-        [HttpGet("GetMyCases")]
-        [HasPermission(Permissions.LongTermCases.GetMyCases)]
-        [ProducesResponseType(typeof(ApiResponse<PaginationResponseDto<LongTermCaseListDto>>), StatusCodes.Status200OK)]
-        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
-        public async Task<IActionResult> GetMyCases([FromQuery] LongTermCaseFilterDto filter)
-        {
-            if (CurrentUserId == null) throw new UnauthorizedException("لم يتم التعرف على هوية المستخدم.");
-            return Ok(await _service.GetMyCasesAsync(CurrentUserId, filter));
-        }
-
         /// <summary>Gets the public details of a single active long-term case.</summary>
         /// <param name="id">Case ID.</param>
         [HttpGet("GetCaseDetails/{id:long}")]
