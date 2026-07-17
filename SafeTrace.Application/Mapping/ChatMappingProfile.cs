@@ -53,7 +53,15 @@ namespace SafeTrace.Application.Mapping
                 opt => opt.MapFrom(src =>
                 src.ReceiverDeletedAt.HasValue
                 ? DateTime.SpecifyKind(src.ReceiverDeletedAt.Value, DateTimeKind.Utc)
-                : (DateTime?)null));
+                : (DateTime?)null))
+             .ForMember(
+                dest => dest.Content,
+                opt => opt.MapFrom(src =>
+                src.IsDeletedForEveryone
+                ? "تم حذف هذه الرسالة"
+                : src.Content
+                )
+                );
         }
     }
      
