@@ -150,6 +150,7 @@ namespace SafeTrace.API.Controllers
     
         #region My Cases
         [HttpGet("MyCases")]
+        [HasPermission(Permissions.Profile.GetMyCases)]
         [ProducesResponseType(typeof(ApiResponse<PaginationResponseDto<MyCaseListItemDto>>), StatusCodes.Status200OK)]
         public async Task<IActionResult> GetMyCases([FromQuery] MyCasesFilterDto filter)
         {

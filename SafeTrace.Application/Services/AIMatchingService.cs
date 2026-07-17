@@ -55,6 +55,10 @@ namespace SafeTrace.Application.Services
 
             var matchedFaceIds = faceMatches.Select(f => f.FaceId).ToList();
 
+            var similarityDict = faceMatches
+                .GroupBy(f => f.FaceId)
+                .ToDictionary(g => g.Key, g => g.Max(f => f.Similarity));
+
             var matchedPhotos = await EntityFrameworkQueryableExtensions.ToListAsync(
                 _unitOfWork.Repository<CaseFile>()
                     .Query(tracked: true, includes:
@@ -77,7 +81,7 @@ namespace SafeTrace.Application.Services
             {
                 Photo = p,
                 Case = p.Case,
-                Similarity = faceMatches.First(f => f.FaceId == p.FaceId).Similarity
+                Similarity = p.FaceId != null && similarityDict.ContainsKey(p.FaceId) ? similarityDict[p.FaceId] : 0
             });
 
             var topCasesWithSimilarity = photosWithSimilarity
@@ -85,7 +89,8 @@ namespace SafeTrace.Application.Services
                 .Select(group => new
                 {
                     Case = group.First().Case,
-                    Similarity = group.Max(x => x.Similarity)
+                    Similarity = group.Max(x => x.Similarity),
+                    BestPhoto = group.OrderByDescending(x => x.Similarity).First().Photo
                 })
                 .ToList();
 
@@ -98,7 +103,7 @@ namespace SafeTrace.Application.Services
                     }
                     return -x.Case.Id;
                 })
-                .Select(group => group.OrderByDescending(x => x.Case.CreatedAt).First())
+                .Select(group => group.OrderByDescending(x => x.Similarity).First())
                 .OrderByDescending(x => x.Similarity)
                 .ToList();
 
@@ -108,6 +113,7 @@ namespace SafeTrace.Application.Services
             {
                 var dto = _mapper.Map<MatchedCaseDto>(item.Case);
                 dto.Similarity = (float)Math.Round((double)(item.Similarity ?? 0), 2);
+                dto.MainPhoto = item.BestPhoto.ImagePath;
                 resultList.Add(dto);
             }
 
