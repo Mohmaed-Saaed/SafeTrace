@@ -1,14 +1,16 @@
-using System.Linq.Expressions;
 using Microsoft.AspNetCore.Http;
 using SafeTrace.Application.Common.Enums;
+using SafeTrace.Application.DTOs.AiMatching.Response;
 using SafeTrace.Application.DTOs.Cases.Request;
 using SafeTrace.Application.DTOs.Cases.Response;
+using System.Linq.Expressions;
 
 
 namespace SafeTrace.Application.Interfaces.IServices.ICases
 {
     public interface ICaseHelperService
     {
+
         Task<TEntity> GetValidCaseAsync<TEntity>(
             long id,
             string? userId = null,
@@ -31,14 +33,48 @@ namespace SafeTrace.Application.Interfaces.IServices.ICases
             IEnumerable<IFormFile>? additionalImages,
             IFormFile? video,
             string folderName,
-            long caseId = 0);
+            long caseId = 0);   
 
         void SetPrimaryImage(ICollection<CaseFile> files, long primaryPhotoId);
-        
+
         void CleanupPhysicalFiles(IEnumerable<string> filePaths);
 
         Task DeleteFacesAsync(IEnumerable<string> faceIds, long caseIdForLogging);
 
         Task<MatchedCasesResult> FindMatchedCasesAsync(CaseMatchSubjectInfoDto subject, IFormFile primaryImage);
+
+        Task AddCaseToGroupAsync(
+    long groupId,
+    long caseId,
+    decimal similarity);
+
+        Task CreateDuplicateGroupWithCasesAsync(
+         UnknownCase oldCase,
+         UnknownCase newCase,
+         decimal similarity);
+        Task CreateDuplicateGroupAsync(
+   UnknownCase newCase);
+
+
+    //    Task<UnknownCase?> GetMatchedCaseAsync(
+    //string faceId,
+    //long currentCaseId);
+        Task<UnknownCase?> GetMatchedCaseAsync(
+            long caseId,
+            long currentCaseId);
+
+
+        Task<DuplicateCheckResult> CheckDuplicateCaseAsync(
+           CaseType currentCaseType,
+           CaseMatchSubjectInfoDto subject,
+           IFormFile primaryImage,
+           Func<MatchedCaseDto, Task> onSameTypeMatchAsync,
+           bool forceCreate = false);
+
+
+
+        Task LinkCaseToDuplicateGroupAsync(
+                   UnknownCase newCase,
+                   MatchedCaseDto? sameTypeMatch);
     }
 }

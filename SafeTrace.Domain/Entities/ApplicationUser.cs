@@ -28,5 +28,6 @@ namespace SafeTrace.Domain.Entities
         public ICollection<UserOtp> UserOtps { get; set; } = new List<UserOtp>();
         public ICollection<RefreshToken> RefreshTokens { get; set; } = new List<RefreshToken>();
         public ICollection<AiSearchUsage> AiSearchUsages { get; set; } = new List<AiSearchUsage>();
+        public ICollection<Donation> Donations { get; set; } = new List<Donation>();
     }
 }

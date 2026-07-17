@@ -1,4 +1,4 @@
-﻿using AutoMapper;
+using AutoMapper;
 using Microsoft.Extensions.Logging;
 using Microsoft.AspNetCore.Http;
 using SafeTrace.Application.Constants;
@@ -9,11 +9,17 @@ using SafeTrace.Application.Exceptions;
 using SafeTrace.Domain.Enums;
 using System.Net;
 using System.Text.Json;
+using System.Collections.Concurrent;
+using System.Threading;
+using SafeTrace.Application.DTOs.NotificationDTOS;
+using SafeTrace.Application.Interfaces.IServices.INotificationSewrvice;
+using UAParser;
 
 namespace SafeTrace.Infrastructure.Services
 {
     public class AccountService : IAccountService
     {
+        private static readonly ConcurrentDictionary<string, SemaphoreSlim> _refreshLocks = new();
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly ITokenService _tokenService;
         private readonly IEmailService _emailService;
@@ -23,6 +29,7 @@ namespace SafeTrace.Infrastructure.Services
         private readonly IOtpService _otpService;
         private readonly HttpClient _httpClient;
         private readonly IHttpContextAccessor _httpContextAccessor;
+        private readonly INotificationServices _notificationService;
 
         public AccountService(
             UserManager<ApplicationUser> userManager,
@@ -32,7 +39,8 @@ namespace SafeTrace.Infrastructure.Services
             IMapper mapper,
             IOtpService otpService,
             ILogger<AccountService> logger,
-            IHttpContextAccessor httpContextAccessor)
+            IHttpContextAccessor httpContextAccessor,
+            INotificationServices notificationService)
         {
             _userManager = userManager;
             _tokenService = tokenService;
@@ -43,6 +51,7 @@ namespace SafeTrace.Infrastructure.Services
             _otpService = otpService;
             _httpClient = new HttpClient();
             _httpContextAccessor = httpContextAccessor;
+            _notificationService = notificationService;
         }
 
         public async Task<ApiResponse<string>> RegisterAsync(RegisterDto registerDto)
@@ -95,8 +104,22 @@ namespace SafeTrace.Infrastructure.Services
         public async Task<ApiResponse<AuthResponseDto>> LoginAsync(LoginDto loginDto)
         {
             var user = await _userManager.FindByEmailAsync(loginDto.Email);
-            if (user == null || !await _userManager.CheckPasswordAsync(user, loginDto.Password))
+            if (user == null)
             {
+                throw new UnauthorizedException("البريد الإلكتروني أو كلمة المرور غير صحيحة.");
+            }
+
+            CheckIfUserIsBlocked(user);
+
+            if (!await _userManager.CheckPasswordAsync(user, loginDto.Password))
+            {
+                await _userManager.AccessFailedAsync(user);
+                
+                if (await _userManager.IsLockedOutAsync(user))
+                {
+                    throw new ForbiddenException("تم حظر الحساب مؤقتاً لتجاوز الحد المسموح لمحاولات الدخول الخاطئة. يرجى المحاولة لاحقاً.");
+                }
+
                 throw new UnauthorizedException("البريد الإلكتروني أو كلمة المرور غير صحيحة.");
             }
 
@@ -105,13 +128,16 @@ namespace SafeTrace.Infrastructure.Services
                 throw new ForbiddenException("يرجى تأكيد بريدك الإلكتروني أولاً قبل تسجيل الدخول.");
             }
 
-            CheckIfUserIsBlocked(user);
+            await _userManager.ResetAccessFailedCountAsync(user);
 
             await _unitOfWork.BeginTransactionAsync();
             try
             {
                 var authResult = await GenerateAuthTokensAndSaveAsync(user);
                 await _unitOfWork.CommitTransactionAsync();
+
+                await SendLoginAlertAsync(user);
+
                 return ApiResponse<AuthResponseDto>.Ok(authResult, "تم تسجيل الدخول بنجاح.");
             }
             catch
@@ -133,6 +159,16 @@ namespace SafeTrace.Infrastructure.Services
             await _userManager.UpdateAsync(user);
 
             _logger.LogInformation("User {Email} has successfully confirmed their email address.", email);
+
+            var mailBody = EmailTemplates.BuildEmailConfirmedSuccessTemplate(user.FName);
+            _ = _emailService.SendEmailAsync(user.Email!, "لقاء - تم تأكيد بريدك الإلكتروني", mailBody);
+
+            _ = _notificationService.SendNotificationAsync(new SendNotificationDTO
+            {
+                UserId = user.Id,
+                Content = "تهانينا! تم تأكيد عنوان بريدك الإلكتروني بنجاح.",
+                Type = NotificationType.System
+            });
 
             return ApiResponse<string>.Ok(null, "تم تأكيد البريد الإلكتروني بنجاح.");
         }
@@ -199,6 +235,16 @@ namespace SafeTrace.Infrastructure.Services
 
                 _logger.LogInformation("User {Email} has successfully reset their password and all sessions were revoked.", user.Email);
 
+                var mailBody = EmailTemplates.BuildPasswordResetSuccessTemplate(user.FName);
+                _ = _emailService.SendEmailAsync(user.Email!, "لقاء - تأكيد إعادة تعيين كلمة المرور", mailBody);
+
+                _ = _notificationService.SendNotificationAsync(new SendNotificationDTO
+                {
+                    UserId = user.Id,
+                    Content = "تم إعادة تعيين كلمة المرور بنجاح وتسجيل الخروج من كافة الأجهزة.",
+                    Type = NotificationType.System
+                });
+
                 return ApiResponse<string>.Ok(null, "تم إعادة تعيين كلمة المرور بنجاح.");
             }
             catch
@@ -228,6 +274,17 @@ namespace SafeTrace.Infrastructure.Services
                 await RevokeAllActiveSessionsAsync(userId, currentRefreshToken);
 
                 await _unitOfWork.CommitTransactionAsync();
+
+                var mailBody = EmailTemplates.BuildPasswordResetSuccessTemplate(user.FName);
+                _ = _emailService.SendEmailAsync(user.Email!, "لقاء - تأكيد تغيير كلمة المرور", mailBody);
+
+                _ = _notificationService.SendNotificationAsync(new SendNotificationDTO
+                {
+                    UserId = user.Id,
+                    Content = "تم تغيير كلمة المرور بنجاح وتسجيل الخروج من كافة الأجهزة الأخرى.",
+                    Type = NotificationType.System
+                });
+
                 return ApiResponse<string>.Ok(null, "تم تغيير كلمة المرور بنجاح وتسجيل الخروج من جميع الأجهزة الأخرى.");
             }
             catch
@@ -258,40 +315,14 @@ namespace SafeTrace.Infrastructure.Services
 
                 return await ProcessExternalUserFlowAsync(email, firstName!, lastName!, "Google");
             }
-            catch (Exception ex) when (ex is not WebException && ex is not UnauthorizedException && ex is not BadRequestException)
+            catch (Exception ex) when (ex is not WebException && ex is not UnauthorizedException && ex is not BadRequestException && ex is not ForbiddenException)
             {
                 _logger.LogError(ex, "Critical external network execution exception failure inside Google authentication payload handling.");
                 throw new BadRequestException("حدث خطأ أثناء محاولة تسجيل الدخول بواسطة جوجل.");
             }
         }
 
-        public async Task<ApiResponse<AuthResponseDto>> FacebookLoginAsync(ExternalLoginDto externalLoginDto)
-        {
-            try
-            {
-                var verifyUrl = $"https://graph.facebook.com/me?fields=id,email,first_name,last_name&access_token={externalLoginDto.ProviderToken}";
-                var fbResponse = await _httpClient.GetAsync(verifyUrl);
-                if (!fbResponse.IsSuccessStatusCode)
-                    throw new UnauthorizedException("فشل التحقق من حساب فيسبوك الخاص بك.");
 
-                using var doc = JsonDocument.Parse(await fbResponse.Content.ReadAsStringAsync());
-                var root = doc.RootElement;
-
-                if (!root.TryGetProperty("email", out var emailProp) || string.IsNullOrEmpty(emailProp.GetString()))
-                    throw new BadRequestException("لم نتمكن من الحصول على البريد الإلكتروني من حساب فيسبوك. يرجى إعطاء الصلاحية للوصول للبريد الإلكتروني.");
-
-                var email = emailProp.GetString();
-                var firstName = root.TryGetProperty("first_name", out var fName) ? fName.GetString() : "Facebook";
-                var lastName = root.TryGetProperty("last_name", out var lName) ? lName.GetString() : "User";
-
-                return await ProcessExternalUserFlowAsync(email!, firstName!, lastName!, "Facebook");
-            }
-            catch (Exception ex) when (ex is not WebException && ex is not UnauthorizedException && ex is not BadRequestException)
-            {
-                _logger.LogError(ex, "Critical provider identity synchronization validation error during Facebook runtime execution.");
-                throw new BadRequestException("حدث خطأ أثناء محاولة تسجيل الدخول بواسطة فيسبوك.");
-            }
-        }
 
         public async Task<ApiResponse<AuthResponseDto>> RefreshTokenAsync()
         {
@@ -299,9 +330,14 @@ namespace SafeTrace.Infrastructure.Services
             if (string.IsNullOrEmpty(refreshTokenFromCookie))
                 throw new UnauthorizedException("انتهت صلاحية الجلسة، يرجى تسجيل الدخول من جديد.");
 
-            await _unitOfWork.BeginTransactionAsync();
+            var semaphore = _refreshLocks.GetOrAdd(refreshTokenFromCookie, _ => new SemaphoreSlim(1, 1));
+            await semaphore.WaitAsync();
+
             try
             {
+                await _unitOfWork.BeginTransactionAsync();
+                try
+                {
                 var storedRefreshToken = await _unitOfWork.Repository<RefreshToken>()
                     .GetOneAsync(t => t.Token == refreshTokenFromCookie);
 
@@ -311,10 +347,22 @@ namespace SafeTrace.Infrastructure.Services
 
                 if (!storedRefreshToken.IsActive)
                 {
-                    await RevokeAllActiveSessionsAsync(userId!);
-                    await _unitOfWork.SaveAsync();
-                    await _unitOfWork.CommitTransactionAsync();
-                    throw new UnauthorizedException("تم اكتشاف نشاط مريب في الجلسة، تم تسجيل الخروج من جميع الأجهزة كإجراء أمني.");
+                    bool isWithinGracePeriod = storedRefreshToken.RevokedAt != null && 
+                        (DateTime.UtcNow - storedRefreshToken.RevokedAt.Value).TotalSeconds <= 60;
+
+                    if (!isWithinGracePeriod)
+                    {
+                        if (storedRefreshToken.ReplacedByToken != null)
+                        {
+                            await RevokeAllActiveSessionsAsync(userId!);
+                            await _unitOfWork.SaveAsync();
+                            await _unitOfWork.CommitTransactionAsync();
+                            _logger.LogWarning("Token reuse detected for user {UserId}. Revoking all active sessions.", userId);
+                            throw new UnauthorizedException("تم اكتشاف نشاط مريب في الجلسة، تم تسجيل الخروج من جميع الأجهزة كإجراء أمني.");
+                        }
+
+                        throw new UnauthorizedException("انتهت صلاحية الجلسة، يرجى تسجيل الدخول من جديد.");
+                    }
                 }
 
                 var user = await _userManager.FindByIdAsync(userId!);
@@ -332,7 +380,8 @@ namespace SafeTrace.Infrastructure.Services
                 await _unitOfWork.CommitTransactionAsync();
 
                 var roles = await _userManager.GetRolesAsync(user);
-                var newAccessToken = _tokenService.GenerateAccessToken(user, roles);
+                var role = roles.FirstOrDefault() ?? "User";
+                var newAccessToken = _tokenService.GenerateAccessToken(user, role);
 
                 SetRefreshTokenCookie(newRefreshToken.Token, newRefreshToken.ExpiresAt);
 
@@ -346,10 +395,19 @@ namespace SafeTrace.Infrastructure.Services
                     VerificationStatus = user.VerificationStatus
                 }, "تم تجديد الجلسة بنجاح.");
             }
-            catch
+                catch
+                {
+                    await _unitOfWork.RollbackTransactionAsync();
+                    throw;
+                }
+            }
+            finally
             {
-                await _unitOfWork.RollbackTransactionAsync();
-                throw;
+                semaphore.Release();
+                if (semaphore.CurrentCount == 1)
+                {
+                    _refreshLocks.TryRemove(refreshTokenFromCookie, out _);
+                }
             }
         }
 
@@ -374,7 +432,8 @@ namespace SafeTrace.Infrastructure.Services
         private async Task<AuthResponseDto> GenerateAuthTokensAndSaveAsync(ApplicationUser user)
         {
             var roles = await _userManager.GetRolesAsync(user);
-            var accessToken = _tokenService.GenerateAccessToken(user, roles);
+            var role = roles.FirstOrDefault() ?? "User";
+            var accessToken = _tokenService.GenerateAccessToken(user, role);
             var refreshToken = _tokenService.GenerateRefreshToken();
 
             refreshToken.UserId = user.Id;
@@ -437,6 +496,8 @@ namespace SafeTrace.Infrastructure.Services
                 var responseData = await GenerateAuthTokensAndSaveAsync(user);
                 await _unitOfWork.CommitTransactionAsync();
 
+                await SendLoginAlertAsync(user);
+
                 return ApiResponse<AuthResponseDto>.Ok(responseData, "تم تسجيل الدخول بنجاح.");
             }
             catch
@@ -450,8 +511,16 @@ namespace SafeTrace.Infrastructure.Services
         {
             if (user.LockoutEnd.HasValue && user.LockoutEnd.Value > DateTimeOffset.UtcNow)
             {
-                _logger.LogWarning("Action denied. Blocked user {Email} attempted an account mutation operation.", user.Email);
-                throw new ForbiddenException("هذا الحساب محظور من قبل الإدارة.");
+                if (user.LockoutEnd.Value == DateTimeOffset.MaxValue)
+                {
+                    _logger.LogWarning("Action denied. Blocked user {Email} attempted an account mutation operation.", user.Email);
+                    throw new ForbiddenException("هذا الحساب محظور من قبل الإدارة.");
+                }
+                else
+                {
+                    _logger.LogWarning("Action denied. Temporarily locked out user {Email} attempted an account operation.", user.Email);
+                    throw new ForbiddenException("تم حظر الحساب مؤقتاً لتجاوز الحد المسموح لمحاولات تسجيل الدخول. يرجى المحاولة لاحقاً.");
+                }
             }
         }
 
@@ -476,6 +545,41 @@ namespace SafeTrace.Infrastructure.Services
                     token.RevokedAt = DateTime.UtcNow;
                     _unitOfWork.Repository<RefreshToken>().Update(token);
                 }
+                await _unitOfWork.SaveAsync();
+            }
+        }
+
+        private async Task SendLoginAlertAsync(ApplicationUser user)
+        {
+            try
+            {
+                var ipAddress = _httpContextAccessor.HttpContext?.Connection?.RemoteIpAddress?.ToString() ?? "غير معروف";
+                var userAgentStr = _httpContextAccessor.HttpContext?.Request?.Headers["User-Agent"].ToString();
+                
+                string browser = "غير معروف";
+                string os = "غير معروف";
+
+                if (!string.IsNullOrEmpty(userAgentStr))
+                {
+                    var uaParser = Parser.GetDefault();
+                    var clientInfo = uaParser.Parse(userAgentStr);
+                    browser = clientInfo.UA.Family;
+                    os = clientInfo.OS.Family;
+                }
+
+                var mailBody = EmailTemplates.BuildLoginAlertTemplate(user.FName, ipAddress, browser, os);
+                _ = _emailService.SendEmailAsync(user.Email!, "لقاء - تنبيه أمني: تسجيل دخول جديد", mailBody);
+
+                _ = _notificationService.SendNotificationAsync(new SendNotificationDTO
+                {
+                    UserId = user.Id,
+                    Content = $"تم تسجيل دخول جديد لحسابك من جهاز: {os} ({browser}). إذا لم تكن أنت، يرجى تغيير كلمة المرور فوراً.",
+                    Type = NotificationType.System
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to send login alert for User {Email}", user.Email);
             }
         }
 

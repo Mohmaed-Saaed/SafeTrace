@@ -10,8 +10,8 @@ namespace SafeTrace.Application.DTOs.UrgentCase.Request
         [Range(-180.0, 180.0, ErrorMessage = "Longitude must be between -180 and 180.")]
         public double? Longitude { get; set; }
  
-        [Range(100, 500_000, ErrorMessage = "Radius must be between 100 m and 500,000 m.")]
-        public double RadiusInMeters { get; set; } = 50000;
+        [Range(100, double.MaxValue, ErrorMessage = $"Radius must be between 100 m and 1.7976931348623157E+308 m.")]
+        public double RadiusInMeters { get; set; } = double.MaxValue;
     }
 }
 

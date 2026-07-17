@@ -19,6 +19,7 @@ namespace SafeTrace.Application.DependencyInjection
             services.AddScoped<ILongTermCaseService, LongTermCaseService>();  
             services.AddScoped<IUnknownCaseService,UnKnownCaseService>();
             services.AddScoped<IUrgentCaseService, UrgentCaseService>();
+            services.AddScoped<ICaseCleanupService, CaseCleanupService>();
 
             services.AddScoped<IFoundedService, FoundedService>();
 
@@ -29,7 +30,6 @@ namespace SafeTrace.Application.DependencyInjection
             services.AddScoped<IMessageService, MessageService>();
 
             services.AddScoped<IAIMatchingService, AIMatchingService>();
-
             services.AddAutoMapper(cfg => { }, typeof(ApplicationServiceRegistration).Assembly);
             
             return services;

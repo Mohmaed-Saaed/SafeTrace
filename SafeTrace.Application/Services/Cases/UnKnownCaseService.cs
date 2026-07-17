@@ -1,5 +1,7 @@
-using Microsoft.AspNetCore.Identity;
 using SafeTrace.Application.Common.Enums;
+using SafeTrace.Application.DTOs.AiMatching.Response;
+using SafeTrace.Application.DTOs.Cases.Request;
+using SafeTrace.Application.DTOs.Cases.Response;
 using SafeTrace.Application.DTOs.UnKnownCase.Request;
 using SafeTrace.Application.DTOs.UnKnownCase.Response;
 using SafeTrace.Application.Exceptions;
@@ -19,44 +21,99 @@ namespace SafeTrace.Application.Services.Cases
             : base(unitOfWork, mapper, caseHelper, logger)
         {
         }
-
-        /// <summary>
-        /// Creates a new unknown case with pending status.
-        /// </summary>
-        public async Task<ApiResponse<string>> CreateUnknownCaseAsync(string userId, CreateUnknownDto dto)
+      
+        public async Task<ApiResponse<CreateCaseResultDto>> CreateUnknownCaseAsync(string userId, CreateUnknownDto dto, bool forceCreate = false)
         {
             await _caseHelper.ValidateVerifiedUserAsync(userId);
 
-            var entity = _mapper.Map<UnknownCase>(dto);
+            var subject = new CaseMatchSubjectInfoDto
+            {
+                Gender = dto.Gender,
+                Age = dto.Age
+            };
 
+            // نلتقط الـ match الجاهز من CheckDuplicateCaseAsync بدل تنفيذ Logic
+            // بيعتمد على entity.Id، وهو لسه مش موجود في اللحظة دي
+            MatchedCaseDto? pendingSameTypeMatch = null;
+
+            var checkResult = await _caseHelper.CheckDuplicateCaseAsync(
+                CaseType.Unknown,
+                subject,
+                dto.PrimaryImage,
+                onSameTypeMatchAsync: duplicate =>
+                {
+                    pendingSameTypeMatch = duplicate;
+                    return Task.CompletedTask;
+                },
+                forceCreate);
+
+            // Unknown + LongTerm/Urgent -> نفس السلوك الحالي بالظبط: نرجع للمستخدم يقرر
+            if (checkResult.RequiresConfirmation)
+            {
+                return ApiResponse<CreateCaseResultDto>.Ok(
+                    new CreateCaseResultDto
+                    {
+                        IsCreated = false,
+                        MatchedCases = checkResult.MatchedCases
+                    });
+            }
+
+            var entity = _mapper.Map<UnknownCase>(dto);
             entity.UserId = userId;
             entity.Status = CaseStatus.Pending;
             entity.CaseType = CaseType.Unknown;
-            entity.AgeCategoryId = await _caseHelper.ResolveAgeCategoryIdAsync(entity.Age);
-            entity.CaseCode = await _caseHelper.GenerateCaseCodeAsync(CaseCodePrefix.UNK);
             entity.CreatedAt = DateTime.UtcNow;
+            entity.AgeCategoryId =
+                await _caseHelper.ResolveAgeCategoryIdAsync(entity.Age);
+
+            entity.CaseCode =
+                await _caseHelper.GenerateCaseCodeAsync(CaseCodePrefix.UNK);
 
             var uploadedFiles = new List<CaseFile>();
 
             await ExecuteInTransactionAsync(
+
                 action: async () =>
                 {
+                    await _unitOfWork
+                        .Repository<UnknownCase>()
+                        .CreateAsync(entity);
+
+                    await _unitOfWork.SaveAsync();
+
                     uploadedFiles = await _caseHelper.CreateCaseFilesAsync(
                         dto.PrimaryImage,
                         dto.AdditionalImages,
                         dto.Video,
-                        FolderName);
+                        FolderName,
+                        entity.Id);
 
                     entity.CaseFiles = uploadedFiles;
 
-                    await _unitOfWork.Repository<UnknownCase>().CreateAsync(entity);
+                    // entity.Id موجود دلوقتي، ونستخدم الـ match اللي اتلقط قبل كده
+                    // (نفس الـ 80% + Gender + Age اللي CheckDuplicateCaseAsync استخدمهم)
+                    // بدل عمل بحث Face Recognition جديد بمعايير مختلفة (95% بدون فلترة)
+                    await _caseHelper.LinkCaseToDuplicateGroupAsync(
+                        entity,
+                        pendingSameTypeMatch);
+
+                    _unitOfWork
+                        .Repository<UnknownCase>()
+                        .Update(entity);
 
                     return true;
                 },
+
                 onFailureAsync: async ex =>
                 {
-                    _caseHelper.CleanupPhysicalFiles(uploadedFiles.Select(p => p.ImagePath));
-                    await _caseHelper.DeleteFacesAsync(entity.CaseFiles.Select(x => x.FaceId), entity.Id);
+                    _caseHelper.CleanupPhysicalFiles(
+                        uploadedFiles.Select(x => x.ImagePath));
+
+                    await _caseHelper.DeleteFacesAsync(
+                        uploadedFiles
+                            .Where(x => !string.IsNullOrWhiteSpace(x.FaceId))
+                            .Select(x => x.FaceId!),
+                        entity.Id);
 
                     _logger.LogError(
                         ex,
@@ -65,13 +122,101 @@ namespace SafeTrace.Application.Services.Cases
                 });
 
             _logger.LogInformation(
-                "Unknown case {CaseCode} created successfully by user {UserId}.",
-                entity.CaseCode,
-                userId);
+                "Unknown case {CaseCode} created successfully.",
+                entity.CaseCode);
 
-            return ApiResponse<string>.Ok(message: "تم إنشاء حالة مجهول الهوية بنجاح");
+            return ApiResponse<CreateCaseResultDto>.Ok(
+                new CreateCaseResultDto
+                {
+                    IsCreated = true,
+                    CaseId = entity.Id
+                });
         }
 
+        public override async Task<ApiResponse<PaginationResponseDto<UnknownCaseListDto>>> GetAllAsync(
+        UnknownCasesFilterDto filter)
+        {
+            var query = _unitOfWork
+                .Repository<UnknownCase>()
+                .Query(
+                    tracked: false,
+                    includes:
+                    [
+                        x => x.CaseFiles,
+                x => x.DuplicateGroups
+                    ])
+                .Where(x => x.Status == CaseStatus.Active);
+            query = query
+    .GroupBy(x =>
+        x.DuplicateGroups.Any()
+            ? x.DuplicateGroups.First().DuplicateGroupId
+            : -x.Id)
+    .Select(g => g
+        .OrderByDescending(x => x.CreatedAt)
+        .First());
+
+            var response = await GetPagedResultAsync<UnknownCaseListDto>(
+                query,
+                filter);
+
+            return ApiResponse<PaginationResponseDto<UnknownCaseListDto>>
+                .Ok(response, "تم استرجاع الحالات بنجاح.");
+        }
+
+     public override async Task<ApiResponse<UnknownCaseDetailDto>> GetByIdAsync(long id)
+        { 
+    var dto = await GetByIdInternalAsync<UnknownCaseDetailDto>(
+        id,
+        activeOnly: true,
+        includes:
+        [
+            x => x.CaseFiles,
+            x => x.User,
+            x => x.AgeCategory
+        ]);
+    var groupId = await _unitOfWork
+        .Repository<DuplicateGroupCase>()
+        .Query(tracked: false)
+        .Where(x => x.CaseId == id)
+        .Select(x => (long?)x.DuplicateGroupId)
+        .FirstOrDefaultAsync();
+
+    if (groupId != null)
+    {
+        var relatedCases = await _unitOfWork
+            .Repository<DuplicateGroupCase>()
+            .Query(
+                tracked: false,
+                includes:
+                [
+                    x => x.Case,
+                    x => x.Case.CaseFiles
+                ])
+            .Where(x =>
+                x.DuplicateGroupId == groupId &&
+                x.CaseId != id)
+            .OrderByDescending(x => x.Case.CreatedAt)
+            .ToListAsync();
+
+        dto.RelatedCases = relatedCases
+            .Select(x => new RelatedUnknownCaseDto
+            {
+                Id = x.Case.Id,
+                CaseCode = x.Case.CaseCode,
+                CreatedAt = x.Case.CreatedAt,
+                Similarity = (float)x.SimilarityScore,
+                MainPhotoPath = x.Case.CaseFiles
+                    .Where(f => f.IsPrimary)
+                    .Select(f => f.ImagePath)
+                    .FirstOrDefault() ?? string.Empty
+            })
+            .ToList();
+    }
+
+    return ApiResponse<UnknownCaseDetailDto>.Ok(
+        dto,
+        "تم استرجاع بيانات الحالة بنجاح.");
+}
         /// <summary>
         /// Updates an existing unknown case with photo management.
         /// </summary>
@@ -216,4 +361,5 @@ namespace SafeTrace.Application.Services.Cases
         }
             
     }
+    
 }

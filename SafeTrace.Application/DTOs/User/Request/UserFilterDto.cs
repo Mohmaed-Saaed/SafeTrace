@@ -1,4 +1,4 @@
-﻿using SafeTrace.Domain.Enums;
+using SafeTrace.Domain.Enums;
 
 namespace SafeTrace.Application.DTOs.User.Request
 {
@@ -9,5 +9,6 @@ namespace SafeTrace.Application.DTOs.User.Request
         public string? SearchTerm { get; set; }
         public VerificationStatus? VerificationStatus { get; set; }
         public string? RoleId { get; set; }
+        public bool? IsBlocked { get; set; }
     }
 }

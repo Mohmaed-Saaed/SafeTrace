@@ -227,12 +227,14 @@ namespace SafeTrace.Application.Services
             {
                 EnsureParticipant(chat, currentUserId);
             }
+            var primaryImage = chat.Case.CaseFiles.FirstOrDefault(f => f.IsPrimary)?.ImagePath;
 
             var dto = new ChatDetailsDto
             {
                 ChatId = chat.Id,
                 CaseId = chat.CaseId,
                 CaseTitle = $"{chat.Case.FName} {chat.Case.SName} {chat.Case.TName} {chat.Case.LName}",
+                CaseImage = primaryImage,
 
                 CreatedAt = chat.CreatedAt
             };
@@ -241,9 +243,11 @@ namespace SafeTrace.Application.Services
             {
                 dto.SenderId = chat.SenderId;
                 dto.SenderName = $"{chat.Sender.FName} {chat.Sender.LName}";
+                dto.SenderImage = chat.Sender.ProfileImage;
 
                 dto.ReceiverId = chat.ReceiverId;
                 dto.ReceiverName = $"{chat.Receiver.FName} {chat.Receiver.LName}";
+                dto.ReceiverImage = chat.Receiver.ProfileImage;
 
                 dto.DeletedBySender = chat.DeletedBySender;
                 dto.DeletedByReceiver = chat.DeletedByReceiver;
@@ -255,6 +259,10 @@ namespace SafeTrace.Application.Services
                 dto.OtherUserName = chat.SenderId == currentUserId
                     ? $"{chat.Receiver.FName} {chat.Receiver.LName}"
                 : $"{chat.Sender.FName} {chat.Sender.LName}";
+
+                dto.OtherUserImage = chat.SenderId == currentUserId
+                     ? chat.Receiver.ProfileImage
+                    : chat.Sender.ProfileImage;
             }
 
             _logger.LogInformation(
@@ -328,6 +336,11 @@ namespace SafeTrace.Application.Services
 
             foreach(var message in messageDtos)
             {
+                _logger.LogInformation(
+        "GetMessages => Id={Id}, SendAt={SendAt}, Kind={Kind}",
+        message.Id,
+        message.SendAt,
+        message.SendAt.Kind);
                 message.IsMine = message.SenderId == currentUserId;
             }
 

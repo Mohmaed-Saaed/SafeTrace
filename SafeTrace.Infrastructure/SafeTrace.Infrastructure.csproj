@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
 	<PropertyGroup>
 		<TargetFramework>net10.0</TargetFramework>
@@ -8,11 +8,18 @@
 
 	<ItemGroup>
 		<Compile Remove="Licenses\**" />
+		<Compile Remove="License\**" />
 		<Compile Remove="Service\**" />
 		<EmbeddedResource Remove="Licenses\**" />
+		<EmbeddedResource Remove="License\**" />
 		<EmbeddedResource Remove="Service\**" />
 		<None Remove="Licenses\**" />
+		<None Remove="License\**" />
 		<None Remove="Service\**" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<FrameworkReference Include="Microsoft.AspNetCore.App" />
 	</ItemGroup>
 
 	<ItemGroup>
@@ -23,7 +30,7 @@
 		<PackageReference Include="ElmahCore.Sql" Version="2.1.2" />
 		<PackageReference Include="MailKit" Version="4.17.0" />
 		<PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.9" />
-		<PackageReference Include="Microsoft.AspNetCore.Http.Abstractions" Version="2.3.11" />
+
 		<PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="10.0.9" />
 		<PackageReference Include="Microsoft.EntityFrameworkCore" Version="10.0.9" />
 		<PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="10.0.9" />
@@ -31,7 +38,8 @@
 			<PrivateAssets>all</PrivateAssets>
 			<IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
 		</PackageReference>
-		<PackageReference Include="SixLabors.ImageSharp" Version="4.0.0" />
+		<PackageReference Include="System.Data.SqlClient" Version="4.8.6" />
+		<PackageReference Include="UAParser" Version="3.1.47" />
 	</ItemGroup>
 
 	<ItemGroup>

@@ -1,4 +1,4 @@
-﻿namespace SafeTrace.Application.Constants
+namespace SafeTrace.Application.Constants
 {
     public static class Permissions
     {
@@ -6,7 +6,6 @@
         {
             public const string GetAll = "UrgentCases.GetAll";
             public const string GetById = "UrgentCases.GetById";
-            public const string GetMyCases = "UrgentCases.GetMyCases";
             public const string Create = "UrgentCases.Create";
             public const string Update = "UrgentCases.Update";
             public const string SoftDelete = "UrgentCases.SoftDelete";
@@ -20,7 +19,6 @@
         {
             public const string GetAll = "LongTermCases.GetAll";
             public const string GetById = "LongTermCases.GetById";
-            public const string GetMyCases = "LongTermCases.GetMyCases";
             public const string Create = "LongTermCases.Create";
             public const string Update = "LongTermCases.Update";
             public const string SoftDelete = "LongTermCases.SoftDelete";
@@ -34,7 +32,6 @@
         {
             public const string GetAll = "UnknownCases.GetAll";
             public const string GetById = "UnknownCases.GetById";
-            public const string GetMyCases = "UnknownCases.GetMyCases";
             public const string Create = "UnknownCases.Create";
             public const string Update = "UnknownCases.Update";
             public const string SoftDelete = "UnknownCases.SoftDelete";
@@ -55,11 +52,14 @@
         public static class Profile
         {
             public const string GetUserInfo = "Profile.GetUserInfo";
+            public const string GetVisitedUserInfo = "Profile.GetVisitedUserInfo";
             public const string UpdateName = "Profile.UpdateName";
             public const string UpdateHomeLocation = "Profile.UpdateHomeLocation";
             public const string UpdateProfileImage = "Profile.UpdateProfileImage";
             public const string UpdateIdImage = "Profile.UpdateIdImage";
             public const string UpdateUserInfo = "Profile.UpdateUserInfo";
+            public const string UpdatePhoneNumber = "Profile.UpdatePhoneNumber";
+            public const string GetMyCases = "Profile.GetMyCases";
         }
 
         public static class Dashboard
@@ -84,6 +84,12 @@
         public static class Account
         {
             public const string ChangePassword = "Account.ChangePassword";
+        }
+
+        public static class Donations
+        {
+            public const string GetDonations = "Donations.GetDonations";
+            public const string GetMyDonations = "Donations.GetMyDonations";
         }
 
         public static class Roles
@@ -123,5 +129,23 @@
             public const string DeleteMessage = "Chat.DeleteMessage";
             public const string DeleteMessageForEveryone = "Chat.DeleteMessageForEveryone";
         }
+
+        private static readonly Lazy<List<string>> _allPermissions = new Lazy<List<string>>(() =>
+        {
+            var allPermissions = new List<string>();
+            var modules = typeof(Permissions).GetNestedTypes(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static);
+            foreach (var module in modules)
+            {
+                var fields = module.GetFields(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.FlattenHierarchy);
+                foreach (var field in fields)
+                {
+                    var value = field.GetValue(null)?.ToString();
+                    if (value != null) allPermissions.Add(value);
+                }
+            }
+            return allPermissions;
+        });
+
+        public static List<string> GetAllPermissions() => _allPermissions.Value;
     }
 }
