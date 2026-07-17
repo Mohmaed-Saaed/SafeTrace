@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Http;
 using SafeTrace.Application.DTOs.AiMatching.Response;
 using SafeTrace.Application.Exceptions;
+using Microsoft.AspNetCore.Identity;
 
 
 namespace SafeTrace.Application.Services
@@ -11,42 +12,56 @@ namespace SafeTrace.Application.Services
         private readonly IFaceRecognitionService _faceRecognitionService;
         private readonly IMapper _mapper;
         private readonly ILogger<AIMatchingService> _logger;
+        private readonly UserManager<ApplicationUser> _userManager;
 
         public AIMatchingService(
             IUnitOfWork unitOfWork,
             IFaceRecognitionService faceRecognitionService,
             IMapper mapper,
-            ILogger<AIMatchingService> logger)
+            ILogger<AIMatchingService> logger,
+            UserManager<ApplicationUser> userManager)
         {
             _unitOfWork = unitOfWork;
             _faceRecognitionService = faceRecognitionService;
             _mapper = mapper;
             _logger = logger;
+            _userManager = userManager;
         }
 
         public async Task<ApiResponse<List<MatchedCaseDto>>> GetMatchingCasesAsync(IFormFile image, string userId)
         {
-            // var today = DateTime.UtcNow.Date;
-            
-            // var dailyUsageCount = await EntityFrameworkQueryableExtensions.CountAsync(
-            //     _unitOfWork.Repository<AiSearchUsage>()
-            //         .Query(tracked: false)
-            //         .Where(x => x.UserId == userId && x.CreatedAt.Date == today)
-            // );
+            var user = await _userManager.FindByIdAsync(userId);
+            if (user == null) throw new UnauthorizedException("تعذر التحقق من هوية المستخدم.");
 
-            // if (dailyUsageCount >= 2)
-            // {
-            //     throw new BadRequestException("عذراً، لقد تجاوزت الحد الأقصى (مرتين) لاستخدام البحث الذكي اليوم. يرجى المحاولة لاحقاً.");
-            // }
+            var isAdmin = await _userManager.IsInRoleAsync(user, "Admin");
+
+            if (!isAdmin)
+            {
+                var today = DateTime.UtcNow.Date;
+
+                var dailyUsageCount = await EntityFrameworkQueryableExtensions.CountAsync(
+                    _unitOfWork.Repository<AiSearchUsage>()
+                        .Query(tracked: false)
+                        .Where(x => x.UserId == userId && x.CreatedAt.Date == today)
+                );
+
+                if (dailyUsageCount >= 2)
+                {
+                    throw new BadRequestException("عذراً، لقد تجاوزت الحد الأقصى (مرتين) لاستخدام البحث الذكي اليوم. يرجى المحاولة لاحقاً.");
+                }
+            }
 
             var faceMatches = await _faceRecognitionService.SearchByImageAsync(image);
 
-            await _unitOfWork.Repository<AiSearchUsage>().CreateAsync(new AiSearchUsage 
-            { 
-                UserId = userId, 
-                CreatedAt = DateTime.UtcNow 
-            });
-            await _unitOfWork.SaveAsync();
+            if (!isAdmin)
+            {
+                await _unitOfWork.Repository<AiSearchUsage>().CreateAsync(new AiSearchUsage 
+                { 
+                    UserId = userId, 
+                    CreatedAt = DateTime.UtcNow 
+                });
+                await _unitOfWork.SaveAsync();
+            }
 
             if (faceMatches == null || !faceMatches.Any())
             {
