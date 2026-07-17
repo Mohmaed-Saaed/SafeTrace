@@ -1,13 +1,10 @@
 ﻿using System.Security.Claims;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SafeTrace.Application.Constants;
 using SafeTrace.Application.DTOs.Responses;
 using SafeTrace.Application.DTOs.User_Profiel_DTOS;
 using SafeTrace.Application.DTOs.User_Profiel_DTOS.Update_Profile_DTOS;
-using SafeTrace.Application.Interfaces.IServices;
 using SafeTrace.Application.Interfaces.IServices.IUserProfile;
-using SafeTrace.Application.Services.UserProfileServices;
 using SafeTrace.Infrastructure.Authorization;
 namespace SafeTrace.API.Controllers
 {
@@ -145,9 +142,9 @@ namespace SafeTrace.API.Controllers
                 return NotFound();
             return Ok(UpdateProfile);
         }
-        #endregion 
         #endregion
-    
+        #endregion
+
         #region My Cases
         [HttpGet("my-cases")]
         [ProducesResponseType(typeof(ApiResponse<PaginationResponseDto<MyCaseListItemDto>>), StatusCodes.Status200OK)]
