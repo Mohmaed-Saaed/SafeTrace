@@ -1,7 +1,3 @@
-using Microsoft.EntityFrameworkCore;
-using SafeTrace.Application.Interfaces.IServices;
-using SafeTrace.Domain.Entities;
-using SafeTrace.Application.Interfaces;
 using Microsoft.Extensions.Logging;
 
 namespace SafeTrace.Infrastructure.Services
@@ -21,16 +17,13 @@ namespace SafeTrace.Infrastructure.Services
         {
             var now = DateTime.UtcNow;
 
-            var expiredOtps = await _unitOfWork.Repository<UserOtp>().Query()
+            var deletedCount = await _unitOfWork.Repository<UserOtp>().Query()
                 .Where(o => o.ExpiryTime < now)
-                .ToListAsync();
+                .ExecuteDeleteAsync();
 
-            if (expiredOtps.Count > 0)
+            if (deletedCount > 0)
             {
-                _unitOfWork.Repository<UserOtp>().RemoveRange(expiredOtps);
-                
-                await _unitOfWork.SaveAsync();
-                _logger.LogInformation("Successfully deleted {Count} expired OTPs.", expiredOtps.Count);
+                _logger.LogInformation("Successfully deleted {Count} expired OTPs.", deletedCount);
             }
         }
 
@@ -38,16 +31,13 @@ namespace SafeTrace.Infrastructure.Services
         {
             var expirationThreshold = DateTime.UtcNow.AddDays(-7);
 
-            var oldTokens = await _unitOfWork.Repository<RefreshToken>().Query()
+            var deletedCount = await _unitOfWork.Repository<RefreshToken>().Query()
                 .Where(rt => rt.ExpiresAt < expirationThreshold || (rt.RevokedAt != null && rt.RevokedAt < expirationThreshold))
-                .ToListAsync();
+                .ExecuteDeleteAsync();
 
-            if (oldTokens.Count > 0)
+            if (deletedCount > 0)
             {
-                _unitOfWork.Repository<RefreshToken>().RemoveRange(oldTokens);
-                
-                await _unitOfWork.SaveAsync();
-                _logger.LogInformation("Successfully deleted {Count} old Refresh Tokens.", oldTokens.Count);
+                _logger.LogInformation("Successfully deleted {Count} old Refresh Tokens.", deletedCount);
             }
         }
     }
