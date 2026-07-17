@@ -21,6 +21,8 @@ namespace SafeTrace.Infrastructure.DependencyInjection
     {
         public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration configuration)
         {
+            services.AddMemoryCache();
+            
             services.AddDbContext<ApplicationDbContext>(options =>
                 options.UseSqlServer(configuration.GetConnectionString("DefaultConnection"), x => x.UseNetTopologySuite()));
 
@@ -161,10 +163,7 @@ namespace SafeTrace.Infrastructure.DependencyInjection
 
                 options.Filters.Add(new BusinessExceptionFilter());
 
-                //options.OnPermissionCheck = context =>
-                //    context.User.Identity != null &&
-                //    context.User.Identity.IsAuthenticated &&
-                //    context.User.IsInRole("Admin");
+                options.OnPermissionCheck = context => true;
             });
 
             services.AddRateLimiter(options =>

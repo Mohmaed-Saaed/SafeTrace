@@ -22,7 +22,8 @@ namespace SafeTrace.Application.Mapping
                 (string.IsNullOrEmpty(s.SName) ? "" : " " + s.SName) +
                 (string.IsNullOrEmpty(s.TName) ? "" : " " + s.TName) +
                 (string.IsNullOrEmpty(s.LName) ? "" : " " + s.LName)))
-        .ForMember(d => d.AgeCategory, o => o.MapFrom(s => s.AgeCategory));
+        .ForMember(d => d.AgeCategory, o => o.MapFrom(s => s.AgeCategory))
+        .ForMember(d => d.MainImageUrl, o => o.MapFrom(src => src.CaseFiles.FirstOrDefault(f => f.IsPrimary)!.ImagePath));
 
             CreateMap<ApplicationUser, GetUserInfoDTO>()
     .ForMember(dest => dest.FullName,

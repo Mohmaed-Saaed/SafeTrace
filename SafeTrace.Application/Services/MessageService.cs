@@ -26,8 +26,8 @@ namespace SafeTrace.Application.Services
         private readonly IFileStorageService _fileStorageService;
         private readonly INotificationServices _notificationServices;
         private readonly IEmailService _emailService;
-        
-        public MessageService (IUnitOfWork unitOfWork, IMapper mapper,
+
+        public MessageService(IUnitOfWork unitOfWork, IMapper mapper,
             IChatNotifier chatNotifier, ILogger<MessageService> logger,
             IFileStorageService fileStorageService, INotificationServices notificationServices,
             IEmailService emailService)
@@ -68,7 +68,7 @@ namespace SafeTrace.Application.Services
                     c => c.Receiver)
                 ?? throw new NotFoundException($"لم يتم العثور على المحادثة.");
 
-            if(chat.SenderId!= senderId && chat.ReceiverId!= senderId)
+            if (chat.SenderId != senderId && chat.ReceiverId != senderId)
             {
                 _logger.LogWarning(
                 "Unauthorized message attempt by User {SenderId} on Chat {ChatId}.",
@@ -79,9 +79,9 @@ namespace SafeTrace.Application.Services
             }
             var receiverId = chat.SenderId == senderId ? chat.ReceiverId : chat.SenderId;
             string? filePath = null;
-            FileType? fileType=null;
+            FileType? fileType = null;
 
-            if (request.File != null && request.File.Length>0)
+            if (request.File != null && request.File.Length > 0)
 
             {
                 if (string.IsNullOrEmpty(request.File.FileName))
@@ -97,7 +97,7 @@ namespace SafeTrace.Application.Services
                 };
 
                 filePath = await _fileStorageService
-                    .SaveFileAsync(request.File, "chat");                
+                    .SaveFileAsync(request.File, "chat");
             }
 
             var message = new Message
@@ -106,7 +106,7 @@ namespace SafeTrace.Application.Services
                 SenderId = senderId,
                 ReceiverId = receiverId,
                 Content = request.Content,
-                FileType =fileType,
+                FileType = fileType,
                 FilePath = filePath,
                 IsRead = false,
                 SendAt = DateTime.UtcNow,
@@ -123,6 +123,11 @@ namespace SafeTrace.Application.Services
             request.ChatId);
 
             var messageDto = _mapper.Map<MessageDto>(message);
+
+            _logger.LogInformation(
+                "API SendMessage => SendAt={SendAt}, Kind={Kind}",
+             messageDto.SendAt,
+                 messageDto.SendAt.Kind);
 
             await _chatNotifier.SendMessageAsync(messageDto);
 
@@ -156,7 +161,7 @@ namespace SafeTrace.Application.Services
                 UserId = receiverId,
                 Content = notificationContent,
                 Type = NotificationType.Message,
-                NotificationDirectLink = $"/Chats/{request.ChatId}"
+                NotificationDirectLink = $"/chat/chat/{request.ChatId}"
 
             });
             var receiver = chat.SenderId == senderId
@@ -237,7 +242,7 @@ namespace SafeTrace.Application.Services
             };
         }
 
-        public async Task<ApiResponse<MessageDto>> DeleteMessageAsync (long messageId , string userId)
+        public async Task<ApiResponse<MessageDto>> DeleteMessageAsync(long messageId, string userId)
         {
             var message = await _unitOfWork.Repository<Message>()
                 .GetByIdAsync(messageId)
@@ -245,7 +250,7 @@ namespace SafeTrace.Application.Services
 
             EnsureParticipant(message, userId);
 
-            if(message.SenderId == userId)
+            if (message.SenderId == userId)
             {
                 message.DeletedBySender = true;
                 message.SenderDeletedAt = DateTime.UtcNow;
@@ -268,9 +273,15 @@ namespace SafeTrace.Application.Services
 
         public async Task<ApiResponse<MessageDto>> DeleteMessageForEveryoneAsync(long messageId, string userId)
         {
+            _logger.LogInformation("delete for every one started");
             var message = await _unitOfWork.Repository<Message>()
                 .GetByIdAsync(messageId)
                 ?? throw new NotFoundException("لم يتم العثور على الرسالة.");
+            _logger.LogInformation(
+            "Delete For Everyone => Message SenderId: {SenderId}, Current UserId: {UserId}",
+            message.SenderId,
+            userId
+                );
 
             if (message.SenderId != userId)
             {
@@ -283,6 +294,8 @@ namespace SafeTrace.Application.Services
 
             _unitOfWork.Repository<Message>().Update(message);
             await _unitOfWork.SaveAsync();
+
+            await _chatNotifier.NotifyMessageDeletedForEveryone(message.ChatId, message.Id);
 
             return ApiResponse<MessageDto>.Ok(
                 _mapper.Map<MessageDto>(message),

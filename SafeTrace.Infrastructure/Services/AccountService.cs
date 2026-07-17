@@ -9,6 +9,8 @@ using SafeTrace.Application.Exceptions;
 using SafeTrace.Domain.Enums;
 using System.Net;
 using System.Text.Json;
+using System.Collections.Concurrent;
+using System.Threading;
 using SafeTrace.Application.DTOs.NotificationDTOS;
 using SafeTrace.Application.Interfaces.IServices.INotificationSewrvice;
 using UAParser;
@@ -17,6 +19,7 @@ namespace SafeTrace.Infrastructure.Services
 {
     public class AccountService : IAccountService
     {
+        private static readonly ConcurrentDictionary<string, SemaphoreSlim> _refreshLocks = new();
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly ITokenService _tokenService;
         private readonly IEmailService _emailService;
@@ -327,9 +330,14 @@ namespace SafeTrace.Infrastructure.Services
             if (string.IsNullOrEmpty(refreshTokenFromCookie))
                 throw new UnauthorizedException("انتهت صلاحية الجلسة، يرجى تسجيل الدخول من جديد.");
 
-            await _unitOfWork.BeginTransactionAsync();
+            var semaphore = _refreshLocks.GetOrAdd(refreshTokenFromCookie, _ => new SemaphoreSlim(1, 1));
+            await semaphore.WaitAsync();
+
             try
             {
+                await _unitOfWork.BeginTransactionAsync();
+                try
+                {
                 var storedRefreshToken = await _unitOfWork.Repository<RefreshToken>()
                     .GetOneAsync(t => t.Token == refreshTokenFromCookie);
 
@@ -339,16 +347,22 @@ namespace SafeTrace.Infrastructure.Services
 
                 if (!storedRefreshToken.IsActive)
                 {
-                    if (storedRefreshToken.ReplacedByToken != null)
-                    {
-                        await RevokeAllActiveSessionsAsync(userId!);
-                        await _unitOfWork.SaveAsync();
-                        await _unitOfWork.CommitTransactionAsync();
-                        _logger.LogWarning("Token reuse detected for user {UserId}. Revoking all active sessions.", userId);
-                        throw new UnauthorizedException("تم اكتشاف نشاط مريب في الجلسة، تم تسجيل الخروج من جميع الأجهزة كإجراء أمني.");
-                    }
+                    bool isWithinGracePeriod = storedRefreshToken.RevokedAt != null && 
+                        (DateTime.UtcNow - storedRefreshToken.RevokedAt.Value).TotalSeconds <= 60;
 
-                    throw new UnauthorizedException("انتهت صلاحية الجلسة، يرجى تسجيل الدخول من جديد.");
+                    if (!isWithinGracePeriod)
+                    {
+                        if (storedRefreshToken.ReplacedByToken != null)
+                        {
+                            await RevokeAllActiveSessionsAsync(userId!);
+                            await _unitOfWork.SaveAsync();
+                            await _unitOfWork.CommitTransactionAsync();
+                            _logger.LogWarning("Token reuse detected for user {UserId}. Revoking all active sessions.", userId);
+                            throw new UnauthorizedException("تم اكتشاف نشاط مريب في الجلسة، تم تسجيل الخروج من جميع الأجهزة كإجراء أمني.");
+                        }
+
+                        throw new UnauthorizedException("انتهت صلاحية الجلسة، يرجى تسجيل الدخول من جديد.");
+                    }
                 }
 
                 var user = await _userManager.FindByIdAsync(userId!);
@@ -381,10 +395,19 @@ namespace SafeTrace.Infrastructure.Services
                     VerificationStatus = user.VerificationStatus
                 }, "تم تجديد الجلسة بنجاح.");
             }
-            catch
+                catch
+                {
+                    await _unitOfWork.RollbackTransactionAsync();
+                    throw;
+                }
+            }
+            finally
             {
-                await _unitOfWork.RollbackTransactionAsync();
-                throw;
+                semaphore.Release();
+                if (semaphore.CurrentCount == 1)
+                {
+                    _refreshLocks.TryRemove(refreshTokenFromCookie, out _);
+                }
             }
         }
 

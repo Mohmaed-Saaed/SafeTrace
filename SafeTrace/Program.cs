@@ -1,6 +1,5 @@
 using ElmahCore.Mvc;
 using Microsoft.AspNetCore.Mvc;
-using SafeTrace.API.BackgroundServices;
 using SafeTrace.API.ExceptionHandlers;
 using SafeTrace.API.ExtensionMethods;
 using SafeTrace.API.Hubs;
@@ -13,6 +12,8 @@ using SafeTrace.Infrastructure.DependencyInjection;
 using Serilog;
 using System.Reflection;
 using System.Text.Json.Serialization;
+using Hangfire;
+using Hangfire.Dashboard.BasicAuthorization;
 
 namespace SafeTrace
 {
@@ -51,8 +52,12 @@ namespace SafeTrace
 
             builder.Services.AddInfrastructure(builder.Configuration);
             builder.Services.AddApplication();
-            builder.Services.AddSignalR();
-            builder.Services.AddScoped<IChatNotifier, SignalRChatNotifier>();
+            builder.Services.AddSignalR()
+                .AddJsonProtocol(options =>
+                {
+                    options.PayloadSerializerOptions.Converters.Add(
+                        new JsonStringEnumConverter());
+                }); builder.Services.AddScoped<IChatNotifier, SignalRChatNotifier>();
 
             builder.Services.AddCors(options =>
             {
@@ -79,12 +84,38 @@ namespace SafeTrace
             
             // Background Services
             builder.Services.AddScoped<ICaseCleanupService, CaseCleanupService>();
-            builder.Services.AddHostedService<UrgentCaseCleanupBackgroundService>();
-            builder.Services.AddHostedService<AuthCleanupBackgroundService>();
+            
+            builder.Services.AddHangfire(config => config
+                .SetDataCompatibilityLevel(CompatibilityLevel.Version_180)
+                .UseSimpleAssemblyNameTypeSerializer()
+                .UseRecommendedSerializerSettings()
+                .UseSqlServerStorage(builder.Configuration.GetConnectionString("DefaultConnection")));
+            builder.Services.AddHangfireServer();
 
             var app = builder.Build();
 
             app.UseExceptionHandler();
+
+            // Custom Basic Auth Middleware for Elmah
+            app.Use(async (context, next) =>
+            {
+                if (context.Request.Path.StartsWithSegments("/elmah"))
+                {
+                    var authHeader = context.Request.Headers["Authorization"].ToString();
+                    var expectedUser = builder.Configuration["Elmah:Username"];
+                    var expectedPass = builder.Configuration["Elmah:Password"];
+                    var expectedAuth = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes($"{expectedUser}:{expectedPass}"));
+
+                    if (authHeader != $"Basic {expectedAuth}")
+                    {
+                        context.Response.Headers["WWW-Authenticate"] = "Basic realm=\"Elmah Secure Area\"";
+                        context.Response.StatusCode = 401;
+                        return;
+                    }
+                }
+                await next();
+            });
+
             app.UseElmah();
             app.UseStatusCodePages(async context =>
             {
@@ -115,12 +146,37 @@ namespace SafeTrace
             await app.ApplyPendingMigrationsAsync();
             await app.SetupAwsResourcesAsync();
 
+            var hangfireUsername = builder.Configuration["Hangfire:Username"];
+            var hangfirePassword = builder.Configuration["Hangfire:Password"];
+
+            app.UseHangfireDashboard("/hangfire", new DashboardOptions
+            {
+                Authorization = new[] { new BasicAuthAuthorizationFilter(new BasicAuthAuthorizationFilterOptions
+                {
+                    RequireSsl = false,
+                    SslRedirect = false,
+                    LoginCaseSensitive = true,
+                    Users = new []
+                    {
+                        new BasicAuthAuthorizationUser
+                        {
+                            Login = hangfireUsername,
+                            PasswordClear = hangfirePassword
+                        }
+                    }
+                })}
+            });
+
+            RecurringJob.AddOrUpdate<IAuthCleanupService>("CleanupExpiredOtps", service => service.CleanupExpiredOtpsAsync(), Cron.Daily);
+            RecurringJob.AddOrUpdate<IAuthCleanupService>("CleanupOldRefreshTokens", service => service.CleanupOldRefreshTokensAsync(), Cron.Daily);
+            RecurringJob.AddOrUpdate<ICaseCleanupService>("CleanupExpiredUrgentCases", service => service.CleanupExpiredUrgentCasesAsync(), Cron.Hourly);
+
 
             app.UseHttpsRedirection();
             app.UseStaticFiles();
             app.UseCors("CorsPolicy");
 
-            app.UseRateLimiter(); // Apply Rate Limiting before Auth
+            app.UseRateLimiter();
             
             app.UseAuthentication();
             app.UseAuthorization();
