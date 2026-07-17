@@ -336,11 +336,6 @@ namespace SafeTrace.Application.Services
 
             foreach(var message in messageDtos)
             {
-                _logger.LogInformation(
-        "GetMessages => Id={Id}, SendAt={SendAt}, Kind={Kind}",
-        message.Id,
-        message.SendAt,
-        message.SendAt.Kind);
                 message.IsMine = message.SenderId == currentUserId;
             }
 
