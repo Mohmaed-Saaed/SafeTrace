@@ -1,6 +1,5 @@
 using ElmahCore.Mvc;
 using Microsoft.AspNetCore.Mvc;
-using SafeTrace.API.BackgroundServices;
 using SafeTrace.API.ExceptionHandlers;
 using SafeTrace.API.ExtensionMethods;
 using SafeTrace.API.Hubs;
@@ -13,6 +12,7 @@ using SafeTrace.Infrastructure.DependencyInjection;
 using Serilog;
 using System.Reflection;
 using System.Text.Json.Serialization;
+using Hangfire;
 
 namespace SafeTrace
 {
@@ -79,8 +79,13 @@ namespace SafeTrace
             
             // Background Services
             builder.Services.AddScoped<ICaseCleanupService, CaseCleanupService>();
-            builder.Services.AddHostedService<UrgentCaseCleanupBackgroundService>();
-            builder.Services.AddHostedService<AuthCleanupBackgroundService>();
+            
+            builder.Services.AddHangfire(config => config
+                .SetDataCompatibilityLevel(CompatibilityLevel.Version_180)
+                .UseSimpleAssemblyNameTypeSerializer()
+                .UseRecommendedSerializerSettings()
+                .UseSqlServerStorage(builder.Configuration.GetConnectionString("DefaultConnection") ?? builder.Configuration.GetConnectionString("LocalConnection")));
+            builder.Services.AddHangfireServer();
 
             var app = builder.Build();
 
@@ -114,6 +119,12 @@ namespace SafeTrace
             await app.SeedDataAsync();
             await app.ApplyPendingMigrationsAsync();
             await app.SetupAwsResourcesAsync();
+
+            app.UseHangfireDashboard("/hangfire");
+
+            RecurringJob.AddOrUpdate<IAuthCleanupService>("CleanupExpiredOtps", service => service.CleanupExpiredOtpsAsync(), Cron.Daily);
+            RecurringJob.AddOrUpdate<IAuthCleanupService>("CleanupOldRefreshTokens", service => service.CleanupOldRefreshTokensAsync(), Cron.Daily);
+            RecurringJob.AddOrUpdate<ICaseCleanupService>("CleanupExpiredUrgentCases", service => service.CleanupExpiredUrgentCasesAsync(), Cron.Hourly);
 
 
             app.UseHttpsRedirection();
