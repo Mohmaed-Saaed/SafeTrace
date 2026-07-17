@@ -132,13 +132,50 @@ namespace SafeTrace.Application.Services.Cases
             return files;
         }
 
-        private async Task<CaseFile> CreateCaseFileAsync(IFormFile file, string folderName, long caseId, bool isPrimary)
+        //private async Task<CaseFile> CreateCaseFileAsync(IFormFile file, string folderName, long caseId, bool isPrimary)
+        //{
+        //    var path = await _fileStorageService.SaveFileAsync(file, folderName);
+
+        //    string? faceId = null;
+
+        //    if (!VideoExtensions.Contains(Path.GetExtension(file.FileName)))
+        //    {
+        //        try
+        //        {
+        //            faceId = await _faceRecognitionService.IndexFaceAsync(file);
+        //        }
+        //        catch (Exception ex)
+        //        {
+        //            _logger.LogWarning(ex, "Failed to index face for file {FileName}.", file.FileName);
+        //        }
+        //    }
+
+        //    return new CaseFile
+        //    {
+        //        CaseId = caseId,
+        //        ImagePath = path,
+        //        FaceId = faceId,
+        //        IsPrimary = isPrimary,
+        //        CreatedAt = DateTime.UtcNow
+        //    };
+        //}
+        private async Task<CaseFile> CreateCaseFileAsync(
+    IFormFile file,
+    string folderName,
+    long caseId,
+    bool isPrimary)
         {
             var path = await _fileStorageService.SaveFileAsync(file, folderName);
 
             string? faceId = null;
 
-            if (!VideoExtensions.Contains(Path.GetExtension(file.FileName)))
+            var extension = Path.GetExtension(file.FileName).ToLowerInvariant();
+
+            var fileType = VideoExtensions.Contains(extension)
+                ? FileType.Video
+                : FileType.Image;
+
+            if (fileType == FileType.Image)
             {
                 try
                 {
@@ -146,7 +183,9 @@ namespace SafeTrace.Application.Services.Cases
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogWarning(ex, "Failed to index face for file {FileName}.", file.FileName);
+                    _logger.LogWarning(ex,
+                        "Failed to index face for file {FileName}.",
+                        file.FileName);
                 }
             }
 
@@ -156,6 +195,7 @@ namespace SafeTrace.Application.Services.Cases
                 ImagePath = path,
                 FaceId = faceId,
                 IsPrimary = isPrimary,
+                 = fileType,
                 CreatedAt = DateTime.UtcNow
             };
         }
