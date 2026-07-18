@@ -1,4 +1,6 @@
 ﻿using SafeTrace.Application.DTOs.Complaints;
+using SafeTrace.Application.DTOs.Complaints.Request;
+using SafeTrace.Application.DTOs.Complaints.Response;
 using SafeTrace.Application.DTOs.NotificationDTOS;
 using SafeTrace.Application.DTOs.Responses;
 using SafeTrace.Application.Exceptions;
@@ -148,6 +150,23 @@ namespace SafeTrace.Application.Services
             await _emailService.SendEmailAsync(userEmail, subject, body);
         }
 
+        public async Task<ComplaintStatisticsDto> GetStatisticsAsync()
+        {
+            var query = _unitOfWork.Repository<Complaint>().Query(tracked: false);
+
+            var stats = await query
+                .GroupBy(x => 1)
+                .Select(g => new ComplaintStatisticsDto
+                {
+                    Total = g.Count(),
+                    Solved = g.Count(c => c.ComplaintStatus == Domain.Enums.ComplaintStatus.Solved),
+                    UnSolved = g.Count(c => c.ComplaintStatus == Domain.Enums.ComplaintStatus.UnSolved)
+                })
+                .FirstOrDefaultAsync();
+
+            return stats ?? new ComplaintStatisticsDto();
+        }
+    
         private static string BuildComplaintResolvedEmailTemplate(string fullName, string solutionMessage)
         {
             return $@"

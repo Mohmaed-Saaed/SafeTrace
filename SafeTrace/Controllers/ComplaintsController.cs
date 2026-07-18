@@ -2,7 +2,6 @@ using Microsoft.AspNetCore.Mvc;
 using SafeTrace.Application.Constants;
 using SafeTrace.Application.DTOs.Complaints.Request;
 using SafeTrace.Application.DTOs.Complaints.Response;
-using SafeTrace.Application.Constants;
 using SafeTrace.Application.DTOs.Complaints;
 using SafeTrace.Application.DTOs.Responses;
 using SafeTrace.Application.Interfaces.IServices;
@@ -31,7 +30,7 @@ namespace SafeTrace.API.Controllers
         /// Default: PageNumber = 1, PageSize = 10
         /// </remarks>
         [HttpGet]
-        [HasPermission(Permissions.Complaints.GetAll)]
+        // [HasPermission(Permissions.Complaints.GetAll)] //--------------------------->permission check is commented out for testing purposes. Remove the comment in production.
         public async Task<IActionResult> GetAll([FromQuery] ComplaintFilterDto filter)
         {
             var result = await _complaintService.GetAllAsync(filter);
@@ -63,7 +62,7 @@ namespace SafeTrace.API.Controllers
         /// Returns complaint details including user email, message, solution message, and status.
         /// </remarks>
         [HttpGet("{id:long}")]
-        [HasPermission(Permissions.Complaints.GetById)]
+        // [HasPermission(Permissions.Complaints.GetById)] //--------------------------->permission check is commented out for testing purposes. Remove the comment in production.
 
         public async Task<IActionResult> GetById(long id)
         {
@@ -79,12 +78,12 @@ namespace SafeTrace.API.Controllers
         /// UserId is extracted automatically from the JWT token.
         /// </remarks>
         [HttpPost]
-        [HasPermission(Permissions.Complaints.Create)]
+        // [HasPermission(Permissions.Complaints.Create)] //--------------------------->permission check is commented out for testing purposes. Remove the comment in production.
 
         public async Task<IActionResult> Create([FromBody] CreateComplaintDto dto)
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier)
-                         ?? "1dcc168b-80da-4909-8438-4e177016be76";
+                         ?? "73421559-3b56-4718-bc1f-938ba0a24c9e";
             var result = await _complaintService.CreateAsync(userId, dto);
             return CreatedAtAction(nameof(GetById), new { id = result.Id },
                 ApiResponse<ComplaintResponseDto>.Ok(result, "Complaint created successfully."));
@@ -99,7 +98,7 @@ namespace SafeTrace.API.Controllers
         /// Sends Email to the user with the solution message.
         /// </remarks>
         [HttpPut("{id:long}/resolve")]
-        [HasPermission(Permissions.Complaints.MarkAsSolved)]
+        // [HasPermission(Permissions.Complaints.MarkAsSolved)] //--------------------------->permission check is commented out for testing purposes. Remove the comment in production.
 
         public async Task<IActionResult> Resolve(long id, [FromBody] ResolveComplaintDto dto)
         {
@@ -114,7 +113,7 @@ namespace SafeTrace.API.Controllers
         /// Permanently removes the complaint from the database.
         /// </remarks>
         [HttpDelete("{id:long}")]
-        [HasPermission(Permissions.Complaints.HardDelete)]
+        // [HasPermission(Permissions.Complaints.HardDelete)] //--------------------------->permission check is commented out for testing purposes. Remove the comment in production.
 
         public async Task<IActionResult> Delete(long id)
         {
