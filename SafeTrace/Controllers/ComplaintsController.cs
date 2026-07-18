@@ -1,8 +1,11 @@
-﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using SafeTrace.Application.Constants;
 using SafeTrace.Application.DTOs.Complaints;
+using SafeTrace.Application.DTOs.Complaints.Response;
 using SafeTrace.Application.DTOs.Responses;
 using SafeTrace.Application.Interfaces.IServices;
+using SafeTrace.Infrastructure.Authorization;
 using System.Security.Claims;
 
 namespace SafeTrace.API.Controllers
@@ -25,6 +28,23 @@ namespace SafeTrace.API.Controllers
         {
             var result = await _complaintService.GetAllAsync(filter);
             return Ok(ApiResponse<PaginationResponseDto<ComplaintResponseDto>>.Ok(result));
+        }
+
+        /// <summary>
+        /// استرجاع إحصائيات الشكاوى (الإجمالي، المحلولة، والمعلقة).
+        /// </summary>
+        /// <response code="200">تم جلب إحصائيات الشكاوى بنجاح.</response>
+        /// <response code="401">غير مسجل الدخول.</response>
+        /// <response code="403">ليس لديك صلاحية لعرض الإحصائيات.</response>
+        [ProducesResponseType(typeof(ApiResponse<ComplaintStatisticsDto>), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status403Forbidden)]
+        [HttpGet("statistics")]
+        [HasPermission(Permissions.Complaints.GetComplaintsStatistics)]
+        public async Task<IActionResult> GetStatistics()
+        {
+            var result = await _complaintService.GetStatisticsAsync();
+            return Ok(ApiResponse<ComplaintStatisticsDto>.Ok(result, "تم جلب احصائيات الشكاوى بنجاح."));
         }
 
         // GET /api/complaints/5
