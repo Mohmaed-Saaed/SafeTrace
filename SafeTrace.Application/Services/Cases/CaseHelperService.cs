@@ -159,7 +159,7 @@ namespace SafeTrace.Application.Services.Cases
         //        CreatedAt = DateTime.UtcNow
         //    };
         //}
-        private async Task<CaseFile> CreateCaseFileAsync(
+    private async Task<CaseFile> CreateCaseFileAsync(
     IFormFile file,
     string folderName,
     long caseId,
@@ -195,7 +195,7 @@ namespace SafeTrace.Application.Services.Cases
                 ImagePath = path,
                 FaceId = faceId,
                 IsPrimary = isPrimary,
-                 = fileType,
+                 Type= fileType,
                 CreatedAt = DateTime.UtcNow
             };
         }
