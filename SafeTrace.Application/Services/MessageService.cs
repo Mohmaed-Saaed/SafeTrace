@@ -177,7 +177,7 @@ namespace SafeTrace.Application.Services
                 : request.Content,
                 chatLink: $"https://leqaaweb.runasp.net/chat/chat/{request.ChatId}");
 
-            await _emailService.SendEmailAsync(receiverEmail, "رسالة جديدة من SafeTrace", emailBody);
+            await _emailService.SendEmailAsync(receiverEmail, "رسالة جديدة من لقاء", emailBody);
 
             return ApiResponse<MessageDto>.Ok(
             messageDto, "تم إرسال الرسالة بنجاح.");
