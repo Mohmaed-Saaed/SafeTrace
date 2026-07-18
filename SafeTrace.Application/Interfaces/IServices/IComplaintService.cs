@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Text;
-using SafeTrace.Application.DTOs.Complaints;
+using SafeTrace.Application.DTOs.Complaints.Request;
 using SafeTrace.Application.DTOs.Complaints.Response;
 using SafeTrace.Application.DTOs.Responses;
 

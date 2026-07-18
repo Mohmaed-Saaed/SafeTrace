@@ -1,10 +1,7 @@
-using SafeTrace.Application.DTOs.Complaints;
+using SafeTrace.Application.DTOs.Complaints.Request;
 using SafeTrace.Application.DTOs.Complaints.Response;
 using SafeTrace.Application.DTOs.Responses;
 using SafeTrace.Application.Exceptions;
-using SafeTrace.Application.Interfaces.IServices;
-using SafeTrace.Domain.Entities;
-using SafeTrace.Domain.Interfaces.IUnitOfWork;
 
 namespace SafeTrace.Infrastructure.Services
 {
