@@ -1,6 +1,4 @@
-﻿using SafeTrace.Domain.Enums;
-
-namespace SafeTrace.Application.DTOs.Complaints
+﻿namespace SafeTrace.Application.DTOs.Complaints.Request
 {
     public class ComplaintFilterDto
     {

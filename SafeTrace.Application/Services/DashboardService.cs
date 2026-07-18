@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using SafeTrace.Application.DTOs.Dashboard.Response;
 using SafeTrace.Application.DTOs.Responses;
@@ -81,6 +81,26 @@ namespace SafeTrace.Application.Services
                     TotalCountPendingDonations = TotalCountPendingDonations,
                     CaseTypes = caseTypes
                 });
+        }
+
+        async Task<ApiResponse<CasesStatisticsDto>> IDashboardService.GetCasesStatisticsAsync()
+        {
+            var casesQuery = _unitOfWork.Repository<Case>().Query(tracked: false);
+
+            var stats = await casesQuery
+                .GroupBy(x => 1)
+                .Select(g => new CasesStatisticsDto
+                {
+                    Total = g.Count(),
+                    Urgent = g.Count(x => x.CaseType == CaseType.Urgent),
+                    LongTerm = g.Count(x => x.CaseType == CaseType.LongTerm),
+                    Unknown = g.Count(x => x.CaseType == CaseType.Unknown),
+                    Active = g.Count(x => x.Status == CaseStatus.Active),
+                    Found = g.Count(x => x.Status == CaseStatus.Found)
+                })
+                .FirstOrDefaultAsync();
+
+            return ApiResponse<CasesStatisticsDto>.Ok(stats ?? new CasesStatisticsDto(), "تم جلب إحصائيات الحالات بنجاح.");
         }
     }
 }

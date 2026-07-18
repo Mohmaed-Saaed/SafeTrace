@@ -129,14 +129,10 @@ namespace SafeTrace.API.Controllers
         [HttpGet("{chatId:long}/messages")]
         [HasPermission(Permissions.Chat.GetMessages)]
         public async Task<IActionResult> GetMessages(
-           [FromRoute] long chatId, [FromQuery] int page = 1, [FromQuery] int pageSize = 20)
+           [FromRoute] long chatId)
         {
-            if (page < 1) page = 1;
-            if (pageSize < 1) pageSize = 20;
-            if (pageSize > 100) pageSize = 100;
-
             var userId = GetCurrentUserId();
-            var messages = await _chatService.GetPaginatedMessagesAsync(chatId, userId,IsAdmin, page, pageSize);
+            var messages = await _chatService.GetPaginatedMessagesAsync(chatId, userId,IsAdmin);
             return Ok(messages);
 
         }

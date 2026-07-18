@@ -1,4 +1,4 @@
-﻿using ElmahCore;
+using ElmahCore;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
 using SafeTrace.Application.Exceptions;
@@ -51,6 +51,11 @@ using System.Net;
 
                     _ => HttpStatusCode.InternalServerError
                 };
+
+                if (statusCode == HttpStatusCode.InternalServerError)
+                {
+                    httpContext.RiseError(exception);
+                }
 
                 var problemDetails = new ProblemDetails
                 {
