@@ -40,7 +40,7 @@ namespace SafeTrace.Application.Constants
 
         <div style='text-align: center; margin-bottom: 25px;'>
             
-            <img src='https://localhost:7041/Images/logo.jpg'
+            <img src='https://leqaaweb.runasp.net/Images/logo.jpg'
                  alt='لقاء Logo'
                  style='width: 80px; height: 80px; object-fit: contain; margin-bottom: 10px;' />
 

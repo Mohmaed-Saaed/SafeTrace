@@ -175,7 +175,7 @@ namespace SafeTrace.Application.Services
                 messagePreview: string.IsNullOrWhiteSpace(request.Content)
                 ? "📎 ملف مرفق"
                 : request.Content,
-                chatLink: $"https://localhost:7041/Chats/{request.ChatId}");
+                chatLink: $"https://leqaaweb.runasp.net/chat/chat/{request.ChatId}");
 
             await _emailService.SendEmailAsync(receiverEmail, "رسالة جديدة من SafeTrace", emailBody);
 

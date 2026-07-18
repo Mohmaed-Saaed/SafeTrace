@@ -220,12 +220,21 @@ namespace SafeTrace.Application.Services
                     c => c.Id == chatId,
                     tracked: false,
                     c => c.Case,
+                    c =>c.Case.CaseFiles,
                     c => c.Sender,
                     c => c.Receiver)
                 ?? throw new NotFoundException($"{chatId}لم يتم العثور على المحادثة.");
             if (!isAdmin)
             {
                 EnsureParticipant(chat, currentUserId);
+            }
+            foreach (var file in chat.Case.CaseFiles)
+            {
+                _logger.LogInformation(
+                    "Image={Image}, IsPrimary={Primary}",
+                    file.ImagePath,
+                    file.IsPrimary
+                );
             }
             var primaryImage = chat.Case.CaseFiles.FirstOrDefault(f => f.IsPrimary)?.ImagePath;
 
@@ -275,14 +284,12 @@ namespace SafeTrace.Application.Services
                 "تم جلب تفاصيل المحادثة بنجاح.");
 
         }
-        public async Task <ApiResponse<PaginationResponseDto<MessageDto>>> GetPaginatedMessagesAsync(long chatId, string currentUserId,bool isAdmin, int page, int pageSize)
+        public async Task <ApiResponse<List<MessageDto>>> GetPaginatedMessagesAsync(long chatId, string currentUserId,bool isAdmin)
         {
             _logger.LogInformation(
-            "User {UserId} requested messages for Chat {ChatId}. Page {Page}, PageSize {PageSize}.",
+            "User {UserId} requested messages for Chat {ChatId}.",
             currentUserId,
-            chatId,
-            page,
-            pageSize);
+            chatId);
 
             var chat = await _unitOfWork.Repository<Chat>()
                 .GetOneAsync(
@@ -321,8 +328,6 @@ namespace SafeTrace.Application.Services
 
             var messages = await query
             .OrderBy(m => m.SendAt)
-            .Skip((page - 1) * pageSize)
-            .Take(pageSize)
             .ToListAsync();
 
 
@@ -339,14 +344,8 @@ namespace SafeTrace.Application.Services
                 message.IsMine = message.SenderId == currentUserId;
             }
 
-            var result = new PaginationResponseDto<MessageDto>
-            {
-                Items = messageDtos,
-                TotalCount = totalCount,
-                PageNumber = page,
-                PageSize = pageSize
-            };
-            return ApiResponse <PaginationResponseDto<MessageDto>>.Ok(result,
+            
+            return ApiResponse<List<MessageDto>>.Ok(messageDtos,
                 "تم جلب الرسائل بنجاح.");
 
 
