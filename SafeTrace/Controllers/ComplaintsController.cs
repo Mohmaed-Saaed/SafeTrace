@@ -1,7 +1,9 @@
 ﻿using Microsoft.AspNetCore.Mvc;
+using SafeTrace.Application.Constants;
 using SafeTrace.Application.DTOs.Complaints;
 using SafeTrace.Application.DTOs.Responses;
 using SafeTrace.Application.Interfaces.IServices;
+using SafeTrace.Infrastructure.Authorization;
 using System.Security.Claims;
 
 namespace SafeTrace.API.Controllers
@@ -26,6 +28,7 @@ namespace SafeTrace.API.Controllers
         /// Default: PageNumber = 1, PageSize = 10
         /// </remarks>
         [HttpGet]
+        [HasPermission(Permissions.Complaints.GetAll)]
         public async Task<IActionResult> GetAll([FromQuery] ComplaintFilterDto filter)
         {
             var result = await _complaintService.GetAllAsync(filter);
@@ -39,6 +42,8 @@ namespace SafeTrace.API.Controllers
         /// Returns complaint details including user email, message, solution message, and status.
         /// </remarks>
         [HttpGet("{id:long}")]
+        [HasPermission(Permissions.Complaints.GetById)]
+
         public async Task<IActionResult> GetById(long id)
         {
             var result = await _complaintService.GetByIdAsync(id);
@@ -53,6 +58,8 @@ namespace SafeTrace.API.Controllers
         /// UserId is extracted automatically from the JWT token.
         /// </remarks>
         [HttpPost]
+        [HasPermission(Permissions.Complaints.Create)]
+
         public async Task<IActionResult> Create([FromBody] CreateComplaintDto dto)
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier)
@@ -71,6 +78,8 @@ namespace SafeTrace.API.Controllers
         /// Sends Email to the user with the solution message.
         /// </remarks>
         [HttpPut("{id:long}/resolve")]
+        [HasPermission(Permissions.Complaints.MarkAsSolved)]
+
         public async Task<IActionResult> Resolve(long id, [FromBody] ResolveComplaintDto dto)
         {
             await _complaintService.ResolveAsync(id, dto);
@@ -84,6 +93,8 @@ namespace SafeTrace.API.Controllers
         /// Permanently removes the complaint from the database.
         /// </remarks>
         [HttpDelete("{id:long}")]
+        [HasPermission(Permissions.Complaints.HardDelete)]
+
         public async Task<IActionResult> Delete(long id)
         {
             await _complaintService.DeleteAsync(id);

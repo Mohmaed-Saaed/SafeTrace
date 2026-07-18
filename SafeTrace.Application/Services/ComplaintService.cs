@@ -2,13 +2,11 @@
 using SafeTrace.Application.DTOs.NotificationDTOS;
 using SafeTrace.Application.DTOs.Responses;
 using SafeTrace.Application.Exceptions;
-using SafeTrace.Application.Interfaces.IServices;
 using SafeTrace.Application.Interfaces.IServices.INotificationSewrvice;
-using SafeTrace.Domain.Entities;
 using SafeTrace.Domain.Enums;
-using SafeTrace.Domain.Interfaces.IUnitOfWork;
 
-namespace SafeTrace.Infrastructure.Services
+
+namespace SafeTrace.Application.Services
 {
     public class ComplaintService : IComplaintService
     {
