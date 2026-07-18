@@ -501,5 +501,41 @@ namespace SafeTrace.Infrastructure.Services
             _logger.LogWarning($"New permissions assigned for User with ID: {dto.UserId}");
             return ApiResponse<string>.Ok(null, "تم تحديث الصلاحيات الخاصة بالمستخدم بنجاح.");
         }
+
+        public async Task<ApiResponse<UserStatisticsDto>> GetUsersStatisticsAsync()
+        {
+            var now = DateTimeOffset.UtcNow;
+
+            var totalUsers = await _userManager.Users.CountAsync();
+            var verifiedUsers = await _userManager.Users.CountAsync(u => u.VerificationStatus == VerificationStatus.Verified);
+            var pendingUsers = await _userManager.Users.CountAsync(u => u.VerificationStatus == VerificationStatus.Pending);
+            var bannedUsers = await _userManager.Users.CountAsync(u => u.LockoutEnd != null && u.LockoutEnd > now);
+
+            var activeUsers = totalUsers - bannedUsers;
+            var unverifiedUsers = totalUsers - verifiedUsers - pendingUsers;
+
+            var roleQuery = _unitOfWork.Repository<IdentityRole>().Query();
+            var userRoleQuery = _unitOfWork.Repository<IdentityUserRole<string>>().Query();
+
+            var roleCounts = await (from ur in userRoleQuery
+                                    join r in roleQuery on ur.RoleId equals r.Id
+                                    group ur by r.Name into g
+                                    select new { RoleName = g.Key, Count = g.Count() }).ToListAsync();
+
+            var usersPerRole = roleCounts.ToDictionary(rc => rc.RoleName!, rc => rc.Count);
+
+            var statsDto = new UserStatisticsDto
+            {
+                TotalUsers = totalUsers,
+                ActiveUsers = activeUsers,
+                BannedUsers = bannedUsers,
+                VerifiedUsers = verifiedUsers,
+                PendingVerificationUsers = pendingUsers,
+                UnverifiedUsers = unverifiedUsers,
+                UsersPerRole = usersPerRole
+            };
+
+            return ApiResponse<UserStatisticsDto>.Ok(statsDto, "تم جلب إحصائيات المستخدمين بنجاح.");
+        }
     }
 }

@@ -1,6 +1,7 @@
-﻿using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using SafeTrace.Application.Constants;
+using SafeTrace.Application.DTOs.Dashboard.Response;
 using SafeTrace.Application.Interfaces.IServices;
 using SafeTrace.Infrastructure.Authorization;
 
@@ -37,6 +38,18 @@ namespace SafeTrace.API.Controllers.Dashboard
         public async Task<IActionResult> GetDashboardData()
         {
            var response = await _dashboardService.GetDashboardAsync();
+            return Ok(response);
+        }
+
+        /// <summary>
+        /// Retrieves case statistics for the cases management page.
+        /// </summary>
+        /// <response code="200">Statistics retrieved successfully.</response>
+        [HttpGet("cases-statistics")]
+        //[HasPermission(Permissions.Dashboard.GetStatistics)]
+        public async Task<IActionResult> GetCasesStatistics()
+        {
+            var response = await _dashboardService.GetCasesStatisticsAsync();
             return Ok(response);
         }
     }

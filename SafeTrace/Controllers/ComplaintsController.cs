@@ -1,6 +1,7 @@
-﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SafeTrace.Application.DTOs.Complaints;
+using SafeTrace.Application.DTOs.Complaints.Response;
 using SafeTrace.Application.DTOs.Responses;
 using SafeTrace.Application.Interfaces.IServices;
 using System.Security.Claims;
@@ -25,6 +26,14 @@ namespace SafeTrace.API.Controllers
         {
             var result = await _complaintService.GetAllAsync(filter);
             return Ok(ApiResponse<PaginationResponseDto<ComplaintResponseDto>>.Ok(result));
+        }
+
+        // GET /api/complaints/statistics
+        [HttpGet("statistics")]
+        public async Task<IActionResult> GetStatistics()
+        {
+            var result = await _complaintService.GetStatisticsAsync();
+            return Ok(ApiResponse<ComplaintStatisticsDto>.Ok(result, "Statistics retrieved successfully."));
         }
 
         // GET /api/complaints/5

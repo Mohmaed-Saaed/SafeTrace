@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc;
 using SafeTrace.Application.Constants;
 using SafeTrace.Application.DTOs.Responses;
 using SafeTrace.Application.DTOs.User.Request;
@@ -196,6 +196,23 @@ namespace SafeTrace.API.Controllers
         private string GetCurrentUserId()
         {
             return User.FindFirstValue(ClaimTypes.NameIdentifier) ?? throw new UnauthorizedAccessException("تعذر التحقق من هوية المستخدم.");
+        }
+
+        /// <summary>
+        /// استرجاع إحصائيات عامة عن المستخدمين في النظام.
+        /// </summary>
+        /// <response code="200">تم جلب الإحصائيات بنجاح.</response>
+        /// <response code="401">غير مسجل الدخول.</response>
+        /// <response code="403">ليس لديك صلاحية لعرض الإحصائيات.</response>
+        [ProducesResponseType(typeof(ApiResponse<UserStatisticsDto>), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status403Forbidden)]
+        [HttpGet("statistics")]
+        //[HasPermission(Permissions.Users.GetAll)]
+        public async Task<IActionResult> GetUsersStatistics()
+        {
+            var response = await _userService.GetUsersStatisticsAsync();
+            return Ok(response);
         }
     }
 }

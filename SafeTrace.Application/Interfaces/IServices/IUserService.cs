@@ -1,4 +1,4 @@
-﻿using SafeTrace.Application.DTOs.Responses;
+using SafeTrace.Application.DTOs.Responses;
 using SafeTrace.Application.DTOs.User.Request;
 using SafeTrace.Application.DTOs.User.Response;
 
@@ -15,5 +15,6 @@ namespace SafeTrace.Application.Interfaces.IServices
         Task<ApiResponse<string>> ChangeUserRoleAsync(string currentUserId, ChangeUserRoleDto dto);
         Task<ApiResponse<UserPermissionsResponseDto>> GetUserPermissionsAsync(string userId);
         Task<ApiResponse<string>> AssignUserPermissionsAsync(string currentUserId, AssignUserPermissionsDto dto);
+        Task<ApiResponse<UserStatisticsDto>> GetUsersStatisticsAsync();
     }
 }
