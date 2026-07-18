@@ -82,10 +82,13 @@ namespace SafeTrace.Application.Services.UserProfileServices
             var user = await _userManager.FindByIdAsync(userId);
             if (user is null) throw new NotFoundException($"المستخدم غير موجود");
 
-            var phoneNumber = await _userManager.GetPhoneNumberAsync(user);
+            //var phoneNumber = await _userManager.GetPhoneNumberAsync(user);
+            //var email = await _userManager.GetEmailAsync(user);
             var role = await _userManager.GetRolesAsync(user);
-            var profile = _mapper.Map<VisitUserDTO>(user);
 
+            var profile = _mapper.Map<VisitUserDTO>(user);
+            //profile.PhoneNumber = phoneNumber;
+            //profile.Email = email;
             profile.Role = role.Contains(UserRole.Admin.ToString()) ? UserRole.Admin.ToString()
                 : role.Contains(UserRole.Moderator.ToString()) ? UserRole.Moderator.ToString()
                 : role.Contains(UserRole.VerifiedUser.ToString()) ? UserRole.VerifiedUser.ToString()
@@ -240,142 +243,6 @@ namespace SafeTrace.Application.Services.UserProfileServices
 
         }
 
-
-        #region UPDATE OLD 
-        public async Task<ApiResponse<bool>> UpdateProfileInfoAsync(string userId, UpdateProfileInfoDTO dto)
-        {
-            _logger.LogInformation("Update User Info with Id: {UserId} at {Time}", userId, DateTime.UtcNow);
-            var user = await _userManager.FindByIdAsync(userId);
-            if (user == null)
-            {
-                _logger.LogWarning("User With Id :{UserId} Not Found at {Time}", userId, DateTime.UtcNow);
-                throw new NotFoundException("المستخدم غير موجود.");
-            }
-
-            #region Email
-            //var originalEmail = user.Email;
-            //if (!string.Equals(user.Email, dto.Email, StringComparison.OrdinalIgnoreCase))
-            //{
-            //    // التأكد أن الإيميل الجديد غير مستخدم
-            //    var existingUser = await _userManager.FindByEmailAsync(dto.Email);
-
-            //    if (existingUser is not null)
-            //        throw new InvalidOperationException("Email already exists.");
-
-            //    user.Email = dto.Email;
-            //    user.UserName = dto.Email;
-            //    user.EmailConfirmed = false;
-
-            //    // Generate Token
-            //    var token = await _userManager.GenerateEmailConfirmationTokenAsync(user);
-
-            //    // Send Confirmation Email
-            //}
-
-            //Claude
-
-            //if (!string.Equals(originalEmail, dto.Email, StringComparison.OrdinalIgnoreCase))
-            //{
-            //    var existingUser = await _userManager.FindByEmailAsync(dto.Email);
-            //    if (existingUser is not null)
-            //        throw new InvalidOperationException("Email already exists.");
-
-            //    user.Email = dto.Email;
-            //    user.UserName = dto.Email;
-            //    user.EmailConfirmed = false;
-
-            //    // لازم تعمل UpdateAsync الأول عشان تقدر تبعت التوكن
-            //    var updateResult = await _userManager.UpdateAsync(user);
-            //    if (!updateResult.Succeeded)
-            //        throw new InvalidOperationException("Failed to update email.");
-
-            //    return true;
-            //}
-            #endregion
-
-            //src dest
-            _mapper.Map(dto, user);
-            if (!string.IsNullOrWhiteSpace(dto.NewPassword))
-            {
-                var changePasswordResult = await _userManager.ChangePasswordAsync(
-                    user,
-                    dto.CurrentPassword!,
-                    dto.NewPassword);
-
-                if (!changePasswordResult.Succeeded)
-                {
-                    _logger.LogWarning(
-                        "Failed to change password for UserId: {UserId}. Errors: {Errors}",
-                        userId,
-                        string.Join(", ", changePasswordResult.Errors.Select(e => e.Description)));
-
-                    throw new BadRequestException(
-                        string.Join(", ", changePasswordResult.Errors.Select(e => e.Description)));
-                }
-            }
-
-
-            #region Id Image
-
-            if (dto.IdentificationImage is not null)
-            {
-                if (user.VerificationStatus == VerificationStatus.Verified)
-                {
-                    throw new BadRequestException("صورة البطاقة موجودة بالفعل .");
-                }
-                var newIdImage =
-                 await _Image.SaveFileAsync(dto.IdentificationImage, "Identification");
-                if (!string.IsNullOrEmpty(user.IdentificationImage))
-                {
-                    _Image.DeleteFile(user.IdentificationImage);
-                }
-
-                user.IdentificationImage = newIdImage;
-                user.VerificationStatus = VerificationStatus.Pending;
-            }
-
-            #endregion
-
-            #region Profile Image
-
-            if (dto.ProfileImage is not null)
-            {
-                var NewImg = await _Image.SaveFileAsync(dto.ProfileImage, "Profile");
-
-                if (!string.IsNullOrEmpty(user.ProfileImage))
-                {
-                    _Image.DeleteFile(user.ProfileImage);
-                }
-                user.ProfileImage = NewImg;
-            }
-            #endregion
-
-            var result = await _userManager.UpdateAsync(user);
-
-            #region EMAIL
-            //if (!string.Equals(originalEmail, dto.Email, StringComparison.OrdinalIgnoreCase))
-            //{
-            //    var token = await _userManager.GenerateEmailConfirmationTokenAsync(user);
-            //    await _emailService.SendConfirmationEmailAsync(dto.Email, token);
-            //}
-            #endregion
-
-            if (!result.Succeeded)
-            {
-                _logger.LogError("Failed to update profile for UserId: {UserId}. Errors: {Errors}",
-                userId,
-                string.Join(", ", result.Errors.Select(e => e.Description)));
-
-                throw new BadRequestException("خطأ في تعديل بيانات المستخدم.");
-            }
-
-            _logger.LogInformation("Profile updated successfully for UserId: {UserId}", userId);
-            return ApiResponse<bool>.Ok(true, "تم تعديل البيانات بنجاح");
-
-        }
-
-
-        #endregion
         #endregion
 
         #region My Cases
