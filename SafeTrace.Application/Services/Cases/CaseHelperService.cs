@@ -230,33 +230,83 @@ namespace SafeTrace.Application.Services.Cases
                 DuplicateCases = matchedCases
             };
         }
+        //     public async Task<DuplicateCheckResult> CheckDuplicateCaseAsync(
+        //CaseType currentCaseType,
+        //CaseMatchSubjectInfoDto subject,
+        //IFormFile primaryImage,
+        //Func<MatchedCaseDto, Task> onSameTypeMatchAsync,
+        //bool forceCreate = false)
+        //     {
+        //         var matchResult = await FindMatchedCasesAsync(subject, primaryImage);
+
+        //         if (!matchResult.HasMatched)
+        //             return DuplicateCheckResult.None;
+
+        //         // البحث عن تطابق من نفس النوع
+        //         var sameTypeDuplicate = matchResult.DuplicateCases
+        //             .FirstOrDefault(x => x.CaseType == currentCaseType);
+
+        //         if (sameTypeDuplicate != null)
+        //         {
+        //             // بدلاً من الرمي المباشر للـ Exception، سنقوم بإرجاع النتيجة وتحديد أنه تطابق من نفس النوع لمنع الإضافة وعرض التفاصيل
+        //             return new DuplicateCheckResult
+        //             {
+        //                 RequiresConfirmation = false,
+        //                 IsSameTypeDuplicate = true, // تأكد من تعريف هذه الخاصية في كلاس DuplicateCheckResult
+        //                 MatchedCases = matchResult.DuplicateCases
+        //             };
+        //         }
+
+        //         if (forceCreate)
+        //         {
+        //             _logger.LogInformation(
+        //                 "Cross-type duplicate(s) found but forceCreate=true."
+        //             );
+
+        //             return DuplicateCheckResult.None;
+        //         }
+
+        //         return new DuplicateCheckResult
+        //         {
+        //             RequiresConfirmation = true,
+        //             MatchedCases = matchResult.DuplicateCases
+        //         };
+        //     }
+
         public async Task<DuplicateCheckResult> CheckDuplicateCaseAsync(
-           CaseType currentCaseType,
-           CaseMatchSubjectInfoDto subject,
-           IFormFile primaryImage,
-           Func<MatchedCaseDto, Task> onSameTypeMatchAsync,
-           bool forceCreate = false)
+                CaseType currentCaseType,
+                CaseMatchSubjectInfoDto subject,
+                IFormFile primaryImage,
+                Func<MatchedCaseDto, Task> onSameTypeMatchAsync,
+                bool forceCreate = false)
         {
             var matchResult = await FindMatchedCasesAsync(subject, primaryImage);
 
             if (!matchResult.HasMatched)
                 return DuplicateCheckResult.None;
 
+            // البحث عن تطابق من نفس النوع
             var sameTypeDuplicate = matchResult.DuplicateCases
                 .FirstOrDefault(x => x.CaseType == currentCaseType);
 
             if (sameTypeDuplicate != null)
             {
+                // مهم: لازم ننفذ الـ callback قبل الـ return
+                // ده اللي بيسمح لـ Unknown إنها تلقط الـ match وتعمل merge بيه
                 await onSameTypeMatchAsync(sameTypeDuplicate);
 
-                return DuplicateCheckResult.None;
+                return new DuplicateCheckResult
+                {
+                    RequiresConfirmation = false,
+                    IsSameTypeDuplicate = true,
+                    MatchedCases = matchResult.DuplicateCases
+                };
             }
 
             if (forceCreate)
             {
                 _logger.LogInformation(
-                    "Cross-type duplicate(s) found but forceCreate=true."
-                );
+                    "Cross-type duplicate(s) found but forceCreate=true.");
 
                 return DuplicateCheckResult.None;
             }
