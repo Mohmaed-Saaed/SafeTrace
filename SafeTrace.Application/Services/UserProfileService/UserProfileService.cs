@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Identity;
 using SafeTrace.Application.DTOs.User_Profiel_DTOS;
 using SafeTrace.Application.DTOs.User_Profiel_DTOS.Update_Profile_DTOS;
 using SafeTrace.Application.Exceptions;
+using SafeTrace.Application.Interfaces.IServices.common;
 using SafeTrace.Application.Interfaces.IServices.IUserProfile;
 namespace SafeTrace.Application.Services.UserProfileServices
 {
@@ -14,7 +15,7 @@ namespace SafeTrace.Application.Services.UserProfileServices
         private readonly IFileStorageService _Image;
         private readonly IHttpContextAccessor _httpContextAccessor;
         private readonly IUnitOfWork _unitOfWork;
-        private readonly ImageUrlService _imageUrl;
+        private readonly IImageUrlService _imageUrl;
 
         public UserProfileService(UserManager<ApplicationUser> userManager,
             IMapper mapper,
@@ -22,7 +23,8 @@ namespace SafeTrace.Application.Services.UserProfileServices
             IFileStorageService Image,
             IHttpContextAccessor httpContextAccessor,
             IUserService User,
-            IUnitOfWork unitOfWork, ImageUrlService imageUrl
+            IUnitOfWork unitOfWork,
+            IImageUrlService imageUrl
             )
         {
 
@@ -386,7 +388,7 @@ namespace SafeTrace.Application.Services.UserProfileServices
             var query = _unitOfWork.Repository<Case>()
                 .Query(
                     tracked: false,
-                    includes: [x => x.AgeCategory,x => x.CaseFiles])
+                    includes: [x => x.AgeCategory, x => x.CaseFiles])
                 .Where(x =>
                     x.UserId == userId &&
                     x.Status != CaseStatus.Deleted);
