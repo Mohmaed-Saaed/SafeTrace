@@ -9,5 +9,7 @@ namespace SafeTrace.Application.DTOs.Cases.Response
         public long? CaseId { get; set; }
 
         public IReadOnlyList<MatchedCaseDto> MatchedCases { get; set; } = [];
+
+        public bool IsSameTypeDuplicate { get; set; }
     }
 }

@@ -1,6 +1,8 @@
-﻿using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using SafeTrace.Application.Constants;
+using SafeTrace.Application.DTOs.Dashboard.Response;
+using SafeTrace.Application.DTOs.Responses;
 using SafeTrace.Application.Interfaces.IServices;
 using SafeTrace.Infrastructure.Authorization;
 
@@ -37,6 +39,23 @@ namespace SafeTrace.API.Controllers.Dashboard
         public async Task<IActionResult> GetDashboardData()
         {
            var response = await _dashboardService.GetDashboardAsync();
+            return Ok(response);
+        }
+
+        /// <summary>
+        /// استرجاع إحصائيات الحالات (الإجمالي، المفتوحة، المغلقة، الخ).
+        /// </summary>
+        /// <response code="200">تم جلب إحصائيات الحالات بنجاح.</response>
+        /// <response code="401">غير مسجل الدخول.</response>
+        /// <response code="403">ليس لديك صلاحية لعرض الإحصائيات.</response>
+        [ProducesResponseType(typeof(ApiResponse<CasesStatisticsDto>), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status403Forbidden)]
+        [HttpGet("cases-statistics")]
+        [HasPermission(Permissions.Dashboard.GetCasesStatistics)]
+        public async Task<IActionResult> GetCasesStatistics()
+        {
+            var response = await _dashboardService.GetCasesStatisticsAsync();
             return Ok(response);
         }
     }

@@ -14,6 +14,7 @@ namespace SafeTrace.Application.DTOs.Cases.Response
         /// Cross-type matched cases.
         /// </summary>
         public IReadOnlyList<MatchedCaseDto> MatchedCases { get; init; } = [];
+        public bool IsSameTypeDuplicate { get; set; }
 
         public static DuplicateCheckResult None => new()
         {

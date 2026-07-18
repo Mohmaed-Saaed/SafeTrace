@@ -12,7 +12,6 @@ using SafeTrace.Application.Interfaces;
 using SafeTrace.Application.Interfaces.IServices.common;
 using SafeTrace.Application.Services;
 using SafeTrace.Infrastructure.Authorization;
-using SafeTrace.Infrastructure.Filters;
 using SafeTrace.Infrastructure.Options;
 using SafeTrace.Infrastructure.Persistence;
 
@@ -163,8 +162,6 @@ namespace SafeTrace.Infrastructure.DependencyInjection
                 options.Path = "/elmah";
 
                 options.ConnectionString = configuration.GetConnectionString("DefaultConnection");
-
-                options.Filters.Add(new BusinessExceptionFilter());
 
                 options.OnPermissionCheck = context => true;
             });

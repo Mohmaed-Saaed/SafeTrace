@@ -1,4 +1,5 @@
 using SafeTrace.Application.Helpers;
+using SafeTrace.Application.Constants;
 
 namespace SafeTrace.Application.Constants
 {
@@ -9,6 +10,9 @@ namespace SafeTrace.Application.Constants
             return $@"
             <div dir='rtl' style='font-family: ""Segoe UI"", Tahoma, Geneva, Verdana, sans-serif; max-width: 550px; margin: 0 auto; padding: 30px; border: 1px solid #eef2f5; border-radius: 12px; background-color: #ffffff; box-shadow: 0 4px 15px rgba(0,0,0,0.03); text-align: right;'>
                 <div style='text-align: center; margin-bottom: 25px;'>
+                    <img src='{SystemConstants.BaseUrl}/Images/logo.jpg'
+                 alt='لقاء Logo'
+                 style='width: 80px; height: 80px; object-fit: contain; margin-bottom: 10px;' />
                     <h1 style='color: #2b5a8f; font-size: 28px; margin: 0; font-weight: 700; letter-spacing: -0.5px;'>منصة لقاء</h1>
                     <p style='color: #8c9ba5; font-size: 13px; margin: 5px 0 0 0; text-transform: uppercase;'>نظام تتبع وإعادة المفقودين الذكي</p>
                 </div>
@@ -40,16 +44,16 @@ namespace SafeTrace.Application.Constants
 
         <div style='text-align: center; margin-bottom: 25px;'>
             
-            <img src='https://localhost:7041/Images/logo.jpg'
+            <img src='{SystemConstants.BaseUrl}/Images/logo.jpg'
                  alt='لقاء Logo'
                  style='width: 80px; height: 80px; object-fit: contain; margin-bottom: 10px;' />
 
             <h1 style='color: #2b5a8f; font-size: 28px; margin: 0; font-weight: 700;'>
-                لقاء
+                منصة لقاء
             </h1>
 
             <p style='color: #8c9ba5; font-size: 13px; margin: 5px 0 0 0;'>
-                منصة التواصل الذكية
+                نظام تتبع وإعادة المفقودين الذكي
             </p>
 
         </div>
@@ -96,6 +100,9 @@ namespace SafeTrace.Application.Constants
             return $@"
             <div dir='rtl' style='font-family: ""Segoe UI"", Tahoma, Geneva, Verdana, sans-serif; max-width: 550px; margin: 0 auto; padding: 30px; border: 1px solid #eef2f5; border-radius: 12px; background-color: #ffffff; box-shadow: 0 4px 15px rgba(0,0,0,0.03); text-align: right;'>
                 <div style='text-align: center; margin-bottom: 25px;'>
+                    <img src='{SystemConstants.BaseUrl}/Images/logo.jpg'
+                    alt='لقاء Logo'
+                    style='width: 80px; height: 80px; object-fit: contain; margin-bottom: 10px;' />
                     <h1 style='color: #2b5a8f; font-size: 28px; margin: 0; font-weight: 700; letter-spacing: -0.5px;'>منصة لقاء</h1>
                     <p style='color: #8c9ba5; font-size: 13px; margin: 5px 0 0 0; text-transform: uppercase;'>نظام تتبع وإعادة المفقودين الذكي</p>
                 </div>
@@ -120,6 +127,9 @@ namespace SafeTrace.Application.Constants
             return $@"
             <div dir='rtl' style='font-family: ""Segoe UI"", Tahoma, Geneva, Verdana, sans-serif; max-width: 550px; margin: 0 auto; padding: 30px; border: 1px solid #eef2f5; border-radius: 12px; background-color: #ffffff; box-shadow: 0 4px 15px rgba(0,0,0,0.03); text-align: right;'>
                 <div style='text-align: center; margin-bottom: 25px;'>
+                    <img src='{SystemConstants.BaseUrl}/Images/logo.jpg'
+                    alt='لقاء Logo'
+                    style='width: 80px; height: 80px; object-fit: contain; margin-bottom: 10px;' />
                     <h1 style='color: #2b5a8f; font-size: 28px; margin: 0; font-weight: 700; letter-spacing: -0.5px;'>منصة لقاء</h1>
                     <p style='color: #8c9ba5; font-size: 13px; margin: 5px 0 0 0; text-transform: uppercase;'>نظام تتبع وإعادة المفقودين الذكي</p>
                 </div>
@@ -139,6 +149,9 @@ namespace SafeTrace.Application.Constants
             return $@"
             <div dir='rtl' style='font-family: ""Segoe UI"", Tahoma, Geneva, Verdana, sans-serif; max-width: 550px; margin: 0 auto; padding: 30px; border: 1px solid #eef2f5; border-radius: 12px; background-color: #ffffff; box-shadow: 0 4px 15px rgba(0,0,0,0.03); text-align: right;'>
                 <div style='text-align: center; margin-bottom: 25px;'>
+                   <img src='{SystemConstants.BaseUrl}/Images/logo.jpg'
+                    alt='لقاء Logo'
+                    style='width: 80px; height: 80px; object-fit: contain; margin-bottom: 10px;' />
                     <h1 style='color: #2b5a8f; font-size: 28px; margin: 0; font-weight: 700; letter-spacing: -0.5px;'>منصة لقاء</h1>
                     <p style='color: #8c9ba5; font-size: 13px; margin: 5px 0 0 0; text-transform: uppercase;'>نظام تتبع وإعادة المفقودين الذكي</p>
                 </div>
@@ -160,6 +173,9 @@ namespace SafeTrace.Application.Constants
             return $@"
             <div dir='rtl' style='font-family: ""Segoe UI"", Tahoma, Geneva, Verdana, sans-serif; max-width: 550px; margin: 0 auto; padding: 30px; border: 1px solid #eef2f5; border-radius: 12px; background-color: #ffffff; box-shadow: 0 4px 15px rgba(0,0,0,0.03); text-align: right;'>
                 <div style='text-align: center; margin-bottom: 25px;'>
+                    <img src='{SystemConstants.BaseUrl}/Images/logo.jpg'
+                    alt='لقاء Logo'
+                    style='width: 80px; height: 80px; object-fit: contain; margin-bottom: 10px;' />
                     <h1 style='color: #2b5a8f; font-size: 28px; margin: 0; font-weight: 700; letter-spacing: -0.5px;'>منصة لقاء</h1>
                     <p style='color: #8c9ba5; font-size: 13px; margin: 5px 0 0 0; text-transform: uppercase;'>نظام تتبع وإعادة المفقودين الذكي</p>
                 </div>
@@ -182,6 +198,9 @@ namespace SafeTrace.Application.Constants
             return $@"
             <div dir='rtl' style='font-family: ""Segoe UI"", Tahoma, Geneva, Verdana, sans-serif; max-width: 550px; margin: 0 auto; padding: 30px; border: 1px solid #eef2f5; border-radius: 12px; background-color: #ffffff; box-shadow: 0 4px 15px rgba(0,0,0,0.03); text-align: right;'>
                 <div style='text-align: center; margin-bottom: 25px;'>
+                <img src='{SystemConstants.BaseUrl}/Images/logo.jpg'
+                     alt='لقاء Logo'
+                     style='width: 80px; height: 80px; object-fit: contain; margin-bottom: 10px;' />
                     <h1 style='color: #2b5a8f; font-size: 28px; margin: 0; font-weight: 700; letter-spacing: -0.5px;'>منصة لقاء</h1>
                     <p style='color: #8c9ba5; font-size: 13px; margin: 5px 0 0 0; text-transform: uppercase;'>نظام تتبع وإعادة المفقودين الذكي</p>
                 </div>
@@ -212,6 +231,9 @@ namespace SafeTrace.Application.Constants
             return $@"
             <div dir='rtl' style='font-family: ""Segoe UI"", Tahoma, Geneva, Verdana, sans-serif; max-width: 550px; margin: 0 auto; padding: 30px; border: 1px solid #eef2f5; border-radius: 12px; background-color: #ffffff; box-shadow: 0 4px 15px rgba(0,0,0,0.03); text-align: right;'>
                 <div style='text-align: center; margin-bottom: 25px;'>
+                <img src='{SystemConstants.BaseUrl}/Images/logo.jpg'
+                     alt='لقاء Logo'
+                     style='width: 80px; height: 80px; object-fit: contain; margin-bottom: 10px;' />
                     <h1 style='color: #2b5a8f; font-size: 28px; margin: 0; font-weight: 700; letter-spacing: -0.5px;'>منصة لقاء</h1>
                     <p style='color: #8c9ba5; font-size: 13px; margin: 5px 0 0 0; text-transform: uppercase;'>نظام تتبع وإعادة المفقودين الذكي</p>
                 </div>
@@ -235,6 +257,9 @@ namespace SafeTrace.Application.Constants
             return $@"
             <div dir='rtl' style='font-family: ""Segoe UI"", Tahoma, Geneva, Verdana, sans-serif; max-width: 550px; margin: 0 auto; padding: 30px; border: 1px solid #eef2f5; border-radius: 12px; background-color: #ffffff; box-shadow: 0 4px 15px rgba(0,0,0,0.03); text-align: right;'>
                 <div style='text-align: center; margin-bottom: 25px;'>
+                <img src='{SystemConstants.BaseUrl}/Images/logo.jpg'
+                 alt='لقاء Logo'
+                 style='width: 80px; height: 80px; object-fit: contain; margin-bottom: 10px;' />
                     <h1 style='color: #2b5a8f; font-size: 28px; margin: 0; font-weight: 700; letter-spacing: -0.5px;'>منصة لقاء</h1>
                     <p style='color: #8c9ba5; font-size: 13px; margin: 5px 0 0 0; text-transform: uppercase;'>نظام تتبع وإعادة المفقودين الذكي</p>
                 </div>
@@ -260,6 +285,9 @@ namespace SafeTrace.Application.Constants
             return $@"
             <div dir='rtl' style='font-family: ""Segoe UI"", Tahoma, Geneva, Verdana, sans-serif; max-width: 550px; margin: 0 auto; padding: 30px; border: 1px solid #eef2f5; border-radius: 12px; background-color: #ffffff; box-shadow: 0 4px 15px rgba(0,0,0,0.03); text-align: right;'>
                 <div style='text-align: center; margin-bottom: 25px;'>
+                    <img src='{SystemConstants.BaseUrl}/Images/logo.jpg'
+                     alt='لقاء Logo'
+                     style='width: 80px; height: 80px; object-fit: contain; margin-bottom: 10px;' />
                     <h1 style='color: #2b5a8f; font-size: 28px; margin: 0; font-weight: 700; letter-spacing: -0.5px;'>منصة لقاء</h1>
                     <p style='color: #8c9ba5; font-size: 13px; margin: 5px 0 0 0; text-transform: uppercase;'>نظام تتبع وإعادة المفقودين الذكي</p>
                 </div>
@@ -284,6 +312,9 @@ namespace SafeTrace.Application.Constants
             return $@"
             <div dir='rtl' style='font-family: ""Segoe UI"", Tahoma, Geneva, Verdana, sans-serif; max-width: 550px; margin: 0 auto; padding: 30px; border: 1px solid #eef2f5; border-radius: 12px; background-color: #ffffff; box-shadow: 0 4px 15px rgba(0,0,0,0.03); text-align: right;'>
                 <div style='text-align: center; margin-bottom: 25px;'>
+                <img src='{SystemConstants.BaseUrl}/Images/logo.jpg'
+                     alt='لقاء Logo'
+                     style='width: 80px; height: 80px; object-fit: contain; margin-bottom: 10px;' />
                     <h1 style='color: #2b5a8f; font-size: 28px; margin: 0; font-weight: 700; letter-spacing: -0.5px;'>منصة لقاء</h1>
                     <p style='color: #8c9ba5; font-size: 13px; margin: 5px 0 0 0; text-transform: uppercase;'>نظام تتبع وإعادة المفقودين الذكي</p>
                 </div>
@@ -314,8 +345,11 @@ namespace SafeTrace.Application.Constants
             <div dir='rtl' style='font-family: ""Segoe UI"", Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; padding: 30px; border: 1px solid #eef2f5; border-radius: 12px; background: #ffffff; box-shadow: 0 4px 15px rgba(0,0,0,.05); text-align: right;'>
 
                 <div style='text-align:center;margin-bottom:25px;'>
+                <img src='{SystemConstants.BaseUrl}/Images/logo.jpg'
+                     alt='لقاء Logo'
+                     style='width: 80px; height: 80px; object-fit: contain; margin-bottom: 10px;' />
                     <h1 style='margin:0;color:#2b5a8f;font-size:28px;font-weight:700;'>
-                        SafeTrace
+                        منصة لقاء
                     </h1>
 
                     <p style='margin-top:8px;color:#94a3b8;font-size:13px;'>
