@@ -11,7 +11,6 @@ namespace SafeTrace.API.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    [Authorize]
     [Microsoft.AspNetCore.RateLimiting.DisableRateLimiting]
     public class AiMatchingController : ControllerBase
     {
@@ -24,13 +23,35 @@ namespace SafeTrace.API.Controllers
         }
 
         [HttpPost("search")]
-        // [HasPermission(Permissions.AiMatching.Search)] // يمكنك تفعيلها إذا كنت تريد تقييدها بصلاحية معينة غير مجرد تسجيل الدخول
+        [HasPermission(Permissions.AiMatching.Search)]
         public async Task<IActionResult> SearchMatchingCases([FromForm] AiMatchingDto aiMatchingDto)
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             if (string.IsNullOrEmpty(userId)) throw new UnauthorizedException("تعذر التحقق من هوية المستخدم.");
 
             var response = await _aiMatchingService.GetMatchingCasesAsync(aiMatchingDto.Image, userId);
+            return Ok(response);
+        }
+
+        //test
+        [HttpPost("searchtest")]
+        public async Task<IActionResult> Get([FromForm] AiMatchingDto t)
+        {
+            var response = await _faceRecognitionService.SearchByImageAsync(t.Image);
+            return Ok(response);
+        }
+
+        [HttpPost("save")]
+        public async Task<IActionResult> save([FromForm] AiMatchingDto t)
+        {
+            var response = await _faceRecognitionService.IndexFaceAsync(t.Image);
+            return Ok(response);
+        }
+
+        [HttpDelete("delete")]
+        public async Task<IActionResult> delete(string faceId)
+        {
+            var response = await _faceRecognitionService.DeleteFaceAsync(faceId);
             return Ok(response);
         }
     }
