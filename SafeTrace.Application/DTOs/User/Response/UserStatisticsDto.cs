@@ -8,6 +8,5 @@ namespace SafeTrace.Application.DTOs.User.Response
         public int VerifiedUsers { get; set; }
         public int PendingVerificationUsers { get; set; }
         public int UnverifiedUsers { get; set; }
-        public Dictionary<string, int> UsersPerRole { get; set; } = new Dictionary<string, int>();
     }
 }

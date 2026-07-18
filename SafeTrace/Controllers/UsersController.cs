@@ -208,7 +208,7 @@ namespace SafeTrace.API.Controllers
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         [ProducesResponseType(StatusCodes.Status403Forbidden)]
         [HttpGet("statistics")]
-        //[HasPermission(Permissions.Users.GetAll)]
+        [HasPermission(Permissions.Users.GetUsersStatistics)]
         public async Task<IActionResult> GetUsersStatistics()
         {
             var response = await _userService.GetUsersStatisticsAsync();

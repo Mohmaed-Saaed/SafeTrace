@@ -514,16 +514,6 @@ namespace SafeTrace.Infrastructure.Services
             var activeUsers = totalUsers - bannedUsers;
             var unverifiedUsers = totalUsers - verifiedUsers - pendingUsers;
 
-            var roleQuery = _unitOfWork.Repository<IdentityRole>().Query();
-            var userRoleQuery = _unitOfWork.Repository<IdentityUserRole<string>>().Query();
-
-            var roleCounts = await (from ur in userRoleQuery
-                                    join r in roleQuery on ur.RoleId equals r.Id
-                                    group ur by r.Name into g
-                                    select new { RoleName = g.Key, Count = g.Count() }).ToListAsync();
-
-            var usersPerRole = roleCounts.ToDictionary(rc => rc.RoleName!, rc => rc.Count);
-
             var statsDto = new UserStatisticsDto
             {
                 TotalUsers = totalUsers,
@@ -531,8 +521,7 @@ namespace SafeTrace.Infrastructure.Services
                 BannedUsers = bannedUsers,
                 VerifiedUsers = verifiedUsers,
                 PendingVerificationUsers = pendingUsers,
-                UnverifiedUsers = unverifiedUsers,
-                UsersPerRole = usersPerRole
+                UnverifiedUsers = unverifiedUsers
             };
 
             return ApiResponse<UserStatisticsDto>.Ok(statsDto, "تم جلب إحصائيات المستخدمين بنجاح.");
