@@ -183,6 +183,10 @@ namespace SafeTrace.Application.Services
                     ? $"{c.Receiver.FName} {c.Receiver.LName}"
                     : $"{c.Sender.FName} {c.Sender.LName}",
 
+                    OtherUserImage = c.SenderId == currentUserId
+                    ? c.Receiver.ProfileImage
+                    :c.Sender.ProfileImage,
+
                     LastMessage = c.Messages
                     .OrderByDescending(m => m.SendAt)
                     .Select(m => m.Content)
@@ -265,6 +269,10 @@ namespace SafeTrace.Application.Services
             }
             else
             {
+                dto.OtherUserId = chat.SenderId == currentUserId
+                    ? chat.Receiver.Id
+                    : chat.Sender.Id;
+
                 dto.OtherUserName = chat.SenderId == currentUserId
                     ? $"{chat.Receiver.FName} {chat.Receiver.LName}"
                 : $"{chat.Sender.FName} {chat.Sender.LName}";
