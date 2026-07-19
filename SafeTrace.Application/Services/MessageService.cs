@@ -26,8 +26,8 @@ namespace SafeTrace.Application.Services
         private readonly IFileStorageService _fileStorageService;
         private readonly INotificationServices _notificationServices;
         private readonly IEmailService _emailService;
-        
-        public MessageService (IUnitOfWork unitOfWork, IMapper mapper,
+
+        public MessageService(IUnitOfWork unitOfWork, IMapper mapper,
             IChatNotifier chatNotifier, ILogger<MessageService> logger,
             IFileStorageService fileStorageService, INotificationServices notificationServices,
             IEmailService emailService)
@@ -68,7 +68,7 @@ namespace SafeTrace.Application.Services
                     c => c.Receiver)
                 ?? throw new NotFoundException($"لم يتم العثور على المحادثة.");
 
-            if(chat.SenderId!= senderId && chat.ReceiverId!= senderId)
+            if (chat.SenderId != senderId && chat.ReceiverId != senderId)
             {
                 _logger.LogWarning(
                 "Unauthorized message attempt by User {SenderId} on Chat {ChatId}.",
@@ -79,9 +79,9 @@ namespace SafeTrace.Application.Services
             }
             var receiverId = chat.SenderId == senderId ? chat.ReceiverId : chat.SenderId;
             string? filePath = null;
-            FileType? fileType=null;
+            FileType? fileType = null;
 
-            if (request.File != null && request.File.Length>0)
+            if (request.File != null && request.File.Length > 0)
 
             {
                 if (string.IsNullOrEmpty(request.File.FileName))
@@ -97,7 +97,7 @@ namespace SafeTrace.Application.Services
                 };
 
                 filePath = await _fileStorageService
-                    .SaveFileAsync(request.File, "chat");                
+                    .SaveFileAsync(request.File, "chat");
             }
 
             var message = new Message
@@ -106,7 +106,7 @@ namespace SafeTrace.Application.Services
                 SenderId = senderId,
                 ReceiverId = receiverId,
                 Content = request.Content,
-                FileType =fileType,
+                FileType = fileType,
                 FilePath = filePath,
                 IsRead = false,
                 SendAt = DateTime.UtcNow,
@@ -175,9 +175,9 @@ namespace SafeTrace.Application.Services
                 messagePreview: string.IsNullOrWhiteSpace(request.Content)
                 ? "📎 ملف مرفق"
                 : request.Content,
-                chatLink: $"https://localhost:7041/Chats/{request.ChatId}");
+                chatLink: $"https://leqaaweb.runasp.net/chat/chat/{request.ChatId}");
 
-            await _emailService.SendEmailAsync(receiverEmail, "رسالة جديدة من SafeTrace", emailBody);
+            await _emailService.SendEmailAsync(receiverEmail, "رسالة جديدة من لقاء", emailBody);
 
             return ApiResponse<MessageDto>.Ok(
             messageDto, "تم إرسال الرسالة بنجاح.");
@@ -242,7 +242,7 @@ namespace SafeTrace.Application.Services
             };
         }
 
-        public async Task<ApiResponse<MessageDto>> DeleteMessageAsync (long messageId , string userId)
+        public async Task<ApiResponse<MessageDto>> DeleteMessageAsync(long messageId, string userId)
         {
             var message = await _unitOfWork.Repository<Message>()
                 .GetByIdAsync(messageId)
@@ -250,7 +250,7 @@ namespace SafeTrace.Application.Services
 
             EnsureParticipant(message, userId);
 
-            if(message.SenderId == userId)
+            if (message.SenderId == userId)
             {
                 message.DeletedBySender = true;
                 message.SenderDeletedAt = DateTime.UtcNow;
@@ -294,6 +294,8 @@ namespace SafeTrace.Application.Services
 
             _unitOfWork.Repository<Message>().Update(message);
             await _unitOfWork.SaveAsync();
+
+            await _chatNotifier.NotifyMessageDeletedForEveryone(message.ChatId, message.Id);
 
             return ApiResponse<MessageDto>.Ok(
                 _mapper.Map<MessageDto>(message),

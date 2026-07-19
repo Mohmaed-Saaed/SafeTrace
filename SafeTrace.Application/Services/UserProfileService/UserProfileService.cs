@@ -1,28 +1,10 @@
-﻿using System.Runtime.CompilerServices;
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Http.HttpResults;
+﻿using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Logging;
-using SafeTrace.Application.DTOs.NotificationDTOS;
-using SafeTrace.Application.DTOs.Responses;
-using SafeTrace.Application.DTOs.User.Response;
 using SafeTrace.Application.DTOs.User_Profiel_DTOS;
 using SafeTrace.Application.DTOs.User_Profiel_DTOS.Update_Profile_DTOS;
 using SafeTrace.Application.Exceptions;
-using SafeTrace.Application.Interfaces.IServices;
-using SafeTrace.Application.Interfaces.IServices.INotificationSewrvice;
+using SafeTrace.Application.Interfaces.IServices.common;
 using SafeTrace.Application.Interfaces.IServices.IUserProfile;
-using SafeTrace.Application.Services.NotificationServices;
-using SafeTrace.Domain.Entities;
-using SafeTrace.Domain.Enums;
-using SafeTrace.Domain.Interfaces.IRepository;
-using static System.Net.Mime.MediaTypeNames;
-using static SafeTrace.Application.Constants.Permissions;
-
-using Chat = SafeTrace.Domain.Entities.Chat;
-
 namespace SafeTrace.Application.Services.UserProfileServices
 {
     public class UserProfileService : IUserProfileService
@@ -31,18 +13,18 @@ namespace SafeTrace.Application.Services.UserProfileServices
         private readonly IMapper _mapper;
         private readonly ILogger<UserProfileService> _logger;
         private readonly IFileStorageService _Image;
-        private readonly INotificationServices _Notify;
         private readonly IHttpContextAccessor _httpContextAccessor;
         private readonly IUnitOfWork _unitOfWork;
+        private readonly IImageUrlService _imageUrl;
 
         public UserProfileService(UserManager<ApplicationUser> userManager,
             IMapper mapper,
             ILogger<UserProfileService> logger,
             IFileStorageService Image,
-            INotificationServices Notify,
             IHttpContextAccessor httpContextAccessor,
             IUserService User,
-            IUnitOfWork unitOfWork
+            IUnitOfWork unitOfWork,
+            IImageUrlService imageUrl
             )
         {
 
@@ -50,20 +32,14 @@ namespace SafeTrace.Application.Services.UserProfileServices
             _mapper = mapper;
             _logger = logger;
             _Image = Image;
-            _Notify = Notify;
             _httpContextAccessor = httpContextAccessor;
             _unitOfWork = unitOfWork;
+            _imageUrl = imageUrl;
         }
-        private async Task<ApplicationUser?> GetUser(string userId)
-        {
-            return await _userManager.FindByIdAsync(userId);
-        }
-
         #region Profile Info
         public async Task<ApiResponse<GetUserInfoDTO?>> GetProfileInfoAsync(string userId)
         {
             _logger.LogInformation("Fetching profile for UserId: {userId} at {Time}", userId, DateTime.UtcNow);
-            //var user = await _userManager.FindByIdAsync(userId);
             var user = await _userManager.Users
     .Include(u => u.Cases)
     .FirstOrDefaultAsync(u => u.Id == userId);
@@ -87,15 +63,16 @@ namespace SafeTrace.Application.Services.UserProfileServices
                             : UserRole.User.ToString();
                 var request = _httpContextAccessor.HttpContext.Request;
 
-                string baseUrl = $"{request.Scheme}://{request.Host}";
+                //string baseUrl = $"{request.Scheme}://{request.Host}";
+                dto.ProfileImage = _imageUrl.Build(dto.ProfileImage);
+                dto.IdentificationImage = _imageUrl.Build(dto.IdentificationImage);
+                //dto.ProfileImage = string.IsNullOrEmpty(dto.ProfileImage)
+                //    ? null
+                //    : $"{baseUrl}{dto.ProfileImage}";
 
-                dto.ProfileImage = string.IsNullOrEmpty(dto.ProfileImage)
-                    ? null
-                    : $"{baseUrl}{dto.ProfileImage}";
-
-                dto.IdentificationImage = string.IsNullOrEmpty(dto.IdentificationImage)
-                    ? null
-                    : $"{baseUrl}{dto.IdentificationImage}";
+                //dto.IdentificationImage = string.IsNullOrEmpty(dto.IdentificationImage)
+                //    ? null
+                //    : $"{baseUrl}{dto.IdentificationImage}";
                 return ApiResponse<GetUserInfoDTO?>.Ok(dto, ".اليك بيانات المستخدم");
             }
         }
@@ -105,10 +82,13 @@ namespace SafeTrace.Application.Services.UserProfileServices
             var user = await _userManager.FindByIdAsync(userId);
             if (user is null) throw new NotFoundException($"المستخدم غير موجود");
 
-            var phoneNumber = await _userManager.GetPhoneNumberAsync(user);
+            //var phoneNumber = await _userManager.GetPhoneNumberAsync(user);
+            //var email = await _userManager.GetEmailAsync(user);
             var role = await _userManager.GetRolesAsync(user);
-            var profile = _mapper.Map<VisitUserDTO>(user);
 
+            var profile = _mapper.Map<VisitUserDTO>(user);
+            //profile.PhoneNumber = phoneNumber;
+            //profile.Email = email;
             profile.Role = role.Contains(UserRole.Admin.ToString()) ? UserRole.Admin.ToString()
                 : role.Contains(UserRole.Moderator.ToString()) ? UserRole.Moderator.ToString()
                 : role.Contains(UserRole.VerifiedUser.ToString()) ? UserRole.VerifiedUser.ToString()
@@ -120,11 +100,27 @@ namespace SafeTrace.Application.Services.UserProfileServices
         #endregion
         #region Update
 
-
-        public async Task<ApiResponse<bool>> AddIdImageAsync(string userId, AddIdImageDTO dto)
+        private async Task<ApplicationUser> GetUser(string userId)
         {
             var user = await _userManager.FindByIdAsync(userId);
 
+            if (user is null)
+                throw new NotFoundException("المستخدم غير موجود");
+
+            return user;
+        }
+
+        private async Task SaveUser(ApplicationUser user)
+        {
+            var result = await _userManager.UpdateAsync(user);
+
+            if (!result.Succeeded)
+                throw new BadRequestException(
+                    string.Join(",", result.Errors.Select(x => x.Description)));
+        }
+        public async Task<ApiResponse<bool>> AddIdImageAsync(string userId, AddIdImageDTO dto)
+        {
+            var user = await GetUser(userId);
             if (dto.IdentificationImage is not null)
             {
                 if (user.VerificationStatus == VerificationStatus.Verified)
@@ -141,7 +137,6 @@ namespace SafeTrace.Application.Services.UserProfileServices
                 user.IdentificationImage = newIdImage;
                 user.VerificationStatus = VerificationStatus.Pending;
                 var result = await _userManager.UpdateAsync(user);
-
                 if (!result.Succeeded)
                 {
                     return ApiResponse<bool>.Ok(true, "فشل اضافة صورة بطاقة او تم اضافتها من قبل ");
@@ -154,38 +149,38 @@ namespace SafeTrace.Application.Services.UserProfileServices
 
         public async Task<ApiResponse<bool>> UpdateHomeLocationAsync(string userId, UpdateHomeLocationDTO dto)
         {
-            var user = await _userManager.FindByIdAsync(userId);
-            if (user == null)
-            {
-                throw new NotFoundException("المستخدم غير موجود");
-            }
-            else
-            {
-                var NewLocation = _mapper.Map(dto, user);
-                var result = await _userManager.UpdateAsync(user);
-                return ApiResponse<bool>.Ok(true, "تم تحديث عنوانك بنجاح");
-            }
+            var user = await GetUser(userId);
+            //if (user == null)
+            //{
+            //    throw new NotFoundException("المستخدم غير موجود");
+            //}
+            //else
+            //{
+            var NewLocation = _mapper.Map(dto, user);
+            var result = await _userManager.UpdateAsync(user);
+            return ApiResponse<bool>.Ok(true, "تم تحديث عنوانك بنجاح");
+            //}
         }
 
         public async Task<ApiResponse<bool>> UpdateNameAsync(string userId, UpdateNameDTO dto)
         {
-            var user = await _userManager.FindByIdAsync(userId);
-            if (user == null)
-            {
-                throw new NotFoundException("المستخدم غير موجود");
-            }
-            else
-            {
-                _mapper.Map(dto, user);
-                var result = await _userManager.UpdateAsync(user);
-                return ApiResponse<bool>.Ok(true, "تم تحديث الاسم بنجاح");
-            }
+            var user = await GetUser(userId);
+            //if (user == null)
+            //{
+            //    throw new NotFoundException("المستخدم غير موجود");
+            //}
+            //else
+            //{
+            _mapper.Map(dto, user);
+            var result = await _userManager.UpdateAsync(user);
+            return ApiResponse<bool>.Ok(true, "تم تحديث الاسم بنجاح");
+            //}
         }
 
 
         public async Task<ApiResponse<bool>> UpdateProfilImageesync(string userId, UpdateProfileImageDTO dto)
         {
-            var user = await _userManager.FindByIdAsync(userId);
+            var user = await GetUser(userId);
             if (dto.ProfileImage is not null)
             {
                 var NewImg = await _Image.SaveFileAsync(dto.ProfileImage, "ProfileImages");
@@ -210,10 +205,10 @@ namespace SafeTrace.Application.Services.UserProfileServices
 
         public async Task<ApiResponse<bool>> RemoveProfileImageAsync(string userId)
         {
-            var user = await _userManager.FindByIdAsync(userId);
+            var user = await GetUser(userId);
 
-            if (user is null)
-                throw new NotFoundException("المستخدم غير موجود.");
+            //if (user is null)
+            //    throw new NotFoundException("المستخدم غير موجود.");
 
             if (string.IsNullOrWhiteSpace(user.ProfileImage))
                 return ApiResponse<bool>.Ok(true, "لا توجد صورة شخصية لحذفها.");
@@ -232,11 +227,11 @@ namespace SafeTrace.Application.Services.UserProfileServices
 
         public async Task<ApiResponse<bool>> UpdatePhoneNumberAsync(string userId, ChangePhoneNumberDTO dto)
         {
-            var user = await _userManager.FindByIdAsync(userId);
-            if (user == null)
-            {
-                throw new NotFoundException("المستخدم غير موجود");
-            }
+            var user = await GetUser(userId);
+            //if (user == null)
+            //{
+            //    throw new NotFoundException("المستخدم غير موجود");
+            //}
 
             var newPhoneNumber = _mapper.Map(dto, user);
             var result = await _userManager.UpdateAsync(newPhoneNumber);
@@ -248,144 +243,8 @@ namespace SafeTrace.Application.Services.UserProfileServices
 
         }
 
-
-        #region UPDATE OLD 
-        public async Task<ApiResponse<bool>> UpdateProfileInfoAsync(string userId, UpdateProfileInfoDTO dto)
-        {
-            _logger.LogInformation("Update User Info with Id: {UserId} at {Time}", userId, DateTime.UtcNow);
-            var user = await _userManager.FindByIdAsync(userId);
-            if (user == null)
-            {
-                _logger.LogWarning("User With Id :{UserId} Not Found at {Time}", userId, DateTime.UtcNow);
-                throw new NotFoundException("المستخدم غير موجود.");
-            }
-
-            #region Email
-            //var originalEmail = user.Email;
-            //if (!string.Equals(user.Email, dto.Email, StringComparison.OrdinalIgnoreCase))
-            //{
-            //    // التأكد أن الإيميل الجديد غير مستخدم
-            //    var existingUser = await _userManager.FindByEmailAsync(dto.Email);
-
-            //    if (existingUser is not null)
-            //        throw new InvalidOperationException("Email already exists.");
-
-            //    user.Email = dto.Email;
-            //    user.UserName = dto.Email;
-            //    user.EmailConfirmed = false;
-
-            //    // Generate Token
-            //    var token = await _userManager.GenerateEmailConfirmationTokenAsync(user);
-
-            //    // Send Confirmation Email
-            //}
-
-            //Claude
-
-            //if (!string.Equals(originalEmail, dto.Email, StringComparison.OrdinalIgnoreCase))
-            //{
-            //    var existingUser = await _userManager.FindByEmailAsync(dto.Email);
-            //    if (existingUser is not null)
-            //        throw new InvalidOperationException("Email already exists.");
-
-            //    user.Email = dto.Email;
-            //    user.UserName = dto.Email;
-            //    user.EmailConfirmed = false;
-
-            //    // لازم تعمل UpdateAsync الأول عشان تقدر تبعت التوكن
-            //    var updateResult = await _userManager.UpdateAsync(user);
-            //    if (!updateResult.Succeeded)
-            //        throw new InvalidOperationException("Failed to update email.");
-
-            //    return true;
-            //}
-            #endregion
-
-            //src dest
-            _mapper.Map(dto, user);
-            if (!string.IsNullOrWhiteSpace(dto.NewPassword))
-            {
-                var changePasswordResult = await _userManager.ChangePasswordAsync(
-                    user,
-                    dto.CurrentPassword!,
-                    dto.NewPassword);
-
-                if (!changePasswordResult.Succeeded)
-                {
-                    _logger.LogWarning(
-                        "Failed to change password for UserId: {UserId}. Errors: {Errors}",
-                        userId,
-                        string.Join(", ", changePasswordResult.Errors.Select(e => e.Description)));
-
-                    throw new BadRequestException(
-                        string.Join(", ", changePasswordResult.Errors.Select(e => e.Description)));
-                }
-            }
-
-
-            #region Id Image
-
-            if (dto.IdentificationImage is not null)
-            {
-                if (user.VerificationStatus == VerificationStatus.Verified)
-                {
-                    throw new BadRequestException("صورة البطاقة موجودة بالفعل .");
-                }
-                var newIdImage =
-                 await _Image.SaveFileAsync(dto.IdentificationImage, "Identification");
-                if (!string.IsNullOrEmpty(user.IdentificationImage))
-                {
-                    _Image.DeleteFile(user.IdentificationImage);
-                }
-
-                user.IdentificationImage = newIdImage;
-                user.VerificationStatus = VerificationStatus.Pending;
-            }
-
-            #endregion
-
-            #region Profile Image
-
-            if (dto.ProfileImage is not null)
-            {
-                var NewImg = await _Image.SaveFileAsync(dto.ProfileImage, "Profile");
-
-                if (!string.IsNullOrEmpty(user.ProfileImage))
-                {
-                    _Image.DeleteFile(user.ProfileImage);
-                }
-                user.ProfileImage = NewImg;
-            }
-            #endregion
-
-            var result = await _userManager.UpdateAsync(user);
-
-            #region EMAIL
-            //if (!string.Equals(originalEmail, dto.Email, StringComparison.OrdinalIgnoreCase))
-            //{
-            //    var token = await _userManager.GenerateEmailConfirmationTokenAsync(user);
-            //    await _emailService.SendConfirmationEmailAsync(dto.Email, token);
-            //}
-            #endregion
-
-            if (!result.Succeeded)
-            {
-                _logger.LogError("Failed to update profile for UserId: {UserId}. Errors: {Errors}",
-                userId,
-                string.Join(", ", result.Errors.Select(e => e.Description)));
-
-                throw new BadRequestException("خطأ في تعديل بيانات المستخدم.");
-            }
-
-            _logger.LogInformation("Profile updated successfully for UserId: {UserId}", userId);
-            return ApiResponse<bool>.Ok(true, "تم تعديل البيانات بنجاح");
-
-        }
-
-
         #endregion
-        #endregion
-    
+
         #region My Cases
         /// <summary>
         /// Retrieves paginated cases created by the current user,
@@ -396,7 +255,7 @@ namespace SafeTrace.Application.Services.UserProfileServices
             var query = _unitOfWork.Repository<Case>()
                 .Query(
                     tracked: false,
-                    includes: [x => x.AgeCategory,x => x.CaseFiles])
+                    includes: [x => x.AgeCategory, x => x.CaseFiles])
                 .Where(x =>
                     x.UserId == userId &&
                     x.Status != CaseStatus.Deleted);
@@ -443,8 +302,9 @@ namespace SafeTrace.Application.Services.UserProfileServices
 
             return ApiResponse<PaginationResponseDto<MyCaseListItemDto>>.Ok(result, "تم استرجاع الحالات الخاصة بالمستخدم بنجاح.");
         }
+
         #endregion
-    
+
     }
 
 }

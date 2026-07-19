@@ -1,13 +1,10 @@
 ﻿using System.Security.Claims;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SafeTrace.Application.Constants;
 using SafeTrace.Application.DTOs.Responses;
 using SafeTrace.Application.DTOs.User_Profiel_DTOS;
 using SafeTrace.Application.DTOs.User_Profiel_DTOS.Update_Profile_DTOS;
-using SafeTrace.Application.Interfaces.IServices;
 using SafeTrace.Application.Interfaces.IServices.IUserProfile;
-using SafeTrace.Application.Services.UserProfileServices;
 using SafeTrace.Infrastructure.Authorization;
 namespace SafeTrace.API.Controllers
 {
@@ -133,21 +130,9 @@ namespace SafeTrace.API.Controllers
             return User.FindFirstValue(ClaimTypes.NameIdentifier) ?? throw new UnauthorizedAccessException("تعذر التحقق من هوية المستخدم.");
         }
 
-        #region Old Update End Point
 
-        [HttpPut("UpdateInfo")]
-        [HasPermission(Permissions.Profile.UpdateUserInfo)]
-        public async Task<IActionResult> UpdateUserInfo([FromForm] UpdateProfileInfoDTO dTO)
-        {
-            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            var UpdateProfile = await _user.UpdateProfileInfoAsync(userId, dTO);
-            if (UpdateProfile == null)
-                return NotFound();
-            return Ok(UpdateProfile);
-        }
-        #endregion 
         #endregion
-    
+
         #region My Cases
         [HttpGet("MyCases")]
         [HasPermission(Permissions.Profile.GetMyCases)]

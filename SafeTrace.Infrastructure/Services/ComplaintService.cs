@@ -1,9 +1,7 @@
-﻿using SafeTrace.Application.DTOs.Complaints;
+using SafeTrace.Application.DTOs.Complaints.Request;
+using SafeTrace.Application.DTOs.Complaints.Response;
 using SafeTrace.Application.DTOs.Responses;
 using SafeTrace.Application.Exceptions;
-using SafeTrace.Application.Interfaces.IServices;
-using SafeTrace.Domain.Entities;
-using SafeTrace.Domain.Interfaces.IUnitOfWork;
 
 namespace SafeTrace.Infrastructure.Services
 {
@@ -102,6 +100,23 @@ namespace SafeTrace.Infrastructure.Services
 
             _unitOfWork.Repository<Complaint>().Remove(complaint);
             await _unitOfWork.SaveAsync();
+        }
+
+        public async Task<ComplaintStatisticsDto> GetStatisticsAsync()
+        {
+            var query = _unitOfWork.Repository<Complaint>().Query(tracked: false);
+
+            var stats = await query
+                .GroupBy(x => 1)
+                .Select(g => new ComplaintStatisticsDto
+                {
+                    Total = g.Count(),
+                    Solved = g.Count(c => c.ComplaintStatus == Domain.Enums.ComplaintStatus.Solved),
+                    UnSolved = g.Count(c => c.ComplaintStatus == Domain.Enums.ComplaintStatus.UnSolved)
+                })
+                .FirstOrDefaultAsync();
+
+            return stats ?? new ComplaintStatisticsDto();
         }
     }
 }

@@ -10,5 +10,8 @@ namespace SafeTrace.Application.DTOs.User_Profiel_DTOS
         public string? ProfileImage { get; set; }
         public string Role { get; set; } = string.Empty;
         public string PhoneNumber { get; set; } = string.Empty;
+        public string Email { get; set; } = string.Empty;
+        public double? HomeLatitude { get; set; }
+        public double? HomeLongitude { get; set; }
     }
 }

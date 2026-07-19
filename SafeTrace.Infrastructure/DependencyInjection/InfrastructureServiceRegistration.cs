@@ -1,19 +1,19 @@
+using System.Text;
 using ElmahCore.Mvc;
 using ElmahCore.Sql;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.IdentityModel.Tokens;
 using SafeTrace.Application.Interfaces;
+using SafeTrace.Application.Interfaces.IServices.common;
 using SafeTrace.Application.Services;
 using SafeTrace.Infrastructure.Authorization;
-using SafeTrace.Infrastructure.Filters;
 using SafeTrace.Infrastructure.Options;
 using SafeTrace.Infrastructure.Persistence;
-using System.Text;
 
 namespace SafeTrace.Infrastructure.DependencyInjection
 {
@@ -22,7 +22,7 @@ namespace SafeTrace.Infrastructure.DependencyInjection
         public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration configuration)
         {
             services.AddMemoryCache();
-            
+
             services.AddDbContext<ApplicationDbContext>(options =>
                 options.UseSqlServer(configuration.GetConnectionString("DefaultConnection"), x => x.UseNetTopologySuite()));
 
@@ -30,6 +30,8 @@ namespace SafeTrace.Infrastructure.DependencyInjection
             services.AddScoped<IUnitOfWork, UnitOfWork>();
             services.AddScoped<IFileStorageService, FileStorageService>();
             services.AddScoped<IDashboardService, DashboardService>();
+            services.AddHttpContextAccessor();
+            services.AddScoped<IImageUrlService, ImageUrlService>();
             services.AddScoped<IEmailService, EmailService>();
             services.AddScoped<ITokenService, TokenService>();
             services.AddScoped<IAccountService, AccountService>();
@@ -58,7 +60,7 @@ namespace SafeTrace.Infrastructure.DependencyInjection
             services.AddSingleton<IAuthorizationPolicyProvider, PermissionPolicyProvider>();
             services.AddScoped<IAuthorizationHandler, PermissionHandler>();
 
-            
+
             services.AddScoped<IComplaintService, ComplaintService>();
 
             services.AddIdentity<ApplicationUser, IdentityRole>(options =>
@@ -160,8 +162,6 @@ namespace SafeTrace.Infrastructure.DependencyInjection
                 options.Path = "/elmah";
 
                 options.ConnectionString = configuration.GetConnectionString("DefaultConnection");
-
-                options.Filters.Add(new BusinessExceptionFilter());
 
                 options.OnPermissionCheck = context => true;
             });

@@ -132,13 +132,50 @@ namespace SafeTrace.Application.Services.Cases
             return files;
         }
 
-        private async Task<CaseFile> CreateCaseFileAsync(IFormFile file, string folderName, long caseId, bool isPrimary)
+        //private async Task<CaseFile> CreateCaseFileAsync(IFormFile file, string folderName, long caseId, bool isPrimary)
+        //{
+        //    var path = await _fileStorageService.SaveFileAsync(file, folderName);
+
+        //    string? faceId = null;
+
+        //    if (!VideoExtensions.Contains(Path.GetExtension(file.FileName)))
+        //    {
+        //        try
+        //        {
+        //            faceId = await _faceRecognitionService.IndexFaceAsync(file);
+        //        }
+        //        catch (Exception ex)
+        //        {
+        //            _logger.LogWarning(ex, "Failed to index face for file {FileName}.", file.FileName);
+        //        }
+        //    }
+
+        //    return new CaseFile
+        //    {
+        //        CaseId = caseId,
+        //        ImagePath = path,
+        //        FaceId = faceId,
+        //        IsPrimary = isPrimary,
+        //        CreatedAt = DateTime.UtcNow
+        //    };
+        //}
+    private async Task<CaseFile> CreateCaseFileAsync(
+    IFormFile file,
+    string folderName,
+    long caseId,
+    bool isPrimary)
         {
             var path = await _fileStorageService.SaveFileAsync(file, folderName);
 
             string? faceId = null;
 
-            if (!VideoExtensions.Contains(Path.GetExtension(file.FileName)))
+            var extension = Path.GetExtension(file.FileName).ToLowerInvariant();
+
+            var fileType = VideoExtensions.Contains(extension)
+                ? FileType.Video
+                : FileType.Image;
+
+            if (fileType == FileType.Image)
             {
                 try
                 {
@@ -146,7 +183,9 @@ namespace SafeTrace.Application.Services.Cases
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogWarning(ex, "Failed to index face for file {FileName}.", file.FileName);
+                    _logger.LogWarning(ex,
+                        "Failed to index face for file {FileName}.",
+                        file.FileName);
                 }
             }
 
@@ -156,6 +195,7 @@ namespace SafeTrace.Application.Services.Cases
                 ImagePath = path,
                 FaceId = faceId,
                 IsPrimary = isPrimary,
+                 Type= fileType,
                 CreatedAt = DateTime.UtcNow
             };
         }
@@ -230,33 +270,83 @@ namespace SafeTrace.Application.Services.Cases
                 DuplicateCases = matchedCases
             };
         }
+        //     public async Task<DuplicateCheckResult> CheckDuplicateCaseAsync(
+        //CaseType currentCaseType,
+        //CaseMatchSubjectInfoDto subject,
+        //IFormFile primaryImage,
+        //Func<MatchedCaseDto, Task> onSameTypeMatchAsync,
+        //bool forceCreate = false)
+        //     {
+        //         var matchResult = await FindMatchedCasesAsync(subject, primaryImage);
+
+        //         if (!matchResult.HasMatched)
+        //             return DuplicateCheckResult.None;
+
+        //         // البحث عن تطابق من نفس النوع
+        //         var sameTypeDuplicate = matchResult.DuplicateCases
+        //             .FirstOrDefault(x => x.CaseType == currentCaseType);
+
+        //         if (sameTypeDuplicate != null)
+        //         {
+        //             // بدلاً من الرمي المباشر للـ Exception، سنقوم بإرجاع النتيجة وتحديد أنه تطابق من نفس النوع لمنع الإضافة وعرض التفاصيل
+        //             return new DuplicateCheckResult
+        //             {
+        //                 RequiresConfirmation = false,
+        //                 IsSameTypeDuplicate = true, // تأكد من تعريف هذه الخاصية في كلاس DuplicateCheckResult
+        //                 MatchedCases = matchResult.DuplicateCases
+        //             };
+        //         }
+
+        //         if (forceCreate)
+        //         {
+        //             _logger.LogInformation(
+        //                 "Cross-type duplicate(s) found but forceCreate=true."
+        //             );
+
+        //             return DuplicateCheckResult.None;
+        //         }
+
+        //         return new DuplicateCheckResult
+        //         {
+        //             RequiresConfirmation = true,
+        //             MatchedCases = matchResult.DuplicateCases
+        //         };
+        //     }
+
         public async Task<DuplicateCheckResult> CheckDuplicateCaseAsync(
-           CaseType currentCaseType,
-           CaseMatchSubjectInfoDto subject,
-           IFormFile primaryImage,
-           Func<MatchedCaseDto, Task> onSameTypeMatchAsync,
-           bool forceCreate = false)
+                CaseType currentCaseType,
+                CaseMatchSubjectInfoDto subject,
+                IFormFile primaryImage,
+                Func<MatchedCaseDto, Task> onSameTypeMatchAsync,
+                bool forceCreate = false)
         {
             var matchResult = await FindMatchedCasesAsync(subject, primaryImage);
 
             if (!matchResult.HasMatched)
                 return DuplicateCheckResult.None;
 
+            // البحث عن تطابق من نفس النوع
             var sameTypeDuplicate = matchResult.DuplicateCases
                 .FirstOrDefault(x => x.CaseType == currentCaseType);
 
             if (sameTypeDuplicate != null)
             {
+                // مهم: لازم ننفذ الـ callback قبل الـ return
+                // ده اللي بيسمح لـ Unknown إنها تلقط الـ match وتعمل merge بيه
                 await onSameTypeMatchAsync(sameTypeDuplicate);
 
-                return DuplicateCheckResult.None;
+                return new DuplicateCheckResult
+                {
+                    RequiresConfirmation = false,
+                    IsSameTypeDuplicate = true,
+                    MatchedCases = matchResult.DuplicateCases
+                };
             }
 
             if (forceCreate)
             {
                 _logger.LogInformation(
-                    "Cross-type duplicate(s) found but forceCreate=true."
-                );
+                    "Cross-type duplicate(s) found but forceCreate=true.");
 
                 return DuplicateCheckResult.None;
             }
