@@ -65,7 +65,7 @@ namespace SafeTrace.Infrastructure.Persistence
                                               "AiMatching.Search",
                                               "Users.GetAll", "Users.GetById", "Users.Approve", "Users.Reject", "Users.ToggleBlock", "Users.GetUsersStatistics",
                                               "Roles.GetAll",
-                                              "Chat.GetAll", "Chat.GetById", "Chat.GetMyChats",  "Chat.GetMessages", "Chat.SendMessage", "Chat.Create", "Chat.StartContext", "Chat.MarkAsRead", "Chat.SoftDelete", "Chat.DeleteMessage", "Chat.DeleteMessageForEveryone",
+                                              "Chat.GetById", "Chat.GetMyChats",  "Chat.GetMessages", "Chat.SendMessage", "Chat.Create", "Chat.StartContext", "Chat.MarkAsRead", "Chat.SoftDelete", "Chat.DeleteMessage", "Chat.DeleteMessageForEveryone",
                                               "Donations.GetMyDonations",
                                               "Dashboard.GetStatistics", "Dashboard.GetCasesStatistics"};
 
