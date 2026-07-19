@@ -19,7 +19,7 @@ namespace SafeTrace.Application.DTOs.Chat
         public string ReceiverId { get; set; } = null!;
         public string? ReceiverName { get; set; }
         public string? ReceiverImage { get; set; }
-
+        public string? OtherUserId { get; set; }
         public string? OtherUserName { get; set; }
         public string? OtherUserImage { get; set; }
 
