@@ -273,12 +273,17 @@ namespace SafeTrace.Application.Services.UserProfileServices
 
             if (!string.IsNullOrWhiteSpace(filter.CaseCode))
             {
-                query = query.Where(x => x.CaseCode.Contains(filter.CaseCode));
+               query = query.Where(x => EF.Functions.Like(x.CaseCode, $"%{filter.CaseCode}%"));
             }
 
             if (filter.CaseType.HasValue)
             {
                 query = query.Where(x => x.CaseType == filter.CaseType.Value);
+            }
+
+            if (filter.Status.HasValue)
+            {
+                query = query.Where(x => x.Status == filter.Status.Value);
             }
 
             query = query.OrderByDescending(x => x.CreatedAt);

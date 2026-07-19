@@ -14,6 +14,7 @@ namespace SafeTrace.Application.DTOs.Cases.Request
  
         // Text Search
         public string? FullName { get; set; } // Will search FName + SName + TName + LName
+        public string? CaseCode { get; set; }
 
         [StringLength(100, ErrorMessage = "Government filter cannot exceed 100 characters.")]
         public string? Government { get; set; }

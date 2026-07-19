@@ -361,10 +361,11 @@ namespace SafeTrace.Application.Services.Cases
                 var keyword = filter.FullName.Trim();
 
                 query = query.Where(x =>
-                    x.FName.Contains(keyword) ||
-                    x.SName.Contains(keyword) ||
-                    x.TName.Contains(keyword) ||
-                    x.LName.Contains(keyword));
+                    x.CaseCode == keyword ||
+                    (x.FName ?? "").Contains(keyword) ||
+                    (x.SName ?? "").Contains(keyword) ||
+                    (x.TName ?? "").Contains(keyword) ||
+                    (x.LName ?? "").Contains(keyword));
             }
 
             if (filter.FromDate.HasValue)
