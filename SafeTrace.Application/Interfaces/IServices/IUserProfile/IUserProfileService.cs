@@ -8,7 +8,6 @@ namespace SafeTrace.Application.Interfaces.IServices.IUserProfile
     {
         Task<ApiResponse<GetUserInfoDTO?>> GetProfileInfoAsync(string userId);
         Task<ApiResponse<VisitUserDTO?>> GetVisitedUserAsync(string userId);
-        Task<ApiResponse<bool>> UpdateProfileInfoAsync(string userId, UpdateProfileInfoDTO dto);
         Task<ApiResponse<bool>> RemoveProfileImageAsync(string userId);
         Task<ApiResponse<bool>> UpdateNameAsync(string userId, UpdateNameDTO dto);
         Task<ApiResponse<bool>> UpdateProfilImageesync(string userId, UpdateProfileImageDTO dto);
