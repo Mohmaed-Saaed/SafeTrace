@@ -85,7 +85,7 @@ namespace SafeTrace.Infrastructure.Services
 
             var totalCount = await query.CountAsync();
 
-            var userDtosQuery = query.Select(u => new GetUserDto
+            var userDtosQuery = query.OrderBy(u => u.FName).ThenBy(u => u.LName).Select(u => new GetUserDto
             {
                 Id = u.Id,
                 FName = u.FName,
@@ -165,7 +165,7 @@ namespace SafeTrace.Infrastructure.Services
             var currentRole = currentRoles.FirstOrDefault() ?? "User";
 
             var removeResult = await _userManager.RemoveFromRolesAsync(user, currentRoles);
-            if (!removeResult.Succeeded) throw new BadRequestException("فشل في إزالة الأدوار الحالية للمستخدم.");
+            if (!removeResult.Succeeded) throw new BadRequestException("فشل في إزالة الدور الحالي للمستخدم.");
 
             var addResult = await _userManager.AddToRoleAsync(user, dto.NewRole);
             if (!addResult.Succeeded) throw new BadRequestException("فشل في تعيين الدور الجديد للمستخدم.");
