@@ -378,14 +378,18 @@ namespace SafeTrace.Application.Services.Cases
 
             if (!string.IsNullOrWhiteSpace(filter.FullName))
             {
-                var keyword = filter.FullName.Trim();
+                var name = filter.FullName.Trim();
 
                 query = query.Where(x =>
-                    x.CaseCode == keyword ||
-                    (x.FName ?? "").Contains(keyword) ||
-                    (x.SName ?? "").Contains(keyword) ||
-                    (x.TName ?? "").Contains(keyword) ||
-                    (x.LName ?? "").Contains(keyword));
+                    (x.FName ?? "").Contains(name) ||
+                    (x.SName ?? "").Contains(name) ||
+                    (x.TName ?? "").Contains(name) ||
+                    (x.LName ?? "").Contains(name));
+            }
+
+            if (!string.IsNullOrWhiteSpace(filter.CaseCode))
+            {
+               query = query.Where(x => EF.Functions.Like(x.CaseCode, $"%{filter.CaseCode}%"));
             }
 
             if (filter.FromDate.HasValue)
