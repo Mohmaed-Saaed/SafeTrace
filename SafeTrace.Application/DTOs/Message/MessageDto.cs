@@ -22,7 +22,7 @@ namespace SafeTrace.Application.DTOs.Message
 
         public bool DeletedByReceiver { get; set; }
 
-        public DateTime? ForEveryoneDeletedAt { get; set; } = null!;
+        public DateTime? ForEveryoneDeletedAt { get; set; }
 
         public DateTime? SenderDeletedAt { get; set; }
 

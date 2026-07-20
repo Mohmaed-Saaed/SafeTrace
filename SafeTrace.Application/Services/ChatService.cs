@@ -360,7 +360,17 @@ namespace SafeTrace.Application.Services
 
             var messageDtos = _mapper.Map<List<MessageDto>>(messages);
 
-            foreach(var message in messageDtos)
+            if (!isAdmin)
+            {
+                foreach (var message in messages)
+                {
+                    if (message.IsDeletedForEveryone)
+                    {
+                        message.Content = "تم حذف هذه الرسالة";
+                    }
+                }
+            }
+            foreach (var message in messageDtos)
             {
                 message.IsMine = message.SenderId == currentUserId;
             }
