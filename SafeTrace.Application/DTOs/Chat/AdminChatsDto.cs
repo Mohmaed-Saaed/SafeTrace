@@ -8,6 +8,9 @@ namespace SafeTrace.Application.DTOs.Chat
     {
         public long ChatId { get; set; }
         public long CaseId { get; set; }
+        public string CaseTitle {get; set; }
+        public CaseType CaseType { get; set; }
+
 
         public string SenderId { get; set; }
         public string ReceiverId { get; set; }
@@ -21,6 +24,7 @@ namespace SafeTrace.Application.DTOs.Chat
         public DateTime CreatedAt { get; set; }
 
         public string? LastMessage { get; set; }
+        public DateTime? LastMessageAt { get; set; }
 
         // Soft delete info (لو موجودة عندك في entity)
         public bool IsDeletedBySender { get; set; }
