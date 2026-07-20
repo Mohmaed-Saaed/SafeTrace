@@ -99,7 +99,7 @@ namespace SafeTrace.Infrastructure.Services
                 {
                     FirstName = user?.FName ?? "Guest",
                     LastName = user?.LName ?? "User",
-                    Email = user?.Email ?? "guestLiqaa.com",
+                    Email = user?.Email ?? "liqaaplatform@gmail.com",
                     PhoneNumber = user?.PhoneNumber ?? "01000000000"
                 },
 
