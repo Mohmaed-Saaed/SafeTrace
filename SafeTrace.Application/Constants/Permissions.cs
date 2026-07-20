@@ -131,6 +131,7 @@ namespace SafeTrace.Application.Constants
             public const string SoftDelete = "Chat.SoftDelete";
             public const string DeleteMessage = "Chat.DeleteMessage";
             public const string DeleteMessageForEveryone = "Chat.DeleteMessageForEveryone";
+            public const string GetChatStatistics = "Chat.GetChatStatistics";
         }
 
         private static readonly Lazy<List<string>> _allPermissions = new Lazy<List<string>>(() =>

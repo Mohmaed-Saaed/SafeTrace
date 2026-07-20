@@ -1,4 +1,4 @@
-﻿using SafeTrace.Application.DTOs.Chat;
+using SafeTrace.Application.DTOs.Chat;
 using SafeTrace.Application.DTOs.Message;
 using SafeTrace.Application.DTOs.Responses;
 using System;
@@ -19,5 +19,7 @@ namespace SafeTrace.Application.Interfaces.IServices
         Task<ApiResponse<ChatDetailsDto>> DeleteChatByAdminAsync(long chatId);
 
         Task<ApiResponse<PaginationResponseDto<AdminChatsDto>>> GetAllChatsAsync(int page , int pageSize, ChatFilterDto filter);
+
+        Task<ApiResponse<AdminChatStatisticsDto>> GetChatStatisticsAsync();
     }
 }
