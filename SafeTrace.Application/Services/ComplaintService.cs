@@ -1,4 +1,5 @@
-﻿using SafeTrace.Application.DTOs.Complaints;
+﻿using SafeTrace.Application.Constants;
+using SafeTrace.Application.DTOs.Complaints;
 using SafeTrace.Application.DTOs.Complaints.Request;
 using SafeTrace.Application.DTOs.Complaints.Response;
 using SafeTrace.Application.DTOs.NotificationDTOS;
@@ -138,15 +139,15 @@ namespace SafeTrace.Application.Services
             await _notificationService.SendNotificationAsync(new SendNotificationDTO
             {
                 UserId = complaint.UserId,
-                Content = $"Your complaint has been resolved: {dto.SolutionMessage}",
-                Type = NotificationType.ComplaintResolved
+                Content = $"تم حل شكواك: {dto.SolutionMessage}",
+                Type = NotificationType.System
             });
 
             // 2 — Email
             var userEmail = complaint.User.Email!;
             var userName = $"{complaint.User.FName} {complaint.User.LName}";
-            var subject = "Your Complaint Has Been Resolved - SafeTrace";
-            var body = BuildComplaintResolvedEmailTemplate(userName, dto.SolutionMessage);
+            var subject = "تم حل شكواك - منصة لقاء";
+            var body = EmailTemplates.BuildComplaintResolvedTemplate(userName, dto.SolutionMessage);
             await _emailService.SendEmailAsync(userEmail, subject, body);
         }
 
@@ -167,25 +168,6 @@ namespace SafeTrace.Application.Services
             return stats ?? new ComplaintStatisticsDto();
         }
     
-        private static string BuildComplaintResolvedEmailTemplate(string fullName, string solutionMessage)
-        {
-            return $@"
-            <div dir='ltr' style='font-family: ""Segoe UI"", Tahoma, Geneva, Verdana, sans-serif; max-width: 550px; margin: 0 auto; padding: 30px; border: 1px solid #eef2f5; border-radius: 12px; background-color: #ffffff;'>
-                <div style='text-align: center; margin-bottom: 25px;'>
-                    <h1 style='color: #2b5a8f; font-size: 28px; margin: 0; font-weight: 700;'>SafeTrace</h1>
-                    <p style='color: #8c9ba5; font-size: 13px; margin: 5px 0 0 0;'>Smart Missing Persons Tracking System</p>
-                </div>
-                <hr style='border: 0; border-top: 1px solid #f0f4f8; margin-bottom: 25px;' />
-                <h2 style='color: #1e293b; font-size: 20px; margin-top: 0;'>Hello, {fullName}</h2>
-                <p style='color: #475569; font-size: 15px; line-height: 1.6;'>We are pleased to inform you that your complaint has been reviewed and resolved by our team.</p>
-                <div style='background: #f0fdf4; border: 1px solid #bbf7d0; padding: 20px; border-radius: 10px; margin: 20px 0; color: #166534;'>
-                    <strong>Resolution Message:</strong><br/><br/>
-                    {solutionMessage}
-                </div>
-                <p style='color: #475569; font-size: 14px;'>If you have any further questions, feel free to submit a new complaint through the app.</p>
-                <hr style='border: 0; border-top: 1px solid #f0f4f8; margin: 20px 0;' />
-                <p style='color: #475569; font-size: 14px; margin: 0; font-weight: 600;'>Best regards,<br/><span style='color: #2b5a8f;'>SafeTrace Support Team</span></p>
-            </div>";
-        }
+        
     }
 }

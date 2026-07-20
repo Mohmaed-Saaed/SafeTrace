@@ -83,7 +83,7 @@ namespace SafeTrace.API.Controllers
         public async Task<IActionResult> Create([FromBody] CreateComplaintDto dto)
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier)
-                         ?? "73421559-3b56-4718-bc1f-938ba0a24c9e";
+                         ?? "f97d5f9c-cdc6-45b5-afe6-28c003ae1517";
             var result = await _complaintService.CreateAsync(userId, dto);
             return CreatedAtAction(nameof(GetById), new { id = result.Id },
                 ApiResponse<ComplaintResponseDto>.Ok(result, "Complaint created successfully."));
