@@ -21,14 +21,16 @@ namespace SafeTrace.API.Hubs
 
         public async Task NotifyMessageDeletedForEveryone(
         long chatId,
-        long messageId)
+        long messageId,
+        DateTime deletedAt)
         {
             await _hubContext.Clients
             .Group($"chat_{chatId}")
             .SendAsync("MessageDeletedForEveryone", new
             {
                 chatId,
-                messageId
+                messageId,
+                deletedAt
             });
         }
     }
