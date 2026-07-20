@@ -90,9 +90,6 @@ namespace SafeTrace.Application.Services.Cases
 
                     entity.CaseFiles = uploadedFiles;
 
-                    // entity.Id موجود دلوقتي، ونستخدم الـ match اللي اتلقط قبل كده
-                    // (نفس الـ 80% + Gender + Age اللي CheckDuplicateCaseAsync استخدمهم)
-                    // بدل عمل بحث Face Recognition جديد بمعايير مختلفة (95% بدون فلترة)
                     await _caseHelper.LinkCaseToDuplicateGroupAsync(
                         entity,
                         pendingSameTypeMatch);
@@ -192,9 +189,10 @@ namespace SafeTrace.Application.Services.Cases
                     x => x.Case,
                     x => x.Case.CaseFiles
                 ])
-            .Where(x =>
-                x.DuplicateGroupId == groupId &&
-                x.CaseId != id)
+           .Where(x =>
+    x.DuplicateGroupId == groupId &&
+    x.CaseId != id &&
+    x.Case.Status == CaseStatus.Active)
             .OrderByDescending(x => x.Case.CreatedAt)
             .ToListAsync();
 
@@ -217,6 +215,61 @@ namespace SafeTrace.Application.Services.Cases
         dto,
         "تم استرجاع بيانات الحالة بنجاح.");
 }
+        public override async Task<ApiResponse<UnknownCaseDetailDto>> AdminGetByIdAsync(long id)
+        {
+            var dto = await GetByIdInternalAsync<UnknownCaseDetailDto>(
+         id,
+         activeOnly: true,
+         includes:
+         [
+             x => x.CaseFiles,
+            x => x.User,
+            x => x.AgeCategory
+         ]);
+            var groupId = await _unitOfWork
+                .Repository<DuplicateGroupCase>()
+                .Query(tracked: false)
+                .Where(x => x.CaseId == id)
+                .Select(x => (long?)x.DuplicateGroupId)
+                .FirstOrDefaultAsync();
+
+            if (groupId != null)
+            {
+                var relatedCases = await _unitOfWork
+                    .Repository<DuplicateGroupCase>()
+                    .Query(
+                        tracked: false,
+                        includes:
+                        [
+                            x => x.Case,
+                    x => x.Case.CaseFiles
+                        ])
+                   .Where(x =>
+            x.DuplicateGroupId == groupId &&
+            x.CaseId != id &&
+            x.Case.Status == CaseStatus.Active)
+                    .OrderByDescending(x => x.Case.CreatedAt)
+                    .ToListAsync();
+
+                dto.RelatedCases = relatedCases
+                    .Select(x => new RelatedUnknownCaseDto
+                    {
+                        Id = x.Case.Id,
+                        CaseCode = x.Case.CaseCode,
+                        CreatedAt = x.Case.CreatedAt,
+                        Similarity = (float)x.SimilarityScore,
+                        MainPhotoPath = x.Case.CaseFiles
+                            .Where(f => f.IsPrimary)
+                            .Select(f => f.ImagePath)
+                            .FirstOrDefault() ?? string.Empty
+                    })
+                    .ToList();
+            }
+
+            return ApiResponse<UnknownCaseDetailDto>.Ok(
+                dto,
+                "تم استرجاع بيانات الحالة بنجاح.");
+        }
         /// <summary>
         /// Updates an existing unknown case with photo management.
         /// </summary>

@@ -31,7 +31,7 @@ namespace SafeTrace.Infrastructure.Persistence
                 {
                     var Role = new IdentityRole(role);
                     await _roleManager.CreateAsync(Role);
-                }
+                } 
             }
 
             var adminEmail = SystemConstants.RootAdminEmail;

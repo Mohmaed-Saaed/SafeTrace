@@ -419,8 +419,6 @@ namespace SafeTrace.Application.Services.Cases
 
             if (matchedCase == null)
             {
-                // الحالة كانت متطابقة وقت CheckDuplicateCaseAsync لكن بقت غير صالحة
-                // (مثلاً اتحذفت في نفس الوقت) -> نتعامل معاها كأنه مفيش match
                 await CreateDuplicateGroupAsync(newCase);
                 return;
             }
@@ -484,7 +482,7 @@ namespace SafeTrace.Application.Services.Cases
                 {
                     DuplicateGroup = group,
                     CaseId = newCase.Id,
-                    SimilarityScore = 100,
+                    SimilarityScore = 0,
                     MatchedBy = DuplicateMatchType.AI,
                     CreatedAt = DateTime.UtcNow
                 });
