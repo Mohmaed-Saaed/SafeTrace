@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using SafeTrace.Application.Constants;
 using SafeTrace.Application.DTOs.AiMatching.Request;
 using SafeTrace.Application.Exceptions;
@@ -11,7 +12,7 @@ namespace SafeTrace.API.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    [Microsoft.AspNetCore.RateLimiting.DisableRateLimiting]
+    [EnableRateLimiting("AiLimit")]
     public class AiMatchingController : ControllerBase
     {
         private readonly IFaceRecognitionService _faceRecognitionService;
