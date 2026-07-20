@@ -18,5 +18,18 @@ namespace SafeTrace.API.Hubs
             await _hubContext.Clients.Group($"chat_{message.ChatId}")
                 .SendAsync("ReceiveMessage", message);
         }
+
+        public async Task NotifyMessageDeletedForEveryone(
+        long chatId,
+        long messageId)
+        {
+            await _hubContext.Clients
+            .Group($"chat_{chatId}")
+            .SendAsync("MessageDeletedForEveryone", new
+            {
+                chatId,
+                messageId
+            });
+        }
     }
 }

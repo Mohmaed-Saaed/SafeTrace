@@ -65,6 +65,7 @@ namespace SafeTrace.Application.Constants
         public static class Dashboard
         {
             public const string GetStatistics = "Dashboard.GetStatistics";
+            public const string GetCasesStatistics = "Dashboard.GetCasesStatistics";
         }
 
         public static class AiMatching
@@ -79,6 +80,7 @@ namespace SafeTrace.Application.Constants
             public const string Create = "Complaints.Create";
             public const string HardDelete = "Complaints.HardDelete";
             public const string MarkAsSolved = "Complaints.MarkAsSolved";
+            public const string GetComplaintsStatistics = "Complaints.GetComplaintsStatistics";
         }
 
         public static class Account
@@ -112,6 +114,7 @@ namespace SafeTrace.Application.Constants
             public const string Approve = "Users.Approve";
             public const string Reject = "Users.Reject";
             public const string ToggleBlock = "Users.ToggleBlock";
+            public const string GetUsersStatistics = "Users.GetUsersStatistics";
         }
 
         public static class Chat
@@ -128,6 +131,7 @@ namespace SafeTrace.Application.Constants
             public const string SoftDelete = "Chat.SoftDelete";
             public const string DeleteMessage = "Chat.DeleteMessage";
             public const string DeleteMessageForEveryone = "Chat.DeleteMessageForEveryone";
+            public const string GetChatStatistics = "Chat.GetChatStatistics";
         }
 
         private static readonly Lazy<List<string>> _allPermissions = new Lazy<List<string>>(() =>

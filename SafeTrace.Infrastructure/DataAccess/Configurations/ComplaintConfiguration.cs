@@ -21,8 +21,8 @@ namespace SafeTrace.Infrastructure.DataAccess.Configurations
             builder.Property(c => c.SolutionMessage).HasMaxLength(2000);
 
             builder.Property(c => c.ComplaintStatus)
-                .HasConversion<int>()
-                .IsRequired();
+                .HasConversion<int>();
+ 
         }
     }
 }

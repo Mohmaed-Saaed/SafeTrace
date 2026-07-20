@@ -1,4 +1,5 @@
 using SafeTrace.Application.Interfaces.IServices.ICases;
+
 namespace SafeTrace.Application.Services.Cases
 {
     public class CaseCleanupService : ICaseCleanupService

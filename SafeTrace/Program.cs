@@ -94,8 +94,6 @@ namespace SafeTrace
 
             var app = builder.Build();
 
-            app.UseExceptionHandler();
-
             // Custom Basic Auth Middleware for Elmah
             app.Use(async (context, next) =>
             {
@@ -117,6 +115,7 @@ namespace SafeTrace
             });
 
             app.UseElmah();
+            app.UseExceptionHandler();
             app.UseStatusCodePages(async context =>
             {
                 var response = context.HttpContext.Response;

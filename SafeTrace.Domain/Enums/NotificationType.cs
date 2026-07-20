@@ -5,6 +5,7 @@
         MatchFound,
         Message,
         Complaint,
-        System
+        System,
+        ComplaintResolved
     }
 }

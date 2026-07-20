@@ -132,38 +132,7 @@ namespace SafeTrace.Application.Services.Cases
             return files;
         }
 
-        //private async Task<CaseFile> CreateCaseFileAsync(IFormFile file, string folderName, long caseId, bool isPrimary)
-        //{
-        //    var path = await _fileStorageService.SaveFileAsync(file, folderName);
-
-        //    string? faceId = null;
-
-        //    if (!VideoExtensions.Contains(Path.GetExtension(file.FileName)))
-        //    {
-        //        try
-        //        {
-        //            faceId = await _faceRecognitionService.IndexFaceAsync(file);
-        //        }
-        //        catch (Exception ex)
-        //        {
-        //            _logger.LogWarning(ex, "Failed to index face for file {FileName}.", file.FileName);
-        //        }
-        //    }
-
-        //    return new CaseFile
-        //    {
-        //        CaseId = caseId,
-        //        ImagePath = path,
-        //        FaceId = faceId,
-        //        IsPrimary = isPrimary,
-        //        CreatedAt = DateTime.UtcNow
-        //    };
-        //}
-    private async Task<CaseFile> CreateCaseFileAsync(
-    IFormFile file,
-    string folderName,
-    long caseId,
-    bool isPrimary)
+        private async Task<CaseFile> CreateCaseFileAsync(IFormFile file, string folderName, long caseId, bool isPrimary)
         {
             var path = await _fileStorageService.SaveFileAsync(file, folderName);
 
@@ -171,9 +140,7 @@ namespace SafeTrace.Application.Services.Cases
 
             var extension = Path.GetExtension(file.FileName).ToLowerInvariant();
 
-            var fileType = VideoExtensions.Contains(extension)
-                ? FileType.Video
-                : FileType.Image;
+            var fileType = VideoExtensions.Contains(extension) ? FileType.Video : FileType.Image;
 
             if (fileType == FileType.Image)
             {
@@ -183,9 +150,7 @@ namespace SafeTrace.Application.Services.Cases
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogWarning(ex,
-                        "Failed to index face for file {FileName}.",
-                        file.FileName);
+                    _logger.LogWarning(ex, "Failed to index face for file {FileName}.", file.FileName);
                 }
             }
 
@@ -195,7 +160,7 @@ namespace SafeTrace.Application.Services.Cases
                 ImagePath = path,
                 FaceId = faceId,
                 IsPrimary = isPrimary,
-                 Type= fileType,
+                Type= fileType,
                 CreatedAt = DateTime.UtcNow
             };
         }
@@ -252,7 +217,7 @@ namespace SafeTrace.Application.Services.Cases
             }
         }
 
-        public async Task<MatchedCasesResult> FindMatchedCasesAsync(CaseMatchSubjectInfoDto subject, IFormFile primaryImage)
+        private async Task<MatchedCasesResult> FindMatchedCasesAsync(CaseMatchSubjectInfoDto subject, IFormFile primaryImage)
         {
             var faceMatches = await SearchFacesAsync(primaryImage);
             if (faceMatches.Count == 0)
@@ -270,33 +235,36 @@ namespace SafeTrace.Application.Services.Cases
                 DuplicateCases = matchedCases
             };
         }
+
         public async Task<DuplicateCheckResult> CheckDuplicateCaseAsync(
-           CaseType currentCaseType,
-           CaseMatchSubjectInfoDto subject,
-           IFormFile primaryImage,
-           Func<MatchedCaseDto, Task> onSameTypeMatchAsync,
-           bool forceCreate = false)
+            CaseType currentCaseType,
+            CaseMatchSubjectInfoDto subject,
+            IFormFile primaryImage,
+            Func<MatchedCaseDto, Task> onSameTypeMatchAsync,
+            bool forceCreate = false)
         {
             var matchResult = await FindMatchedCasesAsync(subject, primaryImage);
 
             if (!matchResult.HasMatched)
                 return DuplicateCheckResult.None;
 
-            var sameTypeDuplicate = matchResult.DuplicateCases
-                .FirstOrDefault(x => x.CaseType == currentCaseType);
+            var sameTypeDuplicate = matchResult.DuplicateCases.FirstOrDefault(x => x.CaseType == currentCaseType);
 
             if (sameTypeDuplicate != null)
             {
                 await onSameTypeMatchAsync(sameTypeDuplicate);
 
-                return DuplicateCheckResult.None;
+                return new DuplicateCheckResult
+                {
+                    RequiresConfirmation = false,
+                    IsSameTypeDuplicate = true,
+                    MatchedCases = matchResult.DuplicateCases
+                };
             }
 
             if (forceCreate)
             {
-                _logger.LogInformation(
-                    "Cross-type duplicate(s) found but forceCreate=true."
-                );
+                _logger.LogInformation("Cross-type duplicate(s) found but forceCreate=true.");
 
                 return DuplicateCheckResult.None;
             }
@@ -307,6 +275,7 @@ namespace SafeTrace.Application.Services.Cases
                 MatchedCases = matchResult.DuplicateCases
             };
         }
+        
         private async Task<List<FaceMatchResult>> SearchFacesAsync(IFormFile primaryImage)
         {
             var faceMatches = await _faceRecognitionService.SearchByImageAsync(primaryImage);
@@ -330,18 +299,15 @@ namespace SafeTrace.Application.Services.Cases
 
    
             return await _unitOfWork.Repository<Case>()
-    .Query(tracked: false, includes: [c => c.CaseFiles, c => c.User])
-    .Where(c =>
-        (
-            (c.CaseType == CaseType.Unknown && c.Status != CaseStatus.Deleted)
-            ||
-            (c.CaseType != CaseType.Unknown && c.Status == CaseStatus.Active)
-        )
-        &&
-        c.CaseFiles.Any(f =>
-            f.FaceId != null &&
-            faceIds.Contains(f.FaceId)))
-    .ToListAsync();
+                .Query(tracked: false, includes: [c => c.CaseFiles, c => c.User])
+                .Where(c =>
+                (
+                    (c.CaseType == CaseType.Unknown && c.Status != CaseStatus.Deleted)
+                    ||
+                    (c.CaseType != CaseType.Unknown && c.Status == CaseStatus.Active)
+                )
+                &&
+                c.CaseFiles.Any(f => f.FaceId != null && faceIds.Contains(f.FaceId))).ToListAsync();
         }
 
         private List<MatchedCaseDto> FilterMatchedCases(IReadOnlyCollection<Case> candidateCases, IReadOnlyCollection<FaceMatchResult> faceMatches, CaseMatchSubjectInfoDto subject)
