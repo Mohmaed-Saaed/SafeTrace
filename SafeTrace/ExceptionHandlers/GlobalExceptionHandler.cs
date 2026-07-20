@@ -21,27 +21,11 @@ using System.Net;
 
             public async ValueTask<bool> TryHandleAsync(HttpContext httpContext, Exception exception, CancellationToken cancellationToken)
             {
-                if (exception is UnknownCaseMatchException matchException)
-                    {
-                        _logger.LogInformation("تم العثور على حالات مجهولة مشابهة للصور المرفوعة. يتم إرسال المقترحات إلى المستخدم.");
 
-                        httpContext.Response.StatusCode = StatusCodes.Status200OK; 
-                        httpContext.Response.ContentType = "application/json";
+                _logger.LogError(exception, "An exception occurred while processing the request.");
 
-                        var responseBody = new
-                        {
-                            status = 200,
-                            message = matchException.Message,
-                            matches = matchException.Matches
-                        };
-
-                        await httpContext.Response.WriteAsJsonAsync(responseBody, cancellationToken);
-                        return true; 
-                    }
-            _logger.LogError(exception, "An exception occurred while processing the request.");
-
-            var statusCode = exception switch
-            {
+                var statusCode = exception switch
+                {
                 NotFoundException => HttpStatusCode.NotFound,
                 BadRequestException => HttpStatusCode.BadRequest,
                 UnauthorizedException => HttpStatusCode.Unauthorized,

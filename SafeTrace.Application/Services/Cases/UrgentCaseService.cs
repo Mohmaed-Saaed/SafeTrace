@@ -73,17 +73,13 @@ namespace SafeTrace.Application.Services.Cases
         /// <summary>
         /// Creates a new urgent case with expiration and rate limiting.
         /// </summary>
-        public async Task<ApiResponse<CreateCaseResultDto>> CreateAsync(
-            string userId,
-            UrgentCaseCreateDto dto,
-            bool forceCreate = false)
+        public async Task<ApiResponse<CreateCaseResultDto>> CreateAsync(string userId, UrgentCaseCreateDto dto, bool forceCreate = false)
         {
-            //// Business Rule الخاصة بالـ Urgent
-            //var rateLimitViolation = await CheckRateLimitAsync(userId);
-            //if (rateLimitViolation is not null)
-            //{
+            // var rateLimitViolation = await CheckRateLimitAsync(userId);
+            // if (rateLimitViolation is not null)
+            // {
             //    return ApiResponse<CreateCaseResultDto>.Fail(rateLimitViolation);
-            //}
+            // }
 
             var subject = new CaseMatchSubjectInfoDto
             {
@@ -95,10 +91,9 @@ namespace SafeTrace.Application.Services.Cases
                 CaseType.Urgent,
                 subject,
                 dto.PrimaryImage,
-                onSameTypeMatchAsync: duplicate => Task.CompletedTask, // تم نقل منطق التعامل مع التطابق ليكون مرناً بالأسفل
+                onSameTypeMatchAsync: duplicate => Task.CompletedTask,
                 forceCreate);
 
-            // 1. في حال وجود حالة تطابق من نفس النوع، نمنع الكريت تماماً ونرسل الحالات للـ Frontend لعرضها فقط
             if (checkResult.IsSameTypeDuplicate)
             {
                 return ApiResponse<CreateCaseResultDto>.Ok(
@@ -110,7 +105,6 @@ namespace SafeTrace.Application.Services.Cases
                     });
             }
 
-            // 2. يوجد حالات من نوع مختلف، اعرضها للمستخدم وانتظر قراره (Force Create)
             if (checkResult.RequiresConfirmation)
             {
                 return ApiResponse<CreateCaseResultDto>.Ok(
@@ -133,13 +127,9 @@ namespace SafeTrace.Application.Services.Cases
             entity.CaseCode = await _caseHelper.GenerateCaseCodeAsync(CaseCodePrefix.URG);
             entity.AgeCategoryId = await _caseHelper.ResolveAgeCategoryIdAsync(entity.Age);
 
-            // اختلافات الـ Urgent
             entity.LimitReachDate = now.AddDays(RateLimitDays);
             entity.EndDate = now.AddHours(ExpirationHours);
-            entity.Location = new Point(dto.Longitude, dto.Latitude)
-            {
-                SRID = 4326
-            };
+            entity.Location = new Point(dto.Longitude, dto.Latitude){ SRID = 4326 };
 
             await ExecuteInTransactionAsync(
                 action: async () =>
@@ -154,19 +144,15 @@ namespace SafeTrace.Application.Services.Cases
                     foreach (var file in uploadedFiles)
                         entity.CaseFiles.Add(file);
 
-                    await _unitOfWork.Repository<UrgentCase>()
-                        .CreateAsync(entity);
+                    await _unitOfWork.Repository<UrgentCase>().CreateAsync(entity);
 
                     return true;
                 },
                 onFailureAsync: async ex =>
                 {
-                    _caseHelper.CleanupPhysicalFiles(
-                        entity.CaseFiles.Select(x => x.ImagePath));
+                    _caseHelper.CleanupPhysicalFiles(entity.CaseFiles.Select(x => x.ImagePath));
 
-                    await _caseHelper.DeleteFacesAsync(
-                        entity.CaseFiles.Select(x => x.FaceId),
-                        entity.Id);
+                    await _caseHelper.DeleteFacesAsync(entity.CaseFiles.Select(x => x.FaceId), entity.Id);
 
                     _logger.LogError(
                         ex,
@@ -180,7 +166,6 @@ namespace SafeTrace.Application.Services.Cases
                 entity.CaseCode,
                 userId);
 
-            // اختلافات الـ Urgent
             _ = NotifyNearbyUsersAsync(entity);
 
             return ApiResponse<CreateCaseResultDto>.Ok(
