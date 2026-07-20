@@ -449,5 +449,32 @@ namespace SafeTrace.Application.Constants
 
             </div>";
         }
+
+
+        public static string BuildComplaintResolvedTemplate(string fullName, string solutionMessage)
+        {
+            return $@"
+    <div dir='rtl' style='font-family: ""Segoe UI"", Tahoma, Geneva, Verdana, sans-serif; max-width: 550px; margin: 0 auto; padding: 30px; border: 1px solid #eef2f5; border-radius: 12px; background-color: #ffffff; box-shadow: 0 4px 15px rgba(0,0,0,0.03); text-align: right;'>
+        <div style='text-align: center; margin-bottom: 25px;'>
+            <img src='{SystemConstants.BaseUrl}/Images/logo.jpg'
+                 alt='لقاء Logo'
+                 style='width: 80px; height: 80px; object-fit: contain; margin-bottom: 10px;' />
+            <h1 style='color: #2b5a8f; font-size: 28px; margin: 0; font-weight: 700;'>منصة لقاء</h1>
+            <p style='color: #8c9ba5; font-size: 13px; margin: 5px 0 0 0;'>نظام تتبع وإعادة المفقودين الذكي</p>
+        </div>
+        <hr style='border: 0; border-top: 1px solid #f0f4f8; margin-bottom: 25px;' />
+        <h2 style='color: #1e293b; font-size: 20px; margin-top: 0; font-weight: 600;'>مرحباً، {fullName}</h2>
+        <p style='color: #475569; font-size: 15px; line-height: 1.6;'>يسعدنا إخبارك بأنه تمت مراجعة شكواك والرد عليها من قِبل فريق الدعم لدينا.</p>
+        <div style='background: #f0fdf4; border: 1px dashed #bbf7d0; padding: 20px; border-radius: 10px; margin: 20px 0; color: #166534;'>
+            <strong>رسالة الحل:</strong><br/><br/>
+            {solutionMessage}
+        </div>
+        <p style='color: #475569; font-size: 14px; line-height: 1.6;'>إذا كان لديك أي استفسار إضافي، يمكنك تقديم شكوى جديدة من خلال المنصة وسيتواصل معك فريقنا في أقرب وقت.</p>
+        <hr style='border: 0; border-top: 1px solid #f0f4f8; margin: 20px 0;' />
+        <p style='color: #475569; font-size: 14px; margin: 0; font-weight: 600;'>مع خالص التحية،<br/><span style='color: #2b5a8f;'>فريق عمل منصة لقاء</span></p>
+    </div>";
+        }
     }
+
+
 }

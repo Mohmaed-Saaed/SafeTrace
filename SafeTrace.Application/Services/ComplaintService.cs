@@ -1,17 +1,30 @@
+﻿using SafeTrace.Application.Constants;
+using SafeTrace.Application.DTOs.Complaints;
 using SafeTrace.Application.DTOs.Complaints.Request;
 using SafeTrace.Application.DTOs.Complaints.Response;
+using SafeTrace.Application.DTOs.NotificationDTOS;
 using SafeTrace.Application.DTOs.Responses;
 using SafeTrace.Application.Exceptions;
+using SafeTrace.Application.Interfaces.IServices.INotificationSewrvice;
+using SafeTrace.Domain.Enums;
 
-namespace SafeTrace.Infrastructure.Services
+
+namespace SafeTrace.Application.Services
 {
     public class ComplaintService : IComplaintService
     {
         private readonly IUnitOfWork _unitOfWork;
+        private readonly INotificationServices _notificationService;
+        private readonly IEmailService _emailService;
 
-        public ComplaintService(IUnitOfWork unitOfWork)
+        public ComplaintService(
+            IUnitOfWork unitOfWork,
+            INotificationServices notificationService,
+            IEmailService emailService)
         {
             _unitOfWork = unitOfWork;
+            _notificationService = notificationService;
+            _emailService = emailService;
         }
 
         public async Task<PaginationResponseDto<ComplaintResponseDto>> GetAllAsync(ComplaintFilterDto filter)
@@ -19,12 +32,11 @@ namespace SafeTrace.Infrastructure.Services
             var query = _unitOfWork.Repository<Complaint>()
                 .Query(tracked: false, includes: c => c.User);
 
-            // Filtration
-            if (!string.IsNullOrEmpty(filter.UserId))
-                query = query.Where(c => c.UserId == filter.UserId);
-
             if (!string.IsNullOrEmpty(filter.CaseCode))
                 query = query.Where(c => c.CaseCode == filter.CaseCode);
+
+            if (filter.Status.HasValue)
+                query = query.Where(c => c.ComplaintStatus == filter.Status.Value);
 
             var totalCount = await query.CountAsync();
 
@@ -36,9 +48,11 @@ namespace SafeTrace.Infrastructure.Services
                 {
                     Id = c.Id,
                     UserId = c.UserId,
-                    UserName = c.User.UserName ?? c.User.Email!,
+                    UserEmail = c.User.Email!,
                     CaseCode = c.CaseCode,
                     Message = c.Message,
+                    SolutionMessage = c.SolutionMessage,
+                    ComplaintStatus = c.ComplaintStatus,
                     CreatedAt = c.CreatedAt
                 })
                 .ToListAsync();
@@ -64,9 +78,11 @@ namespace SafeTrace.Infrastructure.Services
             {
                 Id = complaint.Id,
                 UserId = complaint.UserId,
-                UserName = complaint.User.UserName ?? complaint.User.Email!,
+                UserEmail = complaint.User.Email!,
                 CaseCode = complaint.CaseCode,
                 Message = complaint.Message,
+                SolutionMessage = complaint.SolutionMessage,
+                ComplaintStatus = complaint.ComplaintStatus,
                 CreatedAt = complaint.CreatedAt
             };
         }
@@ -87,7 +103,6 @@ namespace SafeTrace.Infrastructure.Services
             await _unitOfWork.Repository<Complaint>().CreateAsync(complaint);
             await _unitOfWork.SaveAsync();
 
-            // Reload with User
             return await GetByIdAsync(complaint.Id);
         }
 
@@ -100,6 +115,40 @@ namespace SafeTrace.Infrastructure.Services
 
             _unitOfWork.Repository<Complaint>().Remove(complaint);
             await _unitOfWork.SaveAsync();
+        }
+
+        public async Task ResolveAsync(long id, ResolveComplaintDto dto)
+        {
+            var complaint = await _unitOfWork.Repository<Complaint>()
+                .GetOneAsync(c => c.Id == id, tracked: true, c => c.User);
+
+            if (complaint is null)
+                throw new NotFoundException($"Complaint with id {id} not found.");
+
+            if (complaint.ComplaintStatus == ComplaintStatus.Solved)
+                throw new BadRequestException("This complaint is already solved.");
+
+            if (string.IsNullOrWhiteSpace(dto.SolutionMessage))
+                throw new BadRequestException("Solution message is required.");
+
+            complaint.SolutionMessage = dto.SolutionMessage;
+            complaint.ComplaintStatus = ComplaintStatus.Solved;
+            await _unitOfWork.SaveAsync();
+
+            // 1 — In-app Notification
+            await _notificationService.SendNotificationAsync(new SendNotificationDTO
+            {
+                UserId = complaint.UserId,
+                Content = $"تم حل شكواك: {dto.SolutionMessage}",
+                Type = NotificationType.System
+            });
+
+            // 2 — Email
+            var userEmail = complaint.User.Email!;
+            var userName = $"{complaint.User.FName} {complaint.User.LName}";
+            var subject = "تم حل شكواك - منصة لقاء";
+            var body = EmailTemplates.BuildComplaintResolvedTemplate(userName, dto.SolutionMessage);
+            await _emailService.SendEmailAsync(userEmail, subject, body);
         }
 
         public async Task<ComplaintStatisticsDto> GetStatisticsAsync()
@@ -118,5 +167,7 @@ namespace SafeTrace.Infrastructure.Services
 
             return stats ?? new ComplaintStatisticsDto();
         }
+    
+        
     }
 }
