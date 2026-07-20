@@ -92,6 +92,7 @@ namespace SafeTrace.Application.Constants
         {
             public const string GetDonations = "Donations.GetDonations";
             public const string GetMyDonations = "Donations.GetMyDonations";
+            public const string GetDonationStatistics = "Donations.GetDonationStatistics";
         }
 
         public static class Roles
