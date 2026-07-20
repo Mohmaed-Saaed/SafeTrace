@@ -32,9 +32,7 @@ namespace SafeTrace.Application.Services.Cases
         /// </summary>
         public virtual async Task<ApiResponse<PaginationResponseDto<TListDto>>> GetAllAsync(TFilterDto filter)
         {
-            var query = _unitOfWork.Repository<TEntity>()
-                .Query(tracked: false, includes: x => x.CaseFiles)
-                .Where(x => x.Status == CaseStatus.Active);
+            var query = BuildGetAllQuery();
 
             var response = await GetPagedResultAsync<TListDto>(query, filter);
 
@@ -65,6 +63,8 @@ namespace SafeTrace.Application.Services.Cases
                 activeOnly: true,
                 includes: [x => x.CaseFiles, x => x.User, x => x.AgeCategory]);
 
+            await AfterGetByIdAsync(dto, id);
+
             return ApiResponse<TDetailDto>.Ok(dto, "تم استرجاع بيانات الحالة بنجاح.");
         }
 
@@ -78,8 +78,7 @@ namespace SafeTrace.Application.Services.Cases
                 activeOnly: false,
                 includes: [x => x.CaseFiles, x => x.User, x => x.AgeCategory, x => x.FoundPersonInfo]);
 
-            return ApiResponse<TDetailDto>
-                .Ok(dto, "تم استرجاع بيانات الحالة بنجاح.");
+            return ApiResponse<TDetailDto>.Ok(dto, "تم استرجاع بيانات الحالة بنجاح.");
         }
         
         /// <summary>
@@ -325,6 +324,27 @@ namespace SafeTrace.Application.Services.Cases
         /// </summary>
         protected virtual Task OnMarkedAsFoundAsync(TEntity entity) => Task.CompletedTask;
         
+        /// <summary>
+        /// Builds the base query used by <see cref="GetAllAsync"/> before shared filtering, sorting,
+        /// and pagination (see <see cref="GetPagedResultAsync{TDto}"/>) are applied.
+        /// Default: active cases with their CaseFiles included.
+        /// Derived services can override this to change includes or pre-shape the query
+        /// (e.g. duplicate-group deduplication) without touching the shared filter/sort/pagination/mapping pipeline.
+        /// </summary>
+        protected virtual IQueryable<TEntity> BuildGetAllQuery()
+        {
+            return _unitOfWork.Repository<TEntity>()
+                .Query(tracked: false, includes: x => x.CaseFiles)
+                .Where(x => x.Status == CaseStatus.Active);
+        }
+
+        /// <summary>
+        /// Hook invoked by <see cref="GetByIdAsync"/> after the entity has been mapped to <typeparamref name="TDetailDto"/>,
+        /// allowing derived services to enrich the DTO with feature-specific data
+        /// (e.g. populating related/duplicate cases). No-op by default.
+        /// </summary>
+        protected virtual Task AfterGetByIdAsync(TDetailDto dto, long id) => Task.CompletedTask;
+
         /// <summary>
         /// Allows derived services to apply additional filtering. Default: no extra filters. 
         /// </summary>
