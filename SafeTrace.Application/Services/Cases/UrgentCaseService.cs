@@ -127,7 +127,8 @@ namespace SafeTrace.Application.Services.Cases
             entity.CaseCode = await _caseHelper.GenerateCaseCodeAsync(CaseCodePrefix.URG);
             entity.AgeCategoryId = await _caseHelper.ResolveAgeCategoryIdAsync(entity.Age);
 
-            entity.LimitReachDate = now.AddDays(RateLimitDays);
+            //entity.LimitReachDate = now.AddDays(RateLimitDays);
+            entity.LimitReachDate = now.AddDays(RateLimitDays).AddHours(24);
             entity.EndDate = now.AddHours(ExpirationHours);
             entity.Location = new Point(dto.Longitude, dto.Latitude){ SRID = 4326 };
 

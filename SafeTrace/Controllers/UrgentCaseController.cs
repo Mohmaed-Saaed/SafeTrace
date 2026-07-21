@@ -50,18 +50,17 @@ namespace SafeTrace.API.Controllers
         {
             return Ok(await _urgentCaseService.AdminGetByIdAsync(id));
         }
-
         [HttpPost("CreateCase")]
         [Consumes("multipart/form-data")]
         [HasPermission(Permissions.UrgentCases.Create)]
-        public async Task<IActionResult> Create([FromForm] UrgentCaseCreateDto dto)
+        public async Task<IActionResult> Create([FromForm] UrgentCaseCreateDto dto, [FromQuery] bool forceCreate = false)
         {
             if (string.IsNullOrEmpty(CurrentUserId))
                 throw new UnauthorizedException("User identity could not be verified from token.");
 
-            return Ok(await _urgentCaseService.CreateAsync(CurrentUserId, dto));
+            // مرر الـ forceCreate للـ service إذا كانت مدعومة هناك، أو تعامل معها
+            return Ok(await _urgentCaseService.CreateAsync(CurrentUserId, dto, forceCreate));
         }
-
         [HttpPut("UpdateCase/{id:long}")]
         [Consumes("multipart/form-data")]
         [HasPermission(Permissions.UrgentCases.Update)]

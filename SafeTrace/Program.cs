@@ -140,6 +140,7 @@ namespace SafeTrace
             }
 
 
+            app.UseCors("CorsPolicy");
 
             await app.SeedDataAsync();
             await app.ApplyPendingMigrationsAsync();
@@ -173,7 +174,6 @@ namespace SafeTrace
 
             app.UseHttpsRedirection();
             app.UseStaticFiles();
-            app.UseCors("CorsPolicy");
 
             app.UseRateLimiter();
             
