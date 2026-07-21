@@ -110,6 +110,16 @@ namespace SafeTrace.API.Controllers
             var result = await _user.UpdateHomeLocationAsync(GetCurrentUserId(), dTO);
             return Ok(result);
         }
+        /// <summary>
+        /// لتحديد الموقع الحالي للمستخدم
+        /// </summary>
+        /// <returns></returns>
+        [HttpPut("UpdateCurrentLocation")]
+        public async Task<IActionResult> UpdateCurrentLoc(UpdateCurrentLocationDTO dto)
+        {
+            var result = await _user.UpdateCurrentLocation(GetCurrentUserId(), dto);
+            return Ok(result);
+        }
 
         /// <summary>
         /// تعديل رقم الهاتف
@@ -123,6 +133,7 @@ namespace SafeTrace.API.Controllers
             var result = await _user.UpdatePhoneNumberAsync(GetCurrentUserId(), dto);
             return Ok(result);
         }
+
 
 
         private string GetCurrentUserId()

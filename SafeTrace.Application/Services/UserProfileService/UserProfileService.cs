@@ -98,6 +98,7 @@ namespace SafeTrace.Application.Services.UserProfileServices
         }
 
         #endregion
+
         #region Update
 
         private async Task<ApplicationUser> GetUser(string userId)
@@ -243,6 +244,18 @@ namespace SafeTrace.Application.Services.UserProfileServices
 
         }
 
+
+
+        public async Task<ApiResponse<bool>> UpdateCurrentLocation(string userId, UpdateCurrentLocationDTO dto)
+        {
+            var user = await GetUser(userId);
+            _mapper.Map(dto, user);
+            var result = await _userManager.UpdateAsync(user);
+            if (!result.Succeeded)
+                throw new BadRequestException("حدث خطأ أثناء تحديث الموقع.");
+
+            return ApiResponse<bool>.Ok(true, "تم تحديث عنوانك بنجاح");
+        }
         #endregion
 
         #region My Cases
@@ -273,7 +286,7 @@ namespace SafeTrace.Application.Services.UserProfileServices
 
             if (!string.IsNullOrWhiteSpace(filter.CaseCode))
             {
-               query = query.Where(x => EF.Functions.Like(x.CaseCode, $"%{filter.CaseCode}%"));
+                query = query.Where(x => EF.Functions.Like(x.CaseCode, $"%{filter.CaseCode}%"));
             }
 
             if (filter.CaseType.HasValue)
@@ -307,6 +320,8 @@ namespace SafeTrace.Application.Services.UserProfileServices
 
             return ApiResponse<PaginationResponseDto<MyCaseListItemDto>>.Ok(result, "تم استرجاع الحالات الخاصة بالمستخدم بنجاح.");
         }
+
+
 
         #endregion
 
