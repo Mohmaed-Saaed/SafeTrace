@@ -1,9 +1,10 @@
-﻿using NetTopologySuite.Geometries;
+using NetTopologySuite.Geometries;
 using SafeTrace.Infrastructure.DataAccess.Configurations;
+using Audit.EntityFramework;
 
 namespace SafeTrace.Infrastructure.DataAccess
 {
-    public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
+    public class ApplicationDbContext : AuditIdentityDbContext<ApplicationUser>
     {
         public DbSet<ApplicationUser> ApplicationUsers { get; set; }
         public DbSet<Case> Cases { get; set; }
@@ -20,6 +21,7 @@ namespace SafeTrace.Infrastructure.DataAccess
         public DbSet<UserOtp> UserOtps { get; set; }
         public DbSet<RefreshToken> RefreshTokens { get; set; }
         public DbSet<Donation> Donations { get; set; }
+        public DbSet<AuditLog> AuditLogs { get; set; }
 
         public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) : base(options)
         {
