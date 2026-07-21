@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using SafeTrace.Application.DTOs.Chat;
 using SafeTrace.Application.Constants;
@@ -193,6 +193,22 @@ namespace SafeTrace.API.Controllers
         [FromQuery] int pageSize = 20)
         {
             var result = await _chatService.GetAllChatsAsync(page, pageSize, filter);
+            return Ok(result);
+        }
+
+        /// <summary>
+        /// Retrieves statistics about all chats in the system.
+        /// </summary>
+        /// <remarks>
+        /// Available only for administrators.
+        /// </remarks>
+        /// <response code="200">Statistics retrieved successfully.</response>
+        /// <response code="403">Forbidden.</response>
+        [HttpGet("admin/statistics")]
+        [HasPermission(Permissions.Chat.GetChatStatistics)]
+        public async Task<IActionResult> GetChatStatistics()
+        {
+            var result = await _chatService.GetChatStatisticsAsync();
             return Ok(result);
         }
 

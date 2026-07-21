@@ -483,6 +483,12 @@ namespace SafeTrace.Infrastructure.Services
                 else
                 {
                     CheckIfUserIsBlocked(user);
+
+                    if (!user.EmailConfirmed)
+                    {
+                        user.EmailConfirmed = true;
+                        await _userManager.UpdateAsync(user);
+                    }
                 }
 
                 var userLoginInfo = await _userManager.GetLoginsAsync(user);

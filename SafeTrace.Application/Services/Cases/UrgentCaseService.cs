@@ -245,8 +245,11 @@ namespace SafeTrace.Application.Services.Cases
 
             return ApiResponse<string>.Ok(message: "تم تحديث الحالة العاجلة بنجاح.");
         }
-
-        public async Task<UrgentCreationStatusResponse> GetUrgentCreationStatusAsync(string userId)
+        
+        /// <summary>
+        /// Retrieves the user's urgent case creation status and the remaining time before they are allowed to create a new urgent case.
+        /// </summary>
+        public async Task<ApiResponse<UrgentCreationStatusResponse>> GetUrgentCreationStatusAsync(string userId)
         {
             var now = DateTime.UtcNow;
 
@@ -262,30 +265,34 @@ namespace SafeTrace.Application.Services.Cases
 
             if (lastCase == null)
             {
-                return new UrgentCreationStatusResponse
-                {
-                    IsAllowed = true,
-                    RemainingMinutes = 0
-                };
+                return ApiResponse<UrgentCreationStatusResponse>.Ok(
+                    new UrgentCreationStatusResponse
+                    {
+                        IsAllowed = true,
+                        RemainingMinutes = 0
+                    });
             }
 
             if (lastCase.LimitReachDate <= now)
             {
-                return new UrgentCreationStatusResponse
-                {
-                    IsAllowed = true,
-                    RemainingMinutes = 0
-                };
+                return ApiResponse<UrgentCreationStatusResponse>.Ok(
+                    new UrgentCreationStatusResponse
+                    {
+                        IsAllowed = true,
+                        RemainingMinutes = 0
+                    });
             }
 
             var remainingMinutes = (int)Math.Ceiling((lastCase.LimitReachDate - now).TotalMinutes);
 
-            return new UrgentCreationStatusResponse
-            {
-                IsAllowed = false,
-                RemainingMinutes = remainingMinutes
-            };
-        }        
+            return ApiResponse<UrgentCreationStatusResponse>.Ok(
+                new UrgentCreationStatusResponse
+                {
+                    IsAllowed = false,
+                    RemainingMinutes = remainingMinutes
+                });
+        }
+        
         private static Point CreateUserLocation(UrgentCasesFilterDto filter)
         {
             return new Point(filter.Longitude!.Value,filter.Latitude!.Value){ SRID = 4326 };

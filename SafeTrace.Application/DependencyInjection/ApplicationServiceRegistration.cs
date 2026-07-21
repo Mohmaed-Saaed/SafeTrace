@@ -23,14 +23,12 @@ namespace SafeTrace.Application.DependencyInjection
             services.AddScoped<ICaseCleanupService, CaseCleanupService>();
             services.AddScoped<IImageUrlService, ImageUrlService>();
             services.AddScoped<IFoundedService, FoundedService>();
-
             services.AddScoped<IUserProfileService, UserProfileService>();
             services.AddScoped<INotificationServices, NotificationService>();
-
             services.AddScoped<IChatService, ChatService>();
             services.AddScoped<IMessageService, MessageService>();
-
             services.AddScoped<IAIMatchingService, AIMatchingService>();
+            services.AddScoped<IComplaintService, ComplaintService>();
             services.AddAutoMapper(cfg => { }, typeof(ApplicationServiceRegistration).Assembly);
 
             return services;

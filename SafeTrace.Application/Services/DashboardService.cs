@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using SafeTrace.Application.DTOs.Dashboard.Response;
+using SafeTrace.Application.DTOs.Dashboard.Request;
 using SafeTrace.Application.DTOs.Responses;
 using SafeTrace.Application.Interfaces.IServices;
 using SafeTrace.Domain.Entities;
@@ -101,6 +102,63 @@ namespace SafeTrace.Application.Services
                 .FirstOrDefaultAsync();
 
             return ApiResponse<CasesStatisticsDto>.Ok(stats ?? new CasesStatisticsDto(), "تم جلب إحصائيات الحالات بنجاح.");
+        }
+
+        public async Task<ApiResponse<PaginationResponseDto<AuditLogDto>>> GetAuditLogsAsync(AuditLogQueryDto query)
+        {
+            var auditQuery = _unitOfWork.Repository<AuditLog>().Query(tracked: false);
+
+            if (!string.IsNullOrEmpty(query.SearchTable))
+            {
+                auditQuery = auditQuery.Where(a => a.TableName.Contains(query.SearchTable));
+            }
+
+            if (!string.IsNullOrEmpty(query.SearchType))
+            {
+                auditQuery = auditQuery.Where(a => a.Type == query.SearchType);
+            }
+
+            var queryResult = auditQuery.Join(
+                _userManager.Users,
+                a => a.UserId,
+                u => u.Id,
+                (a, u) => new { Audit = a, User = u }
+            );
+
+            if (!string.IsNullOrEmpty(query.SearchEmail))
+            {
+                queryResult = queryResult.Where(x => x.User.Email.Contains(query.SearchEmail));
+            }
+
+            int totalCount = await queryResult.CountAsync();
+
+            var logs = await queryResult
+                .OrderByDescending(x => x.Audit.DateTime)
+                .Skip((query.PageNumber - 1) * query.PageSize)
+                .Take(query.PageSize)
+                .Select(x => new AuditLogDto
+                {
+                    Id = x.Audit.Id,
+                    UserEmail = x.User.Email,
+                    Type = x.Audit.Type,
+                    TableName = x.Audit.TableName,
+                    DateTime = x.Audit.DateTime,
+                    OldValues = x.Audit.OldValues,
+                    NewValues = x.Audit.NewValues,
+                    AffectedColumns = x.Audit.AffectedColumns,
+                    PrimaryKey = x.Audit.PrimaryKey
+                })
+                .ToListAsync();
+
+            var response = new PaginationResponseDto<AuditLogDto>
+            {
+                Items = logs,
+                TotalCount = totalCount,
+                PageNumber = query.PageNumber,
+                PageSize = query.PageSize
+            };
+
+            return ApiResponse<PaginationResponseDto<AuditLogDto>>.Ok(response);
         }
     }
 }

@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using SafeTrace.Application.DTOs.Chat;
 using SafeTrace.Application.DTOs.Message;
@@ -248,6 +248,7 @@ namespace SafeTrace.Application.Services
                 CaseId = chat.CaseId,
                 CaseTitle = $"{chat.Case.FName} {chat.Case.SName} {chat.Case.TName} {chat.Case.LName}",
                 CaseImage = primaryImage,
+                CaseType = chat.Case.CaseType,
 
                 CreatedAt = chat.CreatedAt
             };
@@ -266,6 +267,18 @@ namespace SafeTrace.Application.Services
                 dto.DeletedByReceiver = chat.DeletedByReceiver;
                 dto.SenderDeletedAt = chat.SenderDeletedAt;
                 dto.ReceiverDeletedAt = chat.ReceiverDeletedAt;
+
+                dto.OtherUserId = chat.SenderId == currentUserId
+                    ? chat.Receiver.Id
+                    : chat.Sender.Id;
+
+                dto.OtherUserName = chat.SenderId == currentUserId
+                    ? $"{chat.Receiver.FName} {chat.Receiver.LName}"
+                : $"{chat.Sender.FName} {chat.Sender.LName}";
+
+                dto.OtherUserImage = chat.SenderId == currentUserId
+                     ? chat.Receiver.ProfileImage
+                    : chat.Sender.ProfileImage;
             }
             else
             {
@@ -347,7 +360,17 @@ namespace SafeTrace.Application.Services
 
             var messageDtos = _mapper.Map<List<MessageDto>>(messages);
 
-            foreach(var message in messageDtos)
+            if (!isAdmin)
+            {
+                foreach (var message in messages)
+                {
+                    if (message.IsDeletedForEveryone)
+                    {
+                        message.Content = "تم حذف هذه الرسالة";
+                    }
+                }
+            }
+            foreach (var message in messageDtos)
             {
                 message.IsMine = message.SenderId == currentUserId;
             }
@@ -430,7 +453,7 @@ namespace SafeTrace.Application.Services
             var baseQuery = _unitOfWork.Repository<Chat>()
                 .Query(
                  false,
-                 c => c.CreatedAt,
+                 null,
                 OrderBy.Descending,
                 null,
                 null,
@@ -439,11 +462,13 @@ namespace SafeTrace.Application.Services
                 c => c.Sender,
                 c => c.Receiver);
 
+
+
             if (filter.FromDate.HasValue)
                 baseQuery = baseQuery.Where(c => c.CreatedAt >= filter.FromDate);
 
             if (filter.ToDate.HasValue)
-                baseQuery = baseQuery.Where(c => c.CreatedAt <= filter.ToDate);
+                baseQuery = baseQuery.Where(c => c.CreatedAt <= filter.ToDate.Value.Date.AddDays(1).AddTicks(-1));
 
             if (filter.IsDeletedBySender.HasValue)
                 baseQuery = baseQuery.Where(c => c.DeletedBySender == filter.IsDeletedBySender);
@@ -468,6 +493,10 @@ namespace SafeTrace.Application.Services
                     c.Case.LName.Contains(filter.Search) 
                     );
             }
+            baseQuery = baseQuery.OrderByDescending(c =>
+            c.Messages
+                .Select(m => (DateTime?)m.SendAt)
+                .Max() ?? c.CreatedAt);
 
             var totalCount = await baseQuery.CountAsync();
 
@@ -480,6 +509,8 @@ namespace SafeTrace.Application.Services
             {
                 ChatId = c.Id,
                 CaseId = c.CaseId,
+                CaseTitle = $"{c.Case.FName} {c.Case.SName} {c.Case.TName} {c.Case.LName}",
+                CaseType = c.Case.CaseType,
                 SenderId = c.SenderId,
                 ReceiverId = c.ReceiverId,
 
@@ -495,6 +526,11 @@ namespace SafeTrace.Application.Services
                 LastMessage = c.Messages
                 .OrderByDescending(m => m.SendAt)
                 .Select(m => m.Content)
+                .FirstOrDefault(),
+
+                LastMessageAt = c.Messages
+                .OrderByDescending(m => m.SendAt)
+                .Select(m => (DateTime?)DateTime.SpecifyKind(m.SendAt, DateTimeKind.Utc))
                 .FirstOrDefault(),
 
                 IsDeletedBySender = c.DeletedBySender,
@@ -514,6 +550,31 @@ namespace SafeTrace.Application.Services
 
             return ApiResponse<PaginationResponseDto<AdminChatsDto>>
             .Ok(result, "تم جلب المحادثات بنجاح.");
+        }
+
+        public async Task<ApiResponse<AdminChatStatisticsDto>> GetChatStatisticsAsync()
+        {
+            var chatsStats = await _unitOfWork.Repository<Chat>().Query(tracked: false)
+                .GroupBy(c => new { c.DeletedBySender, c.DeletedByReceiver })
+                .Select(g => new { g.Key.DeletedBySender, g.Key.DeletedByReceiver, Count = g.Count() })
+                .ToListAsync();
+
+            var totalChats = chatsStats.Sum(x => x.Count);
+            var activeChats = chatsStats.Where(x => !x.DeletedBySender && !x.DeletedByReceiver).Sum(x => x.Count);
+            var deletedBySenderOnly = chatsStats.Where(x => x.DeletedBySender && !x.DeletedByReceiver).Sum(x => x.Count);
+            var deletedByReceiverOnly = chatsStats.Where(x => !x.DeletedBySender && x.DeletedByReceiver).Sum(x => x.Count);
+            var deletedByBoth = chatsStats.Where(x => x.DeletedBySender && x.DeletedByReceiver).Sum(x => x.Count);
+
+            var stats = new AdminChatStatisticsDto
+            {
+                TotalChats = totalChats,
+                ActiveChats = activeChats,
+                DeletedBySenderOnly = deletedBySenderOnly,
+                DeletedByReceiverOnly = deletedByReceiverOnly,
+                DeletedByBoth = deletedByBoth
+            };
+
+            return ApiResponse<AdminChatStatisticsDto>.Ok(stats, "تم جلب الإحصائيات بنجاح.");
         }
 
         private void EnsureParticipant(Chat chat, string userId)
