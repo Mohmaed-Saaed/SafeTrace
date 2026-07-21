@@ -22,6 +22,143 @@ namespace SafeTrace.Application.Services.Cases
         {
         }
       
+        /// <summary>
+        /// Customizes the base query used by GetAllAsync (inherited from BaseCasesService):
+        /// includes DuplicateGroups and collapses each duplicate group down to its most recent case.
+        /// Shared filtering, sorting, pagination, and mapping are still handled by GetPagedResultAsync
+        /// in the base class via the inherited GetAllAsync.
+        /// </summary>
+        protected override IQueryable<UnknownCase> BuildGetAllQuery()
+        {
+            var latestCaseIds = _unitOfWork
+                .Repository<DuplicateGroupCase>()
+                .Query(tracked: false)
+                .GroupBy(x => x.DuplicateGroupId)
+                .Select(g => g
+                .Where(x => x.Case.Status == CaseStatus.Active)
+.                 OrderByDescending(x => x.Case.CreatedAt)
+                    .Select(x => x.CaseId)
+                    .First());
+
+            return _unitOfWork
+                .Repository<UnknownCase>()
+                .Query(
+                    tracked: false,
+                    includes:
+                    [
+                        x => x.CaseFiles,
+                        x => x.DuplicateGroups
+                    ])
+                .Where(x =>
+                    x.Status == CaseStatus.Active &&
+                    (
+                        !x.DuplicateGroups.Any() ||
+                        latestCaseIds.Contains(x.Id)
+                    ));
+        }
+
+        /// <summary>
+        /// Populates RelatedCases on the mapped DTO after the base class's GetByIdAsync
+        /// has retrieved and mapped the entity. Other case types are unaffected since this
+        /// hook is a no-op in BaseCasesService by default.
+        /// </summary>
+        //protected override async Task AfterGetByIdAsync(UnknownCaseDetailDto dto, long id)
+        //{
+        //    var groupId = await _unitOfWork
+        //        .Repository<DuplicateGroupCase>()
+        //        .Query(tracked: false)
+        //        .Where(x => x.CaseId == id)
+        //        .Select(x => (long?)x.DuplicateGroupId)
+        //        .FirstOrDefaultAsync();
+
+        //    if (groupId == null)
+        //        return;
+
+        //    var relatedCases = await _unitOfWork
+        //        .Repository<DuplicateGroupCase>()
+        //        .Query(
+        //            tracked: false,
+        //            includes:
+        //            [
+        //                x => x.Case,
+        //                x => x.Case.CaseFiles
+        //            ])
+        //       .Where(x =>
+        //       x.DuplicateGroupId == groupId &&
+        //       x.CaseId != id &&
+        //       x.Case.Status == CaseStatus.Active)
+        //        .OrderByDescending(x => x.Case.CreatedAt)
+        //        .ToListAsync();
+
+        //    dto.RelatedCases = relatedCases
+        //        .Select(x => new RelatedUnknownCaseDto
+        //        {
+        //            Id = x.Case.Id,
+        //            CaseCode = x.Case.CaseCode,
+        //            CreatedAt = x.Case.CreatedAt,
+        //            Similarity = (float)x.SimilarityScore,
+        //            MainPhotoPath = x.Case.CaseFiles
+        //                .Where(f => f.IsPrimary)
+        //                .Select(f => f.ImagePath)
+        //                .FirstOrDefault() ?? string.Empty
+        //        })
+        //        .ToList();
+        //}
+        protected override async Task AfterGetByIdAsync(
+    UnknownCaseDetailDto dto,
+    long id,
+    bool isAdmin)
+        {
+            var groupId = await _unitOfWork
+                .Repository<DuplicateGroupCase>()
+                .Query(tracked: false)
+                .Where(x => x.CaseId == id)
+                .Select(x => (long?)x.DuplicateGroupId)
+                .FirstOrDefaultAsync();
+
+            if (groupId == null)
+                return;
+
+            var query = _unitOfWork
+                .Repository<DuplicateGroupCase>()
+                .Query(
+                    tracked: false,
+                    includes:
+                    [
+                        x => x.Case,
+                x => x.Case.CaseFiles
+                    ])
+                .Where(x =>
+                    x.DuplicateGroupId == groupId &&
+                    x.CaseId != id);
+
+            // المستخدم العادي يشوف الحالات الـ Active فقط
+            if (!isAdmin)
+            {
+                query = query.Where(x => x.Case.Status == CaseStatus.Active);
+            }
+
+            var relatedCases = await query
+                .OrderByDescending(x => x.Case.CreatedAt)
+                .ToListAsync();
+
+            dto.RelatedCases = relatedCases
+                .Select(x => new RelatedUnknownCaseDto
+                {
+                    Id = x.Case.Id,
+                    CaseCode = x.Case.CaseCode,
+                    CreatedAt = x.Case.CreatedAt,
+                    //Similarity = (float)x.SimilarityScore,
+                    Similarity = x.SimilarityScore == null
+                   ? null
+                   : (float)x.SimilarityScore.Value,
+                    MainPhotoPath = x.Case.CaseFiles
+                        .Where(f => f.IsPrimary)
+                        .Select(f => f.ImagePath)
+                        .FirstOrDefault() ?? string.Empty
+                })
+                .ToList();
+        }
         public async Task<ApiResponse<CreateCaseResultDto>> CreateUnknownCaseAsync(string userId, CreateUnknownDto dto, bool forceCreate = false)
         {
             await _caseHelper.ValidateVerifiedUserAsync(userId);
@@ -359,7 +496,138 @@ namespace SafeTrace.Application.Services.Cases
 
             return ApiResponse<string>.Ok(message: "تم تحديث حالة مجهول الهوية بنجاح");
         }
-            
+
+        private async Task LinkCaseToDuplicateGroupAsync(UnknownCase newCase, MatchedCaseDto? sameTypeMatch)
+        {
+            if (sameTypeMatch == null)
+            {
+                await CreateDuplicateGroupAsync(newCase);
+                return;
+            }
+
+            var matchedCase = await GetMatchedCaseAsync(sameTypeMatch.Id, newCase.Id);
+
+            if (matchedCase == null)
+            {
+                await CreateDuplicateGroupAsync(newCase);
+                return;
+            }
+
+            var groupLink = await _unitOfWork
+                .Repository<DuplicateGroupCase>()
+                .Query(tracked: true)
+                .FirstOrDefaultAsync(x => x.CaseId == matchedCase.Id);
+
+            if (groupLink == null)
+            {
+                await CreateDuplicateGroupWithCasesAsync(
+                    matchedCase,
+                    newCase,
+                    (decimal)sameTypeMatch.Similarity);
+
+                return;
+            }
+
+            await AddCaseToGroupAsync(
+                groupLink.DuplicateGroupId,
+                newCase.Id,
+                (decimal)sameTypeMatch.Similarity);
+        }
+
+        private async Task<UnknownCase?> GetMatchedCaseAsync(long caseId, long currentCaseId)
+        {
+            return await _unitOfWork
+                .Repository<UnknownCase>()
+                .Query(tracked: true)
+                .Where(x =>
+                    x.Id == caseId &&
+                    x.Id != currentCaseId &&
+                    x.Status != CaseStatus.Deleted)
+                .FirstOrDefaultAsync();
+        }
+
+        private async Task CreateDuplicateGroupAsync(UnknownCase newCase)
+        {
+            var group = new DuplicateGroup
+            {
+                GroupStatus = DuplicateGroupStatus.Confirmed,
+                CreatedAt = DateTime.UtcNow
+            };
+
+            await _unitOfWork
+                .Repository<DuplicateGroup>()
+                .CreateAsync(group);
+
+            await _unitOfWork
+                .Repository<DuplicateGroupCase>()
+                .CreateAsync(new DuplicateGroupCase
+                {
+                    DuplicateGroup = group,
+                    CaseId = newCase.Id,
+                    SimilarityScore = null,
+                    MatchedBy = DuplicateMatchType.AI,
+                    CreatedAt = DateTime.UtcNow
+                });
+        }
+
+        private async Task CreateDuplicateGroupWithCasesAsync(UnknownCase oldCase, UnknownCase newCase, decimal similarity)
+        {
+            var group = new DuplicateGroup
+            {
+                GroupStatus = DuplicateGroupStatus.Confirmed,
+                CreatedAt = DateTime.UtcNow
+            };
+
+            await _unitOfWork
+                .Repository<DuplicateGroup>()
+                .CreateAsync(group);
+
+            await _unitOfWork
+                .Repository<DuplicateGroupCase>()
+                .CreateAsync(new DuplicateGroupCase
+                {
+                    DuplicateGroup = group,
+                    CaseId = oldCase.Id,
+                    SimilarityScore = null,
+                    MatchedBy = DuplicateMatchType.AI,
+                    CreatedAt = DateTime.UtcNow
+                });
+
+            await _unitOfWork
+                .Repository<DuplicateGroupCase>()
+                .CreateAsync(new DuplicateGroupCase
+                {
+                    DuplicateGroup = group,
+                    CaseId = newCase.Id,
+                    SimilarityScore = similarity,
+                    MatchedBy = DuplicateMatchType.AI,
+                    CreatedAt = DateTime.UtcNow
+                });
+        }
+
+        private async Task AddCaseToGroupAsync(long groupId, long caseId, decimal similarity)
+        {
+            var exists = await _unitOfWork
+                .Repository<DuplicateGroupCase>()
+                .Query()
+                .AnyAsync(x =>
+                    x.DuplicateGroupId == groupId &&
+                    x.CaseId == caseId);
+
+            if (exists)
+                return;
+
+            await _unitOfWork
+                .Repository<DuplicateGroupCase>()
+                .CreateAsync(new DuplicateGroupCase
+                {
+                    DuplicateGroupId = groupId,
+                    CaseId = caseId,
+                    SimilarityScore = similarity,
+                    MatchedBy = DuplicateMatchType.AI,
+                    CreatedAt = DateTime.UtcNow
+                });
+        }
+
     }
-    
 }
