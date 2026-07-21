@@ -13,13 +13,19 @@ namespace SafeTrace.Application.DTOs.Cases.Request
         public Gender? Gender { get; set; }
  
         // Text Search
+        [StringLength(243, ErrorMessage = "Full name filter cannot exceed 243 characters.")]
+        [ArabicText(ErrorMessage = "Full name must contain Arabic letters and spaces only.")]
         public string? FullName { get; set; } // Will search FName + SName + TName + LName
+
+        [StringLength(20, ErrorMessage = "Case code filter cannot exceed 20 characters.")]
         public string? CaseCode { get; set; }
 
         [StringLength(100, ErrorMessage = "Government filter cannot exceed 100 characters.")]
+        [ArabicText(ErrorMessage = "Government must contain Arabic letters and spaces only.")]
         public string? Government { get; set; }
 
         [StringLength(100, ErrorMessage = "City filter cannot exceed 100 characters.")]
+        [ArabicText(ErrorMessage = "City must contain Arabic letters and spaces only.")]
         public string? City { get; set; }
  
         // Age filter
@@ -30,10 +36,12 @@ namespace SafeTrace.Application.DTOs.Cases.Request
         public int? MaxAge { get; set; }
  
         // Date filter
-        [DataType(DataType.DateTime)]
+        [PastDate(ErrorMessage = "From date cannot be in the future.")]
+        [DataType(DataType.Date)]
         public DateTime? FromDate { get; set; }
 
-        [DataType(DataType.DateTime)]
+        [PastDate(ErrorMessage = "To date cannot be in the future.")]
+        [DataType(DataType.Date)]
         public DateTime? ToDate { get; set; }
  
         // Sorting
