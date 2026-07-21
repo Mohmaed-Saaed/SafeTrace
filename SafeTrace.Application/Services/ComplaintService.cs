@@ -1,4 +1,4 @@
-﻿using SafeTrace.Application.Constants;
+using SafeTrace.Application.Constants;
 using SafeTrace.Application.DTOs.Complaints;
 using SafeTrace.Application.DTOs.Complaints.Request;
 using SafeTrace.Application.DTOs.Complaints.Response;
@@ -34,6 +34,14 @@ namespace SafeTrace.Application.Services
 
             if (!string.IsNullOrEmpty(filter.CaseCode))
                 query = query.Where(c => c.CaseCode == filter.CaseCode);
+
+            if (!string.IsNullOrEmpty(filter.Search))
+            {
+                var searchTerm = filter.Search.ToLower();
+                query = query.Where(c => 
+                    (c.User.Email != null && c.User.Email.ToLower().Contains(searchTerm)) || 
+                    (c.CaseCode != null && c.CaseCode.ToLower().Contains(searchTerm)));
+            }
 
             if (filter.Status.HasValue)
                 query = query.Where(c => c.ComplaintStatus == filter.Status.Value);

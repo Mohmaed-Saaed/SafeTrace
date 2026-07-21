@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using SafeTrace.Application.DTOs.Chat;
 using SafeTrace.Application.DTOs.Message;
@@ -360,7 +360,17 @@ namespace SafeTrace.Application.Services
 
             var messageDtos = _mapper.Map<List<MessageDto>>(messages);
 
-            foreach(var message in messageDtos)
+            if (!isAdmin)
+            {
+                foreach (var message in messages)
+                {
+                    if (message.IsDeletedForEveryone)
+                    {
+                        message.Content = "تم حذف هذه الرسالة";
+                    }
+                }
+            }
+            foreach (var message in messageDtos)
             {
                 message.IsMine = message.SenderId == currentUserId;
             }
@@ -540,6 +550,31 @@ namespace SafeTrace.Application.Services
 
             return ApiResponse<PaginationResponseDto<AdminChatsDto>>
             .Ok(result, "تم جلب المحادثات بنجاح.");
+        }
+
+        public async Task<ApiResponse<AdminChatStatisticsDto>> GetChatStatisticsAsync()
+        {
+            var chatsStats = await _unitOfWork.Repository<Chat>().Query(tracked: false)
+                .GroupBy(c => new { c.DeletedBySender, c.DeletedByReceiver })
+                .Select(g => new { g.Key.DeletedBySender, g.Key.DeletedByReceiver, Count = g.Count() })
+                .ToListAsync();
+
+            var totalChats = chatsStats.Sum(x => x.Count);
+            var activeChats = chatsStats.Where(x => !x.DeletedBySender && !x.DeletedByReceiver).Sum(x => x.Count);
+            var deletedBySenderOnly = chatsStats.Where(x => x.DeletedBySender && !x.DeletedByReceiver).Sum(x => x.Count);
+            var deletedByReceiverOnly = chatsStats.Where(x => !x.DeletedBySender && x.DeletedByReceiver).Sum(x => x.Count);
+            var deletedByBoth = chatsStats.Where(x => x.DeletedBySender && x.DeletedByReceiver).Sum(x => x.Count);
+
+            var stats = new AdminChatStatisticsDto
+            {
+                TotalChats = totalChats,
+                ActiveChats = activeChats,
+                DeletedBySenderOnly = deletedBySenderOnly,
+                DeletedByReceiverOnly = deletedByReceiverOnly,
+                DeletedByBoth = deletedByBoth
+            };
+
+            return ApiResponse<AdminChatStatisticsDto>.Ok(stats, "تم جلب الإحصائيات بنجاح.");
         }
 
         private void EnsureParticipant(Chat chat, string userId)

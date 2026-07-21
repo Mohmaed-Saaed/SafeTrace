@@ -295,7 +295,7 @@ namespace SafeTrace.Application.Services
             _unitOfWork.Repository<Message>().Update(message);
             await _unitOfWork.SaveAsync();
 
-            await _chatNotifier.NotifyMessageDeletedForEveryone(message.ChatId, message.Id);
+            await _chatNotifier.NotifyMessageDeletedForEveryone(message.ChatId, message.Id, message.ForEveryoneDeletedAt.Value);
 
             return ApiResponse<MessageDto>.Ok(
                 _mapper.Map<MessageDto>(message),

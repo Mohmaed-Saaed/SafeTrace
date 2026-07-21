@@ -2,6 +2,10 @@ using ElmahCore.Mvc;
 using Microsoft.AspNetCore.Mvc;
 using SafeTrace.API.ExceptionHandlers;
 using SafeTrace.API.ExtensionMethods;
+using Audit.Core;
+using Audit.EntityFramework;
+using SafeTrace.Domain.Entities;
+using System.Security.Claims;
 using SafeTrace.API.Hubs;
 using SafeTrace.Application.DependencyInjection;
 using SafeTrace.Application.Hubs;
@@ -91,6 +95,67 @@ namespace SafeTrace
                 .UseRecommendedSerializerSettings()
                 .UseSqlServerStorage(builder.Configuration.GetConnectionString("DefaultConnection")));
             builder.Services.AddHangfireServer();
+
+            Audit.Core.Configuration.Setup()
+                .UseEntityFramework(ef => ef
+                    .AuditTypeMapper(t => typeof(AuditLog))
+                    .AuditEntityAction<AuditLog>((ev, entry, entity) =>
+                    {
+                        var realChanges = entry.Changes?.Where(c => !Equals(c.OriginalValue, c.NewValue)).ToList();
+
+                        entity.TableName = entry.Table;
+                        entity.Type = entry.Action;
+                        var egyptTimeZone = TimeZoneInfo.FindSystemTimeZoneById("Egypt Standard Time");
+                        entity.DateTime = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, egyptTimeZone);
+                        entity.UserId = ev.CustomFields.ContainsKey("UserId") ? ev.CustomFields["UserId"]?.ToString() : null;
+                        entity.PrimaryKey = string.Join(",", entry.PrimaryKey.Values);
+                        
+                        if (entry.Action == "Insert") 
+                        {
+                            entity.NewValues = entry.ColumnValues != null ? System.Text.Json.JsonSerializer.Serialize(entry.ColumnValues) : null;
+                            entity.OldValues = null;
+                            entity.AffectedColumns = null;
+                        } 
+                        else if (entry.Action == "Delete")
+                        {
+                            entity.NewValues = null;
+                            entity.OldValues = entry.ColumnValues != null ? System.Text.Json.JsonSerializer.Serialize(entry.ColumnValues) : null;
+                            entity.AffectedColumns = null;
+                        }
+                        else 
+                        {
+                            entity.OldValues = realChanges?.Count > 0 ? System.Text.Json.JsonSerializer.Serialize(realChanges.ToDictionary(c => c.ColumnName, c => c.OriginalValue)) : null;
+                            entity.NewValues = realChanges?.Count > 0 ? System.Text.Json.JsonSerializer.Serialize(realChanges.ToDictionary(c => c.ColumnName, c => c.NewValue)) : null;
+                            entity.AffectedColumns = realChanges?.Count > 0 ? string.Join(", ", realChanges.Select(c => c.ColumnName)) : null;
+                        }
+                    })
+                    .IgnoreMatchedProperties(true));
+
+            Audit.Core.Configuration.AddCustomAction(ActionType.OnScopeCreated, scope =>
+            {
+                var httpContext = new HttpContextAccessor().HttpContext;
+                scope.Event.CustomFields["UserId"] = httpContext?.User?.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            });
+
+            Audit.Core.Configuration.AddCustomAction(ActionType.OnEventSaving, scope =>
+            {
+                var efEvent = scope.Event.GetEntityFrameworkEvent();
+                if (efEvent != null)
+                {
+                    var ignoredTables = new[] 
+                    { 
+                        "RefreshTokens", "UserOtps", "Notifications", 
+                        "Messages", "Chats", "AiSearchUsages", 
+                        "AspNetUserTokens", "AspNetUserLogins" 
+                    };
+
+                    efEvent.Entries.RemoveAll(e => ignoredTables.Contains(e.Table));
+                    if (efEvent.Entries.Count == 0)
+                    {
+                        scope.Discard();
+                    }
+                }
+            });
 
             var app = builder.Build();
 

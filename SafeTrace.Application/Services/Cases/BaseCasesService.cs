@@ -469,6 +469,7 @@ namespace SafeTrace.Application.Services.Cases
             var entity = await _caseHelper.GetValidCaseAsync<TEntity>(
                 id,
                 tracked: false,
+                allowDeleted: activeOnly ? false : true,
                 includes: includes);
 
             if (activeOnly && entity.Status != CaseStatus.Active)
