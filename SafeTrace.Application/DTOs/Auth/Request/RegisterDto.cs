@@ -18,10 +18,9 @@ namespace SafeTrace.Application.DTOs.Auth.Request
         [EmailAddress(ErrorMessage = "صيغة البريد الإلكتروني غير صحيحة.")]
         public string Email { get; set; } = null!;
 
-        [Required(ErrorMessage = "رقم الهاتف مطلوب.")]
         [Phone(ErrorMessage = "صيغة رقم الهاتف غير صحيحة.")]
         [RegularExpression(@"^01[0125][0-9]{8}$", ErrorMessage = "يرجى إدخال رقم هاتف مصري صحيح.")]
-        public string PhoneNumber { get; set; } = null!;
+        public string? PhoneNumber { get; set; }
 
         [Required(ErrorMessage = "كلمة المرور مطلوبة.")]
         [StringLength(50, MinimumLength = 8, ErrorMessage = "يجب أن تتكون كلمة المرور من 8 أحرف على الأقل ولا تزيد عن 50 حرف.")]

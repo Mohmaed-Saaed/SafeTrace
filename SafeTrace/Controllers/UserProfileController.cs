@@ -1,13 +1,10 @@
 ﻿using System.Security.Claims;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SafeTrace.Application.Constants;
 using SafeTrace.Application.DTOs.Responses;
 using SafeTrace.Application.DTOs.User_Profiel_DTOS;
 using SafeTrace.Application.DTOs.User_Profiel_DTOS.Update_Profile_DTOS;
-using SafeTrace.Application.Interfaces.IServices;
 using SafeTrace.Application.Interfaces.IServices.IUserProfile;
-using SafeTrace.Application.Services.UserProfileServices;
 using SafeTrace.Infrastructure.Authorization;
 namespace SafeTrace.API.Controllers
 {
@@ -113,6 +110,16 @@ namespace SafeTrace.API.Controllers
             var result = await _user.UpdateHomeLocationAsync(GetCurrentUserId(), dTO);
             return Ok(result);
         }
+        /// <summary>
+        /// لتحديد الموقع الحالي للمستخدم
+        /// </summary>
+        /// <returns></returns>
+        [HttpPut("UpdateCurrentLocation")]
+        public async Task<IActionResult> UpdateCurrentLoc(UpdateCurrentLocationDTO dto)
+        {
+            var result = await _user.UpdateCurrentLocation(GetCurrentUserId(), dto);
+            return Ok(result);
+        }
 
         /// <summary>
         /// تعديل رقم الهاتف
@@ -128,26 +135,15 @@ namespace SafeTrace.API.Controllers
         }
 
 
+
         private string GetCurrentUserId()
         {
             return User.FindFirstValue(ClaimTypes.NameIdentifier) ?? throw new UnauthorizedAccessException("تعذر التحقق من هوية المستخدم.");
         }
 
-        #region Old Update End Point
 
-        [HttpPut("UpdateInfo")]
-        [HasPermission(Permissions.Profile.UpdateUserInfo)]
-        public async Task<IActionResult> UpdateUserInfo([FromForm] UpdateProfileInfoDTO dTO)
-        {
-            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            var UpdateProfile = await _user.UpdateProfileInfoAsync(userId, dTO);
-            if (UpdateProfile == null)
-                return NotFound();
-            return Ok(UpdateProfile);
-        }
-        #endregion 
         #endregion
-    
+
         #region My Cases
         [HttpGet("MyCases")]
         [HasPermission(Permissions.Profile.GetMyCases)]

@@ -45,13 +45,12 @@ namespace SafeTrace.Infrastructure.Services
 
         public async Task<ApiResponse<PaginationResponseDto<GetUserDto>>> GetAllUsersAsync(UserFilterDto filterDto)
         {
-            var query = _userManager.Users.AsNoTracking();
+            var query = _userManager.Users.AsNoTracking().Where(u => u.EmailConfirmed);
 
             if (!string.IsNullOrWhiteSpace(filterDto.SearchTerm))
             {
                 var term = filterDto.SearchTerm.Trim().ToLower();
-                query = query.Where(u => u.FName.Contains(term) ||
-                                         u.LName.Contains(term) ||
+                query = query.Where(u => (u.FName + " " + u.LName).Contains(term) ||
                                          u.Email!.Contains(term) ||
                                          u.PhoneNumber!.Contains(term));
             }
@@ -85,7 +84,7 @@ namespace SafeTrace.Infrastructure.Services
 
             var totalCount = await query.CountAsync();
 
-            var userDtosQuery = query.Select(u => new GetUserDto
+            var userDtosQuery = query.OrderBy(u => u.FName).ThenBy(u => u.LName).Select(u => new GetUserDto
             {
                 Id = u.Id,
                 FName = u.FName,
@@ -165,7 +164,7 @@ namespace SafeTrace.Infrastructure.Services
             var currentRole = currentRoles.FirstOrDefault() ?? "User";
 
             var removeResult = await _userManager.RemoveFromRolesAsync(user, currentRoles);
-            if (!removeResult.Succeeded) throw new BadRequestException("فشل في إزالة الأدوار الحالية للمستخدم.");
+            if (!removeResult.Succeeded) throw new BadRequestException("فشل في إزالة الدور الحالي للمستخدم.");
 
             var addResult = await _userManager.AddToRoleAsync(user, dto.NewRole);
             if (!addResult.Succeeded) throw new BadRequestException("فشل في تعيين الدور الجديد للمستخدم.");
@@ -500,6 +499,31 @@ namespace SafeTrace.Infrastructure.Services
 
             _logger.LogWarning($"New permissions assigned for User with ID: {dto.UserId}");
             return ApiResponse<string>.Ok(null, "تم تحديث الصلاحيات الخاصة بالمستخدم بنجاح.");
+        }
+
+        public async Task<ApiResponse<UserStatisticsDto>> GetUsersStatisticsAsync()
+        {
+            var now = DateTimeOffset.UtcNow;
+
+            var totalUsers = await _userManager.Users.Where(u => u.EmailConfirmed).CountAsync();
+            var verifiedUsers = await _userManager.Users.CountAsync(u => u.VerificationStatus == VerificationStatus.Verified);
+            var pendingUsers = await _userManager.Users.CountAsync(u => u.VerificationStatus == VerificationStatus.Pending);
+            var bannedUsers = await _userManager.Users.CountAsync(u => u.LockoutEnd != null && u.LockoutEnd > now);
+
+            var activeUsers = totalUsers - bannedUsers;
+            var unverifiedUsers = totalUsers - verifiedUsers - pendingUsers;
+
+            var statsDto = new UserStatisticsDto
+            {
+                TotalUsers = totalUsers,
+                ActiveUsers = activeUsers,
+                BannedUsers = bannedUsers,
+                VerifiedUsers = verifiedUsers,
+                PendingVerificationUsers = pendingUsers,
+                UnverifiedUsers = unverifiedUsers
+            };
+
+            return ApiResponse<UserStatisticsDto>.Ok(statsDto, "تم جلب إحصائيات المستخدمين بنجاح.");
         }
     }
 }

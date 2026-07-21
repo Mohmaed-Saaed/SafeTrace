@@ -1,11 +1,13 @@
 using NetTopologySuite.Geometries;
-using SafeTrace.Application.DTOs.NotificationDTOS;
-using SafeTrace.Application.Interfaces.IServices.INotificationSewrvice;
-using SafeTrace.Application.Interfaces.IServices.ICases;
 using SafeTrace.Application.Common.Enums;
-using SafeTrace.Application.DTOs.UrgentCase.Response;
-using SafeTrace.Application.DTOs.UrgentCase.Request;
 using SafeTrace.Application.Constants;
+using SafeTrace.Application.DTOs.Cases.Request;
+using SafeTrace.Application.DTOs.Cases.Response;
+using SafeTrace.Application.DTOs.NotificationDTOS;
+using SafeTrace.Application.DTOs.UrgentCase.Request;
+using SafeTrace.Application.DTOs.UrgentCase.Response;
+using SafeTrace.Application.Interfaces.IServices.ICases;
+using SafeTrace.Application.Interfaces.IServices.INotificationSewrvice;
 
 namespace SafeTrace.Application.Services.Cases
 {
@@ -14,11 +16,11 @@ namespace SafeTrace.Application.Services.Cases
         private readonly INotificationServices _notificationServices;
         private readonly IEmailService _emailService;
         private const string FolderName = "UrgentCases";
-        private const int RateLimitDays = 14;
+        private const int RateLimitDays = 2;
         private const int ExpirationHours = 48;
-        private const double NotifyRadiusM = 50_000; // 50 km
-        private const string NotificationBaseUrl = "/urgent-cases/detail/";
-        private const string FrontendBaseUrl = "https://your-frontend-domain.com";
+        private const double NotifyRadiusM = 50_000_000; // 500 km
+        private const string detailsUrl = "/urgent/";
+        private const string FrontendBaseUrl = "https://leqaaweb.runasp.net";
 
         public UrgentCaseService(
             ILogger<UrgentCaseService> logger,
@@ -71,55 +73,109 @@ namespace SafeTrace.Application.Services.Cases
         /// <summary>
         /// Creates a new urgent case with expiration and rate limiting.
         /// </summary>
-        public async Task<ApiResponse<string>> CreateAsync(string userId, UrgentCaseCreateDto dto)
+        public async Task<ApiResponse<CreateCaseResultDto>> CreateAsync(string userId, UrgentCaseCreateDto dto, bool forceCreate = false)
         {
             var rateLimitViolation = await CheckRateLimitAsync(userId);
-
             if (rateLimitViolation is not null)
-                return ApiResponse<string>.Fail(rateLimitViolation);
+            {
+               return ApiResponse<CreateCaseResultDto>.Fail(rateLimitViolation);
+            }
+
+            var subject = new CaseMatchSubjectInfoDto
+            {
+                Gender = dto.Gender,
+                Age = dto.Age
+            };
+
+            var checkResult = await _caseHelper.CheckDuplicateCaseAsync(
+                CaseType.Urgent,
+                subject,
+                dto.PrimaryImage,
+                onSameTypeMatchAsync: duplicate => Task.CompletedTask,
+                forceCreate);
+
+            if (checkResult.IsSameTypeDuplicate)
+            {
+                return ApiResponse<CreateCaseResultDto>.Ok(
+                    new CreateCaseResultDto
+                    {
+                        IsCreated = false,
+                        IsSameTypeDuplicate = true,
+                        MatchedCases = checkResult.MatchedCases
+                    });
+            }
+
+            if (checkResult.RequiresConfirmation)
+            {
+                return ApiResponse<CreateCaseResultDto>.Ok(
+                    new CreateCaseResultDto
+                    {
+                        IsCreated = false,
+                        IsSameTypeDuplicate = false,
+                        MatchedCases = checkResult.MatchedCases
+                    });
+            }
 
             var now = DateTime.UtcNow;
+
             var entity = _mapper.Map<UrgentCase>(dto);
 
             entity.UserId = userId;
             entity.CaseType = CaseType.Urgent;
             entity.Status = CaseStatus.Active;
             entity.CreatedAt = now;
-            entity.LimitReachDate = now.AddDays(RateLimitDays);
-            entity.EndDate = now.AddHours(ExpirationHours);
             entity.CaseCode = await _caseHelper.GenerateCaseCodeAsync(CaseCodePrefix.URG);
             entity.AgeCategoryId = await _caseHelper.ResolveAgeCategoryIdAsync(entity.Age);
-            entity.Location = new Point(dto.Longitude, dto.Latitude) { SRID = 4326 };
+
+            entity.LimitReachDate = now.AddMinutes(RateLimitDays);
+            entity.EndDate = now.AddHours(ExpirationHours);
+            entity.Location = new Point(dto.Longitude, dto.Latitude){ SRID = 4326 };
 
             await ExecuteInTransactionAsync(
                 action: async () =>
                 {
-                    entity.CaseFiles = await _caseHelper.CreateCaseFilesAsync(
+                    var uploadedFiles = await _caseHelper.CreateCaseFilesAsync(
                         dto.PrimaryImage,
                         dto.AdditionalImages,
                         dto.Video,
-                        FolderName);
+                        FolderName,
+                        entity.Id);
+
+                    foreach (var file in uploadedFiles)
+                        entity.CaseFiles.Add(file);
 
                     await _unitOfWork.Repository<UrgentCase>().CreateAsync(entity);
 
                     return true;
                 },
-                onFailureAsync: ex =>
+                onFailureAsync: async ex =>
                 {
-                    _caseHelper.CleanupPhysicalFiles(entity.CaseFiles.Select(p => p.ImagePath));
-                    _logger.LogError(ex, "Failed to create urgent case for user {UserId}", userId);
-                    return Task.CompletedTask;
+                    _caseHelper.CleanupPhysicalFiles(entity.CaseFiles.Select(x => x.ImagePath));
+
+                    await _caseHelper.DeleteFacesAsync(entity.CaseFiles.Select(x => x.FaceId), entity.Id);
+
+                    _logger.LogError(
+                        ex,
+                        "Failed to create Urgent case for user {UserId}",
+                        userId);
                 });
-                
+
             _logger.LogInformation(
-                "Urgent case {CaseCode} created by user {UserId}. EndDate: {EndDate}",
-                entity.CaseCode, userId, entity.EndDate);
+                "Created Urgent case. CaseId={CaseId}, CaseCode={CaseCode}, UserId={UserId}",
+                entity.Id,
+                entity.CaseCode,
+                userId);
 
             _ = NotifyNearbyUsersAsync(entity);
-            
-            return ApiResponse<string>.Ok(message: "تم إنشاء الحالة العاجلة بنجاح.");
+
+            return ApiResponse<CreateCaseResultDto>.Ok(
+                new CreateCaseResultDto
+                {
+                    IsCreated = true,
+                    CaseId = entity.Id
+                });
         }
-        
+
         /// <summary>
         /// Updates an existing urgent case with new photos and location.
         /// </summary>
@@ -189,7 +245,54 @@ namespace SafeTrace.Application.Services.Cases
 
             return ApiResponse<string>.Ok(message: "تم تحديث الحالة العاجلة بنجاح.");
         }
-                
+        
+        /// <summary>
+        /// Retrieves the user's urgent case creation status and the remaining time before they are allowed to create a new urgent case.
+        /// </summary>
+        public async Task<ApiResponse<UrgentCreationStatusResponse>> GetUrgentCreationStatusAsync(string userId)
+        {
+            var now = DateTime.UtcNow;
+
+            var lastCase = await _unitOfWork.Repository<UrgentCase>()
+                .Query(tracked: false)
+                .Where(x => x.UserId == userId)
+                .OrderByDescending(x => x.CreatedAt)
+                .Select(x => new
+                {
+                    x.LimitReachDate
+                })
+                .FirstOrDefaultAsync();
+
+            if (lastCase == null)
+            {
+                return ApiResponse<UrgentCreationStatusResponse>.Ok(
+                    new UrgentCreationStatusResponse
+                    {
+                        IsAllowed = true,
+                        RemainingMinutes = 0
+                    });
+            }
+
+            if (lastCase.LimitReachDate <= now)
+            {
+                return ApiResponse<UrgentCreationStatusResponse>.Ok(
+                    new UrgentCreationStatusResponse
+                    {
+                        IsAllowed = true,
+                        RemainingMinutes = 0
+                    });
+            }
+
+            var remainingMinutes = (int)Math.Ceiling((lastCase.LimitReachDate - now).TotalMinutes);
+
+            return ApiResponse<UrgentCreationStatusResponse>.Ok(
+                new UrgentCreationStatusResponse
+                {
+                    IsAllowed = false,
+                    RemainingMinutes = remainingMinutes
+                });
+        }
+        
         private static Point CreateUserLocation(UrgentCasesFilterDto filter)
         {
             return new Point(filter.Longitude!.Value,filter.Latitude!.Value){ SRID = 4326 };
@@ -209,7 +312,7 @@ namespace SafeTrace.Application.Services.Cases
             if (lastCase is null || lastCase.LimitReachDate <= now)
                 return null;
 
-            var remaining = (int)Math.Ceiling((lastCase.LimitReachDate - now).TotalDays);
+            var remaining = (int)Math.Ceiling((lastCase.LimitReachDate - now).TotalMinutes);
 
             _logger.LogInformation(
                 "Rate limit hit for user {UserId}. Last case: {CaseCode} ({Status}). " +
@@ -276,7 +379,7 @@ namespace SafeTrace.Application.Services.Cases
                             UserId = user.Id,
                             Content = notificationContent,
                             Type = NotificationType.Message,
-                            NotificationDirectLink = NotificationBaseUrl + entity.Id
+                            NotificationDirectLink = detailsUrl + entity.Id
                         });
 
                         // Send Email
@@ -288,7 +391,7 @@ namespace SafeTrace.Application.Services.Cases
                                 age: entity.Age,
                                 government: entity.Government,
                                 city: entity.City,
-                                detailsUrl: $"{FrontendBaseUrl}/urgent-cases/{entity.Id}");
+                                detailsUrl: $"{FrontendBaseUrl}{detailsUrl}{entity.Id}");
 
                             await _emailService.SendEmailAsync(
                                 user.Email,

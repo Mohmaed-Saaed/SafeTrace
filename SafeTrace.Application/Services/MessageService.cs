@@ -175,9 +175,9 @@ namespace SafeTrace.Application.Services
                 messagePreview: string.IsNullOrWhiteSpace(request.Content)
                 ? "📎 ملف مرفق"
                 : request.Content,
-                chatLink: $"https://localhost:7041/Chats/{request.ChatId}");
+                chatLink: $"https://leqaaweb.runasp.net/chat/chat/{request.ChatId}");
 
-            await _emailService.SendEmailAsync(receiverEmail, "رسالة جديدة من SafeTrace", emailBody);
+            await _emailService.SendEmailAsync(receiverEmail, "رسالة جديدة من لقاء", emailBody);
 
             return ApiResponse<MessageDto>.Ok(
             messageDto, "تم إرسال الرسالة بنجاح.");
@@ -295,7 +295,7 @@ namespace SafeTrace.Application.Services
             _unitOfWork.Repository<Message>().Update(message);
             await _unitOfWork.SaveAsync();
 
-            await _chatNotifier.NotifyMessageDeletedForEveryone(message.ChatId, message.Id);
+            await _chatNotifier.NotifyMessageDeletedForEveryone(message.ChatId, message.Id, message.ForEveryoneDeletedAt.Value);
 
             return ApiResponse<MessageDto>.Ok(
                 _mapper.Map<MessageDto>(message),

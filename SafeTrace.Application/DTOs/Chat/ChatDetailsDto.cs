@@ -10,6 +10,8 @@ namespace SafeTrace.Application.DTOs.Chat
         public long CaseId { get; set; }
         public string CaseTitle { get; set; } = null!;
 
+        public CaseType CaseType { get; set; }
+
         public string? CaseImage { get; set; }
 
         public string SenderId { get; set; } = null!;
@@ -19,7 +21,7 @@ namespace SafeTrace.Application.DTOs.Chat
         public string ReceiverId { get; set; } = null!;
         public string? ReceiverName { get; set; }
         public string? ReceiverImage { get; set; }
-
+        public string? OtherUserId { get; set; }
         public string? OtherUserName { get; set; }
         public string? OtherUserImage { get; set; }
 

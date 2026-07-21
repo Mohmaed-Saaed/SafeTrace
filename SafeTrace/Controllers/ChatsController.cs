@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using SafeTrace.Application.DTOs.Chat;
 using SafeTrace.Application.Constants;
@@ -129,14 +129,10 @@ namespace SafeTrace.API.Controllers
         [HttpGet("{chatId:long}/messages")]
         [HasPermission(Permissions.Chat.GetMessages)]
         public async Task<IActionResult> GetMessages(
-           [FromRoute] long chatId, [FromQuery] int page = 1, [FromQuery] int pageSize = 20)
+           [FromRoute] long chatId)
         {
-            if (page < 1) page = 1;
-            if (pageSize < 1) pageSize = 20;
-            if (pageSize > 100) pageSize = 100;
-
             var userId = GetCurrentUserId();
-            var messages = await _chatService.GetPaginatedMessagesAsync(chatId, userId,IsAdmin, page, pageSize);
+            var messages = await _chatService.GetPaginatedMessagesAsync(chatId, userId,IsAdmin);
             return Ok(messages);
 
         }
@@ -197,6 +193,22 @@ namespace SafeTrace.API.Controllers
         [FromQuery] int pageSize = 20)
         {
             var result = await _chatService.GetAllChatsAsync(page, pageSize, filter);
+            return Ok(result);
+        }
+
+        /// <summary>
+        /// Retrieves statistics about all chats in the system.
+        /// </summary>
+        /// <remarks>
+        /// Available only for administrators.
+        /// </remarks>
+        /// <response code="200">Statistics retrieved successfully.</response>
+        /// <response code="403">Forbidden.</response>
+        [HttpGet("admin/statistics")]
+        [HasPermission(Permissions.Chat.GetChatStatistics)]
+        public async Task<IActionResult> GetChatStatistics()
+        {
+            var result = await _chatService.GetChatStatisticsAsync();
             return Ok(result);
         }
 

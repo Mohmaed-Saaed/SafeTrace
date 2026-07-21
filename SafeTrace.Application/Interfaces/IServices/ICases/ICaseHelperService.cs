@@ -41,40 +41,11 @@ namespace SafeTrace.Application.Interfaces.IServices.ICases
 
         Task DeleteFacesAsync(IEnumerable<string> faceIds, long caseIdForLogging);
 
-        Task<MatchedCasesResult> FindMatchedCasesAsync(CaseMatchSubjectInfoDto subject, IFormFile primaryImage);
-
-        Task AddCaseToGroupAsync(
-    long groupId,
-    long caseId,
-    decimal similarity);
-
-        Task CreateDuplicateGroupWithCasesAsync(
-         UnknownCase oldCase,
-         UnknownCase newCase,
-         decimal similarity);
-        Task CreateDuplicateGroupAsync(
-   UnknownCase newCase);
-
-
-    //    Task<UnknownCase?> GetMatchedCaseAsync(
-    //string faceId,
-    //long currentCaseId);
-        Task<UnknownCase?> GetMatchedCaseAsync(
-            long caseId,
-            long currentCaseId);
-
-
         Task<DuplicateCheckResult> CheckDuplicateCaseAsync(
            CaseType currentCaseType,
            CaseMatchSubjectInfoDto subject,
            IFormFile primaryImage,
            Func<MatchedCaseDto, Task> onSameTypeMatchAsync,
            bool forceCreate = false);
-
-
-
-        Task LinkCaseToDuplicateGroupAsync(
-                   UnknownCase newCase,
-                   MatchedCaseDto? sameTypeMatch);
     }
 }

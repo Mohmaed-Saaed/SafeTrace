@@ -32,9 +32,7 @@ namespace SafeTrace.Application.Services.Cases
         /// </summary>
         public virtual async Task<ApiResponse<PaginationResponseDto<TListDto>>> GetAllAsync(TFilterDto filter)
         {
-            var query = _unitOfWork.Repository<TEntity>()
-                .Query(tracked: false, includes: x => x.CaseFiles)
-                .Where(x => x.Status == CaseStatus.Active);
+            var query = BuildGetAllQuery();
 
             var response = await GetPagedResultAsync<TListDto>(query, filter);
 
@@ -380,13 +378,18 @@ namespace SafeTrace.Application.Services.Cases
 
             if (!string.IsNullOrWhiteSpace(filter.FullName))
             {
-                var keyword = filter.FullName.Trim();
+                var name = filter.FullName.Trim();
 
                 query = query.Where(x =>
-                    x.FName.Contains(keyword) ||
-                    x.SName.Contains(keyword) ||
-                    x.TName.Contains(keyword) ||
-                    x.LName.Contains(keyword));
+                    (x.FName ?? "").Contains(name) ||
+                    (x.SName ?? "").Contains(name) ||
+                    (x.TName ?? "").Contains(name) ||
+                    (x.LName ?? "").Contains(name));
+            }
+
+            if (!string.IsNullOrWhiteSpace(filter.CaseCode))
+            {
+               query = query.Where(x => EF.Functions.Like(x.CaseCode, $"%{filter.CaseCode}%"));
             }
 
             if (filter.FromDate.HasValue)
@@ -402,39 +405,36 @@ namespace SafeTrace.Application.Services.Cases
         }
         private IQueryable<TEntity> ApplySorting(IQueryable<TEntity> query, TFilterDto filter)
         {
-            IOrderedQueryable<TEntity>? orderedQuery = null;
-
-            if (!string.IsNullOrWhiteSpace(filter.FullName))
-            {
-                var keyword = filter.FullName.Trim();
-
-                orderedQuery = query.OrderBy(x =>
-                    x.FName.Contains(keyword) ? 0 :
-                    x.SName.Contains(keyword) ? 1 :
-                    x.TName.Contains(keyword) ? 2 :
-                    x.LName.Contains(keyword) ? 3 : 4);
-            }
-
             query = ApplyCustomSorting(query, filter);
 
-            orderedQuery ??= query as IOrderedQueryable<TEntity>;
+            IOrderedQueryable<TEntity>? ordered = null;
 
             if (filter.AgeSort.HasValue)
             {
-                var asc = filter.AgeSort == AgeSort.Asc;
-                orderedQuery = asc ? query.OrderBy(x => x.Age) : query.OrderByDescending(x => x.Age);
+                ordered = filter.AgeSort == AgeSort.Asc
+                    ? query.OrderBy(x => x.Age)
+                    : query.OrderByDescending(x => x.Age);
             }
 
             if (filter.DateSort.HasValue)
             {
-                var newest = filter.DateSort == DateSort.Newest;
-                orderedQuery = orderedQuery == null
-                    ? (newest ? query.OrderByDescending(x => x.CreatedAt) : query.OrderBy(x => x.CreatedAt))
-                    : (newest ? orderedQuery.ThenByDescending(x => x.CreatedAt) : orderedQuery.ThenBy(x => x.CreatedAt));
+                if (ordered == null)
+                {
+                    ordered = filter.DateSort == DateSort.Newest
+                        ? query.OrderByDescending(x => x.CreatedAt)
+                        : query.OrderBy(x => x.CreatedAt);
+                }
+                else
+                {
+                    ordered = filter.DateSort == DateSort.Newest
+                        ? ordered.ThenByDescending(x => x.CreatedAt)
+                        : ordered.ThenBy(x => x.CreatedAt);
+                }
             }
 
-            return orderedQuery ?? query.OrderByDescending(x => x.CreatedAt);
+            return ordered ?? query.OrderByDescending(x => x.CreatedAt);
         }
+                
         private static IQueryable<TEntity> ApplyPagination(IQueryable<TEntity> query, TFilterDto filter)
         {
             filter.Page = Math.Max(filter.Page, 1);
@@ -469,6 +469,7 @@ namespace SafeTrace.Application.Services.Cases
             var entity = await _caseHelper.GetValidCaseAsync<TEntity>(
                 id,
                 tracked: false,
+                allowDeleted: activeOnly ? false : true,
                 includes: includes);
 
             if (activeOnly && entity.Status != CaseStatus.Active)

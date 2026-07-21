@@ -46,14 +46,14 @@ namespace SafeTrace.Infrastructure.Persistence
                                           "LongTermCases.GetAll", "LongTermCases.GetById", "LongTermCases.Create", "LongTermCases.Update", "LongTermCases.SoftDelete", "LongTermCases.HardDelete", "LongTermCases.Reject", "LongTermCases.Approve", "LongTermCases.MarkAsFounded",
                                           "Notifications.GetMyNotifications", "Notifications.DeleteNotification", "Notifications.MarkAsRead", "Notifications.MarkAllAsRead",
                                           "Profile.GetUserInfo", "Profile.UpdateUserInfo", "Profile.UpdateName", "Profile.UpdateHomeLocation", "Profile.UpdateProfileImage", "Profile.UpdateIdImage", "Profile.GetVisitedUserInfo", "Profile.UpdatePhoneNumber", "Profile.GetMyCases",
-                                          "Complaints.GetAll", "Complaints.GetById", "Complaints.Create", "Complaints.HardDelete", "Complaints.MarkAsSolved",
+                                          "Complaints.GetAll", "Complaints.GetById", "Complaints.Create", "Complaints.HardDelete", "Complaints.MarkAsSolved", "Complaints.GetComplaintsStatistics",
                                           "Account.ChangePassword",
                                           "AiMatching.Search",
                                           "Roles.GetAll", "Roles.Create", "Roles.Delete", "Roles.GetPermissionsByRoleId", "Roles.UpdateRolePermissions",
-                                          "Users.GetAll", "Users.GetById", "Users.RegisterByAdmin",  "Users.ChangeRole", "Users.GetPermissions", "Users.AssignPermissions", "Users.Approve", "Users.Reject", "Users.ToggleBlock",
-                                          "Chat.GetAll", "Chat.GetById", "Chat.GetMyChats",  "Chat.GetMessages", "Chat.SendMessage", "Chat.Create", "Chat.StartContext", "Chat.MarkAsRead", "Chat.HardDelete", "Chat.SoftDelete", "Chat.DeleteMessage", "Chat.DeleteMessageForEveryone",
-                                          "Donations.GetDonations", "Donations.GetMyDonations",
-                                          "Dashboard.GetStatistics"};
+                                          "Users.GetAll", "Users.GetById", "Users.RegisterByAdmin",  "Users.ChangeRole", "Users.GetPermissions", "Users.AssignPermissions", "Users.Approve", "Users.Reject", "Users.ToggleBlock", "Users.GetUsersStatistics",
+                                          "Chat.GetAll", "Chat.GetById", "Chat.GetMyChats",  "Chat.GetMessages", "Chat.SendMessage", "Chat.Create", "Chat.StartContext", "Chat.MarkAsRead", "Chat.HardDelete", "Chat.SoftDelete", "Chat.DeleteMessage", "Chat.DeleteMessageForEveryone", "Chat.GetChatStatistics",
+                                          "Donations.GetDonations", "Donations.GetMyDonations", "Donations.GetDonationStatistics",
+                                          "Dashboard.GetStatistics", "Dashboard.GetCasesStatistics"};
 
             string[] ModeratorPermissions = { "UrgentCases.GetAll", "UrgentCases.GetById", "UrgentCases.Create", "UrgentCases.Update", "UrgentCases.SoftDelete", "UrgentCases.Reject", "UrgentCases.Approve", "UrgentCases.MarkAsFounded",
                                               "UnknownCases.GetAll", "UnknownCases.GetById", "UnknownCases.Create", "UnknownCases.Update", "UnknownCases.SoftDelete", "UnknownCases.Reject", "UnknownCases.Approve", "UnknownCases.MarkAsFounded",
@@ -63,11 +63,11 @@ namespace SafeTrace.Infrastructure.Persistence
                                               "Complaints.GetAll", "Complaints.GetById", "Complaints.Create", "Complaints.MarkAsSolved",
                                               "Account.ChangePassword",
                                               "AiMatching.Search",
-                                              "Users.GetAll", "Users.GetById", "Users.Approve", "Users.Reject", "Users.ToggleBlock",
+                                              "Users.GetAll", "Users.GetById", "Users.Approve", "Users.Reject", "Users.ToggleBlock", "Users.GetUsersStatistics",
                                               "Roles.GetAll",
-                                              "Chat.GetAll", "Chat.GetById", "Chat.GetMyChats",  "Chat.GetMessages", "Chat.SendMessage", "Chat.Create", "Chat.StartContext", "Chat.MarkAsRead", "Chat.SoftDelete", "Chat.DeleteMessage", "Chat.DeleteMessageForEveryone",
+                                              "Chat.GetById", "Chat.GetMyChats",  "Chat.GetMessages", "Chat.SendMessage", "Chat.Create", "Chat.StartContext", "Chat.MarkAsRead", "Chat.SoftDelete", "Chat.DeleteMessage", "Chat.DeleteMessageForEveryone",
                                               "Donations.GetMyDonations",
-                                              "Dashboard.GetStatistics"};
+                                              "Dashboard.GetStatistics", "Dashboard.GetCasesStatistics"};
 
             string[] VerifiedUserPermissions = { "UrgentCases.GetById", "UrgentCases.Create", "UrgentCases.Update", "UrgentCases.SoftDelete", "UrgentCases.MarkAsFounded",
                                                  "UnknownCases.GetById", "UnknownCases.Create", "UnknownCases.Update", "UnknownCases.SoftDelete", "UnknownCases.MarkAsFounded",

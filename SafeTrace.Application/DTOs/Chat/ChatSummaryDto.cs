@@ -16,5 +16,6 @@ namespace SafeTrace.Application.DTOs.Chat
         /// <summary>The other participant's id (not the caller).</summary>
         public string OtherUserId { get; set; } = null!;
         public string OtherUserName { get; set; }
+        public string? OtherUserImage { get; set; }
     }
 }
