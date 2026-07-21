@@ -100,7 +100,7 @@ namespace SafeTrace.API.Controllers
         }
 
         [HttpGet("CreationStatus")]
-        [Authorize]
+        [HasPermission(Permissions.UrgentCases.Create)]
         public async Task<IActionResult> GetCreationStatus()
         {
             if (string.IsNullOrEmpty(CurrentUserId))

@@ -70,6 +70,7 @@ namespace SafeTrace.Application.Mapping
                 .ForMember(dest => dest.HomeLocationLatitude, opt => opt.MapFrom(src => src.HomeLatitude))
                 .ForMember(dest => dest.HomeLocationLongitude, opt => opt.MapFrom(src => src.HomeLongitude))
                 .ReverseMap();
+            CreateMap<UpdateCurrentLocationDTO, ApplicationUser>();
 
             CreateMap<UpdateProfileImageDTO, ApplicationUser>();
             CreateMap<AddIdImageDTO, ApplicationUser>();
