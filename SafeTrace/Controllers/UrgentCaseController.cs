@@ -99,5 +99,15 @@ namespace SafeTrace.API.Controllers
         {
             return Ok(await _urgentCaseService.PermanentDeleteAsync(id));
         }
+
+        [HttpGet("CreationStatus")]
+        [Authorize]
+        public async Task<IActionResult> GetCreationStatus()
+        {
+            if (string.IsNullOrEmpty(CurrentUserId))
+                throw new UnauthorizedException("User identity could not be verified from token.");
+
+            return Ok(await _urgentCaseService.GetUrgentCreationStatusAsync(CurrentUserId));
+        }
     }
 }
