@@ -9,6 +9,6 @@ namespace SafeTrace.Application.Interfaces.IServices.ICases
     {
         Task<ApiResponse<CreateCaseResultDto>> CreateAsync( string userId, UrgentCaseCreateDto createDto,  bool forceCreate = false);
         Task<ApiResponse<string>> UpdateAsync(long id, string userId, UrgentCaseUpdateDto updateDto);
-        Task<UrgentCreationStatusResponse> GetUrgentCreationStatusAsync(string userId);
+        Task<ApiResponse<UrgentCreationStatusResponse>> GetUrgentCreationStatusAsync(string userId);
     }
 }
