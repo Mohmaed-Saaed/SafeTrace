@@ -13,5 +13,9 @@ namespace SafeTrace.Application.Interfaces.IServices
         long chatId,
         long messageId,
         DateTime deletedAt);
-    }
+
+        Task NotifyMessagesReadAsync(
+        long chatId,
+        string userId);
+        }
 }
