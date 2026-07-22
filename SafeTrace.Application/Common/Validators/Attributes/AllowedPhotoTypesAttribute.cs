@@ -12,6 +12,8 @@ namespace SafeTrace.Application.Common.Validators.Attributes
         public override bool IsValid(object? value)
         {
             if (value is null) return true;
+            if (value is IFormFile file)
+                return _allowed.Contains(file.ContentType.ToLowerInvariant());
             if (value is List<IFormFile> files)
                 return files.All(f => _allowed.Contains(f.ContentType.ToLowerInvariant()));
             return false;

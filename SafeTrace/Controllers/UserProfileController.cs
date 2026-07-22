@@ -1,4 +1,4 @@
-﻿using System.Security.Claims;
+﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SafeTrace.Application.Constants;
 using SafeTrace.Application.DTOs.Responses;
@@ -6,6 +6,7 @@ using SafeTrace.Application.DTOs.User_Profiel_DTOS;
 using SafeTrace.Application.DTOs.User_Profiel_DTOS.Update_Profile_DTOS;
 using SafeTrace.Application.Interfaces.IServices.IUserProfile;
 using SafeTrace.Infrastructure.Authorization;
+using System.Security.Claims;
 namespace SafeTrace.API.Controllers
 {
 
@@ -27,7 +28,7 @@ namespace SafeTrace.API.Controllers
         /// </summary>
         /// <returns></returns>
         [HttpGet("GetInfo")]
-        [HasPermission(Permissions.Profile.GetUserInfo)]
+        [Authorize]
         public async Task<IActionResult> GetUserInfo()
         {
             //var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
@@ -40,7 +41,7 @@ namespace SafeTrace.API.Controllers
         /// <param name="Id">معرف المستخدم.</param>
         /// <returns>بيانات الملف الشخصي للمستخدم.</returns>
         [HttpGet("GetVisitedUserInfo/{Id}")]
-        [HasPermission(Permissions.Profile.GetVisitedUserInfo)]
+        [Authorize]
         public async Task<IActionResult> GetVisitedUserInfo([FromRoute] string Id)
         {
             var profile = await _user.GetVisitedUserAsync(Id);
@@ -54,7 +55,7 @@ namespace SafeTrace.API.Controllers
         /// </summary>
         /// <returns></returns>
         [HttpPut("UpdateName")]
-        [HasPermission(Permissions.Profile.UpdateName)]
+        [Authorize]
         public async Task<IActionResult> UpdateName([FromForm] UpdateNameDTO dTO)
         {
             var result = await _user.UpdateNameAsync(GetCurrentUserId(), dTO);
@@ -67,7 +68,7 @@ namespace SafeTrace.API.Controllers
         /// </summary>
         /// <returns></returns>
         [HttpPut("UpdateProfileImage")]
-        [HasPermission(Permissions.Profile.UpdateProfileImage)]
+        [Authorize]
         public async Task<IActionResult> UpdateProfileImage([FromForm] UpdateProfileImageDTO dTO)
         {
             var result = await _user.UpdateProfilImageesync(GetCurrentUserId(), dTO);
@@ -79,7 +80,7 @@ namespace SafeTrace.API.Controllers
         /// </summary>
         /// <returns></returns>
         [HttpDelete("ProfileImage")]
-        [HasPermission(Permissions.Profile.UpdateProfileImage)]
+        [Authorize]
         public async Task<IActionResult> RemoveProfileImage()
         {
 
@@ -92,7 +93,7 @@ namespace SafeTrace.API.Controllers
         /// </summary>
         /// <returns></returns>
         [HttpPut("AddIdImage")]
-        [HasPermission(Permissions.Profile.UpdateIdImage)]
+        [Authorize]
         public async Task<IActionResult> AddIdImage([FromForm] AddIdImageDTO dTO)
         {
             var result = await _user.AddIdImageAsync(GetCurrentUserId(), dTO);
@@ -104,7 +105,7 @@ namespace SafeTrace.API.Controllers
         /// </summary>
         /// <returns></returns>
         [HttpPut("UpdateHomeLocation")]
-        [HasPermission(Permissions.Profile.UpdateHomeLocation)]
+        [Authorize]
         public async Task<IActionResult> UpdateHomeLocation([FromForm] UpdateHomeLocationDTO dTO)
         {
             var result = await _user.UpdateHomeLocationAsync(GetCurrentUserId(), dTO);
@@ -115,6 +116,7 @@ namespace SafeTrace.API.Controllers
         /// </summary>
         /// <returns></returns>
         [HttpPut("UpdateCurrentLocation")]
+        [Authorize]
         public async Task<IActionResult> UpdateCurrentLoc(UpdateCurrentLocationDTO dto)
         {
             var result = await _user.UpdateCurrentLocation(GetCurrentUserId(), dto);
@@ -127,7 +129,7 @@ namespace SafeTrace.API.Controllers
         /// <returns></returns>
 
         [HttpPut("UpdatePhoneNumber")]
-        [HasPermission(Permissions.Profile.UpdatePhoneNumber)]
+        [Authorize]
         public async Task<IActionResult> UpdatePhoneNumber([FromForm] ChangePhoneNumberDTO dto)
         {
             var result = await _user.UpdatePhoneNumberAsync(GetCurrentUserId(), dto);
@@ -146,7 +148,7 @@ namespace SafeTrace.API.Controllers
 
         #region My Cases
         [HttpGet("MyCases")]
-        [HasPermission(Permissions.Profile.GetMyCases)]
+        [Authorize]
         [ProducesResponseType(typeof(ApiResponse<PaginationResponseDto<MyCaseListItemDto>>), StatusCodes.Status200OK)]
         public async Task<IActionResult> GetMyCases([FromQuery] MyCasesFilterDto filter)
         {

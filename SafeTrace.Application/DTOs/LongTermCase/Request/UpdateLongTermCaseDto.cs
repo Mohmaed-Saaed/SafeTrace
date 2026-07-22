@@ -6,11 +6,13 @@ namespace SafeTrace.Application.DTOs.LongTermCase.Request
     public class UpdateLongTermCaseDto : CaseUpdateBaseDto
     {
         [Required(ErrorMessage = "First name is required.")]
-        [StringLength(100, MinimumLength = 2, ErrorMessage = "First name must be between 2 and 100 characters.")]
+        [ArabicText(ErrorMessage = "First name must contain Arabic letters and spaces only.")]
+        [StringLength(60, MinimumLength = 2, ErrorMessage = "First name must be between 2 and 60 characters.")]
         public string FName { get; set; } = null!;
 
         [Required(ErrorMessage = "Last name is required.")]
-        [StringLength(100, MinimumLength = 2, ErrorMessage = "Last name must be between 2 and 100 characters.")]
+        [ArabicText(ErrorMessage = "Last name must contain Arabic letters and spaces only.")]
+        [StringLength(60, MinimumLength = 2, ErrorMessage = "Last name must be between 2 and 60 characters.")]
         public string LName { get; set; } = null!;
 
         [EnumDataType(typeof(RelationType), ErrorMessage = "Invalid relation type.")]

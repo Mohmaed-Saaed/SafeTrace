@@ -4,7 +4,6 @@ using SafeTrace.API.ExceptionHandlers;
 using SafeTrace.API.ExtensionMethods;
 using Audit.Core;
 using Audit.EntityFramework;
-using SafeTrace.Domain.Entities;
 using System.Security.Claims;
 using SafeTrace.API.Hubs;
 using SafeTrace.Application.DependencyInjection;
@@ -18,8 +17,10 @@ using System.Reflection;
 using System.Text.Json.Serialization;
 using Hangfire;
 using Hangfire.Dashboard.BasicAuthorization;
+using NetTopologySuite.Geometries;
+using System.Text.Json;
 
-namespace SafeTrace
+namespace SafeTrace.API
 {
     public class Program
     {
@@ -95,6 +96,7 @@ namespace SafeTrace
                 .UseSqlServerStorage(builder.Configuration.GetConnectionString("DefaultConnection")));
             builder.Services.AddHangfireServer();
 
+
             Audit.Core.Configuration.Setup()
                 .UseEntityFramework(ef => ef
                     .AuditTypeMapper(t => typeof(AuditLog))
@@ -111,21 +113,66 @@ namespace SafeTrace
 
                         if (entry.Action == "Insert")
                         {
-                            entity.NewValues = entry.ColumnValues != null ? System.Text.Json.JsonSerializer.Serialize(entry.ColumnValues) : null;
+                            // entity.NewValues = entry.ColumnValues != null ? System.Text.Json.JsonSerializer.Serialize(entry.ColumnValues) : null;
+                            if (entry.ColumnValues != null)
+                            {
+                                var values = entry.ColumnValues.ToDictionary(
+                                    x => x.Key,
+                                    x => NormalizeAuditValue(x.Value));
+
+                                entity.NewValues = JsonSerializer.Serialize(values);
+                            }
+                            else
+                            {
+                                entity.NewValues = null;
+                            }
                             entity.OldValues = null;
                             entity.AffectedColumns = null;
                         }
                         else if (entry.Action == "Delete")
                         {
                             entity.NewValues = null;
-                            entity.OldValues = entry.ColumnValues != null ? System.Text.Json.JsonSerializer.Serialize(entry.ColumnValues) : null;
+                            if (entry.ColumnValues != null)
+                            {
+                                var values = entry.ColumnValues.ToDictionary(
+                                    x => x.Key,
+                                    x => NormalizeAuditValue(x.Value));
+
+                                entity.OldValues = JsonSerializer.Serialize(values);
+                            }
+                            else
+                            {
+                                entity.OldValues = null;
+                            }
+                            // entity.OldValues = entry.ColumnValues != null ? System.Text.Json.JsonSerializer.Serialize(entry.ColumnValues) : null;
                             entity.AffectedColumns = null;
                         }
                         else
                         {
-                            entity.OldValues = realChanges?.Count > 0 ? System.Text.Json.JsonSerializer.Serialize(realChanges.ToDictionary(c => c.ColumnName, c => c.OriginalValue)) : null;
-                            entity.NewValues = realChanges?.Count > 0 ? System.Text.Json.JsonSerializer.Serialize(realChanges.ToDictionary(c => c.ColumnName, c => c.NewValue)) : null;
-                            entity.AffectedColumns = realChanges?.Count > 0 ? string.Join(", ", realChanges.Select(c => c.ColumnName)) : null;
+                            if (realChanges?.Count > 0)
+                            {
+                                var oldValues = realChanges.ToDictionary(
+                                    c => c.ColumnName,
+                                    c => NormalizeAuditValue(c.OriginalValue));
+
+                                var newValues = realChanges.ToDictionary(
+                                    c => c.ColumnName,
+                                    c => NormalizeAuditValue(c.NewValue));
+
+                                entity.OldValues = JsonSerializer.Serialize(oldValues);
+                                entity.NewValues = JsonSerializer.Serialize(newValues);
+
+                                entity.AffectedColumns = string.Join(", ", realChanges.Select(c => c.ColumnName));
+                            }
+                            else
+                            {
+                                entity.OldValues = null;
+                                entity.NewValues = null;
+                                entity.AffectedColumns = null;
+                            }
+                            // entity.OldValues = realChanges?.Count > 0 ? System.Text.Json.JsonSerializer.Serialize(realChanges.ToDictionary(c => c.ColumnName, c => c.OriginalValue)) : null;
+                            // entity.NewValues = realChanges?.Count > 0 ? System.Text.Json.JsonSerializer.Serialize(realChanges.ToDictionary(c => c.ColumnName, c => c.NewValue)) : null;
+                            // entity.AffectedColumns = realChanges?.Count > 0 ? string.Join(", ", realChanges.Select(c => c.ColumnName)) : null;
                         }
                     })
                     .IgnoreMatchedProperties(true));
@@ -250,6 +297,24 @@ namespace SafeTrace
 
 
             app.Run();
+
+            static object? NormalizeAuditValue(object? value)
+            {
+                return value switch
+                {
+                    Point p => new
+                    {
+                        Latitude = p.Y,
+                        Longitude = p.X
+                    },
+
+                    double d when double.IsNaN(d) || double.IsInfinity(d) => null,
+
+                    float f when float.IsNaN(f) || float.IsInfinity(f) => null,
+
+                    _ => value
+                };
+            }
         }
     }
 }

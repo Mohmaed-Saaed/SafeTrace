@@ -63,7 +63,7 @@ namespace SafeTrace.Application.Services.Cases
                 activeOnly: true,
                 includes: [x => x.CaseFiles, x => x.User, x => x.AgeCategory]);
 
-            await AfterGetByIdAsync(dto, id);
+            await AfterGetByIdAsync(dto, id,false);
 
             return ApiResponse<TDetailDto>.Ok(dto, "تم استرجاع بيانات الحالة بنجاح.");
         }
@@ -77,7 +77,7 @@ namespace SafeTrace.Application.Services.Cases
                 id,
                 activeOnly: false,
                 includes: [x => x.CaseFiles, x => x.User, x => x.AgeCategory, x => x.FoundPersonInfo]);
-
+            await AfterGetByIdAsync(dto, id, true);
             return ApiResponse<TDetailDto>.Ok(dto, "تم استرجاع بيانات الحالة بنجاح.");
         }
         
@@ -343,7 +343,7 @@ namespace SafeTrace.Application.Services.Cases
         /// allowing derived services to enrich the DTO with feature-specific data
         /// (e.g. populating related/duplicate cases). No-op by default.
         /// </summary>
-        protected virtual Task AfterGetByIdAsync(TDetailDto dto, long id) => Task.CompletedTask;
+        protected virtual Task AfterGetByIdAsync(TDetailDto dto, long id, bool isAdmin) => Task.CompletedTask;
 
         /// <summary>
         /// Allows derived services to apply additional filtering. Default: no extra filters. 
