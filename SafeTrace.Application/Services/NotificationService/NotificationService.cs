@@ -38,6 +38,8 @@ namespace SafeTrace.Application.Services.NotificationServices
             _hubContext = hubContext;
             _mapper = mapper;
             _logger = logger;
+            _logger.LogWarning("NotificationsHub Created");
+
 
         }
 
@@ -72,10 +74,14 @@ namespace SafeTrace.Application.Services.NotificationServices
             await _hubContext.Clients
                 .Group($"user_{dto.UserId}")
                 .SendAsync("ReceiveNotification", responseDto);
-
+            _logger.LogInformation(
+"Sending ReceiveNotification to group user_{UserId}",
+dto.UserId
+);
             await _hubContext.Clients
                 .Group($"user_{dto.UserId}")
                 .SendAsync("UnreadCount", unreadCount);
+
 
             _logger.LogInformation("Notification sent to UserId: {UserId}. UnreadCount: {Count}", dto.UserId, unreadCount);
         }

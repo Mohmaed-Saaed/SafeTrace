@@ -1,6 +1,7 @@
-﻿using Microsoft.AspNetCore.SignalR;
-using SafeTrace.Application.Interfaces.IServices.INotificationSewrvice;
+﻿using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.SignalR;
+using SafeTrace.Application.Interfaces.IServices.INotificationSewrvice;
 
 namespace SafeTrace.Application.Hubs
 {
@@ -19,11 +20,11 @@ namespace SafeTrace.Application.Hubs
         }
 
 
-
         public override async Task OnConnectedAsync()
         {
 
             var userId = Context.UserIdentifier;
+            _logger.LogInformation("Connected: UserIdentifier={UserId}, Connection={ConnectionId}", Context.UserIdentifier, Context.ConnectionId);
 
             if (!string.IsNullOrEmpty(userId))
             {
@@ -97,6 +98,7 @@ namespace SafeTrace.Application.Hubs
                     await _notificationService.GetUserNotificationsAsync(userId, page, pageSize);
 
                 await Clients.Caller.SendAsync("ReceiveNotifications", notifications);
+
             }
             catch (Exception ex)
             {

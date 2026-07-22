@@ -70,7 +70,7 @@ namespace SafeTrace
                     builder
                         .WithOrigins("https://localhost:4200", "http://localhost:5500", "http://127.0.0.1:5500",
                                     "http://localhost:5501", "http://127.0.0.1:5501", "https://localhost:7204", "https://localhost:5173", "https://localhost:7126",
-                                    "http://localhost:3000", "http://localhost:8080", 
+                                    "http://localhost:3000", "http://localhost:8080",
                                     "https://leqaaweb.runasp.net"
                                     , "https://rearview-manual-coke.ngrok-free.dev") // Add common dev ports
                         .AllowAnyHeader()
@@ -84,11 +84,10 @@ namespace SafeTrace
 
             builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
             builder.Services.AddProblemDetails();
-            builder.Services.AddSignalR();
-            
+
             // Background Services
             builder.Services.AddScoped<ICaseCleanupService, CaseCleanupService>();
-            
+
             builder.Services.AddHangfire(config => config
                 .SetDataCompatibilityLevel(CompatibilityLevel.Version_180)
                 .UseSimpleAssemblyNameTypeSerializer()
@@ -109,20 +108,20 @@ namespace SafeTrace
                         entity.DateTime = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, egyptTimeZone);
                         entity.UserId = ev.CustomFields.ContainsKey("UserId") ? ev.CustomFields["UserId"]?.ToString() : null;
                         entity.PrimaryKey = string.Join(",", entry.PrimaryKey.Values);
-                        
-                        if (entry.Action == "Insert") 
+
+                        if (entry.Action == "Insert")
                         {
                             entity.NewValues = entry.ColumnValues != null ? System.Text.Json.JsonSerializer.Serialize(entry.ColumnValues) : null;
                             entity.OldValues = null;
                             entity.AffectedColumns = null;
-                        } 
+                        }
                         else if (entry.Action == "Delete")
                         {
                             entity.NewValues = null;
                             entity.OldValues = entry.ColumnValues != null ? System.Text.Json.JsonSerializer.Serialize(entry.ColumnValues) : null;
                             entity.AffectedColumns = null;
                         }
-                        else 
+                        else
                         {
                             entity.OldValues = realChanges?.Count > 0 ? System.Text.Json.JsonSerializer.Serialize(realChanges.ToDictionary(c => c.ColumnName, c => c.OriginalValue)) : null;
                             entity.NewValues = realChanges?.Count > 0 ? System.Text.Json.JsonSerializer.Serialize(realChanges.ToDictionary(c => c.ColumnName, c => c.NewValue)) : null;
@@ -142,11 +141,11 @@ namespace SafeTrace
                 var efEvent = scope.Event.GetEntityFrameworkEvent();
                 if (efEvent != null)
                 {
-                    var ignoredTables = new[] 
-                    { 
-                        "RefreshTokens", "UserOtps", "Notifications", 
-                        "Messages", "Chats", "AiSearchUsages", 
-                        "AspNetUserTokens", "AspNetUserLogins" 
+                    var ignoredTables = new[]
+                    {
+                        "RefreshTokens", "UserOtps", "Notifications",
+                        "Messages", "Chats", "AiSearchUsages",
+                        "AspNetUserTokens", "AspNetUserLogins"
                     };
 
                     efEvent.Entries.RemoveAll(e => ignoredTables.Contains(e.Table));
@@ -241,7 +240,7 @@ namespace SafeTrace
             app.UseCors("CorsPolicy");
 
             app.UseRateLimiter();
-            
+
             app.UseAuthentication();
             app.UseAuthorization();
 
