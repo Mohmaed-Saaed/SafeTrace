@@ -27,6 +27,7 @@ namespace SafeTrace.Application.Hubs
 
             if (!string.IsNullOrEmpty(userId))
             {
+
                 await Groups.AddToGroupAsync(
                     Context.ConnectionId,
                     $"user_{userId}");
