@@ -60,20 +60,20 @@ namespace SafeTrace.API.Hubs
         /// broadcasts it through the same notifier used for messages, so there's one place
         /// that owns "who gets told what" logic.
         /// </summary>
-        public async Task MarkAsRead(long chatId)
-        {
-            var userId = GetCurrentUserId();
+        //public async Task MarkAsRead(long chatId)
+        //{
+        //    var userId = GetCurrentUserId();
 
-            // TODO: نادي هنا على application service يسجل حالة "مقروءة" في الـ DB، مثلاً:
-             await _messageService.MarkMessagesAsReadAsync(chatId, userId);
+        //    // TODO: نادي هنا على application service يسجل حالة "مقروءة" في الـ DB، مثلاً:
+        //     await _messageService.MarkMessagesAsReadAsync(chatId, userId);
 
-            await Clients.Group(ChatGroupName(chatId))
-                    .SendAsync("MessagesRead", new
-                    {
-                        chatId,
-                        userId
-                    });
-        }
+        //    await Clients.Group(ChatGroupName(chatId))
+        //            .SendAsync("MessagesRead", new
+        //            {
+        //                chatId,
+        //                userId
+        //            });
+        //}
 
         private string GetCurrentUserId()
         {

@@ -8,7 +8,7 @@
 
     public DateTime CreatedAt { get; set; }
 
-    public float Similarity { get; set; }
+    public float? Similarity { get; set; }
 
     public string MainPhotoPath { get; set; } = null!;
     }
