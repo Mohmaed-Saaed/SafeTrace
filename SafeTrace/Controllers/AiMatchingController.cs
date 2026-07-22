@@ -35,25 +35,25 @@ namespace SafeTrace.API.Controllers
         }
 
         //test
-        [HttpPost("searchtest")]
-        public async Task<IActionResult> Get([FromForm] AiMatchingDto t)
-        {
-            var response = await _faceRecognitionService.SearchByImageAsync(t.Image);
-            return Ok(response);
-        }
+        //[HttpPost("searchtest")]
+        //public async Task<IActionResult> Get([FromForm] AiMatchingDto t)
+        //{
+        //    var response = await _faceRecognitionService.SearchByImageAsync(t.Image);
+        //    return Ok(response);
+        //}
 
-        [HttpPost("save")]
-        public async Task<IActionResult> save([FromForm] AiMatchingDto t)
-        {
-            var response = await _faceRecognitionService.IndexFaceAsync(t.Image);
-            return Ok(response);
-        }
+        //[HttpPost("save")]
+        //public async Task<IActionResult> save([FromForm] AiMatchingDto t)
+        //{
+        //    var response = await _faceRecognitionService.IndexFaceAsync(t.Image);
+        //    return Ok(response);
+        //}
 
-        [HttpDelete("delete")]
-        public async Task<IActionResult> delete(string faceId)
-        {
-            var response = await _faceRecognitionService.DeleteFaceAsync(faceId);
-            return Ok(response);
-        }
+        //[HttpDelete("delete")]
+        //public async Task<IActionResult> delete(string faceId)
+        //{
+        //    var response = await _faceRecognitionService.DeleteFaceAsync(faceId);
+        //    return Ok(response);
+        //}
     }
 }

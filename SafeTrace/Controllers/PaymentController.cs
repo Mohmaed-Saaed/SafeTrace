@@ -66,7 +66,7 @@ namespace SafeTrace.API.Controllers
         /// Get current user's donations
         /// </summary>
         [HttpGet("get-my-donations")]
-        [HasPermission(Permissions.Donations.GetMyDonations)]
+        [Authorize]
         public async Task<IActionResult> GetMyDonations([FromQuery] DonationUserQueryDto query)
         {
             var response = await _paymentService.GetUserDonationsAsync(User.FindFirstValue(ClaimTypes.NameIdentifier), query);

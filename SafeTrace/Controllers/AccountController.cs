@@ -180,7 +180,7 @@ namespace SafeTrace.API.Controllers
         [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
         [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
         [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
-        [HasPermission(Permissions.Account.ChangePassword)]
+        [Authorize]
         [EnableRateLimiting("AuthLimit")]
         [HttpPost("change-password")]
         public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordDto dto)
@@ -219,7 +219,7 @@ namespace SafeTrace.API.Controllers
         /// <remarks>يقوم بمسح الـ Refresh Token من قاعدة البيانات ومن الـ Cookies.</remarks>
         /// <response code="200">تم تسجيل الخروج بنجاح.</response>
         [ProducesResponseType(typeof(ApiResponse<string>), StatusCodes.Status200OK)]
-        [AllowAnonymous]
+        [Authorize]
         [HttpPost("revoke-token")]
         public async Task<IActionResult> RevokeToken()
         {

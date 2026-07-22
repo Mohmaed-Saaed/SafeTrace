@@ -32,7 +32,7 @@ namespace SafeTrace.API.Controllers
         }
 
         [HttpGet("Admin/GetCases")]
-        [HasPermission(Permissions.UnknownCases.GetAll)]
+        [HasPermission(Permissions.Cases.GetAll)]
         public async Task<IActionResult> AdminGetAll([FromQuery] UnknownCasesFilterDto filter)
         {
             return Ok(await _unKnownServiceCase.AdminGetAllAsync(filter));
