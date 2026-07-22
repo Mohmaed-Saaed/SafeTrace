@@ -46,10 +46,9 @@ namespace SafeTrace.Application.Services.NotificationServices
 
         public async Task SendNotificationAsync(SendNotificationDTO dto)
         {
-            _logger.LogInformation("Sending notification to UserId: {UserId} at {date}", dto.UserId, DateTime.UtcNow);
-
+            _logger.LogInformation("Sending notification to UserId: {UserId} at {date}", dto.UserId, DateTime.Now);
             var notification = _mapper.Map<Notification>(dto);
-            notification.CreatedAt = DateTime.UtcNow;
+            notification.CreatedAt = DateTime.Now;
             notification.IsRead = false;
 
             await _UNIT.Repository<Notification>().CreateAsync(notification);
@@ -252,7 +251,6 @@ dto.UserId
                 TotalCount = totalCount,
                 TotalPages = (int)Math.Ceiling(totalCount / (double)pageSize),
                 HasMore = page < (int)Math.Ceiling(totalCount / (double)pageSize)
-
             };
             return ApiResponse<NotificationPageDto>.Ok(
                 result,
