@@ -7,5 +7,6 @@ namespace SafeTrace.Application.DTOs.Chat
         public int DeletedBySenderOnly { get; set; }
         public int DeletedByReceiverOnly { get; set; }
         public int DeletedByBoth { get; set; }
+        public int TotalUnreadMessages { get; set; }
     }
 }
