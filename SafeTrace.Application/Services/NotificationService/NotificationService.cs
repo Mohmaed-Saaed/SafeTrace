@@ -70,16 +70,25 @@ namespace SafeTrace.Application.Services.NotificationServices
             _logger.LogWarning(
     "Sending notification to group: user_{UserId}",
     dto.UserId);
+
+
             await _hubContext.Clients
                 .Group($"user_{dto.UserId}")
                 .SendAsync("ReceiveNotification", responseDto);
+
+
             _logger.LogInformation(
 "Sending ReceiveNotification to group user_{UserId}",
 dto.UserId
 );
+
             await _hubContext.Clients
-                .Group($"user_{dto.UserId}")
-                .SendAsync("UnreadCount", unreadCount);
+    .Group($"user_{dto.UserId}")
+    .SendAsync(
+        "UnreadCount",
+        ApiResponse<int>.Ok(unreadCount, "عدد الاشعارات غير المقرؤة.")
+    );
+
 
 
             _logger.LogInformation("Notification sent to UserId: {UserId}. UnreadCount: {Count}", dto.UserId, unreadCount);
@@ -191,9 +200,14 @@ dto.UserId
 
             if (affected > 0)
             {
+
                 await _hubContext.Clients
                     .Group($"user_{userId}")
-                    .SendAsync("UnreadCount", 0);
+                      .SendAsync(
+                       "UnreadCount",
+                 ApiResponse<int>.Ok(0, "عدد الاشعارات غير المقرؤة.")
+);
+                //.SendAsync("UnreadCount", 0);
             }
             _logger.LogInformation("Marked {Count} notifications as read for UserId: {UserId}", affected, userId);
         }
