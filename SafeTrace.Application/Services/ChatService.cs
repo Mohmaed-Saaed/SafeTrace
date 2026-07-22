@@ -189,13 +189,16 @@ namespace SafeTrace.Application.Services
 
                     LastMessage = c.Messages
                     .OrderByDescending(m => m.SendAt)
-                    .Select(m => m.Content)
-                    .FirstOrDefault(),
+                    .Select(m => m.IsDeletedForEveryone
+                    ? "تم حذف هذه الرسالة"
+                    : m.Content)
+                .FirstOrDefault(),
 
                     LastMessageDate = c.Messages
                     .OrderByDescending(m => m.SendAt)
-                    .Select(m => (DateTime?)m.SendAt)
+                    .Select(m => m.SendAt)
                     .FirstOrDefault(),
+
 
                     UnreadCount = c.Messages.Count(m =>
                     !m.IsRead && m.ReceiverId == currentUserId)
@@ -203,6 +206,15 @@ namespace SafeTrace.Application.Services
                 .OrderByDescending(x => x.LastMessageDate)
                 .ToListAsync();
 
+            foreach (var chat in result)
+            {
+                if (chat.LastMessageDate.HasValue)
+                {
+                    chat.LastMessageDate = DateTime.SpecifyKind(
+                        chat.LastMessageDate.Value,
+                        DateTimeKind.Utc);
+                }
+            }
 
             _logger.LogInformation(
             "User {UserId} has {Count} chats.",
@@ -265,8 +277,14 @@ namespace SafeTrace.Application.Services
 
                 dto.DeletedBySender = chat.DeletedBySender;
                 dto.DeletedByReceiver = chat.DeletedByReceiver;
-                dto.SenderDeletedAt = chat.SenderDeletedAt;
-                dto.ReceiverDeletedAt = chat.ReceiverDeletedAt;
+
+                dto.SenderDeletedAt = chat.SenderDeletedAt.HasValue
+                ? DateTime.SpecifyKind(chat.SenderDeletedAt.Value, DateTimeKind.Utc)
+                : null;
+
+                dto.ReceiverDeletedAt = chat.ReceiverDeletedAt.HasValue
+                    ? DateTime.SpecifyKind(chat.ReceiverDeletedAt.Value, DateTimeKind.Utc)
+                    : null;
 
                 dto.OtherUserId = chat.SenderId == currentUserId
                     ? chat.Receiver.Id
@@ -324,9 +342,7 @@ namespace SafeTrace.Application.Services
             {
                 EnsureParticipant(chat, currentUserId);
             }
-            //var (messages, totalCount) = await _unitOfWork.MessageRepository
-            //    .GetPagedMessagesAsync(chatId,currentUserId, page, pageSize);
-
+            
             IQueryable<Message> query;
             if (isAdmin)
             {
@@ -478,20 +494,38 @@ namespace SafeTrace.Application.Services
 
             if (!string.IsNullOrWhiteSpace(filter.Search))
             {
+                var search = filter.Search.Trim();
+
+                var searchWords = search.Split(
+                    ' ',
+                    StringSplitOptions.RemoveEmptyEntries
+                );
+
                 baseQuery = baseQuery.Where(c =>
-                    c.Messages.Any(m => m.Content.Contains(filter.Search)) ||
 
-                    c.Sender.FName.Contains(filter.Search) ||
-                    c.Sender.LName.Contains(filter.Search) ||
+                    c.Messages.Any(m => m.Content.Contains(search)) ||
 
-                    c.Receiver.FName.Contains(filter.Search) ||
-                    c.Receiver.LName.Contains(filter.Search) ||
+                    // Sender
+                    searchWords.All(word =>
+                        (c.Sender.FName + " " + c.Sender.LName)
+                            .Contains(word)
+                    ) ||
 
-                    c.Case.FName.Contains(filter.Search) ||
-                    c.Case.SName.Contains(filter.Search) ||
-                    c.Case.TName.Contains(filter.Search) ||
-                    c.Case.LName.Contains(filter.Search) 
-                    );
+                    // Receiver
+                    searchWords.All(word =>
+                        (c.Receiver.FName + " " + c.Receiver.LName)
+                            .Contains(word)
+                    ) ||
+
+                    // Case Title
+                    searchWords.All(word =>
+                        (c.Case.FName + " " +
+                         c.Case.SName + " " +
+                         c.Case.TName + " " +
+                         c.Case.LName)
+                        .Contains(word)
+                    )
+                );
             }
             baseQuery = baseQuery.OrderByDescending(c =>
             c.Messages
@@ -536,8 +570,13 @@ namespace SafeTrace.Application.Services
                 IsDeletedBySender = c.DeletedBySender,
                 IsDeletedByReceiver = c.DeletedByReceiver,
 
-                SenderDeletedAt = c.SenderDeletedAt,
-                ReceiverDeletedAt = c.ReceiverDeletedAt,
+                SenderDeletedAt = c.SenderDeletedAt.HasValue
+                ? (DateTime?)DateTime.SpecifyKind(c.SenderDeletedAt.Value, DateTimeKind.Utc)
+                : null,
+
+                ReceiverDeletedAt = c.ReceiverDeletedAt.HasValue
+                ? (DateTime?)DateTime.SpecifyKind(c.ReceiverDeletedAt.Value, DateTimeKind.Utc)
+                : null,
             }).ToList();
 
             var result = new PaginationResponseDto<AdminChatsDto>
