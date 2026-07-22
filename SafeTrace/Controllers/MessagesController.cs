@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Http;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using SafeTrace.Application.Constants;
 using SafeTrace.Application.DTOs.Message;
@@ -31,7 +32,7 @@ namespace SafeTrace.API.Controllers
         /// 
         [HttpPost("send")]
         [Consumes("multipart/form-data")]
-        [HasPermission(Permissions.Chat.SendMessage)]
+        [Authorize]
         public async Task<IActionResult> SendMessage([FromForm] SendMessageRequest request)
         {
             var senderId = GetCurrentUserId();
@@ -49,7 +50,7 @@ namespace SafeTrace.API.Controllers
         /// <response code="404">Chat not found.</response>
         /// 
         [HttpPut("{chatId}/read")]
-        [HasPermission(Permissions.Chat.MarkAsRead)]
+        [Authorize]
         public async Task<IActionResult> MarkAsRead([FromRoute] long chatId)
         {
             var userId = GetCurrentUserId();
@@ -68,7 +69,7 @@ namespace SafeTrace.API.Controllers
         /// <response code="404">Message not found.</response>
         /// 
         [HttpDelete("{messageId}")]
-        [HasPermission(Permissions.Chat.DeleteMessage)]
+        [Authorize]
         public async Task<IActionResult> DeleteMessage([FromRoute] long messageId)
         {
             var userId = GetCurrentUserId();
