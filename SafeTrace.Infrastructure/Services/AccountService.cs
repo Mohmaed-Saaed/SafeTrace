@@ -1,6 +1,7 @@
 using AutoMapper;
 using Microsoft.Extensions.Logging;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Identity;
 using SafeTrace.Application.Constants;
 using SafeTrace.Application.DTOs.Auth.Request;
 using SafeTrace.Application.DTOs.Auth.Response;
@@ -21,6 +22,7 @@ namespace SafeTrace.Infrastructure.Services
     {
         private static readonly ConcurrentDictionary<string, SemaphoreSlim> _refreshLocks = new();
         private readonly UserManager<ApplicationUser> _userManager;
+        private readonly RoleManager<IdentityRole> _roleManager;
         private readonly ITokenService _tokenService;
         private readonly IEmailService _emailService;
         private readonly IUnitOfWork _unitOfWork;
@@ -33,6 +35,7 @@ namespace SafeTrace.Infrastructure.Services
 
         public AccountService(
             UserManager<ApplicationUser> userManager,
+            RoleManager<IdentityRole> roleManager,
             ITokenService tokenService,
             IEmailService emailService,
             IUnitOfWork unitOfWork,
@@ -43,6 +46,7 @@ namespace SafeTrace.Infrastructure.Services
             INotificationServices notificationService)
         {
             _userManager = userManager;
+            _roleManager = roleManager;
             _tokenService = tokenService;
             _emailService = emailService;
             _unitOfWork = unitOfWork;
@@ -259,6 +263,8 @@ namespace SafeTrace.Infrastructure.Services
             var user = await _userManager.FindByIdAsync(userId);
             if (user == null) throw new NotFoundException("هذا الحساب غير موجود.");
 
+            CheckIfUserIsBlocked(user);
+
             await _unitOfWork.BeginTransactionAsync();
             try
             {
@@ -322,8 +328,6 @@ namespace SafeTrace.Infrastructure.Services
             }
         }
 
-
-
         public async Task<ApiResponse<AuthResponseDto>> RefreshTokenAsync()
         {
             var refreshTokenFromCookie = GetRefreshTokenFromCookie();
@@ -348,6 +352,7 @@ namespace SafeTrace.Infrastructure.Services
                 if (!storedRefreshToken.IsActive)
                 {
                     bool isWithinGracePeriod = storedRefreshToken.RevokedAt != null && 
+                        storedRefreshToken.ReplacedByToken != null &&
                         (DateTime.UtcNow - storedRefreshToken.RevokedAt.Value).TotalSeconds <= 60;
 
                     if (!isWithinGracePeriod)
@@ -368,6 +373,8 @@ namespace SafeTrace.Infrastructure.Services
                 var user = await _userManager.FindByIdAsync(userId!);
                 if (user == null) throw new NotFoundException("هذا الحساب غير موجود.");
 
+                CheckIfUserIsBlocked(user);
+
                 var newRefreshToken = _tokenService.GenerateRefreshToken();
                 storedRefreshToken.RevokedAt = DateTime.UtcNow;
                 storedRefreshToken.ReplacedByToken = newRefreshToken.Token;
@@ -385,6 +392,8 @@ namespace SafeTrace.Infrastructure.Services
 
                 SetRefreshTokenCookie(newRefreshToken.Token, newRefreshToken.ExpiresAt);
 
+                var permissions = await GetUserPermissionsAsync(user);
+
                 return ApiResponse<AuthResponseDto>.Ok(new AuthResponseDto
                 {
                     AccessToken = newAccessToken,
@@ -392,7 +401,8 @@ namespace SafeTrace.Infrastructure.Services
                     Email = user.Email!,
                     FullName = $"{user.FName} {user.LName}",
                     ProfileImage = user.ProfileImage,
-                    VerificationStatus = user.VerificationStatus
+                    VerificationStatus = user.VerificationStatus,
+                    Permissions = permissions
                 }, "تم تجديد الجلسة بنجاح.");
             }
                 catch
@@ -442,6 +452,8 @@ namespace SafeTrace.Infrastructure.Services
 
             SetRefreshTokenCookie(refreshToken.Token, refreshToken.ExpiresAt);
 
+            var permissions = await GetUserPermissionsAsync(user);
+
             return new AuthResponseDto
             {
                 AccessToken = accessToken,
@@ -449,8 +461,36 @@ namespace SafeTrace.Infrastructure.Services
                 Email = user.Email!,
                 FullName = $"{user.FName} {user.LName}",
                 ProfileImage = user.ProfileImage,
-                VerificationStatus = user.VerificationStatus
+                VerificationStatus = user.VerificationStatus,
+                Permissions = permissions
             };
+        }
+
+        private async Task<List<string>> GetUserPermissionsAsync(ApplicationUser user)
+        {
+            var permissions = new HashSet<string>();
+
+            var userClaims = await _userManager.GetClaimsAsync(user);
+            foreach (var claim in userClaims.Where(c => c.Type == "Permission"))
+            {
+                permissions.Add(claim.Value);
+            }
+
+            var roles = await _userManager.GetRolesAsync(user);
+            foreach (var roleName in roles)
+            {
+                var role = await _roleManager.FindByNameAsync(roleName);
+                if (role != null)
+                {
+                    var roleClaims = await _roleManager.GetClaimsAsync(role);
+                    foreach (var claim in roleClaims.Where(c => c.Type == "Permission"))
+                    {
+                        permissions.Add(claim.Value);
+                    }
+                }
+            }
+
+            return permissions.ToList();
         }
 
         private async Task<ApiResponse<AuthResponseDto>> ProcessExternalUserFlowAsync(string email, string firstName, string lastName, string provider)

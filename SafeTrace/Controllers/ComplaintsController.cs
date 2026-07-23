@@ -1,13 +1,15 @@
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.Mvc;
 using SafeTrace.Application.Constants;
+using SafeTrace.Application.DTOs.Complaints;
 using SafeTrace.Application.DTOs.Complaints.Request;
 using SafeTrace.Application.DTOs.Complaints.Response;
-using SafeTrace.Application.DTOs.Complaints;
 using SafeTrace.Application.DTOs.Responses;
+using SafeTrace.Application.Exceptions;
 using SafeTrace.Application.Interfaces.IServices;
 using SafeTrace.Infrastructure.Authorization;
 using System.Security.Claims;
-using SafeTrace.Application.Exceptions;
 
 namespace SafeTrace.API.Controllers
 {
@@ -79,8 +81,8 @@ namespace SafeTrace.API.Controllers
         /// UserId is extracted automatically from the JWT token.
         /// </remarks>
         [HttpPost]
-         [HasPermission(Permissions.Complaints.Create)] //--------------------------->permission check is commented out for testing purposes. Remove the comment in production.
-
+        [Authorize] //--------------------------->permission check is commented out for testing purposes. Remove the comment in production.
+        [EnableRateLimiting("ComplaintLimit")]
         public async Task<IActionResult> Create([FromBody] CreateComplaintDto dto)
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);

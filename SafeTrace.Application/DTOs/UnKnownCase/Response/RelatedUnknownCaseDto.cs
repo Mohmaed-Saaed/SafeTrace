@@ -1,8 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-
-namespace SafeTrace.Application.DTOs.UnKnownCase.Response
+﻿namespace SafeTrace.Application.DTOs.UnKnownCase.Response
 {
     public class RelatedUnknownCaseDto
     {

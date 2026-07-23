@@ -78,6 +78,27 @@ namespace SafeTrace.Application.Services
                 throw new ForbiddenException("ليس لديك صلاحية لإرسال رسائل في هذه المحادثة.");
             }
             var receiverId = chat.SenderId == senderId ? chat.ReceiverId : chat.SenderId;
+            
+            var chatUpdated = false;
+            if (chat.SenderId == receiverId && chat.DeletedBySender)
+            {
+                chat.DeletedBySender = false;
+                chat.SenderDeletedAt = null;
+                chatUpdated = true;
+            }
+
+            if(chat.ReceiverId == receiverId && chat.DeletedByReceiver)
+            {
+                chat.DeletedByReceiver = false;
+                chat.ReceiverDeletedAt = null;
+                chatUpdated = true;
+            }
+
+            if (chatUpdated)
+            {
+                 _unitOfWork.Repository<Chat>().Update(chat);
+            }
+
             string? filePath = null;
             FileType? fileType = null;
 
@@ -223,6 +244,32 @@ namespace SafeTrace.Application.Services
             }
 
             await _unitOfWork.SaveAsync();
+
+            var check = await _unitOfWork.Repository<Message>()
+                .Query(false)
+                .Where(m =>
+                    m.ChatId == chatId &&
+                    m.ReceiverId == userId)
+                .Select(m => new
+                {
+                    m.Id,
+                    m.IsRead
+                })
+                .ToListAsync();
+
+
+            _logger.LogInformation(
+                "After Save Read Status: {@Messages}",
+                check
+            );
+
+            _logger.LogInformation(
+            "Messages marked as read. ChatId: {ChatId}, UserId: {UserId}, Count: {Count}",
+            chatId,
+            userId,
+            messages.Count
+        );
+            await _chatNotifier.NotifyMessagesReadAsync(chatId,userId);
 
             var updatedCount = messages.Count;
 

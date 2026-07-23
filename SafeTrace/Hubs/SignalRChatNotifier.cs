@@ -33,5 +33,18 @@ namespace SafeTrace.API.Hubs
                 deletedAt
             });
         }
+
+        public async Task NotifyMessagesReadAsync(
+        long chatId,
+        string userId)
+        {
+            await _hubContext.Clients
+                .Group($"chat_{chatId}")
+                .SendAsync("MessagesRead", new
+                {
+                    chatId,
+                    userId
+                });
+        }
     }
 }

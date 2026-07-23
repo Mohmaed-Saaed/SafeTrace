@@ -1,7 +1,8 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using SafeTrace.Application.DTOs.Chat;
 using SafeTrace.Application.Constants;
+using SafeTrace.Application.DTOs.Chat;
 using SafeTrace.Application.Interfaces.IServices;
 using SafeTrace.Infrastructure.Authorization;
 using System.Security.Claims;
@@ -34,7 +35,7 @@ namespace SafeTrace.API.Controllers
         /// <response code="401">Unauthorized.</response>
         /// <response code="404">The specified case was not found.</response>
         [HttpGet("start-context/{caseId}")]
-        [HasPermission(Permissions.Chat.StartContext)]
+        [Authorize]
         public async Task<IActionResult> GetStartContext(long caseId)
         {
             var userId = GetCurrentUserId();
@@ -57,7 +58,7 @@ namespace SafeTrace.API.Controllers
         /// <response code="403">The user does not have permission to create chats.</response>
         /// <response code="404">The specified case was not found.</response>
         [HttpPost("create")]
-        [HasPermission(Permissions.Chat.Create)]
+        [Authorize]
         public async Task<IActionResult> CreateChat([FromBody] StartChatRequest request)
         {
             var userId = GetCurrentUserId();
@@ -75,7 +76,7 @@ namespace SafeTrace.API.Controllers
         /// <response code="401">Unauthorized.</response>
 
         [HttpGet]
-        [HasPermission(Permissions.Chat.GetMyChats)]
+        [Authorize]
         public async Task<IActionResult> GetUserChats()
         {
             var userId = GetCurrentUserId();
@@ -148,7 +149,7 @@ namespace SafeTrace.API.Controllers
         /// <response code="404">Chat not found.</response>
         /// 
         [HttpDelete("{chatId:long}")]
-        [HasPermission(Permissions.Chat.SoftDelete)]
+        [Authorize]
         public async Task<IActionResult> DeleteChat(long chatId)
         {
             var userId = GetCurrentUserId();

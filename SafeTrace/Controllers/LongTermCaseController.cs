@@ -42,7 +42,7 @@ namespace SafeTrace.API.Controllers
         /// <summary>Gets a paginated list of all long-term cases (any status) — admin only.</summary>
         /// <param name="filter">Filtering, sorting and pagination options.</param>
         [HttpGet("Admin/GetCases")]
-        [HasPermission(Permissions.LongTermCases.GetAll)]
+        [HasPermission(Permissions.Cases.GetAll)]
         [ProducesResponseType(typeof(ApiResponse<PaginationResponseDto<LongTermCaseDetailDto>>), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         [ProducesResponseType(StatusCodes.Status403Forbidden)]
