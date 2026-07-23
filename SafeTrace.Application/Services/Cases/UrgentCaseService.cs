@@ -166,7 +166,7 @@ namespace SafeTrace.Application.Services.Cases
                 entity.CaseCode,
                 userId);
 
-            // _ = NotifyNearbyUsersAsync(entity);
+            _ = NotifyNearbyUsersAsync(entity);
 
             return ApiResponse<CreateCaseResultDto>.Ok(
                 new CreateCaseResultDto

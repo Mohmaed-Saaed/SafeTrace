@@ -54,12 +54,12 @@ namespace SafeTrace.API.Controllers
         [HttpPost("CreateCase")]
         [Consumes("multipart/form-data")]
         [Authorize]
-        public async Task<IActionResult> Create([FromForm] UrgentCaseCreateDto dto)
+        public async Task<IActionResult> Create([FromForm] UrgentCaseCreateDto dto, bool forceCreate)
         {
             if (string.IsNullOrEmpty(CurrentUserId))
                 throw new UnauthorizedException("User identity could not be verified from token.");
 
-            return Ok(await _urgentCaseService.CreateAsync(CurrentUserId, dto));
+            return Ok(await _urgentCaseService.CreateAsync(CurrentUserId, dto, forceCreate));
         }
 
         [HttpPut("UpdateCase/{id:long}")]
