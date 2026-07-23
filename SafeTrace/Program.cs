@@ -188,14 +188,55 @@ namespace SafeTrace.API
                 var efEvent = scope.Event.GetEntityFrameworkEvent();
                 if (efEvent != null)
                 {
+                    var httpContext = new HttpContextAccessor().HttpContext;
+                    bool shouldLog = false;
+
+                    if (httpContext != null)
+                    {
+                        var endpoint = httpContext.GetEndpoint();
+                        if (endpoint != null)
+                        {
+                            var targetPermissions = new[]
+                            {
+                                "Users.Reject", "Users.Approve", "Users.ToggleBlock", "Users.ChangeRole", "Users.RegisterByAdmin", "Users.AssignPermissions",
+                                "Roles.Create", "Roles.Delete", "Roles.UpdateRolePermissions",
+                                "Complaints.MarkAsSolved", "Complaints.HardDelete",
+                                "UnknownCases.Approve", "UnknownCases.Reject", "UnknownCases.HardDelete",
+                                "LongTermCases.Approve", "LongTermCases.Reject", "LongTermCases.HardDelete",
+                                "UrgentCases.Approve", "UrgentCases.Reject", "UrgentCases.HardDelete"
+                            };
+
+                            var authorizeAttributes = endpoint.Metadata.OfType<Microsoft.AspNetCore.Authorization.AuthorizeAttribute>();
+                            
+                            foreach (var attr in authorizeAttributes)
+                            {
+                                if (!string.IsNullOrEmpty(attr.Policy) && targetPermissions.Contains(attr.Policy))
+                                {
+                                    shouldLog = true;
+                                    break;
+                                }
+                            }
+                        }
+                    }
+
+                    if (!shouldLog)
+                    {
+                        scope.Discard();
+                        return;
+                    }
+
                     var ignoredTables = new[]
                     {
                         "RefreshTokens", "UserOtps", "Notifications",
                         "Messages", "Chats", "AiSearchUsages",
-                        "AspNetUserTokens", "AspNetUserLogins"
+                        "AspNetUserTokens", "AspNetUserLogins",
+                        "DuplicateGroups", "DuplicateGroupCases",
+                        "FoundPersonInfos", "CaseFiles",
+                        "AgeCategories", "Donations"
                     };
 
                     efEvent.Entries.RemoveAll(e => ignoredTables.Contains(e.Table));
+
                     if (efEvent.Entries.Count == 0)
                     {
                         scope.Discard();
