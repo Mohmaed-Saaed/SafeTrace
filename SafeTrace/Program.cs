@@ -18,6 +18,7 @@ using System.Reflection;
 using System.Text.Json.Serialization;
 using Hangfire;
 using Hangfire.Dashboard.BasicAuthorization;
+using System.Text.Json;
 
 namespace SafeTrace
 {
@@ -95,21 +96,34 @@ namespace SafeTrace
                 .UseRecommendedSerializerSettings()
                 .UseSqlServerStorage(builder.Configuration.GetConnectionString("DefaultConnection")));
             builder.Services.AddHangfireServer();
-
+       
             Audit.Core.Configuration.Setup()
                 .UseEntityFramework(ef => ef
                     .AuditTypeMapper(t => typeof(AuditLog))
                     .AuditEntityAction<AuditLog>((ev, entry, entity) =>
                     {
-                        var realChanges = entry.Changes?.Where(c => !Equals(c.OriginalValue, c.NewValue)).ToList();
 
+                        var realChanges = entry.Changes?.Where(c => !Equals(c.OriginalValue, c.NewValue)).ToList();
+                     
                         entity.TableName = entry.Table;
                         entity.Type = entry.Action;
                         var egyptTimeZone = TimeZoneInfo.FindSystemTimeZoneById("Egypt Standard Time");
                         entity.DateTime = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, egyptTimeZone);
                         entity.UserId = ev.CustomFields.ContainsKey("UserId") ? ev.CustomFields["UserId"]?.ToString() : null;
                         entity.PrimaryKey = string.Join(",", entry.PrimaryKey.Values);
-                        
+
+                        if (entry.Action == "Insert")
+                        {
+                            entity.NewValues = entry.ColumnValues != null
+                                ? JsonSerializer.Serialize(entry.ColumnValues)
+                                : null;
+
+                            entity.OldValues = null;
+                            entity.AffectedColumns = null;
+                        }
+
+
+                        entity.NewValues = JsonSerializer.Serialize(entry.ColumnValues);
                         if (entry.Action == "Insert") 
                         {
                             entity.NewValues = entry.ColumnValues != null ? System.Text.Json.JsonSerializer.Serialize(entry.ColumnValues) : null;

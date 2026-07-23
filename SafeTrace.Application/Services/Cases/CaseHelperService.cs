@@ -448,7 +448,7 @@ namespace SafeTrace.Application.Services.Cases
                 {
                     DuplicateGroup = group,
                     CaseId = newCase.Id,
-                    SimilarityScore = 0,
+                    SimilarityScore = null,
                     MatchedBy = DuplicateMatchType.AI,
                     CreatedAt = DateTime.UtcNow
                 });
@@ -476,7 +476,7 @@ namespace SafeTrace.Application.Services.Cases
                 {
                     DuplicateGroup = group,
                     CaseId = oldCase.Id,
-                    SimilarityScore = 100,
+                    SimilarityScore = null,
                     MatchedBy = DuplicateMatchType.AI,
                     CreatedAt = DateTime.UtcNow
                 });

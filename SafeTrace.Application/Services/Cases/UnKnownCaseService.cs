@@ -30,14 +30,23 @@ namespace SafeTrace.Application.Services.Cases
         /// </summary>
         protected override IQueryable<UnknownCase> BuildGetAllQuery()
         {
+            //var latestCaseIds = _unitOfWork
+            //    .Repository<DuplicateGroupCase>()
+            //    .Query(tracked: false)
+            //    .GroupBy(x => x.DuplicateGroupId)
+            //    .Select(g => g
+            //        .OrderByDescending(x => x.Case.CreatedAt)
+            //        .Select(x => x.CaseId)
+            //        .First());
             var latestCaseIds = _unitOfWork
-                .Repository<DuplicateGroupCase>()
-                .Query(tracked: false)
-                .GroupBy(x => x.DuplicateGroupId)
-                .Select(g => g
-                    .OrderByDescending(x => x.Case.CreatedAt)
-                    .Select(x => x.CaseId)
-                    .First());
+    .Repository<DuplicateGroupCase>()
+    .Query(tracked: false)
+    .Where(x => x.Case.Status == CaseStatus.Active)
+    .GroupBy(x => x.DuplicateGroupId)
+    .Select(g => g
+        .OrderByDescending(x => x.Case.CreatedAt)
+        .Select(x => x.CaseId)
+        .First());
 
             return _unitOfWork
                 .Repository<UnknownCase>()
@@ -61,7 +70,52 @@ namespace SafeTrace.Application.Services.Cases
         /// has retrieved and mapped the entity. Other case types are unaffected since this
         /// hook is a no-op in BaseCasesService by default.
         /// </summary>
-        protected override async Task AfterGetByIdAsync(UnknownCaseDetailDto dto, long id)
+        //protected override async Task AfterGetByIdAsync(UnknownCaseDetailDto dto, long id,bool isAdmin)
+        //{
+        //    var groupId = await _unitOfWork
+        //        .Repository<DuplicateGroupCase>()
+        //        .Query(tracked: false)
+        //        .Where(x => x.CaseId == id)
+        //        .Select(x => (long?)x.DuplicateGroupId)
+        //        .FirstOrDefaultAsync();
+
+        //    if (groupId == null)
+        //        return;
+
+        //    var relatedCases = await _unitOfWork
+        //        .Repository<DuplicateGroupCase>()
+        //        .Query(
+        //            tracked: false,
+        //            includes:
+        //            [
+        //                x => x.Case,
+        //                x => x.Case.CaseFiles
+        //            ])
+        //        .Where(x =>
+        //            x.DuplicateGroupId == groupId &&
+        //            x.CaseId != id)
+        //        .OrderByDescending(x => x.Case.CreatedAt)
+        //        .ToListAsync();
+
+
+        //    dto.RelatedCases = relatedCases
+        //        .Select(x => new RelatedUnknownCaseDto
+        //        {
+        //            Id = x.Case.Id,
+        //            CaseCode = x.Case.CaseCode,
+        //            CreatedAt = x.Case.CreatedAt,
+        //            Similarity = (float)x.SimilarityScore,
+        //            MainPhotoPath = x.Case.CaseFiles
+        //                .Where(f => f.IsPrimary)
+        //                .Select(f => f.ImagePath)
+        //                .FirstOrDefault() ?? string.Empty
+        //        })
+        //        .ToList();
+        //}
+        protected override async Task AfterGetByIdAsync(
+    UnknownCaseDetailDto dto,
+    long id,
+    bool isAdmin)
         {
             var groupId = await _unitOfWork
                 .Repository<DuplicateGroupCase>()
@@ -73,18 +127,26 @@ namespace SafeTrace.Application.Services.Cases
             if (groupId == null)
                 return;
 
-            var relatedCases = await _unitOfWork
+            var query = _unitOfWork
                 .Repository<DuplicateGroupCase>()
                 .Query(
                     tracked: false,
                     includes:
                     [
                         x => x.Case,
-                        x => x.Case.CaseFiles
+                x => x.Case.CaseFiles
                     ])
                 .Where(x =>
                     x.DuplicateGroupId == groupId &&
-                    x.CaseId != id)
+                    x.CaseId != id);
+
+            // المستخدم العادي يشوف الحالات الـ Active فقط
+            if (!isAdmin)
+            {
+                query = query.Where(x => x.Case.Status == CaseStatus.Active);
+            }
+
+            var relatedCases = await query
                 .OrderByDescending(x => x.Case.CreatedAt)
                 .ToListAsync();
 
@@ -94,7 +156,9 @@ namespace SafeTrace.Application.Services.Cases
                     Id = x.Case.Id,
                     CaseCode = x.Case.CaseCode,
                     CreatedAt = x.Case.CreatedAt,
-                    Similarity = (float)x.SimilarityScore,
+                    Similarity = x.SimilarityScore.HasValue
+                   ? (float)x.SimilarityScore.Value
+                    : null,
                     MainPhotoPath = x.Case.CaseFiles
                         .Where(f => f.IsPrimary)
                         .Select(f => f.ImagePath)
@@ -102,7 +166,7 @@ namespace SafeTrace.Application.Services.Cases
                 })
                 .ToList();
         }
-        
+
         public async Task<ApiResponse<CreateCaseResultDto>> CreateUnknownCaseAsync(string userId, CreateUnknownDto dto, bool forceCreate = false)
         {
             await _caseHelper.ValidateVerifiedUserAsync(userId);
@@ -414,7 +478,7 @@ namespace SafeTrace.Application.Services.Cases
                 {
                     DuplicateGroup = group,
                     CaseId = newCase.Id,
-                    SimilarityScore = 100,
+                    SimilarityScore = null,
                     MatchedBy = DuplicateMatchType.AI,
                     CreatedAt = DateTime.UtcNow
                 });
@@ -438,7 +502,7 @@ namespace SafeTrace.Application.Services.Cases
                 {
                     DuplicateGroup = group,
                     CaseId = oldCase.Id,
-                    SimilarityScore = 100,
+                    SimilarityScore = null,
                     MatchedBy = DuplicateMatchType.AI,
                     CreatedAt = DateTime.UtcNow
                 });
