@@ -343,7 +343,7 @@ namespace SafeTrace.Application.Services.Cases
         /// allowing derived services to enrich the DTO with feature-specific data
         /// (e.g. populating related/duplicate cases). No-op by default.
         /// </summary>
-        protected virtual Task AfterGetByIdAsync(TDetailDto dto, long id, bool isAdmin) => Task.CompletedTask;
+        protected virtual Task AfterGetByIdAsync(TDetailDto dto, long id,bool isAdmin) => Task.CompletedTask;
 
         /// <summary>
         /// Allows derived services to apply additional filtering. Default: no extra filters. 

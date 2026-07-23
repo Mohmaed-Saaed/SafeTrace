@@ -102,8 +102,9 @@ namespace SafeTrace.API
                     .AuditTypeMapper(t => typeof(AuditLog))
                     .AuditEntityAction<AuditLog>((ev, entry, entity) =>
                     {
-                        var realChanges = entry.Changes?.Where(c => !Equals(c.OriginalValue, c.NewValue)).ToList();
 
+                        var realChanges = entry.Changes?.Where(c => !Equals(c.OriginalValue, c.NewValue)).ToList();
+                     
                         entity.TableName = entry.Table;
                         entity.Type = entry.Action;
                         var egyptTimeZone = TimeZoneInfo.FindSystemTimeZoneById("Egypt Standard Time");
