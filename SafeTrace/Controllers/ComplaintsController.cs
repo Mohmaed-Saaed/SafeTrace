@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.Mvc;
 using SafeTrace.Application.Constants;
 using SafeTrace.Application.DTOs.Complaints;
@@ -81,7 +82,7 @@ namespace SafeTrace.API.Controllers
         /// </remarks>
         [HttpPost]
         [Authorize] //--------------------------->permission check is commented out for testing purposes. Remove the comment in production.
-
+        [EnableRateLimiting("ComplaintLimit")]
         public async Task<IActionResult> Create([FromBody] CreateComplaintDto dto)
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);

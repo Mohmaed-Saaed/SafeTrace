@@ -71,7 +71,7 @@ namespace SafeTrace.API
                     builder
                         .WithOrigins("https://localhost:4200", "http://localhost:5500", "http://127.0.0.1:5500",
                                     "http://localhost:5501", "http://127.0.0.1:5501", "https://localhost:7204", "https://localhost:5173", "https://localhost:7126",
-                                    "http://localhost:3000", "http://localhost:8080", 
+                                    "http://localhost:3000", "http://localhost:8080",
                                     "https://leqaaweb.runasp.net"
                                     , "https://rearview-manual-coke.ngrok-free.dev") // Add common dev ports
                         .AllowAnyHeader()
@@ -85,11 +85,10 @@ namespace SafeTrace.API
 
             builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
             builder.Services.AddProblemDetails();
-            builder.Services.AddSignalR();
-            
+
             // Background Services
             builder.Services.AddScoped<ICaseCleanupService, CaseCleanupService>();
-            
+
             builder.Services.AddHangfire(config => config
                 .SetDataCompatibilityLevel(CompatibilityLevel.Version_180)
                 .UseSimpleAssemblyNameTypeSerializer()
@@ -111,8 +110,8 @@ namespace SafeTrace.API
                         entity.DateTime = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, egyptTimeZone);
                         entity.UserId = ev.CustomFields.ContainsKey("UserId") ? ev.CustomFields["UserId"]?.ToString() : null;
                         entity.PrimaryKey = string.Join(",", entry.PrimaryKey.Values);
-                        
-                        if (entry.Action == "Insert") 
+
+                        if (entry.Action == "Insert")
                         {
                             // entity.NewValues = entry.ColumnValues != null ? System.Text.Json.JsonSerializer.Serialize(entry.ColumnValues) : null;
                             if (entry.ColumnValues != null)
@@ -148,7 +147,7 @@ namespace SafeTrace.API
                             // entity.OldValues = entry.ColumnValues != null ? System.Text.Json.JsonSerializer.Serialize(entry.ColumnValues) : null;
                             entity.AffectedColumns = null;
                         }
-                        else 
+                        else
                         {
                             if (realChanges?.Count > 0)
                             {
@@ -189,14 +188,55 @@ namespace SafeTrace.API
                 var efEvent = scope.Event.GetEntityFrameworkEvent();
                 if (efEvent != null)
                 {
-                    var ignoredTables = new[] 
-                    { 
-                        "RefreshTokens", "UserOtps", "Notifications", 
-                        "Messages", "Chats", "AiSearchUsages", 
-                        "AspNetUserTokens", "AspNetUserLogins" 
+                    var httpContext = new HttpContextAccessor().HttpContext;
+                    bool shouldLog = false;
+
+                    if (httpContext != null)
+                    {
+                        var endpoint = httpContext.GetEndpoint();
+                        if (endpoint != null)
+                        {
+                            var targetPermissions = new[]
+                            {
+                                "Users.Reject", "Users.Approve", "Users.ToggleBlock", "Users.ChangeRole", "Users.RegisterByAdmin", "Users.AssignPermissions",
+                                "Roles.Create", "Roles.Delete", "Roles.UpdateRolePermissions",
+                                "Complaints.MarkAsSolved", "Complaints.HardDelete",
+                                "UnknownCases.Approve", "UnknownCases.Reject", "UnknownCases.HardDelete",
+                                "LongTermCases.Approve", "LongTermCases.Reject", "LongTermCases.HardDelete",
+                                "UrgentCases.Approve", "UrgentCases.Reject", "UrgentCases.HardDelete"
+                            };
+
+                            var authorizeAttributes = endpoint.Metadata.OfType<Microsoft.AspNetCore.Authorization.AuthorizeAttribute>();
+                            
+                            foreach (var attr in authorizeAttributes)
+                            {
+                                if (!string.IsNullOrEmpty(attr.Policy) && targetPermissions.Contains(attr.Policy))
+                                {
+                                    shouldLog = true;
+                                    break;
+                                }
+                            }
+                        }
+                    }
+
+                    if (!shouldLog)
+                    {
+                        scope.Discard();
+                        return;
+                    }
+
+                    var ignoredTables = new[]
+                    {
+                        "RefreshTokens", "UserOtps", "Notifications",
+                        "Messages", "Chats", "AiSearchUsages",
+                        "AspNetUserTokens", "AspNetUserLogins",
+                        "DuplicateGroups", "DuplicateGroupCases",
+                        "FoundPersonInfos", "CaseFiles",
+                        "AgeCategories", "Donations"
                     };
 
                     efEvent.Entries.RemoveAll(e => ignoredTables.Contains(e.Table));
+
                     if (efEvent.Entries.Count == 0)
                     {
                         scope.Discard();
@@ -288,7 +328,7 @@ namespace SafeTrace.API
             app.UseCors("CorsPolicy");
 
             app.UseRateLimiter();
-            
+
             app.UseAuthentication();
             app.UseAuthorization();
 

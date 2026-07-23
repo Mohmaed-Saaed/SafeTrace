@@ -378,7 +378,7 @@ namespace SafeTrace.Application.Services
 
             if (!isAdmin)
             {
-                foreach (var message in messages)
+                foreach (var message in messageDtos)
                 {
                     if (message.IsDeletedForEveryone)
                     {
@@ -603,6 +603,9 @@ namespace SafeTrace.Application.Services
             var deletedBySenderOnly = chatsStats.Where(x => x.DeletedBySender && !x.DeletedByReceiver).Sum(x => x.Count);
             var deletedByReceiverOnly = chatsStats.Where(x => !x.DeletedBySender && x.DeletedByReceiver).Sum(x => x.Count);
             var deletedByBoth = chatsStats.Where(x => x.DeletedBySender && x.DeletedByReceiver).Sum(x => x.Count);
+            var totalUnreadMessages = await _unitOfWork.Repository<Message>()
+            .Query(tracked: false)
+            .CountAsync(m => !m.IsRead);
 
             var stats = new AdminChatStatisticsDto
             {
@@ -610,7 +613,8 @@ namespace SafeTrace.Application.Services
                 ActiveChats = activeChats,
                 DeletedBySenderOnly = deletedBySenderOnly,
                 DeletedByReceiverOnly = deletedByReceiverOnly,
-                DeletedByBoth = deletedByBoth
+                DeletedByBoth = deletedByBoth,
+                TotalUnreadMessages = totalUnreadMessages
             };
 
             return ApiResponse<AdminChatStatisticsDto>.Ok(stats, "تم جلب الإحصائيات بنجاح.");

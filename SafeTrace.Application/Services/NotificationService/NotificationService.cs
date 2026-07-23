@@ -38,16 +38,17 @@ namespace SafeTrace.Application.Services.NotificationServices
             _hubContext = hubContext;
             _mapper = mapper;
             _logger = logger;
+            _logger.LogWarning("NotificationsHub Created");
+
 
         }
 
 
         public async Task SendNotificationAsync(SendNotificationDTO dto)
         {
-            _logger.LogInformation("Sending notification to UserId: {UserId} at {date}", dto.UserId, DateTime.UtcNow);
-
+            _logger.LogInformation("Sending notification to UserId: {UserId} at {date}", dto.UserId, DateTime.Now);
             var notification = _mapper.Map<Notification>(dto);
-            notification.CreatedAt = DateTime.UtcNow;
+            notification.CreatedAt = DateTime.Now;
             notification.IsRead = false;
 
             await _UNIT.Repository<Notification>().CreateAsync(notification);
@@ -69,13 +70,26 @@ namespace SafeTrace.Application.Services.NotificationServices
             _logger.LogWarning(
     "Sending notification to group: user_{UserId}",
     dto.UserId);
+
+
             await _hubContext.Clients
                 .Group($"user_{dto.UserId}")
                 .SendAsync("ReceiveNotification", responseDto);
 
+
+            _logger.LogInformation(
+"Sending ReceiveNotification to group user_{UserId}",
+dto.UserId
+);
+
             await _hubContext.Clients
-                .Group($"user_{dto.UserId}")
-                .SendAsync("UnreadCount", unreadCount);
+    .Group($"user_{dto.UserId}")
+    .SendAsync(
+        "UnreadCount",
+        ApiResponse<int>.Ok(unreadCount, "عدد الاشعارات غير المقرؤة.")
+    );
+
+
 
             _logger.LogInformation("Notification sent to UserId: {UserId}. UnreadCount: {Count}", dto.UserId, unreadCount);
         }
@@ -186,9 +200,14 @@ namespace SafeTrace.Application.Services.NotificationServices
 
             if (affected > 0)
             {
+
                 await _hubContext.Clients
                     .Group($"user_{userId}")
-                    .SendAsync("UnreadCount", 0);
+                      .SendAsync(
+                       "UnreadCount",
+                 ApiResponse<int>.Ok(0, "عدد الاشعارات غير المقرؤة.")
+);
+                //.SendAsync("UnreadCount", 0);
             }
             _logger.LogInformation("Marked {Count} notifications as read for UserId: {UserId}", affected, userId);
         }
@@ -246,7 +265,6 @@ namespace SafeTrace.Application.Services.NotificationServices
                 TotalCount = totalCount,
                 TotalPages = (int)Math.Ceiling(totalCount / (double)pageSize),
                 HasMore = page < (int)Math.Ceiling(totalCount / (double)pageSize)
-
             };
             return ApiResponse<NotificationPageDto>.Ok(
                 result,
