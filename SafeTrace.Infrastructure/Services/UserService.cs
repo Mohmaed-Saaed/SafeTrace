@@ -362,9 +362,9 @@ namespace SafeTrace.Infrastructure.Services
             var DeletedResult = _fileStorageService.DeleteFile(user.IdentificationImage);
             if (!DeletedResult) throw new BadRequestException("فشل في مسح صورة الهوية الخاصة بالمستخدم من الخادم.");
 
+            user.IdentificationImage = null;
             user.VerificationStatus = VerificationStatus.Unverified;
-            await _userManager.UpdateAsync(user);
-
+            
             var result = await _userManager.UpdateAsync(user);
             if (!result.Succeeded)
             {
