@@ -1,13 +1,9 @@
-﻿using Microsoft.AspNetCore.Identity;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using SafeTrace.Application.DTOs.Responses;
 using SafeTrace.Application.DTOs.RolePermission.Request;
 using SafeTrace.Application.DTOs.RolePermission.Response;
 using SafeTrace.Application.Exceptions;
-using SafeTrace.Application.Interfaces.IServices;
-using System.Reflection;
-using System.Security.Claims;
+using SafeTrace.Domain.Enums;
 
 namespace SafeTrace.Infrastructure.Services
 {
@@ -15,23 +11,29 @@ namespace SafeTrace.Infrastructure.Services
     {
         private readonly RoleManager<IdentityRole> _roleManager;
         private readonly UserManager<ApplicationUser> _userManager;
+        private readonly IUnitOfWork _unitOfWork;
         private readonly ILogger<RolePermissionService> _logger;
 
-        public RolePermissionService(RoleManager<IdentityRole> roleManager, ILogger<RolePermissionService> logger, UserManager<ApplicationUser> userManager)
+        public RolePermissionService(
+            RoleManager<IdentityRole> roleManager, 
+            ILogger<RolePermissionService> logger, 
+            UserManager<ApplicationUser> userManager,
+            IUnitOfWork unitOfWork)
         {
             _roleManager = roleManager;
             _logger = logger;
             _userManager = userManager;
+            _unitOfWork = unitOfWork;
         }
 
         public async Task<ApiResponse<List<RoleDto>>> GetAllRolesAsync()
         {
-            var roles = await _roleManager.Roles.Select(r => new RoleDto
-            {
-                Id = r.Id,
-                Name = r.Name!
-            })
-                                                .ToListAsync();
+            var roles = await _roleManager.Roles
+                .Select(r => new RoleDto
+                {
+                    Id = r.Id,
+                    Name = r.Name!
+                }).ToListAsync();
 
             return ApiResponse<List<RoleDto>>.Ok(roles);
         }
@@ -61,7 +63,7 @@ namespace SafeTrace.Infrastructure.Services
             var role = await _roleManager.FindByIdAsync(roleId);
             if (role == null) throw new NotFoundException("هذا الدور غير موجود.");
 
-            var coreRoles = new List<string> { "Admin", "User", "VerifiedUser" };
+            var coreRoles = new List<string> { UserRole.SuperAdmin.ToString(), UserRole.Admin.ToString(), UserRole.User.ToString(), UserRole.VerifiedUser.ToString(), UserRole.Moderator.ToString() };
             if (coreRoles.Contains(role.Name!)) throw new ForbiddenException("لا يمكن حذف الأدوار الأساسية للنظام.");
 
             var usersInRole = await _userManager.GetUsersInRoleAsync(role.Name!);
@@ -90,17 +92,7 @@ namespace SafeTrace.Infrastructure.Services
                                                     .Select(c => c.Value)
                                                     .ToList();
 
-            var allPermissions = new List<string>();
-            var modules = typeof(Application.Constants.Permissions).GetNestedTypes(BindingFlags.Public | BindingFlags.Static);
-            foreach (var module in modules)
-            {
-                var fields = module.GetFields(BindingFlags.Public | BindingFlags.Static | BindingFlags.FlattenHierarchy);
-                foreach (var field in fields)
-                {
-                    var value = field.GetValue(null)?.ToString();
-                    if (value != null) allPermissions.Add(value);
-                }
-            }
+            var allPermissions = Application.Constants.Permissions.GetAllPermissions();
 
             var response = new RolePermissionsResponseDto
             {
@@ -121,17 +113,30 @@ namespace SafeTrace.Infrastructure.Services
             var role = await _roleManager.FindByIdAsync(dto.RoleId);
             if (role == null) throw new NotFoundException("لم يتم العثور على هذا الدور (Role).");
 
-            var claims = await _roleManager.GetClaimsAsync(role);
-            var permissionClaims = claims.Where(c => c.Type == "Permission");
-            foreach (var claim in permissionClaims)
+            if (role.Name == UserRole.SuperAdmin.ToString()) 
+                throw new ForbiddenException("لأسباب أمنية، لا يمكن تعديل صلاحيات دور المالك الاساسي للنظام");
+
+            var repo = _unitOfWork.Repository<IdentityRoleClaim<string>>();
+            
+            var existingRoleClaims = await repo.Query()
+                .Where(c => c.RoleId == role.Id && c.ClaimType == "Permission")
+                .ToListAsync();
+
+            repo.RemoveRange(existingRoleClaims);
+
+            if (dto.SelectedPermissions != null && dto.SelectedPermissions.Any())
             {
-                await _roleManager.RemoveClaimAsync(role, claim);
+                var newClaims = dto.SelectedPermissions.Select(p => new IdentityRoleClaim<string>
+                {
+                    RoleId = role.Id,
+                    ClaimType = "Permission",
+                    ClaimValue = p
+                });
+                
+                await repo.CreateRangeAsync(newClaims);
             }
 
-            foreach (var permission in dto.SelectedPermissions)
-            {
-                await _roleManager.AddClaimAsync(role, new Claim("Permission", permission));
-            }
+            await _unitOfWork.SaveAsync();
 
             return ApiResponse<string>.Ok(role.Id, "تم تحديث صلاحيات الدور بنجاح.");
         }

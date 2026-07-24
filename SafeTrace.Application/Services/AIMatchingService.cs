@@ -1,5 +1,7 @@
-﻿using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Http;
 using SafeTrace.Application.DTOs.AiMatching.Response;
+using SafeTrace.Application.Exceptions;
+using Microsoft.AspNetCore.Identity;
 
 
 namespace SafeTrace.Application.Services
@@ -10,22 +12,57 @@ namespace SafeTrace.Application.Services
         private readonly IFaceRecognitionService _faceRecognitionService;
         private readonly IMapper _mapper;
         private readonly ILogger<AIMatchingService> _logger;
+        private readonly UserManager<ApplicationUser> _userManager;
 
         public AIMatchingService(
             IUnitOfWork unitOfWork,
             IFaceRecognitionService faceRecognitionService,
             IMapper mapper,
-            ILogger<AIMatchingService> logger)
+            ILogger<AIMatchingService> logger,
+            UserManager<ApplicationUser> userManager)
         {
             _unitOfWork = unitOfWork;
             _faceRecognitionService = faceRecognitionService;
             _mapper = mapper;
             _logger = logger;
+            _userManager = userManager;
         }
 
-        public async Task<ApiResponse<List<MatchedCaseDto>>> GetMatchingCasesAsync(IFormFile image)
+        public async Task<ApiResponse<List<MatchedCaseDto>>> GetMatchingCasesAsync(IFormFile image, string userId)
         {
+            var user = await _userManager.FindByIdAsync(userId);
+            if (user == null) throw new UnauthorizedException("تعذر التحقق من هوية المستخدم.");
+
+            var isUser = await _userManager.IsInRoleAsync(user, "User");
+            var isVerifiedUser = await _userManager.IsInRoleAsync(user, "VerifiedUser");
+
+            if (isUser || isVerifiedUser)
+            {
+                var today = DateTime.UtcNow.Date;
+
+                var dailyUsageCount = await EntityFrameworkQueryableExtensions.CountAsync(
+                    _unitOfWork.Repository<AiSearchUsage>()
+                        .Query(tracked: false)
+                        .Where(x => x.UserId == userId && x.CreatedAt.Date == today)
+                );
+
+                if (dailyUsageCount >= 2)
+                {
+                    throw new BadRequestException("عذراً، لقد تجاوزت الحد الأقصى (مرتين) لاستخدام البحث الذكي اليوم. يرجى المحاولة لاحقاً.");
+                }
+            }
+
             var faceMatches = await _faceRecognitionService.SearchByImageAsync(image);
+
+            if (isUser || isVerifiedUser)
+            {
+                await _unitOfWork.Repository<AiSearchUsage>().CreateAsync(new AiSearchUsage 
+                { 
+                    UserId = userId, 
+                    CreatedAt = DateTime.UtcNow 
+                });
+                await _unitOfWork.SaveAsync();
+            }
 
             if (faceMatches == null || !faceMatches.Any())
             {
@@ -34,42 +71,65 @@ namespace SafeTrace.Application.Services
 
             var matchedFaceIds = faceMatches.Select(f => f.FaceId).ToList();
 
-            var photosQuery = _unitOfWork.Repository<CaseFile>()
-                .Query(tracked: true, includes:
-                [
-                    p => p.Case,
-                    p => p.Case.CaseFiles
-                ]);
+            var similarityDict = faceMatches
+                .GroupBy(f => f.FaceId)
+                .ToDictionary(g => g.Key, g => g.Max(f => f.Similarity));
 
-            var query = photosQuery.Where(p => p.FaceId != null &&
-                                               matchedFaceIds.Contains(p.FaceId) &&
-                                               p.Case.Status == CaseStatus.Active);
+            var matchedPhotos = await EntityFrameworkQueryableExtensions.ToListAsync(
+                _unitOfWork.Repository<CaseFile>()
+                    .Query(tracked: true, includes:
+                    [
+                        p => p.Case,
+                        p => p.Case.CaseFiles,
+                        p => p.Case.DuplicateGroups
+                    ])
+                    .Where(p => p.FaceId != null &&
+                                matchedFaceIds.Contains(p.FaceId) &&
+                                p.Case.Status == CaseStatus.Active)
+            );
 
-            var matchedPhotos = await EntityFrameworkQueryableExtensions.ToListAsync(query);
+            if (!matchedPhotos.Any())
+            {
+                return ApiResponse<List<MatchedCaseDto>>.Ok(new List<MatchedCaseDto>(), "لم يتم العثور على حالات مطابقة.");
+            }
 
             var photosWithSimilarity = matchedPhotos.Select(p => new
             {
                 Photo = p,
-                Similarity = faceMatches.First(f => f.FaceId == p.FaceId).Similarity
+                Case = p.Case,
+                Similarity = p.FaceId != null && similarityDict.ContainsKey(p.FaceId) ? similarityDict[p.FaceId] : 0
             });
 
-            var topMatchedPhotos = photosWithSimilarity
-                .GroupBy(x => x.Photo.CaseId)
+            var topCasesWithSimilarity = photosWithSimilarity
+                .GroupBy(x => x.Case.Id)
+                .Select(group => new
+                {
+                    Case = group.First().Case,
+                    Similarity = group.Max(x => x.Similarity),
+                    BestPhoto = group.OrderByDescending(x => x.Similarity).First().Photo
+                })
+                .ToList();
+
+            var groupedCases = topCasesWithSimilarity
+                .GroupBy(x => 
+                {
+                    if (x.Case.CaseType == CaseType.Unknown && x.Case.DuplicateGroups.Any())
+                    {
+                        return x.Case.DuplicateGroups.First().DuplicateGroupId;
+                    }
+                    return -x.Case.Id;
+                })
                 .Select(group => group.OrderByDescending(x => x.Similarity).First())
-                .OrderByDescending(x => x.Photo.Case.CreatedAt)
+                .OrderByDescending(x => x.Similarity)
                 .ToList();
 
             var resultList = new List<MatchedCaseDto>();
 
-            foreach (var item in topMatchedPhotos)
+            foreach (var item in groupedCases)
             {
-                var caseEntity = item.Photo.Case;
-
-                var dto = _mapper.Map<MatchedCaseDto>(caseEntity);
-
+                var dto = _mapper.Map<MatchedCaseDto>(item.Case);
                 dto.Similarity = (float)Math.Round((double)(item.Similarity ?? 0), 2);
-                dto.MainPhotoPath = item.Photo.ImagePath;
-
+                dto.MainPhoto = item.BestPhoto.ImagePath;
                 resultList.Add(dto);
             }
 

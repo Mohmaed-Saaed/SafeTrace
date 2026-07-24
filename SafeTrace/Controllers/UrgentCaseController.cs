@@ -31,20 +31,10 @@ namespace SafeTrace.API.Controllers
         }
 
         [HttpGet("Admin/GetCases")]
-        [HasPermission(Permissions.UrgentCases.GetAll)]
+        [HasPermission(Permissions.Cases.GetAll)]
         public async Task<IActionResult> AdminGetAll([FromQuery] UrgentCasesFilterDto filter)
         {
             return Ok(await _urgentCaseService.AdminGetAllAsync(filter));
-        }
-
-        [HttpGet("GetMyCases")]
-        [HasPermission(Permissions.UrgentCases.GetMyCases)]
-        public async Task<IActionResult> GetMyCases([FromQuery] UrgentCasesFilterDto filter)
-        {
-            if (string.IsNullOrEmpty(CurrentUserId))
-                throw new UnauthorizedException("User identity could not be verified from token.");
-
-            return Ok(await _urgentCaseService.GetMyCasesAsync(CurrentUserId, filter));
         }
 
         [HttpGet("GetCaseDetails/{id:long}")]
@@ -60,21 +50,19 @@ namespace SafeTrace.API.Controllers
         {
             return Ok(await _urgentCaseService.AdminGetByIdAsync(id));
         }
-
         [HttpPost("CreateCase")]
         [Consumes("multipart/form-data")]
-        [HasPermission(Permissions.UrgentCases.Create)]
-        public async Task<IActionResult> Create([FromForm] UrgentCaseCreateDto dto)
+        [Authorize]
+        public async Task<IActionResult> Create([FromForm] UrgentCaseCreateDto dto, [FromQuery] bool forceCreate = false)
         {
             if (string.IsNullOrEmpty(CurrentUserId))
                 throw new UnauthorizedException("User identity could not be verified from token.");
 
-            return Ok(await _urgentCaseService.CreateAsync(CurrentUserId, dto));
+            return Ok(await _urgentCaseService.CreateAsync(CurrentUserId, dto, forceCreate));
         }
-
         [HttpPut("UpdateCase/{id:long}")]
         [Consumes("multipart/form-data")]
-        [HasPermission(Permissions.UrgentCases.Update)]
+        [Authorize]
         public async Task<IActionResult> Update(long id, [FromForm] UrgentCaseUpdateDto dto)
         {
             if (string.IsNullOrEmpty(CurrentUserId))
@@ -84,7 +72,7 @@ namespace SafeTrace.API.Controllers
         }
 
         [HttpDelete("Delete/{id:long}")]
-        [HasPermission(Permissions.UrgentCases.SoftDelete)]
+        [Authorize]
         public async Task<IActionResult> SoftDelete(long id)
         {
             if (string.IsNullOrEmpty(CurrentUserId))
@@ -108,6 +96,16 @@ namespace SafeTrace.API.Controllers
         public async Task<IActionResult> PermanentDelete(long id)
         {
             return Ok(await _urgentCaseService.PermanentDeleteAsync(id));
+        }
+
+        [HttpGet("CreationStatus")]
+        [Authorize]
+        public async Task<IActionResult> GetCreationStatus()
+        {
+            if (string.IsNullOrEmpty(CurrentUserId))
+                throw new UnauthorizedException("User identity could not be verified from token.");
+
+            return Ok(await _urgentCaseService.GetUrgentCreationStatusAsync(CurrentUserId));
         }
     }
 }

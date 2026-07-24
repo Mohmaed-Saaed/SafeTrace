@@ -32,20 +32,10 @@ namespace SafeTrace.API.Controllers
         }
 
         [HttpGet("Admin/GetCases")]
-        [HasPermission(Permissions.UnknownCases.GetAll)]
+        [HasPermission(Permissions.Cases.GetAll)]
         public async Task<IActionResult> AdminGetAll([FromQuery] UnknownCasesFilterDto filter)
         {
             return Ok(await _unKnownServiceCase.AdminGetAllAsync(filter));
-        }
-
-        [HttpGet("GetMyCases")]
-        [HasPermission(Permissions.UnknownCases.GetMyCases)]
-        public async Task<IActionResult> GetMyCases([FromQuery] UnknownCasesFilterDto filter)
-        {
-            if (string.IsNullOrEmpty(CurrentUserId))
-                throw new UnauthorizedException("User identity could not be verified from token.");
-
-            return Ok(await _unKnownServiceCase.GetMyCasesAsync(CurrentUserId, filter));
         }
 
         [HttpGet("GetCaseDetails/{id:long}")]
@@ -61,16 +51,17 @@ namespace SafeTrace.API.Controllers
         {
             return Ok(await _unKnownServiceCase.AdminGetByIdAsync(id));
         }
-
         [HttpPost("CreateCase")]
         [Consumes("multipart/form-data")]
         [HasPermission(Permissions.UnknownCases.Create)]
-        public async Task<IActionResult> CreateUnknown([FromForm] CreateUnknownDto dto)
+        public async Task<IActionResult> CreateUnknown(
+            [FromForm] CreateUnknownDto dto,
+            [FromQuery] bool forceCreate = false)
         {
             if (string.IsNullOrEmpty(CurrentUserId))
                 throw new UnauthorizedException("User identity could not be verified from token.");
 
-            return Ok(await _unKnownServiceCase.CreateUnknownCaseAsync(CurrentUserId, dto));
+            return Ok(await _unKnownServiceCase.CreateUnknownCaseAsync(CurrentUserId, dto, forceCreate));
         }
 
         [HttpPut("UpdateCase/{id:long}")]
@@ -93,9 +84,9 @@ namespace SafeTrace.API.Controllers
 
         [HttpPut("Reject/{id:long}")]
         [HasPermission(Permissions.UnknownCases.Reject)]
-        public async Task<IActionResult> Reject(long id)
+        public async Task<IActionResult> Reject(long id, [FromBody] string rejectionReason)
         {
-            return Ok(await _unKnownServiceCase.RejectAsync(id));
+            return Ok(await _unKnownServiceCase.RejectAsync(id, rejectionReason));
         }
 
         [HttpDelete("Delete/{id:long}")]

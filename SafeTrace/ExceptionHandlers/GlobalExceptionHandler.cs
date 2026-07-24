@@ -1,7 +1,8 @@
-﻿    using Microsoft.AspNetCore.Diagnostics;
-    using Microsoft.AspNetCore.Mvc;
-    using SafeTrace.Application.Exceptions;
-    using System.Net;
+using ElmahCore;
+using Microsoft.AspNetCore.Diagnostics;
+using Microsoft.AspNetCore.Mvc;
+using SafeTrace.Application.Exceptions;
+using System.Net;
 
     namespace SafeTrace.API.ExceptionHandlers
     {
@@ -20,37 +21,25 @@
 
             public async ValueTask<bool> TryHandleAsync(HttpContext httpContext, Exception exception, CancellationToken cancellationToken)
             {
-                if (exception is UnknownCaseMatchException matchException)
-                    {
-                        _logger.LogInformation("تم العثور على حالات مجهولة مشابهة للصور المرفوعة. يتم إرسال المقترحات إلى المستخدم.");
 
-                        httpContext.Response.StatusCode = StatusCodes.Status200OK; 
-                        httpContext.Response.ContentType = "application/json";
-
-                        var responseBody = new
-                        {
-                            status = 200,
-                            message = matchException.Message,
-                            matches = matchException.Matches
-                        };
-
-                        await httpContext.Response.WriteAsJsonAsync(responseBody, cancellationToken);
-                        return true; 
-                    }
-            _logger.LogError(exception, "An exception occurred while processing the request.");
+                _logger.LogError(exception, "An exception occurred while processing the request.");
 
                 var statusCode = exception switch
                 {
-                    NotFoundException => HttpStatusCode.NotFound,
-                    BadRequestException => HttpStatusCode.BadRequest,
-                    UnauthorizedException => HttpStatusCode.Unauthorized,
-                    ForbiddenException => HttpStatusCode.Forbidden,
-                    ConflictException => HttpStatusCode.Conflict,
-                    KeyNotFoundException => HttpStatusCode.NotFound,
-                    UnauthorizedAccessException => HttpStatusCode.Unauthorized,
+                NotFoundException => HttpStatusCode.NotFound,
+                BadRequestException => HttpStatusCode.BadRequest,
+                UnauthorizedException => HttpStatusCode.Unauthorized,
+                ForbiddenException => HttpStatusCode.Forbidden,
+                PaymentVerificationException => HttpStatusCode.Unauthorized,
+                ConflictException => HttpStatusCode.Conflict,
 
                     _ => HttpStatusCode.InternalServerError
                 };
+
+                if (statusCode == HttpStatusCode.InternalServerError)
+                {
+                    httpContext.RiseError(exception);
+                }
 
                 var problemDetails = new ProblemDetails
                 {
@@ -74,7 +63,7 @@
 
                 return _environment.IsDevelopment()
                     ? exception.Message
-                    : "An unexpected error occurred.";
+                    : "حدث خطأ غير متوقع. يُرجى المحاولة مرة أخرى لاحقًا";
             }
 
             private static string GetTitle(HttpStatusCode statusCode)

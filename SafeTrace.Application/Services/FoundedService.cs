@@ -3,6 +3,7 @@ using SafeTrace.Application.DTOs.Founded.Response;
 using SafeTrace.Application.DTOs.FoundedDTO.Response;
 using SafeTrace.Application.Exceptions;
 using SafeTrace.Application.Interfaces;
+using static System.Net.WebRequestMethods;
 
 
 namespace SafeTrace.Infrastructure.Service.Founded
@@ -33,7 +34,8 @@ namespace SafeTrace.Infrastructure.Service.Founded
                         || f.Case.SName!.Contains(query.Search))
                         && (!query.CaseType.HasValue || f.Case.CaseType == query.CaseType.Value) 
                     && (!query.Gender.HasValue || f.Case.Gender == query.Gender.Value)
-                    && (query.AgeCategory == 0 || f.Case.AgeCategory.Id == query.AgeCategory));
+                    && (!query.MaxAge.HasValue || f.Case.Age >= query.MinAge && f.Case.Age <= query.MaxAge) );
+
 
             var totalCount = await queryable.CountAsync();
 

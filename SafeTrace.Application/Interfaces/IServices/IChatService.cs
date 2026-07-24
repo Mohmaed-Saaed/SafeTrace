@@ -1,4 +1,4 @@
-﻿using SafeTrace.Application.DTOs.Chat;
+using SafeTrace.Application.DTOs.Chat;
 using SafeTrace.Application.DTOs.Message;
 using SafeTrace.Application.DTOs.Responses;
 using System;
@@ -9,14 +9,17 @@ namespace SafeTrace.Application.Interfaces.IServices
 {
     public interface IChatService
     {
+        Task<ApiResponse<StartChatContextDto>> GetStartChatContextAsync(long caseId, string currentUserId);
         Task<ApiResponse<ChatDetailsDto>> StartOrGetChatAsync(long caseId, string currentUserId);
         Task<ApiResponse<IEnumerable<ChatSummaryDto>>> GetUserChatsAsync (string currentUserId);
         Task<ApiResponse<ChatDetailsDto>> GetChatDetailsAsync(long chatId, string currentUserId, bool isAdmin);
 
-        Task <ApiResponse<PaginationResponseDto<MessageDto>>> GetPaginatedMessagesAsync (long chatId, string currentUserId,bool isAdmin ,int page, int pageSize);
+        Task <ApiResponse<List<MessageDto>>> GetPaginatedMessagesAsync (long chatId, string currentUserId,bool isAdmin);
         Task<ApiResponse<ChatDetailsDto>> DeleteChatAsync(long chatId, string userId);
         Task<ApiResponse<ChatDetailsDto>> DeleteChatByAdminAsync(long chatId);
 
         Task<ApiResponse<PaginationResponseDto<AdminChatsDto>>> GetAllChatsAsync(int page , int pageSize, ChatFilterDto filter);
+
+        Task<ApiResponse<AdminChatStatisticsDto>> GetChatStatisticsAsync();
     }
 }

@@ -4,8 +4,11 @@ using SafeTrace.Application.Common.Enums;
 using SafeTrace.Application.DTOs.AiMatching.Response;
 using SafeTrace.Application.DTOs.Cases.Request;
 using SafeTrace.Application.DTOs.Cases.Response;
+using SafeTrace.Application.DTOs.NotificationDTOS;
 using SafeTrace.Application.Exceptions;
 using SafeTrace.Application.Interfaces.IServices.ICases;
+using SafeTrace.Application.Interfaces.IServices.INotificationSewrvice;
+using SafeTrace.Application.Constants;
 
 namespace SafeTrace.Application.Services.Cases
 {
@@ -14,6 +17,8 @@ namespace SafeTrace.Application.Services.Cases
         private readonly IUnitOfWork _unitOfWork;
         private readonly IFileStorageService _fileStorageService;
         private readonly IFaceRecognitionService _faceRecognitionService;
+        private readonly INotificationServices _notificationServices;
+        private readonly IEmailService _emailService;
         private readonly IMapper _mapper;
         private readonly ILogger<CaseHelperService> _logger;
 
@@ -24,19 +29,20 @@ namespace SafeTrace.Application.Services.Cases
             IUnitOfWork unitOfWork,
             IFileStorageService fileStorageService,
             IFaceRecognitionService faceRecognitionService,
+            INotificationServices notificationServices,
+            IEmailService emailService,
             IMapper mapper,
             ILogger<CaseHelperService> logger)
         {
             _unitOfWork = unitOfWork;
             _fileStorageService = fileStorageService;
             _faceRecognitionService = faceRecognitionService;
+            _notificationServices = notificationServices;
+            _emailService = emailService;
             _mapper = mapper;
             _logger = logger;
         }
 
-        /// <summary>
-        /// Retrieves a case by ID with optional ownership and status validation.
-        /// </summary>
         public async Task<TEntity> GetValidCaseAsync<TEntity>(
             long id,
             string? userId = null,
@@ -64,9 +70,6 @@ namespace SafeTrace.Application.Services.Cases
             return entity;
         }
 
-        /// <summary>
-        /// Validates that a case can be modified (not Found, Expired, or Deleted).
-        /// </summary>
         public void ValidateCaseIsEditable(Case entity)
         {
             if (entity.Status == CaseStatus.Found || entity.Status == CaseStatus.Expired || entity.Status == CaseStatus.Deleted)
@@ -75,9 +78,6 @@ namespace SafeTrace.Application.Services.Cases
             }
         }
 
-        /// <summary>
-        /// Ensures the user exists and has a verified account.
-        /// </summary>
         public async Task ValidateVerifiedUserAsync(string userId)
         {
             var user = await _unitOfWork.Repository<ApplicationUser>()
@@ -90,9 +90,6 @@ namespace SafeTrace.Application.Services.Cases
                 throw new UnauthorizedException("يجب توثيق حسابك قبل تنفيذ هذا الإجراء.");
         }
 
-        /// <summary>
-        /// Resolves the age category ID for a given age.
-        /// </summary>
         public async Task<int> ResolveAgeCategoryIdAsync(int age)
         {
             var category = await _unitOfWork.Repository<AgeCategory>()
@@ -104,9 +101,6 @@ namespace SafeTrace.Application.Services.Cases
             return category.Id;
         }
 
-        /// <summary>
-        /// Generates a unique case code with the specified prefix.
-        /// </summary>
         public async Task<string> GenerateCaseCodeAsync(CaseCodePrefix prefix)
         {
             if (!SequenceNames.TryGetValue(prefix, out var sequenceName))
@@ -124,9 +118,6 @@ namespace SafeTrace.Application.Services.Cases
             { CaseCodePrefix.UNK, "UnknownCaseSequence" }
         };
 
-        /// <summary>
-        /// Creates case file entities from uploaded files.
-        /// </summary>
         public async Task<List<CaseFile>> CreateCaseFilesAsync(IFormFile primaryImage, IEnumerable<IFormFile>? additionalImages, IFormFile? video, string folderName, long caseId = 0)
         {
             var files = new List<CaseFile>
@@ -156,7 +147,11 @@ namespace SafeTrace.Application.Services.Cases
 
             string? faceId = null;
 
-            if (!VideoExtensions.Contains(Path.GetExtension(file.FileName)))
+            var extension = Path.GetExtension(file.FileName).ToLowerInvariant();
+
+            var fileType = VideoExtensions.Contains(extension) ? FileType.Video : FileType.Image;
+
+            if (fileType == FileType.Image)
             {
                 try
                 {
@@ -174,13 +169,11 @@ namespace SafeTrace.Application.Services.Cases
                 ImagePath = path,
                 FaceId = faceId,
                 IsPrimary = isPrimary,
+                Type= fileType,
                 CreatedAt = DateTime.UtcNow
             };
         }
 
-        /// <summary>
-        /// Sets the primary image for a case.
-        /// </summary>
         public void SetPrimaryImage(ICollection<CaseFile> files, long primaryPhotoId)
         {
             var images = files
@@ -206,9 +199,6 @@ namespace SafeTrace.Application.Services.Cases
             ".webm"
         };
 
-        /// <summary>
-        /// Deletes physical files from storage with error logging.
-        /// </summary>
         public void CleanupPhysicalFiles(IEnumerable<string> filePaths)
         {
             foreach (var path in filePaths.Where(p => !string.IsNullOrWhiteSpace(p)))
@@ -224,9 +214,6 @@ namespace SafeTrace.Application.Services.Cases
             }
         }
 
-        /// <summary>
-        /// Deletes face records from the recognition service.
-        /// </summary>
         public async Task DeleteFacesAsync(IEnumerable<string>? faceIds, long caseId)
         {
             try
@@ -239,10 +226,116 @@ namespace SafeTrace.Application.Services.Cases
             }
         }
 
-        /// <summary>
-        /// Finds existing cases that match the provided subject and face image.
-        /// </summary>
-        public async Task<MatchedCasesResult> FindMatchedCasesAsync(CaseMatchSubjectInfoDto subject, IFormFile primaryImage)
+        public async Task SendCaseApprovedNotificationAsync(Case entity)
+        {
+            var user = await GetCaseOwnerAsync(entity);
+            if (user is null)
+                return;
+
+            var detailsPath = EmailTemplates.GetCaseDetailsRoute(entity.CaseType);
+
+            await SendNotificationSafelyAsync(
+                user.Id,
+                $"✅ تمت الموافقة على حالتك.\n\nكود الحالة:\n{entity.CaseCode}\n\nيمكنك الآن البحث عن الحالة باستخدام كود الحالة أو متابعة تفاصيلها.",
+                detailsPath + entity.Id,
+                entity.Id,
+                "approved");
+
+            if (!string.IsNullOrWhiteSpace(user.Email))
+            {
+                await SendEmailSafelyAsync(
+                    user.Email,
+                    "تمت الموافقة على حالتك",
+                    EmailTemplates.BuildCaseApprovedEmailTemplate(
+                        $"{user.FName} {user.LName}".Trim(),
+                        entity.CaseCode,
+                        GetCaseTypeName(entity.CaseType),
+                        EmailTemplates.GetCaseDetailsUrl(entity.CaseType, entity.Id)),
+                    entity.Id,
+                    "approved");
+            }
+        }
+
+        public async Task SendCaseRejectedNotificationAsync(Case entity, string rejectionReason)
+        {
+            var user = await GetCaseOwnerAsync(entity);
+            if (user is null)
+                return;
+
+            var detailsPath = EmailTemplates.GetCaseDetailsRoute(entity.CaseType);
+
+            await SendNotificationSafelyAsync(
+                user.Id,
+                $"❌ تم رفض الحالة.\n\nسبب الرفض:\n\n{rejectionReason}",
+                detailsPath + entity.Id,
+                entity.Id,
+                "rejected");
+
+            if (!string.IsNullOrWhiteSpace(user.Email))
+            {
+                await SendEmailSafelyAsync(
+                    user.Email,
+                    "تم رفض الحالة",
+                    EmailTemplates.BuildCaseRejectedEmailTemplate(
+                        $"{user.FName} {user.LName}".Trim(),
+                        entity.CaseCode,
+                        rejectionReason,
+                        EmailTemplates.GetCaseDetailsUrl(entity.CaseType, entity.Id)),
+                    entity.Id,
+                    "rejected");
+            }
+        }
+
+        private async Task<ApplicationUser?> GetCaseOwnerAsync(Case entity)
+        {
+            var user = await _unitOfWork.Repository<ApplicationUser>()
+                .GetOneAsync(user => user.Id == entity.UserId, tracked: false);
+
+            if (user is null)
+                _logger.LogWarning("Could not send case notification because owner {UserId} was not found for case {CaseId}.", entity.UserId, entity.Id);
+
+            return user;
+        }
+
+        private async Task SendNotificationSafelyAsync(string userId, string content, string detailsPath, long caseId, string action)
+        {
+            try
+            {
+                await _notificationServices.SendNotificationAsync(new SendNotificationDTO
+                {
+                    UserId = userId,
+                    Content = content,
+                    Type = NotificationType.System,
+                    NotificationDirectLink = detailsPath
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to send {Action} in-app notification for case {CaseId}.", action, caseId);
+            }
+        }
+
+        private async Task SendEmailSafelyAsync(string email, string subject, string body, long caseId, string action)
+        {
+            try
+            {
+                await _emailService.SendEmailAsync(email, subject, body);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to send {Action} email for case {CaseId}.", action, caseId);
+            }
+        }
+
+        private static string GetCaseTypeName(CaseType caseType) => caseType switch
+        {
+            CaseType.LongTerm => "حالة فقد طويلة المدة",
+            CaseType.Urgent => "حالة عاجلة",
+            CaseType.Unknown => "حالة مجهول الهوية",
+            _ => caseType.ToString()
+        };
+
+        private async Task<MatchedCasesResult> FindMatchedCasesAsync(CaseMatchSubjectInfoDto subject, IFormFile primaryImage)
         {
             var faceMatches = await SearchFacesAsync(primaryImage);
             if (faceMatches.Count == 0)
@@ -256,30 +349,51 @@ namespace SafeTrace.Application.Services.Cases
 
             return new MatchedCasesResult
             {
-                HasMatches = matchedCases.Count != 0,
-                MatchedCases = matchedCases
+                HasMatched = matchedCases.Count != 0,
+                DuplicateCases = matchedCases
             };
         }
-        
-        /// <summary>
-        /// Analyzes matched cases and separates same-type matches from cross-type matches.
-        /// </summary>
-        public DuplicateCheckResult CheckDuplicateCase(CaseType currentCaseType, MatchedCasesResult matches)
-        {
-            var sameType = matches.MatchedCases
-                .FirstOrDefault(x => x.CaseType == currentCaseType);
 
-            var crossType = matches.MatchedCases
-                .Where(x => x.CaseType != currentCaseType)
-                .ToList();
+        public async Task<DuplicateCheckResult> CheckDuplicateCaseAsync(
+            CaseType currentCaseType,
+            CaseMatchSubjectInfoDto subject,
+            IFormFile primaryImage,
+            Func<MatchedCaseDto, Task> onSameTypeMatchAsync,
+            bool forceCreate = false)
+        {
+            var matchResult = await FindMatchedCasesAsync(subject, primaryImage);
+
+            if (!matchResult.HasMatched)
+                return DuplicateCheckResult.None;
+
+            var sameTypeDuplicate = matchResult.DuplicateCases.FirstOrDefault(x => x.CaseType == currentCaseType);
+
+            if (sameTypeDuplicate != null)
+            {
+                await onSameTypeMatchAsync(sameTypeDuplicate);
+
+                return new DuplicateCheckResult
+                {
+                    RequiresConfirmation = false,
+                    IsSameTypeDuplicate = true,
+                    MatchedCases = matchResult.DuplicateCases
+                };
+            }
+
+            if (forceCreate)
+            {
+                _logger.LogInformation("Cross-type duplicate(s) found but forceCreate=true.");
+
+                return DuplicateCheckResult.None;
+            }
 
             return new DuplicateCheckResult
             {
-                SameTypeMatch = sameType,
-                CrossTypeMatches = crossType
+                RequiresConfirmation = true,
+                MatchedCases = matchResult.DuplicateCases
             };
         }
-
+        
         private async Task<List<FaceMatchResult>> SearchFacesAsync(IFormFile primaryImage)
         {
             var faceMatches = await _faceRecognitionService.SearchByImageAsync(primaryImage);
@@ -301,10 +415,17 @@ namespace SafeTrace.Application.Services.Cases
             if (faceIds.Count == 0)
                 return [];
 
+   
             return await _unitOfWork.Repository<Case>()
                 .Query(tracked: false, includes: [c => c.CaseFiles, c => c.User])
-                .Where(c => c.Status == CaseStatus.Active && c.CaseFiles.Any(f => f.FaceId != null && faceIds.Contains(f.FaceId)))
-                .ToListAsync();
+                .Where(c =>
+                (
+                    (c.CaseType == CaseType.Unknown && c.Status != CaseStatus.Deleted)
+                    ||
+                    (c.CaseType != CaseType.Unknown && c.Status == CaseStatus.Active)
+                )
+                &&
+                c.CaseFiles.Any(f => f.FaceId != null && faceIds.Contains(f.FaceId))).ToListAsync();
         }
 
         private List<MatchedCaseDto> FilterMatchedCases(IReadOnlyCollection<Case> candidateCases, IReadOnlyCollection<FaceMatchResult> faceMatches, CaseMatchSubjectInfoDto subject)
@@ -337,7 +458,7 @@ namespace SafeTrace.Application.Services.Cases
 
                 var dto = _mapper.Map<MatchedCaseDto>(candidate);
                 dto.Similarity = similarity;
-                dto.MainPhotoPath = matchedPhoto.ImagePath;
+                dto.MainPhoto = matchedPhoto.ImagePath;
 
                 matchedCases.Add(dto);
             }
@@ -358,6 +479,5 @@ namespace SafeTrace.Application.Services.Cases
 
             return true;
         }
-
     }
 }

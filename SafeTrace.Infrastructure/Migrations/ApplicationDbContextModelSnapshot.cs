@@ -223,11 +223,8 @@ namespace SafeTrace.Infrastructure.Migrations
                         .IsConcurrencyToken()
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<double?>("CurrentLocationLatitude")
-                        .HasColumnType("float");
-
-                    b.Property<double?>("CurrentLocationLongitude")
-                        .HasColumnType("float");
+                    b.Property<Point>("CurrentLocation")
+                        .HasColumnType("geography");
 
                     b.Property<string>("Email")
                         .HasMaxLength(256)
@@ -241,11 +238,8 @@ namespace SafeTrace.Infrastructure.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
 
-                    b.Property<double?>("HomeLocationLatitude")
-                        .HasColumnType("float");
-
-                    b.Property<double?>("HomeLocationLongitude")
-                        .HasColumnType("float");
+                    b.Property<Point>("HomeLocation")
+                        .HasColumnType("geography");
 
                     b.Property<string>("IdentificationImage")
                         .HasColumnType("nvarchar(max)");
@@ -307,6 +301,46 @@ namespace SafeTrace.Infrastructure.Migrations
                         .HasFilter("[NormalizedUserName] IS NOT NULL");
 
                     b.ToTable("ApplicationUsers", (string)null);
+                });
+
+            modelBuilder.Entity("SafeTrace.Domain.Entities.AuditLog", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("AffectedColumns")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("DateTime")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("NewValues")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("OldValues")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("PrimaryKey")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("TableName")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("UserId")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("AuditLogs");
                 });
 
             modelBuilder.Entity("SafeTrace.Domain.Entities.Case", b =>
@@ -468,6 +502,9 @@ namespace SafeTrace.Infrastructure.Migrations
                     b.Property<bool>("IsPrimary")
                         .HasColumnType("bit");
 
+                    b.Property<int>("Type")
+                        .HasColumnType("int");
+
                     b.HasKey("Id");
 
                     b.HasIndex("CaseId");
@@ -543,7 +580,6 @@ namespace SafeTrace.Infrastructure.Migrations
                         .HasColumnType("nvarchar(2000)");
 
                     b.Property<string>("SolutionMessage")
-                        .IsRequired()
                         .HasMaxLength(2000)
                         .HasColumnType("nvarchar(2000)");
 
@@ -556,6 +592,63 @@ namespace SafeTrace.Infrastructure.Migrations
                     b.HasIndex("UserId");
 
                     b.ToTable("Complaints", (string)null);
+                });
+
+            modelBuilder.Entity("SafeTrace.Domain.Entities.Donation", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<decimal>("Amount")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Currency")
+                        .IsRequired()
+                        .HasMaxLength(3)
+                        .HasColumnType("nvarchar(3)");
+
+                    b.Property<string>("Message")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<string>("OrderId")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("PaidAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("PaymentGateway")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("PaymentMethod")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("PaymentStatus")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Reference")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("TransactionId")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("UserId")
+                        .HasColumnType("nvarchar(450)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("Donations", (string)null);
                 });
 
             modelBuilder.Entity("SafeTrace.Domain.Entities.DuplicateGroup", b =>
@@ -574,12 +667,7 @@ namespace SafeTrace.Infrastructure.Migrations
                         .HasMaxLength(10)
                         .HasColumnType("nvarchar(10)");
 
-                    b.Property<long?>("MasterCaseId")
-                        .HasColumnType("bigint");
-
                     b.HasKey("Id");
-
-                    b.HasIndex("MasterCaseId");
 
                     b.ToTable("DuplicateGroups", (string)null);
                 });
@@ -606,7 +694,7 @@ namespace SafeTrace.Infrastructure.Migrations
                         .HasMaxLength(10)
                         .HasColumnType("nvarchar(10)");
 
-                    b.Property<decimal>("SimilarityScore")
+                    b.Property<decimal?>("SimilarityScore")
                         .HasColumnType("decimal(18,2)");
 
                     b.HasKey("Id");
@@ -1033,13 +1121,13 @@ namespace SafeTrace.Infrastructure.Migrations
                     b.Navigation("User");
                 });
 
-            modelBuilder.Entity("SafeTrace.Domain.Entities.DuplicateGroup", b =>
+            modelBuilder.Entity("SafeTrace.Domain.Entities.Donation", b =>
                 {
-                    b.HasOne("SafeTrace.Domain.Entities.Case", "MasterCase")
-                        .WithMany()
-                        .HasForeignKey("MasterCaseId");
+                    b.HasOne("SafeTrace.Domain.Entities.ApplicationUser", "User")
+                        .WithMany("Donations")
+                        .HasForeignKey("UserId");
 
-                    b.Navigation("MasterCase");
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("SafeTrace.Domain.Entities.DuplicateGroupCase", b =>
@@ -1152,6 +1240,8 @@ namespace SafeTrace.Infrastructure.Migrations
                     b.Navigation("Cases");
 
                     b.Navigation("Complaints");
+
+                    b.Navigation("Donations");
 
                     b.Navigation("Notifications");
 

@@ -4,15 +4,14 @@ namespace SafeTrace.Application.DTOs.Cases.Response
 {
     public class MatchedCasesResult
     {
-        public bool HasMatches { get; init; }
+        public bool HasMatched { get; init; }
 
-        public IReadOnlyList<MatchedCaseDto> MatchedCases { get; init; } = [];
+        public IReadOnlyList<MatchedCaseDto> DuplicateCases { get; init; } = [];
 
         public static MatchedCasesResult Empty => new()
         {
-            HasMatches = false,
-            MatchedCases = []
+            HasMatched = false,
+            DuplicateCases = []
         };
     }
 }
-
