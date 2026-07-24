@@ -174,8 +174,8 @@ namespace SafeTrace.Infrastructure.Services
                     throw new ForbiddenException("غير مسموح لك بترقية مستخدم إلى مسؤول أو مدير النظام.");
             }
             
-            if (dto.NewRole == UserRole.SuperAdmin.ToString() && currentUserRole != UserRole.SuperAdmin.ToString())
-                throw new ForbiddenException("لا يمكن لأي شخص ترقية حساب إلى مدير النظام.");
+            if (dto.NewRole == UserRole.SuperAdmin.ToString())
+                throw new ForbiddenException("لا يمكن لأي شخص تعيين صلاحية مدير النظام من لوحة التحكم.");
 
             var roleExists = await _roleManager.RoleExistsAsync(dto.NewRole);
             if (!roleExists) throw new BadRequestException("الدور (Role) المحدد غير موجود.");
@@ -241,8 +241,8 @@ namespace SafeTrace.Infrastructure.Services
             if (currentUserRole == UserRole.Admin.ToString() && (dto.Role == UserRole.Admin.ToString() || dto.Role == UserRole.SuperAdmin.ToString()))
                 throw new ForbiddenException("غير مسموح للأدمن بإنشاء حساب بصلاحيات مسؤول أو مدير النظام.");
 
-            if (dto.Role == UserRole.SuperAdmin.ToString() && currentUserRole != UserRole.SuperAdmin.ToString())
-                throw new ForbiddenException("لا يمكن إنشاء حساب بصلاحية مدير النظام.");
+            if (dto.Role == UserRole.SuperAdmin.ToString())
+                throw new ForbiddenException("لا يمكن لأي شخص إنشاء حساب بصلاحية مدير النظام من لوحة التحكم.");
 
             var userExists = await _userManager.FindByEmailAsync(dto.Email);
             if (userExists != null) throw new ConflictException("هذا البريد الإلكتروني مسجل لدينا بالفعل.");
@@ -272,19 +272,19 @@ namespace SafeTrace.Infrastructure.Services
                     user.VerificationStatus = VerificationStatus.Unverified;
                 }
 
-                var result = await _userManager.CreateAsync(user, dto.Password);
+                var result = await _userManager.CreateAsync(user);
 
                 if (!result.Succeeded)
                 {
                     var errors = string.Join(", ", result.Errors.Select(e => e.Description));
                     _logger.LogWarning("Failed to register user {Email} by Admin. Errors: {Errors}", dto.Email, errors);
-                    throw new BadRequestException("فشلت عملية إنشاء الحساب. تأكد من استيفاء كلمة المرور للشروط.");
+                    throw new BadRequestException("فشلت عملية إنشاء الحساب.");
                 }
 
                 await _userManager.AddToRoleAsync(user, dto.Role);
                 await _unitOfWork.CommitTransactionAsync();
 
-                var emailBody = EmailTemplates.BuildAdminRegisteredTemplate(user.FName, user.Email, dto.Password, dto.Role);
+                var emailBody = EmailTemplates.BuildAdminRegisteredTemplate(user.FName, user.Email, dto.Role);
                 await _emailService.SendEmailAsync(user.Email, "لقاء - تم إنشاء حساب لك في منصة لقاء", emailBody);
 
                 await _notificationService.SendNotificationAsync(new SendNotificationDTO

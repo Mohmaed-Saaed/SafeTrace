@@ -24,14 +24,6 @@ namespace SafeTrace.Application.DTOs.User.Request
         [RegularExpression(@"^01[0-9]{9}$", ErrorMessage = "يرجى إدخال رقم هاتف مصري صحيح.")]
         public string? PhoneNumber { get; set; }
 
-        [Required(ErrorMessage = "كلمة المرور مطلوبة.")]
-        [StringLength(100, MinimumLength = 8, ErrorMessage = "يجب أن تتكون كلمة المرور من 8 أحرف على الأقل.")]
-        [RegularExpression(
-            @"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[\W_])\S+$",
-            ErrorMessage = "يجب أن تحتوي كلمة المرور على حرف كبير، وحرف صغير، ورقم، ورمز خاص، ولا يسمح بوجود مسافات."
-        )]
-        public string Password { get; set; } = null!;
-
         [Required(ErrorMessage = "يجب تحديد دور (Role) للمستخدم.")]
         public string Role { get; set; } = null!;
     }

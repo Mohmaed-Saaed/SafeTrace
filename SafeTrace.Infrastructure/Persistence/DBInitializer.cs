@@ -30,6 +30,8 @@ namespace SafeTrace.Infrastructure.Persistence
                 } 
             }
 
+            //await _userManager.DeleteAsync(await _userManager.FindByEmailAsync("girlsicpccommunity@gmail.com"));
+
             var adminEmail = SystemConstants.RootAdminEmail;
             var user = await _userManager.FindByEmailAsync(adminEmail);
             if (user != null && !await _userManager.IsInRoleAsync(user, "SuperAdmin"))

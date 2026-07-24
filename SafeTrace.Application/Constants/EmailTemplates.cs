@@ -95,7 +95,7 @@ namespace SafeTrace.Application.Constants
     </div>";
         }
 
-        public static string BuildAdminRegisteredTemplate(string fullName, string email, string password, string role)
+        public static string BuildAdminRegisteredTemplate(string fullName, string email, string role)
         {
             return $@"
             <div dir='rtl' style='font-family: ""Segoe UI"", Tahoma, Geneva, Verdana, sans-serif; max-width: 550px; margin: 0 auto; padding: 30px; border: 1px solid #eef2f5; border-radius: 12px; background-color: #ffffff; box-shadow: 0 4px 15px rgba(0,0,0,0.03); text-align: right;'>
@@ -108,15 +108,21 @@ namespace SafeTrace.Application.Constants
                 </div>
                 <hr style='border: 0; border-top: 1px solid #f0f4f8; margin-bottom: 25px;' />
                 <h2 style='color: #1e293b; font-size: 20px; margin-top: 0; font-weight: 600;'>مرحباً، {fullName}</h2>
-                <p style='color: #475569; font-size: 15px; line-height: 1.6;'>تم إنشاء حساب جديد لك في منصة لقاء من قِبل الإدارة. يمكنك الآن تسجيل الدخول والمشاركة معنا باستخدام البيانات التالية:</p>
+                <p style='color: #475569; font-size: 15px; line-height: 1.6;'>تم إنشاء حساب جديد لك في منصة لقاء من قِبل الإدارة. يمكنك الآن تفعيل حسابك عن طريق تعيين كلمة مرور جديدة من خلال الرابط أدناه:</p>
                 
                 <div style='background: #f8fafc; border: 1px dashed #cbd5e1; padding: 20px; border-radius: 10px; margin: 20px 0;'>
                     <p style='margin: 8px 0; color: #334155;'><strong>البريد الإلكتروني:</strong> <span dir='ltr' style='color: #2563eb;'>{email}</span></p>
-                    <p style='margin: 8px 0; color: #334155;'><strong>كلمة المرور المؤقتة:</strong> <span dir='ltr' style='color: #2563eb; font-family: monospace; font-size: 16px;'>{password}</span></p>
                     <p style='margin: 8px 0; color: #334155;'><strong>الدور الممنوح:</strong> {TranslateRoleToArabicHelper.TranslateRoleToArabic(role)}</p>
                 </div>
                 
-                <p style='color: #ef4444; font-size: 13px; font-weight: 600; margin-bottom: 25px;'>ملاحظة هامة: نوصي بشدة بتغيير كلمة المرور المؤقتة فور تسجيل دخولك لأول مرة لضمان أمان حسابك.</p>
+                <div style='text-align: center; margin: 30px 0;'>
+                    <a href='{SystemConstants.BaseUrl}/auth/forgot-password'
+                       style='background: #2563eb; color: #ffffff; padding: 12px 22px; border-radius: 8px; text-decoration: none; font-weight: 600; display: inline-block;'>
+                        تعيين كلمة المرور
+                    </a>
+                </div>
+
+                <p style='color: #ef4444; font-size: 13px; font-weight: 600; margin-bottom: 25px;'>ملاحظة هامة: يجب تعيين كلمة المرور لتتمكن من تسجيل الدخول والمشاركة معنا.</p>
                 <hr style='border: 0; border-top: 1px solid #f0f4f8; margin-bottom: 20px;' />
                 <p style='color: #475569; font-size: 14px; margin: 0; font-weight: 600;'>مع خالص التحية،<br/><span style='color: #2b5a8f;'>فريق عمل منصة لقاء</span></p>
             </div>";
