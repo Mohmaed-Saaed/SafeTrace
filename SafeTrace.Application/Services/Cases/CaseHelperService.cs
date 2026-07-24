@@ -4,8 +4,11 @@ using SafeTrace.Application.Common.Enums;
 using SafeTrace.Application.DTOs.AiMatching.Response;
 using SafeTrace.Application.DTOs.Cases.Request;
 using SafeTrace.Application.DTOs.Cases.Response;
+using SafeTrace.Application.DTOs.NotificationDTOS;
 using SafeTrace.Application.Exceptions;
 using SafeTrace.Application.Interfaces.IServices.ICases;
+using SafeTrace.Application.Interfaces.IServices.INotificationSewrvice;
+using SafeTrace.Application.Constants;
 
 namespace SafeTrace.Application.Services.Cases
 {
@@ -14,6 +17,8 @@ namespace SafeTrace.Application.Services.Cases
         private readonly IUnitOfWork _unitOfWork;
         private readonly IFileStorageService _fileStorageService;
         private readonly IFaceRecognitionService _faceRecognitionService;
+        private readonly INotificationServices _notificationServices;
+        private readonly IEmailService _emailService;
         private readonly IMapper _mapper;
         private readonly ILogger<CaseHelperService> _logger;
 
@@ -24,12 +29,16 @@ namespace SafeTrace.Application.Services.Cases
             IUnitOfWork unitOfWork,
             IFileStorageService fileStorageService,
             IFaceRecognitionService faceRecognitionService,
+            INotificationServices notificationServices,
+            IEmailService emailService,
             IMapper mapper,
             ILogger<CaseHelperService> logger)
         {
             _unitOfWork = unitOfWork;
             _fileStorageService = fileStorageService;
             _faceRecognitionService = faceRecognitionService;
+            _notificationServices = notificationServices;
+            _emailService = emailService;
             _mapper = mapper;
             _logger = logger;
         }
@@ -216,6 +225,115 @@ namespace SafeTrace.Application.Services.Cases
                 _logger.LogWarning(ex, "Failed to delete faces for case {CaseId}", caseId);
             }
         }
+
+        public async Task SendCaseApprovedNotificationAsync(Case entity)
+        {
+            var user = await GetCaseOwnerAsync(entity);
+            if (user is null)
+                return;
+
+            var detailsPath = EmailTemplates.GetCaseDetailsRoute(entity.CaseType);
+
+            await SendNotificationSafelyAsync(
+                user.Id,
+                $"✅ تمت الموافقة على حالتك.\n\nكود الحالة:\n{entity.CaseCode}\n\nيمكنك الآن البحث عن الحالة باستخدام كود الحالة أو متابعة تفاصيلها.",
+                detailsPath + entity.Id,
+                entity.Id,
+                "approved");
+
+            if (!string.IsNullOrWhiteSpace(user.Email))
+            {
+                await SendEmailSafelyAsync(
+                    user.Email,
+                    "تمت الموافقة على حالتك",
+                    EmailTemplates.BuildCaseApprovedEmailTemplate(
+                        $"{user.FName} {user.LName}".Trim(),
+                        entity.CaseCode,
+                        GetCaseTypeName(entity.CaseType),
+                        EmailTemplates.GetCaseDetailsUrl(entity.CaseType, entity.Id)),
+                    entity.Id,
+                    "approved");
+            }
+        }
+
+        public async Task SendCaseRejectedNotificationAsync(Case entity, string rejectionReason)
+        {
+            var user = await GetCaseOwnerAsync(entity);
+            if (user is null)
+                return;
+
+            var detailsPath = EmailTemplates.GetCaseDetailsRoute(entity.CaseType);
+
+            await SendNotificationSafelyAsync(
+                user.Id,
+                $"❌ تم رفض الحالة.\n\nسبب الرفض:\n\n{rejectionReason}",
+                detailsPath + entity.Id,
+                entity.Id,
+                "rejected");
+
+            if (!string.IsNullOrWhiteSpace(user.Email))
+            {
+                await SendEmailSafelyAsync(
+                    user.Email,
+                    "تم رفض الحالة",
+                    EmailTemplates.BuildCaseRejectedEmailTemplate(
+                        $"{user.FName} {user.LName}".Trim(),
+                        entity.CaseCode,
+                        rejectionReason,
+                        EmailTemplates.GetCaseDetailsUrl(entity.CaseType, entity.Id)),
+                    entity.Id,
+                    "rejected");
+            }
+        }
+
+        private async Task<ApplicationUser?> GetCaseOwnerAsync(Case entity)
+        {
+            var user = await _unitOfWork.Repository<ApplicationUser>()
+                .GetOneAsync(user => user.Id == entity.UserId, tracked: false);
+
+            if (user is null)
+                _logger.LogWarning("Could not send case notification because owner {UserId} was not found for case {CaseId}.", entity.UserId, entity.Id);
+
+            return user;
+        }
+
+        private async Task SendNotificationSafelyAsync(string userId, string content, string detailsPath, long caseId, string action)
+        {
+            try
+            {
+                await _notificationServices.SendNotificationAsync(new SendNotificationDTO
+                {
+                    UserId = userId,
+                    Content = content,
+                    Type = NotificationType.System,
+                    NotificationDirectLink = detailsPath
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to send {Action} in-app notification for case {CaseId}.", action, caseId);
+            }
+        }
+
+        private async Task SendEmailSafelyAsync(string email, string subject, string body, long caseId, string action)
+        {
+            try
+            {
+                await _emailService.SendEmailAsync(email, subject, body);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to send {Action} email for case {CaseId}.", action, caseId);
+            }
+        }
+
+        private static string GetCaseTypeName(CaseType caseType) => caseType switch
+        {
+            CaseType.LongTerm => "حالة فقد طويلة المدة",
+            CaseType.Urgent => "حالة عاجلة",
+            CaseType.Unknown => "حالة مجهول الهوية",
+            _ => caseType.ToString()
+        };
 
         private async Task<MatchedCasesResult> FindMatchedCasesAsync(CaseMatchSubjectInfoDto subject, IFormFile primaryImage)
         {

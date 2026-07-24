@@ -131,16 +131,16 @@ namespace SafeTrace.API.Controllers
             return Ok(await _service.ApproveAsync(id));
         }
 
-        /// <summary>Rejects a pending case, or restores its previous status if available.</summary>
+        /// <summary>Rejects a pending case and records the supplied reason in the notification sent to its owner.</summary>
         /// <param name="id">Case ID.</param>
         [HttpPut("Reject/{id:long}")]
         [HasPermission(Permissions.LongTermCases.Reject)]
         [ProducesResponseType(typeof(ApiResponse<string>), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
-        public async Task<IActionResult> Reject(long id)
+        public async Task<IActionResult> Reject(long id, [FromBody] string rejectionReason)
         {
-            return Ok(await _service.RejectAsync(id));
+            return Ok(await _service.RejectAsync(id, rejectionReason));
         }
 
         /// <summary>Soft-deletes a case, preserving its data for future recovery.</summary>

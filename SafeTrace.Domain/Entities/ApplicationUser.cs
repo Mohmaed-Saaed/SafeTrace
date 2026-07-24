@@ -1,4 +1,5 @@
-﻿using SafeTrace.Domain.Enums;
+﻿using NetTopologySuite.Geometries;
+using SafeTrace.Domain.Enums;
 
 namespace SafeTrace.Domain.Entities
 {
@@ -14,13 +15,9 @@ namespace SafeTrace.Domain.Entities
 
         public VerificationStatus VerificationStatus { get; set; }
 
-        public double? HomeLocationLatitude { get; set; }
-
-        public double? HomeLocationLongitude { get; set; }
-
-        public double? CurrentLocationLatitude { get; set; }
-
-        public double? CurrentLocationLongitude { get; set; }
+        public Point? CurrentLocation { get; set; }
+        
+        public Point? HomeLocation { get; set; }
 
         public ICollection<Case> Cases { get; set; } = new List<Case>();
         public ICollection<Notification> Notifications { get; set; } = new List<Notification>();
