@@ -34,8 +34,9 @@ namespace SafeTrace.Application.Services
             if (user == null) throw new UnauthorizedException("تعذر التحقق من هوية المستخدم.");
 
             var isAdmin = await _userManager.IsInRoleAsync(user, "Admin");
+            var isModerator = await _userManager.IsInRoleAsync(user, "Moderator");
 
-            if (!isAdmin)
+            if (!isAdmin && !isModerator)
             {
                 var today = DateTime.UtcNow.Date;
 

@@ -1,9 +1,10 @@
-﻿using System.Security.Claims;
+﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SafeTrace.Application.Constants;
 using SafeTrace.Application.DTOs.NotificationDTOS;
 using SafeTrace.Application.Interfaces.IServices.INotificationSewrvice;
 using SafeTrace.Infrastructure.Authorization;
+using System.Security.Claims;
 
 namespace SafeTrace.API.Controllers
 {
@@ -39,7 +40,7 @@ namespace SafeTrace.API.Controllers
         /// <param name="pageSize"></param>
         /// <returns></returns>
         [HttpGet("my-Notifications")]
-        [HasPermission(Permissions.Notifications.GetMyNotifications)]
+        [Authorize]
         public async Task<IActionResult> GetMyNotifications(
             [FromQuery] int page = 1,
     [FromQuery] int pageSize = 10)
@@ -56,7 +57,7 @@ namespace SafeTrace.API.Controllers
         /// <param name="id"></param>
         /// <returns></returns>
         [HttpDelete("{id}")]
-        [HasPermission(Permissions.Notifications.DeleteNotification)]
+        [Authorize]
         public async Task<IActionResult> DeleteNotification(long id)
         {
             var result = await _notificationService.RemoveNotificationAsync(id);
@@ -69,7 +70,7 @@ namespace SafeTrace.API.Controllers
         /// <param name="id"></param>
         /// <returns></returns>
         [HttpPut("{id}/MarkAsRead")]
-        [HasPermission(Permissions.Notifications.MarkAsRead)]
+        [Authorize]
         public async Task<IActionResult> MarkAsRead(long id)
         {
             await _notificationService.MarkAsReadAsync(id);
@@ -80,7 +81,7 @@ namespace SafeTrace.API.Controllers
         /// </summary>
         /// <returns></returns>
         [HttpPut("MarkAllAsRead")]
-        [HasPermission(Permissions.Notifications.MarkAllAsRead)]
+        [Authorize]
         public async Task<IActionResult> MarkAllAsRead()
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);

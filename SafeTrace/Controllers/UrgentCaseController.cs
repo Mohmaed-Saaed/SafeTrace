@@ -31,7 +31,7 @@ namespace SafeTrace.API.Controllers
         }
 
         [HttpGet("Admin/GetCases")]
-        [HasPermission(Permissions.UrgentCases.GetAll)]
+        [HasPermission(Permissions.Cases.GetAll)]
         public async Task<IActionResult> AdminGetAll([FromQuery] UrgentCasesFilterDto filter)
         {
             return Ok(await _urgentCaseService.AdminGetAllAsync(filter));
@@ -63,7 +63,7 @@ namespace SafeTrace.API.Controllers
         }
         [HttpPut("UpdateCase/{id:long}")]
         [Consumes("multipart/form-data")]
-        [HasPermission(Permissions.UrgentCases.Update)]
+        [Authorize]
         public async Task<IActionResult> Update(long id, [FromForm] UrgentCaseUpdateDto dto)
         {
             if (string.IsNullOrEmpty(CurrentUserId))
@@ -73,7 +73,7 @@ namespace SafeTrace.API.Controllers
         }
 
         [HttpDelete("Delete/{id:long}")]
-        [HasPermission(Permissions.UrgentCases.SoftDelete)]
+        [Authorize]
         public async Task<IActionResult> SoftDelete(long id)
         {
             if (string.IsNullOrEmpty(CurrentUserId))
@@ -100,7 +100,7 @@ namespace SafeTrace.API.Controllers
         }
 
         [HttpGet("CreationStatus")]
-        [HasPermission(Permissions.UrgentCases.Create)]
+        [Authorize]
         public async Task<IActionResult> GetCreationStatus()
         {
             if (string.IsNullOrEmpty(CurrentUserId))
