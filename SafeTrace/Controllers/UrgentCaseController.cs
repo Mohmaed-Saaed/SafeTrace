@@ -52,7 +52,7 @@ namespace SafeTrace.API.Controllers
         }
         [HttpPost("CreateCase")]
         [Consumes("multipart/form-data")]
-        [HasPermission(Permissions.UrgentCases.Create)]
+        [Authorize]
         public async Task<IActionResult> Create([FromForm] UrgentCaseCreateDto dto, [FromQuery] bool forceCreate = false)
         {
             if (string.IsNullOrEmpty(CurrentUserId))

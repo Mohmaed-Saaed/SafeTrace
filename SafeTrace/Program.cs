@@ -1,321 +1,321 @@
-using ElmahCore.Mvc;
-using Microsoft.AspNetCore.Mvc;
-using SafeTrace.API.ExceptionHandlers;
-using SafeTrace.API.ExtensionMethods;
-using Audit.Core;
-using Audit.EntityFramework;
-using System.Security.Claims;
-using SafeTrace.API.Hubs;
-using SafeTrace.Application.DependencyInjection;
-using SafeTrace.Application.Hubs;
-using SafeTrace.Application.Interfaces.IServices;
-using SafeTrace.Application.Interfaces.IServices.ICases;
-using SafeTrace.Application.Services.Cases;
-using SafeTrace.Infrastructure.DependencyInjection;
-using Serilog;
-using System.Reflection;
-using System.Text.Json.Serialization;
-using Hangfire;
-using Hangfire.Dashboard.BasicAuthorization;
-using NetTopologySuite.Geometries;
-using System.Text.Json;
+    using ElmahCore.Mvc;
+    using Microsoft.AspNetCore.Mvc;
+    using SafeTrace.API.ExceptionHandlers;
+    using SafeTrace.API.ExtensionMethods;
+    using Audit.Core;
+    using Audit.EntityFramework;
+    using System.Security.Claims;
+    using SafeTrace.API.Hubs;
+    using SafeTrace.Application.DependencyInjection;
+    using SafeTrace.Application.Hubs;
+    using SafeTrace.Application.Interfaces.IServices;
+    using SafeTrace.Application.Interfaces.IServices.ICases;
+    using SafeTrace.Application.Services.Cases;
+    using SafeTrace.Infrastructure.DependencyInjection;
+    using Serilog;
+    using System.Reflection;
+    using System.Text.Json.Serialization;
+    using Hangfire;
+    using Hangfire.Dashboard.BasicAuthorization;
+    using NetTopologySuite.Geometries;
+    using System.Text.Json;
 
-namespace SafeTrace.API
-{
-    public class Program
+    namespace SafeTrace.API
     {
-        public static async Task Main(string[] args)
+        public class Program
         {
-            var builder = WebApplication.CreateBuilder(args);
-
-            Log.Logger = new LoggerConfiguration()
-                        .ReadFrom.Configuration(builder.Configuration)
-                        .CreateLogger();
-
-            builder.Host.UseSerilog();
-
-            // Add services to the container.
-
-            builder.Services.AddEndpointsApiExplorer();
-
-            builder.Services.AddHttpContextAccessor();
-
-            builder.Services.AddControllers()
-                            .AddJsonOptions(options =>
-                            {
-                                options.JsonSerializerOptions.Converters.Add(
-                                    new JsonStringEnumConverter());
-                            });
-
-            builder.Services.AddSwaggerGen(options =>
+            public static async Task Main(string[] args)
             {
-                var xmlFile = $"{Assembly.GetExecutingAssembly().GetName().Name}.xml";
-                var xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFile);
+                var builder = WebApplication.CreateBuilder(args);
 
-                options.IncludeXmlComments(xmlPath);
-            });
+                Log.Logger = new LoggerConfiguration()
+                            .ReadFrom.Configuration(builder.Configuration)
+                            .CreateLogger();
 
-            builder.Services.AddInfrastructure(builder.Configuration);
-            builder.Services.AddApplication();
-            builder.Services.AddSignalR()
-                .AddJsonProtocol(options =>
+                builder.Host.UseSerilog();
+
+                // Add services to the container.
+
+                builder.Services.AddEndpointsApiExplorer();
+
+                builder.Services.AddHttpContextAccessor();
+
+                builder.Services.AddControllers()
+                                .AddJsonOptions(options =>
+                                {
+                                    options.JsonSerializerOptions.Converters.Add(
+                                        new JsonStringEnumConverter());
+                                });
+
+                builder.Services.AddSwaggerGen(options =>
                 {
-                    options.PayloadSerializerOptions.Converters.Add(
-                        new JsonStringEnumConverter());
-                }); builder.Services.AddScoped<IChatNotifier, SignalRChatNotifier>();
+                    var xmlFile = $"{Assembly.GetExecutingAssembly().GetName().Name}.xml";
+                    var xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFile);
 
-            builder.Services.AddCors(options =>
-            {
-                options.AddPolicy("CorsPolicy", builder =>
-                {
-                    builder
-                        .WithOrigins("https://localhost:4200", "http://localhost:5500", "http://127.0.0.1:5500",
-                                    "http://localhost:5501", "http://127.0.0.1:5501", "https://localhost:7204", "https://localhost:5173", "https://localhost:7126",
-                                    "http://localhost:3000", "http://localhost:8080", 
-                                    "https://leqaaweb.runasp.net"
-                                    , "https://rearview-manual-coke.ngrok-free.dev") // Add common dev ports
-                        .AllowAnyHeader()
-                        .AllowAnyMethod()
-                        .AllowCredentials()
-                        .SetIsOriginAllowed((host) => true); // More permissive for development
+                    options.IncludeXmlComments(xmlPath);
                 });
-            });
-            // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
-            //builder.Services.AddOpenApi();
 
-            builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
-            builder.Services.AddProblemDetails();
-            builder.Services.AddSignalR();
-            
-            // Background Services
-            builder.Services.AddScoped<ICaseCleanupService, CaseCleanupService>();
-            
-            builder.Services.AddHangfire(config => config
-                .SetDataCompatibilityLevel(CompatibilityLevel.Version_180)
-                .UseSimpleAssemblyNameTypeSerializer()
-                .UseRecommendedSerializerSettings()
-                .UseSqlServerStorage(builder.Configuration.GetConnectionString("DefaultConnection")));
-            builder.Services.AddHangfireServer();
-
-
-            Audit.Core.Configuration.Setup()
-                .UseEntityFramework(ef => ef
-                    .AuditTypeMapper(t => typeof(AuditLog))
-                    .AuditEntityAction<AuditLog>((ev, entry, entity) =>
+                builder.Services.AddInfrastructure(builder.Configuration);
+                builder.Services.AddApplication();
+                builder.Services.AddSignalR()
+                    .AddJsonProtocol(options =>
                     {
-                        var realChanges = entry.Changes?.Where(c => !Equals(c.OriginalValue, c.NewValue)).ToList();
+                        options.PayloadSerializerOptions.Converters.Add(
+                            new JsonStringEnumConverter());
+                    }); builder.Services.AddScoped<IChatNotifier, SignalRChatNotifier>();
 
-                        entity.TableName = entry.Table;
-                        entity.Type = entry.Action;
-                        var egyptTimeZone = TimeZoneInfo.FindSystemTimeZoneById("Egypt Standard Time");
-                        entity.DateTime = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, egyptTimeZone);
-                        entity.UserId = ev.CustomFields.ContainsKey("UserId") ? ev.CustomFields["UserId"]?.ToString() : null;
-                        entity.PrimaryKey = string.Join(",", entry.PrimaryKey.Values);
+                builder.Services.AddCors(options =>
+                {
+                    options.AddPolicy("CorsPolicy", builder =>
+                    {
+                        builder
+                            .WithOrigins("https://localhost:4200", "http://localhost:5500", "http://127.0.0.1:5500",
+                                        "http://localhost:5501", "http://127.0.0.1:5501", "https://localhost:7204", "https://localhost:5173", "https://localhost:7126",
+                                        "http://localhost:3000", "http://localhost:8080", 
+                                        "https://leqaaweb.runasp.net"
+                                        , "https://rearview-manual-coke.ngrok-free.dev") // Add common dev ports
+                            .AllowAnyHeader()
+                            .AllowAnyMethod()
+                            .AllowCredentials()
+                            .SetIsOriginAllowed((host) => true); // More permissive for development
+                    });
+                });
+                // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
+                //builder.Services.AddOpenApi();
+
+                builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
+                builder.Services.AddProblemDetails();
+                builder.Services.AddSignalR();
+            
+                // Background Services
+                builder.Services.AddScoped<ICaseCleanupService, CaseCleanupService>();
+            
+                builder.Services.AddHangfire(config => config
+                    .SetDataCompatibilityLevel(CompatibilityLevel.Version_180)
+                    .UseSimpleAssemblyNameTypeSerializer()
+                    .UseRecommendedSerializerSettings()
+                    .UseSqlServerStorage(builder.Configuration.GetConnectionString("DefaultConnection")));
+                builder.Services.AddHangfireServer();
+
+
+                Audit.Core.Configuration.Setup()
+                    .UseEntityFramework(ef => ef
+                        .AuditTypeMapper(t => typeof(AuditLog))
+                        .AuditEntityAction<AuditLog>((ev, entry, entity) =>
+                        {
+                            var realChanges = entry.Changes?.Where(c => !Equals(c.OriginalValue, c.NewValue)).ToList();
+
+                            entity.TableName = entry.Table;
+                            entity.Type = entry.Action;
+                            var egyptTimeZone = TimeZoneInfo.FindSystemTimeZoneById("Egypt Standard Time");
+                            entity.DateTime = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, egyptTimeZone);
+                            entity.UserId = ev.CustomFields.ContainsKey("UserId") ? ev.CustomFields["UserId"]?.ToString() : null;
+                            entity.PrimaryKey = string.Join(",", entry.PrimaryKey.Values);
                         
-                        if (entry.Action == "Insert") 
-                        {
-                            // entity.NewValues = entry.ColumnValues != null ? System.Text.Json.JsonSerializer.Serialize(entry.ColumnValues) : null;
-                            if (entry.ColumnValues != null)
+                            if (entry.Action == "Insert") 
                             {
-                                var values = entry.ColumnValues.ToDictionary(
-                                    x => x.Key,
-                                    x => NormalizeAuditValue(x.Value));
+                                // entity.NewValues = entry.ColumnValues != null ? System.Text.Json.JsonSerializer.Serialize(entry.ColumnValues) : null;
+                                if (entry.ColumnValues != null)
+                                {
+                                    var values = entry.ColumnValues.ToDictionary(
+                                        x => x.Key,
+                                        x => NormalizeAuditValue(x.Value));
 
-                                entity.NewValues = JsonSerializer.Serialize(values);
-                            }
-                            else
-                            {
-                                entity.NewValues = null;
-                            }
-                            entity.OldValues = null;
-                            entity.AffectedColumns = null;
-                        }
-                        else if (entry.Action == "Delete")
-                        {
-                            entity.NewValues = null;
-                            if (entry.ColumnValues != null)
-                            {
-                                var values = entry.ColumnValues.ToDictionary(
-                                    x => x.Key,
-                                    x => NormalizeAuditValue(x.Value));
-
-                                entity.OldValues = JsonSerializer.Serialize(values);
-                            }
-                            else
-                            {
+                                    entity.NewValues = JsonSerializer.Serialize(values);
+                                }
+                                else
+                                {
+                                    entity.NewValues = null;
+                                }
                                 entity.OldValues = null;
-                            }
-                            // entity.OldValues = entry.ColumnValues != null ? System.Text.Json.JsonSerializer.Serialize(entry.ColumnValues) : null;
-                            entity.AffectedColumns = null;
-                        }
-                        else 
-                        {
-                            if (realChanges?.Count > 0)
-                            {
-                                var oldValues = realChanges.ToDictionary(
-                                    c => c.ColumnName,
-                                    c => NormalizeAuditValue(c.OriginalValue));
-
-                                var newValues = realChanges.ToDictionary(
-                                    c => c.ColumnName,
-                                    c => NormalizeAuditValue(c.NewValue));
-
-                                entity.OldValues = JsonSerializer.Serialize(oldValues);
-                                entity.NewValues = JsonSerializer.Serialize(newValues);
-
-                                entity.AffectedColumns = string.Join(", ", realChanges.Select(c => c.ColumnName));
-                            }
-                            else
-                            {
-                                entity.OldValues = null;
-                                entity.NewValues = null;
                                 entity.AffectedColumns = null;
                             }
-                            // entity.OldValues = realChanges?.Count > 0 ? System.Text.Json.JsonSerializer.Serialize(realChanges.ToDictionary(c => c.ColumnName, c => c.OriginalValue)) : null;
-                            // entity.NewValues = realChanges?.Count > 0 ? System.Text.Json.JsonSerializer.Serialize(realChanges.ToDictionary(c => c.ColumnName, c => c.NewValue)) : null;
-                            // entity.AffectedColumns = realChanges?.Count > 0 ? string.Join(", ", realChanges.Select(c => c.ColumnName)) : null;
-                        }
-                    })
-                    .IgnoreMatchedProperties(true));
+                            else if (entry.Action == "Delete")
+                            {
+                                entity.NewValues = null;
+                                if (entry.ColumnValues != null)
+                                {
+                                    var values = entry.ColumnValues.ToDictionary(
+                                        x => x.Key,
+                                        x => NormalizeAuditValue(x.Value));
 
-            Audit.Core.Configuration.AddCustomAction(ActionType.OnScopeCreated, scope =>
-            {
-                var httpContext = new HttpContextAccessor().HttpContext;
-                scope.Event.CustomFields["UserId"] = httpContext?.User?.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            });
+                                    entity.OldValues = JsonSerializer.Serialize(values);
+                                }
+                                else
+                                {
+                                    entity.OldValues = null;
+                                }
+                                // entity.OldValues = entry.ColumnValues != null ? System.Text.Json.JsonSerializer.Serialize(entry.ColumnValues) : null;
+                                entity.AffectedColumns = null;
+                            }
+                            else 
+                            {
+                                if (realChanges?.Count > 0)
+                                {
+                                    var oldValues = realChanges.ToDictionary(
+                                        c => c.ColumnName,
+                                        c => NormalizeAuditValue(c.OriginalValue));
 
-            Audit.Core.Configuration.AddCustomAction(ActionType.OnEventSaving, scope =>
-            {
-                var efEvent = scope.Event.GetEntityFrameworkEvent();
-                if (efEvent != null)
+                                    var newValues = realChanges.ToDictionary(
+                                        c => c.ColumnName,
+                                        c => NormalizeAuditValue(c.NewValue));
+
+                                    entity.OldValues = JsonSerializer.Serialize(oldValues);
+                                    entity.NewValues = JsonSerializer.Serialize(newValues);
+
+                                    entity.AffectedColumns = string.Join(", ", realChanges.Select(c => c.ColumnName));
+                                }
+                                else
+                                {
+                                    entity.OldValues = null;
+                                    entity.NewValues = null;
+                                    entity.AffectedColumns = null;
+                                }
+                                // entity.OldValues = realChanges?.Count > 0 ? System.Text.Json.JsonSerializer.Serialize(realChanges.ToDictionary(c => c.ColumnName, c => c.OriginalValue)) : null;
+                                // entity.NewValues = realChanges?.Count > 0 ? System.Text.Json.JsonSerializer.Serialize(realChanges.ToDictionary(c => c.ColumnName, c => c.NewValue)) : null;
+                                // entity.AffectedColumns = realChanges?.Count > 0 ? string.Join(", ", realChanges.Select(c => c.ColumnName)) : null;
+                            }
+                        })
+                        .IgnoreMatchedProperties(true));
+
+                Audit.Core.Configuration.AddCustomAction(ActionType.OnScopeCreated, scope =>
                 {
-                    var ignoredTables = new[] 
-                    { 
-                        "RefreshTokens", "UserOtps", "Notifications", 
-                        "Messages", "Chats", "AiSearchUsages", 
-                        "AspNetUserTokens", "AspNetUserLogins" 
-                    };
+                    var httpContext = new HttpContextAccessor().HttpContext;
+                    scope.Event.CustomFields["UserId"] = httpContext?.User?.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                });
 
-                    efEvent.Entries.RemoveAll(e => ignoredTables.Contains(e.Table));
-                    if (efEvent.Entries.Count == 0)
-                    {
-                        scope.Discard();
-                    }
-                }
-            });
-
-            var app = builder.Build();
-
-            // Custom Basic Auth Middleware for Elmah
-            app.Use(async (context, next) =>
-            {
-                if (context.Request.Path.StartsWithSegments("/elmah"))
+                Audit.Core.Configuration.AddCustomAction(ActionType.OnEventSaving, scope =>
                 {
-                    var authHeader = context.Request.Headers["Authorization"].ToString();
-                    var expectedUser = builder.Configuration["Elmah:Username"];
-                    var expectedPass = builder.Configuration["Elmah:Password"];
-                    var expectedAuth = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes($"{expectedUser}:{expectedPass}"));
-
-                    if (authHeader != $"Basic {expectedAuth}")
+                    var efEvent = scope.Event.GetEntityFrameworkEvent();
+                    if (efEvent != null)
                     {
-                        context.Response.Headers["WWW-Authenticate"] = "Basic realm=\"Elmah Secure Area\"";
-                        context.Response.StatusCode = 401;
-                        return;
-                    }
-                }
-                await next();
-            });
+                        var ignoredTables = new[] 
+                        { 
+                            "RefreshTokens", "UserOtps", "Notifications", 
+                            "Messages", "Chats", "AiSearchUsages", 
+                            "AspNetUserTokens", "AspNetUserLogins" 
+                        };
 
-            app.UseElmah();
-            app.UseExceptionHandler();
-            app.UseStatusCodePages(async context =>
-            {
-                var response = context.HttpContext.Response;
-
-                if (response.StatusCode == 404)
-                {
-                    await response.WriteAsJsonAsync(new ProblemDetails
-                    {
-                        Status = 404,
-                        Title = "Not Found",
-                        Detail = "لم يتم العثور على المسار المطلوب.",
-                        Instance = context.HttpContext.Request.Path
-                    });
-                }
-            });
-
-            // Configure the HTTP request pipeline.
-            if (app.Environment.IsDevelopment())
-            {
-                app.UseSwagger();
-                app.UseSwaggerUI();
-            }
-
-
-            app.UseCors("CorsPolicy");
-
-            await app.SeedDataAsync();
-            await app.ApplyPendingMigrationsAsync();
-            await app.SetupAwsResourcesAsync();
-
-            var hangfireUsername = builder.Configuration["Hangfire:Username"];
-            var hangfirePassword = builder.Configuration["Hangfire:Password"];
-
-            app.UseHangfireDashboard("/hangfire", new DashboardOptions
-            {
-                Authorization = new[] { new BasicAuthAuthorizationFilter(new BasicAuthAuthorizationFilterOptions
-                {
-                    RequireSsl = false,
-                    SslRedirect = false,
-                    LoginCaseSensitive = true,
-                    Users = new []
-                    {
-                        new BasicAuthAuthorizationUser
+                        efEvent.Entries.RemoveAll(e => ignoredTables.Contains(e.Table));
+                        if (efEvent.Entries.Count == 0)
                         {
-                            Login = hangfireUsername,
-                            PasswordClear = hangfirePassword
+                            scope.Discard();
                         }
                     }
-                })}
-            });
+                });
 
-            RecurringJob.AddOrUpdate<IAuthCleanupService>("CleanupExpiredOtps", service => service.CleanupExpiredOtpsAsync(), Cron.Daily);
-            RecurringJob.AddOrUpdate<IAuthCleanupService>("CleanupOldRefreshTokens", service => service.CleanupOldRefreshTokensAsync(), Cron.Daily);
-            RecurringJob.AddOrUpdate<ICaseCleanupService>("CleanupExpiredUrgentCases", service => service.CleanupExpiredUrgentCasesAsync(), Cron.Hourly);
+                var app = builder.Build();
 
-
-            app.UseHttpsRedirection();
-            app.UseStaticFiles();
-
-            app.UseRateLimiter();
-            
-            app.UseAuthentication();
-            app.UseAuthorization();
-
-            app.MapControllers();
-            app.MapHub<NotificationsHub>("/SafeTrace.Application/Hubs/notifications");
-            app.MapHub<ChatHub>("/chatHub");
-
-
-            app.Run();
-
-            static object? NormalizeAuditValue(object? value)
-            {
-                return value switch
+                // Custom Basic Auth Middleware for Elmah
+                app.Use(async (context, next) =>
                 {
-                    Point p => new
+                    if (context.Request.Path.StartsWithSegments("/elmah"))
                     {
-                        Latitude = p.Y,
-                        Longitude = p.X
-                    },
+                        var authHeader = context.Request.Headers["Authorization"].ToString();
+                        var expectedUser = builder.Configuration["Elmah:Username"];
+                        var expectedPass = builder.Configuration["Elmah:Password"];
+                        var expectedAuth = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes($"{expectedUser}:{expectedPass}"));
 
-                    double d when double.IsNaN(d) || double.IsInfinity(d) => null,
+                        if (authHeader != $"Basic {expectedAuth}")
+                        {
+                            context.Response.Headers["WWW-Authenticate"] = "Basic realm=\"Elmah Secure Area\"";
+                            context.Response.StatusCode = 401;
+                            return;
+                        }
+                    }
+                    await next();
+                });
 
-                    float f when float.IsNaN(f) || float.IsInfinity(f) => null,
+                app.UseElmah();
+                app.UseExceptionHandler();
+                app.UseStatusCodePages(async context =>
+                {
+                    var response = context.HttpContext.Response;
 
-                    _ => value
-                };
+                    if (response.StatusCode == 404)
+                    {
+                        await response.WriteAsJsonAsync(new ProblemDetails
+                        {
+                            Status = 404,
+                            Title = "Not Found",
+                            Detail = "لم يتم العثور على المسار المطلوب.",
+                            Instance = context.HttpContext.Request.Path
+                        });
+                    }
+                });
+
+                // Configure the HTTP request pipeline.
+                if (app.Environment.IsDevelopment())
+                {
+                    app.UseSwagger();
+                    app.UseSwaggerUI();
+                }
+
+
+                app.UseCors("CorsPolicy");
+
+                await app.SeedDataAsync();
+                await app.ApplyPendingMigrationsAsync();
+                await app.SetupAwsResourcesAsync();
+
+                var hangfireUsername = builder.Configuration["Hangfire:Username"];
+                var hangfirePassword = builder.Configuration["Hangfire:Password"];
+
+                app.UseHangfireDashboard("/hangfire", new DashboardOptions
+                {
+                    Authorization = new[] { new BasicAuthAuthorizationFilter(new BasicAuthAuthorizationFilterOptions
+                    {
+                        RequireSsl = false,
+                        SslRedirect = false,
+                        LoginCaseSensitive = true,
+                        Users = new []
+                        {
+                            new BasicAuthAuthorizationUser
+                            {
+                                Login = hangfireUsername,
+                                PasswordClear = hangfirePassword
+                            }
+                        }
+                    })}
+                });
+
+                RecurringJob.AddOrUpdate<IAuthCleanupService>("CleanupExpiredOtps", service => service.CleanupExpiredOtpsAsync(), Cron.Daily);
+                RecurringJob.AddOrUpdate<IAuthCleanupService>("CleanupOldRefreshTokens", service => service.CleanupOldRefreshTokensAsync(), Cron.Daily);
+                RecurringJob.AddOrUpdate<ICaseCleanupService>("CleanupExpiredUrgentCases", service => service.CleanupExpiredUrgentCasesAsync(), Cron.Hourly);
+
+
+                app.UseHttpsRedirection();
+                app.UseStaticFiles();
+
+                app.UseRateLimiter();
+            
+                app.UseAuthentication();
+                app.UseAuthorization();
+
+                app.MapControllers();
+                app.MapHub<NotificationsHub>("/SafeTrace.Application/Hubs/notifications");
+                app.MapHub<ChatHub>("/chatHub");
+
+
+                app.Run();
+
+                static object? NormalizeAuditValue(object? value)
+                {
+                    return value switch
+                    {
+                        Point p => new
+                        {
+                            Latitude = p.Y,
+                            Longitude = p.X
+                        },
+
+                        double d when double.IsNaN(d) || double.IsInfinity(d) => null,
+
+                        float f when float.IsNaN(f) || float.IsInfinity(f) => null,
+
+                        _ => value
+                    };
+                }
             }
         }
     }
-}
