@@ -215,6 +215,17 @@ namespace SafeTrace.Infrastructure.DependencyInjection
                             QueueLimit = 0,
                             Window = TimeSpan.FromMinutes(1)
                         }));
+
+                options.AddPolicy("ComplaintLimit", httpContext =>
+                    System.Threading.RateLimiting.RateLimitPartition.GetFixedWindowLimiter(
+                        partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? httpContext.Request.Headers.Host.ToString(),
+                        factory: partition => new System.Threading.RateLimiting.FixedWindowRateLimiterOptions
+                        {
+                            AutoReplenishment = true,
+                            PermitLimit = 3,
+                            QueueLimit = 0,
+                            Window = TimeSpan.FromMinutes(60)
+                        }));
             });
 
             return services;

@@ -14,6 +14,9 @@ namespace SafeTrace.Application.DTOs.Dashboard.Response
         public int TotalCases { get; set; }
         public int TotalFoundedCases { get; set; }
         public int TotalActiveCases { get; set; }
+        public int TotalSolvedComplaints { get; set; }
+        public int TotalUnSolvedComplaints { get; set; }
+        public int TotalDailyAISearch { get; set; }
         public int TotalExpiredCases { get; set; }
         public int TotalRejectedCases { get; set; }
         public int TotalDeletedCases { get; set; }

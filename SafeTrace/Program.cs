@@ -64,62 +64,62 @@
                             new JsonStringEnumConverter());
                     }); builder.Services.AddScoped<IChatNotifier, SignalRChatNotifier>();
 
-                builder.Services.AddCors(options =>
+            builder.Services.AddCors(options =>
+            {
+                options.AddPolicy("CorsPolicy", builder =>
                 {
-                    options.AddPolicy("CorsPolicy", builder =>
-                    {
-                        builder
-                            .WithOrigins("https://localhost:4200", "http://localhost:5500", "http://127.0.0.1:5500",
-                                        "http://localhost:5501", "http://127.0.0.1:5501", "https://localhost:7204", "https://localhost:5173", "https://localhost:7126",
-                                        "http://localhost:3000", "http://localhost:8080", 
-                                        "https://leqaaweb.runasp.net"
-                                        , "https://rearview-manual-coke.ngrok-free.dev") // Add common dev ports
-                            .AllowAnyHeader()
-                            .AllowAnyMethod()
-                            .AllowCredentials()
-                            .SetIsOriginAllowed((host) => true); // More permissive for development
-                    });
+                    builder
+                        .WithOrigins("https://localhost:4200", "http://localhost:5500", "http://127.0.0.1:5500",
+                                    "http://localhost:5501", "http://127.0.0.1:5501", "https://localhost:7204", "https://localhost:5173", "https://localhost:7126",
+                                    "http://localhost:3000", "http://localhost:8080",
+                                    "https://leqaaweb.runasp.net"
+                                    , "https://rearview-manual-coke.ngrok-free.dev") // Add common dev ports
+                        .AllowAnyHeader()
+                        .AllowAnyMethod()
+                        .AllowCredentials()
+                        .SetIsOriginAllowed((host) => true); // More permissive for development
                 });
-                // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
-                //builder.Services.AddOpenApi();
+            });
+            // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
+            //builder.Services.AddOpenApi();
 
-                builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
-                builder.Services.AddProblemDetails();
-                builder.Services.AddSignalR();
-            
-                // Background Services
-                builder.Services.AddScoped<ICaseCleanupService, CaseCleanupService>();
-            
-                builder.Services.AddHangfire(config => config
-                    .SetDataCompatibilityLevel(CompatibilityLevel.Version_180)
-                    .UseSimpleAssemblyNameTypeSerializer()
-                    .UseRecommendedSerializerSettings()
-                    .UseSqlServerStorage(builder.Configuration.GetConnectionString("DefaultConnection")));
-                builder.Services.AddHangfireServer();
+            builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
+            builder.Services.AddProblemDetails();
+
+            // Background Services
+            builder.Services.AddScoped<ICaseCleanupService, CaseCleanupService>();
+
+            builder.Services.AddHangfire(config => config
+                .SetDataCompatibilityLevel(CompatibilityLevel.Version_180)
+                .UseSimpleAssemblyNameTypeSerializer()
+                .UseRecommendedSerializerSettings()
+                .UseSqlServerStorage(builder.Configuration.GetConnectionString("DefaultConnection")));
+            builder.Services.AddHangfireServer();
 
 
-                Audit.Core.Configuration.Setup()
-                    .UseEntityFramework(ef => ef
-                        .AuditTypeMapper(t => typeof(AuditLog))
-                        .AuditEntityAction<AuditLog>((ev, entry, entity) =>
+            Audit.Core.Configuration.Setup()
+                .UseEntityFramework(ef => ef
+                    .AuditTypeMapper(t => typeof(AuditLog))
+                    .AuditEntityAction<AuditLog>((ev, entry, entity) =>
+                    {
+
+                        var realChanges = entry.Changes?.Where(c => !Equals(c.OriginalValue, c.NewValue)).ToList();
+                     
+                        entity.TableName = entry.Table;
+                        entity.Type = entry.Action;
+                        var egyptTimeZone = TimeZoneInfo.FindSystemTimeZoneById("Egypt Standard Time");
+                        entity.DateTime = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, egyptTimeZone);
+                        entity.UserId = ev.CustomFields.ContainsKey("UserId") ? ev.CustomFields["UserId"]?.ToString() : null;
+                        entity.PrimaryKey = string.Join(",", entry.PrimaryKey.Values);
+
+                        if (entry.Action == "Insert")
                         {
-                            var realChanges = entry.Changes?.Where(c => !Equals(c.OriginalValue, c.NewValue)).ToList();
-
-                            entity.TableName = entry.Table;
-                            entity.Type = entry.Action;
-                            var egyptTimeZone = TimeZoneInfo.FindSystemTimeZoneById("Egypt Standard Time");
-                            entity.DateTime = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, egyptTimeZone);
-                            entity.UserId = ev.CustomFields.ContainsKey("UserId") ? ev.CustomFields["UserId"]?.ToString() : null;
-                            entity.PrimaryKey = string.Join(",", entry.PrimaryKey.Values);
-                        
-                            if (entry.Action == "Insert") 
+                            // entity.NewValues = entry.ColumnValues != null ? System.Text.Json.JsonSerializer.Serialize(entry.ColumnValues) : null;
+                            if (entry.ColumnValues != null)
                             {
-                                // entity.NewValues = entry.ColumnValues != null ? System.Text.Json.JsonSerializer.Serialize(entry.ColumnValues) : null;
-                                if (entry.ColumnValues != null)
-                                {
-                                    var values = entry.ColumnValues.ToDictionary(
-                                        x => x.Key,
-                                        x => NormalizeAuditValue(x.Value));
+                                var values = entry.ColumnValues.ToDictionary(
+                                    x => x.Key,
+                                    x => NormalizeAuditValue(x.Value));
 
                                     entity.NewValues = JsonSerializer.Serialize(values);
                                 }
@@ -139,22 +139,22 @@
                                         x => x.Key,
                                         x => NormalizeAuditValue(x.Value));
 
-                                    entity.OldValues = JsonSerializer.Serialize(values);
-                                }
-                                else
-                                {
-                                    entity.OldValues = null;
-                                }
-                                // entity.OldValues = entry.ColumnValues != null ? System.Text.Json.JsonSerializer.Serialize(entry.ColumnValues) : null;
-                                entity.AffectedColumns = null;
+                                entity.OldValues = JsonSerializer.Serialize(values);
                             }
-                            else 
+                            else
                             {
-                                if (realChanges?.Count > 0)
-                                {
-                                    var oldValues = realChanges.ToDictionary(
-                                        c => c.ColumnName,
-                                        c => NormalizeAuditValue(c.OriginalValue));
+                                entity.OldValues = null;
+                            }
+                            // entity.OldValues = entry.ColumnValues != null ? System.Text.Json.JsonSerializer.Serialize(entry.ColumnValues) : null;
+                            entity.AffectedColumns = null;
+                        }
+                        else
+                        {
+                            if (realChanges?.Count > 0)
+                            {
+                                var oldValues = realChanges.ToDictionary(
+                                    c => c.ColumnName,
+                                    c => NormalizeAuditValue(c.OriginalValue));
 
                                     var newValues = realChanges.ToDictionary(
                                         c => c.ColumnName,
@@ -184,25 +184,66 @@
                     scope.Event.CustomFields["UserId"] = httpContext?.User?.FindFirst(ClaimTypes.NameIdentifier)?.Value;
                 });
 
-                Audit.Core.Configuration.AddCustomAction(ActionType.OnEventSaving, scope =>
+            Audit.Core.Configuration.AddCustomAction(ActionType.OnEventSaving, scope =>
+            {
+                var efEvent = scope.Event.GetEntityFrameworkEvent();
+                if (efEvent != null)
                 {
-                    var efEvent = scope.Event.GetEntityFrameworkEvent();
-                    if (efEvent != null)
-                    {
-                        var ignoredTables = new[] 
-                        { 
-                            "RefreshTokens", "UserOtps", "Notifications", 
-                            "Messages", "Chats", "AiSearchUsages", 
-                            "AspNetUserTokens", "AspNetUserLogins" 
-                        };
+                    var httpContext = new HttpContextAccessor().HttpContext;
+                    bool shouldLog = false;
 
-                        efEvent.Entries.RemoveAll(e => ignoredTables.Contains(e.Table));
-                        if (efEvent.Entries.Count == 0)
+                    if (httpContext != null)
+                    {
+                        var endpoint = httpContext.GetEndpoint();
+                        if (endpoint != null)
                         {
-                            scope.Discard();
+                            var targetPermissions = new[]
+                            {
+                                "Users.Reject", "Users.Approve", "Users.ToggleBlock", "Users.ChangeRole", "Users.RegisterByAdmin", "Users.AssignPermissions",
+                                "Roles.Create", "Roles.Delete", "Roles.UpdateRolePermissions",
+                                "Complaints.MarkAsSolved", "Complaints.HardDelete",
+                                "UnknownCases.Approve", "UnknownCases.Reject", "UnknownCases.HardDelete",
+                                "LongTermCases.Approve", "LongTermCases.Reject", "LongTermCases.HardDelete",
+                                "UrgentCases.Approve", "UrgentCases.Reject", "UrgentCases.HardDelete"
+                            };
+
+                            var authorizeAttributes = endpoint.Metadata.OfType<Microsoft.AspNetCore.Authorization.AuthorizeAttribute>();
+                            
+                            foreach (var attr in authorizeAttributes)
+                            {
+                                if (!string.IsNullOrEmpty(attr.Policy) && targetPermissions.Contains(attr.Policy))
+                                {
+                                    shouldLog = true;
+                                    break;
+                                }
+                            }
                         }
                     }
-                });
+
+                    if (!shouldLog)
+                    {
+                        scope.Discard();
+                        return;
+                    }
+
+                    var ignoredTables = new[]
+                    {
+                        "RefreshTokens", "UserOtps", "Notifications",
+                        "Messages", "Chats", "AiSearchUsages",
+                        "AspNetUserTokens", "AspNetUserLogins",
+                        "DuplicateGroups", "DuplicateGroupCases",
+                        "FoundPersonInfos", "CaseFiles",
+                        "AgeCategories", "Donations"
+                    };
+
+                    efEvent.Entries.RemoveAll(e => ignoredTables.Contains(e.Table));
+
+                    if (efEvent.Entries.Count == 0)
+                    {
+                        scope.Discard();
+                    }
+                }
+            });
 
                 var app = builder.Build();
 
@@ -287,10 +328,10 @@
                 app.UseHttpsRedirection();
                 app.UseStaticFiles();
 
-                app.UseRateLimiter();
-            
-                app.UseAuthentication();
-                app.UseAuthorization();
+            app.UseRateLimiter();
+
+            app.UseAuthentication();
+            app.UseAuthorization();
 
                 app.MapControllers();
                 app.MapHub<NotificationsHub>("/SafeTrace.Application/Hubs/notifications");

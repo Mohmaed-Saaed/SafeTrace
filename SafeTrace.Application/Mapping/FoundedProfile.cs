@@ -24,13 +24,16 @@ namespace SafeTrace.Application.Mapping
                     opt => opt.MapFrom(src => src.Id))
                 .ForMember(
                     dest => dest.Age,
-                    opt => opt.MapFrom(src => src.Case.AgeCategory.Name))
+                    opt => opt.MapFrom(src => src.Case.Age))
                 .ForMember(
                     dest => dest.CaseId,
                     opt => opt.MapFrom(src => src.Case.Id))
                 .ForMember(
                     dest => dest.FoundedAt,
-                    opt => opt.MapFrom(src => src.FoundedAt));
+                    opt => opt.MapFrom(src => src.FoundedAt))
+                  .ForMember(
+                    dest => dest.Gender,
+                    opt => opt.MapFrom(src => src.Case.Gender));
 
 
             CreateMap<FoundPersonInfo, PostDetailsResponseDTO>()

@@ -361,6 +361,5 @@ namespace SafeTrace.Application.Services.Cases
 
             return true;
         }
-
     }
 }
