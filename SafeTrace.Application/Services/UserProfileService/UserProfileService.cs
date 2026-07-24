@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
+using NetTopologySuite.Geometries;
 using SafeTrace.Application.DTOs.User_Profiel_DTOS;
 using SafeTrace.Application.DTOs.User_Profiel_DTOS.Update_Profile_DTOS;
 using SafeTrace.Application.Exceptions;
@@ -41,8 +42,8 @@ namespace SafeTrace.Application.Services.UserProfileServices
         {
             _logger.LogInformation("Fetching profile for UserId: {userId} at {Time}", userId, DateTime.UtcNow);
             var user = await _userManager.Users
-    .Include(u => u.Cases)
-    .FirstOrDefaultAsync(u => u.Id == userId);
+                .Include(u => u.Cases)
+                .FirstOrDefaultAsync(u => u.Id == userId);
 
             if (user == null)
             {
@@ -142,16 +143,11 @@ namespace SafeTrace.Application.Services.UserProfileServices
         public async Task<ApiResponse<bool>> UpdateHomeLocationAsync(string userId, UpdateHomeLocationDTO dto)
         {
             var user = await GetUser(userId);
-            //if (user == null)
-            //{
-            //    throw new NotFoundException("المستخدم غير موجود");
-            //}
-            //else
-            //{
-            var NewLocation = _mapper.Map(dto, user);
-            var result = await _userManager.UpdateAsync(user);
+
+            user.HomeLocation = new Point(dto.HomeLongitude.Value, dto.HomeLatitude.Value) { SRID = 4326 };
+
+            await SaveUser(user);
             return ApiResponse<bool>.Ok(true, "تم تحديث عنوانك بنجاح");
-            //}
         }
 
         public async Task<ApiResponse<bool>> UpdateNameAsync(string userId, UpdateNameDTO dto)
@@ -240,10 +236,10 @@ namespace SafeTrace.Application.Services.UserProfileServices
         public async Task<ApiResponse<bool>> UpdateCurrentLocation(string userId, UpdateCurrentLocationDTO dto)
         {
             var user = await GetUser(userId);
-            _mapper.Map(dto, user);
-            var result = await _userManager.UpdateAsync(user);
-            if (!result.Succeeded)
-                throw new BadRequestException("حدث خطأ أثناء تحديث الموقع.");
+
+            user.CurrentLocation = new Point(dto.CurrentLocationLongitude.Value, dto.CurrentLocationLatitude.Value) { SRID = 4326 };
+
+            await SaveUser(user);
 
             return ApiResponse<bool>.Ok(true, "تم تحديث عنوانك بنجاح");
         }
@@ -319,4 +315,3 @@ namespace SafeTrace.Application.Services.UserProfileServices
     }
 
 }
-

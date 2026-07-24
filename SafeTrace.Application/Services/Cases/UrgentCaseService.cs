@@ -18,7 +18,8 @@ namespace SafeTrace.Application.Services.Cases
         private const string FolderName = "UrgentCases";
         private const int RateLimitDays = 2;
         private const int ExpirationHours = 48;
-        private const double NotifyRadiusM = 50_000_000; // 500 km
+        private const double NotifyRadiusM = 500_000; // 500 km
+
         private const string detailsUrl = EmailTemplates.UrgentCaseDetailsRoute;
 
         public UrgentCaseService(
@@ -164,8 +165,8 @@ namespace SafeTrace.Application.Services.Cases
                 entity.Id,
                 entity.CaseCode,
                 userId);
-
-            _ = NotifyNearbyUsersAsync(entity);
+            
+            await NotifyNearbyUsersAsync(entity);
 
             return ApiResponse<CreateCaseResultDto>.Ok(
                 new CreateCaseResultDto
@@ -478,15 +479,11 @@ namespace SafeTrace.Application.Services.Cases
                     .Where(u =>
                         u.Id != entity.UserId &&
                         (
-                            (u.CurrentLocationLatitude != null &&
-                            u.CurrentLocationLongitude != null &&
-                            new Point(u.CurrentLocationLongitude.Value, u.CurrentLocationLatitude.Value) { SRID = 4326 }
-                                .Distance(caseLocation) <= NotifyRadiusM)
+                            (u.CurrentLocation != null &&
+                            u.CurrentLocation.Distance(caseLocation) <= NotifyRadiusM)
                             ||
-                            (u.HomeLocationLatitude != null &&
-                            u.HomeLocationLongitude != null &&
-                            new Point(u.HomeLocationLongitude.Value, u.HomeLocationLatitude.Value) { SRID = 4326 }
-                                .Distance(caseLocation) <= NotifyRadiusM)
+                            (u.HomeLocation != null &&
+                            u.HomeLocation.Distance(caseLocation) <= NotifyRadiusM)
                         ))
                     .Select(u => new
                     {
@@ -522,7 +519,6 @@ namespace SafeTrace.Application.Services.Cases
                             Type = NotificationType.Message,
                             NotificationDirectLink = detailsUrl + entity.Id
                         });
-
                         // Send Email
                         if (!string.IsNullOrWhiteSpace(user.Email))
                         {

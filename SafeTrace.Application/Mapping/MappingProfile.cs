@@ -29,9 +29,9 @@ namespace SafeTrace.Application.Mapping
     .ForMember(dest => dest.FullName,
         opt => opt.MapFrom(src => $"{src.FName} {src.LName}"))
     .ForMember(dest => dest.HomeLatitude,
-        opt => opt.MapFrom(src => src.HomeLocationLatitude))
+        opt => opt.MapFrom(src => src.HomeLocation == null ? (double?)null : src.HomeLocation.Y))
     .ForMember(dest => dest.HomeLongitude,
-        opt => opt.MapFrom(src => src.HomeLocationLongitude))
+        opt => opt.MapFrom(src => src.HomeLocation == null ? (double?)null : src.HomeLocation.X))
     .ForMember(dest => dest.Cases,
         opt => opt.MapFrom(src => src.Cases));
 
@@ -42,9 +42,9 @@ namespace SafeTrace.Application.Mapping
     .ForMember(d => d.PhoneNumber,
         o => o.MapFrom(s => s.PhoneNumber))
     .ForMember(d => d.HomeLatitude,
-        o => o.MapFrom(s => s.HomeLocationLatitude))
+        o => o.MapFrom(s => s.HomeLocation == null ? (double?)null : s.HomeLocation.Y))
     .ForMember(d => d.HomeLongitude,
-        o => o.MapFrom(s => s.HomeLocationLongitude))
+        o => o.MapFrom(s => s.HomeLocation == null ? (double?)null : s.HomeLocation.X))
     .ForMember(d => d.FullName,
         o => o.MapFrom(s => $"{s.FName} {s.LName}"));
 
@@ -56,7 +56,7 @@ namespace SafeTrace.Application.Mapping
           opt => opt.MapFrom(src => $"{src.FName} {src.LName}"))
       .ForMember(dest => dest.HomeLocation,
           opt => opt.MapFrom(src =>
-              $"{src.HomeLocationLatitude},{src.HomeLocationLongitude}"))
+              src.HomeLocation == null ? null : $"{src.HomeLocation.Y},{src.HomeLocation.X}"))
       .ReverseMap();
 
             #endregion
@@ -65,12 +65,6 @@ namespace SafeTrace.Application.Mapping
                  .ForMember(dest => dest.FName, opt => opt.MapFrom(src => src.FirstName))
                  .ForMember(dest => dest.LName, opt => opt.MapFrom(src => src.LastName))
                  .ReverseMap();
-
-            CreateMap<UpdateHomeLocationDTO, ApplicationUser>()
-                .ForMember(dest => dest.HomeLocationLatitude, opt => opt.MapFrom(src => src.HomeLatitude))
-                .ForMember(dest => dest.HomeLocationLongitude, opt => opt.MapFrom(src => src.HomeLongitude))
-                .ReverseMap();
-            CreateMap<UpdateCurrentLocationDTO, ApplicationUser>();
 
             CreateMap<UpdateProfileImageDTO, ApplicationUser>();
             CreateMap<AddIdImageDTO, ApplicationUser>();
@@ -81,10 +75,11 @@ namespace SafeTrace.Application.Mapping
             CreateMap<UpdateProfileInfoDTO, ApplicationUser>()
                 .ForMember(dest => dest.FName, opt => opt.MapFrom(src => src.FirstName))
                 .ForMember(dest => dest.LName, opt => opt.MapFrom(src => src.LastName))
-                .ForMember(dest => dest.HomeLocationLatitude,
-        opt => opt.MapFrom(src => src.HomeLatitude))
-    .ForMember(dest => dest.HomeLocationLongitude,
-        opt => opt.MapFrom(src => src.HomeLongitude))
+                .ForMember(dest => dest.HomeLocation,
+                    opt => opt.MapFrom(src =>
+                        src.HomeLatitude.HasValue && src.HomeLongitude.HasValue
+                            ? new NetTopologySuite.Geometries.Point(src.HomeLongitude.Value, src.HomeLatitude.Value) { SRID = 4326 }
+                            : null))
                 .ReverseMap();
 
 

@@ -21,6 +21,12 @@ namespace SafeTrace.Infrastructure.DataAccess.Configurations
                 .IsRequired()
                 .HasDefaultValue(VerificationStatus.Unverified);
 
+            builder.Property(x => x.CurrentLocation)
+                .HasColumnType("geography");
+
+            builder.Property(x => x.HomeLocation)
+                .HasColumnType("geography"); 
+
             builder.HasMany(u => u.Cases)
                     .WithOne(c => c.User)
                     .HasForeignKey(c => c.UserId)
@@ -35,6 +41,12 @@ namespace SafeTrace.Infrastructure.DataAccess.Configurations
                 .WithOne(c => c.User)
                 .HasForeignKey(c => c.UserId)
                 .OnDelete(DeleteBehavior.Cascade);
+            
+            // Spatial Index
+            // Create in Database using raw SQL:
+            //
+            // CREATE SPATIAL INDEX IX_UrgentCases_Location
+            // ON Cases(Location);
         }
     }
 }
