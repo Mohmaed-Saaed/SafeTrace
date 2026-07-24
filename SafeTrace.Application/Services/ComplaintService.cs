@@ -16,15 +16,21 @@ namespace SafeTrace.Application.Services
         private readonly IUnitOfWork _unitOfWork;
         private readonly INotificationServices _notificationService;
         private readonly IEmailService _emailService;
+        private readonly IPdfGeneratorService _pdfGenerator;
+        private readonly IExcelGeneratorService _excelGenerator;
 
         public ComplaintService(
             IUnitOfWork unitOfWork,
             INotificationServices notificationService,
-            IEmailService emailService)
+            IEmailService emailService,
+            IPdfGeneratorService pdfGenerator,
+            IExcelGeneratorService excelGenerator)
         {
             _unitOfWork = unitOfWork;
             _notificationService = notificationService;
             _emailService = emailService;
+            _pdfGenerator = pdfGenerator;
+            _excelGenerator = excelGenerator;
         }
 
         public async Task<PaginationResponseDto<ComplaintResponseDto>> GetAllAsync(ComplaintFilterDto filter)
@@ -175,7 +181,90 @@ namespace SafeTrace.Application.Services
 
             return stats ?? new ComplaintStatisticsDto();
         }
-    
-        
+
+        public async Task<byte[]> GeneratePdfReportAsync(
+            ComplaintFilterDto filter)
+        {
+            var complaints = await GetAllForReportAsync(filter);
+
+            var statistics = new ComplaintStatisticsDto
+            {
+                Total = complaints.Count,
+                Solved = complaints.Count(c => c.ComplaintStatus == ComplaintStatus.Solved),
+                UnSolved = complaints.Count(c => c.ComplaintStatus == ComplaintStatus.UnSolved)
+            };
+
+            return _pdfGenerator.GenerateComplaintsPdf(
+                complaints,
+                statistics,
+                filter);
+        }
+
+        public async Task<byte[]> GenerateExcelReportAsync(
+        ComplaintFilterDto filter)
+        {
+            var complaints = await GetAllForReportAsync(filter);
+
+            var statistics = new ComplaintStatisticsDto
+            {
+                Total = complaints.Count,
+
+                Solved = complaints.Count(c =>
+                    c.ComplaintStatus == ComplaintStatus.Solved),
+
+                UnSolved = complaints.Count(c =>
+                    c.ComplaintStatus == ComplaintStatus.UnSolved)
+            };
+
+
+            return _excelGenerator.GenerateComplaintsExcel(
+                complaints,
+                statistics,
+                filter);
+        }
+
+        public async Task<List<ComplaintResponseDto>> GetAllForReportAsync(
+            ComplaintFilterDto filter)
+        {
+            var query = _unitOfWork.Repository<Complaint>()
+                .Query(tracked: false, includes: c => c.User);
+
+            if (!string.IsNullOrEmpty(filter.CaseCode))
+                query = query.Where(c => c.CaseCode == filter.CaseCode);
+
+            if (!string.IsNullOrEmpty(filter.Search))
+            {
+                var searchTerm = filter.Search.ToLower();
+
+                query = query.Where(c =>
+                    (c.User.Email != null &&
+                     c.User.Email.ToLower().Contains(searchTerm)) ||
+
+                    (c.CaseCode != null &&
+                     c.CaseCode.ToLower().Contains(searchTerm)));
+            }
+
+            if (filter.Status.HasValue)
+                query = query.Where(c =>
+                    c.ComplaintStatus == filter.Status.Value);
+
+            return await query
+                .OrderByDescending(c => c.CreatedAt)
+                .Select(c => new ComplaintResponseDto
+                {
+                    Id = c.Id,
+                    UserId = c.UserId,
+                    UserEmail = c.User.Email!,
+                    CaseCode = c.CaseCode,
+                    Message = c.Message,
+                    SolutionMessage = c.SolutionMessage,
+                    ComplaintStatus = c.ComplaintStatus,
+                    CreatedAt = c.CreatedAt
+                })
+                .ToListAsync();
+        }
+
+       
+
     }
 }

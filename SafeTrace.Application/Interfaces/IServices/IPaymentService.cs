@@ -17,5 +17,9 @@ namespace SafeTrace.Application.Interfaces.IServices
         Task<PaginationResponseDto<DonationAdminListDto>> GetDonationsAsync(DonationAdminQueryDto query);
         Task<PaginationResponseDto<DonationUserListDto>> GetUserDonationsAsync(string? id, DonationUserQueryDto query);
         Task<ApiResponse<AdminDonationStatisticsDto>> GetDonationStatisticsAsync();
+        Task<List<DonationAdminListDto>> GetAllForReportAsync(
+            DonationAdminQueryDto query);
+        Task<byte[]> GeneratePdfReportAsync(
+        DonationAdminQueryDto query);
     }
 }
