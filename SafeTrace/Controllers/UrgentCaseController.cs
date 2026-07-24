@@ -58,7 +58,6 @@ namespace SafeTrace.API.Controllers
             if (string.IsNullOrEmpty(CurrentUserId))
                 throw new UnauthorizedException("User identity could not be verified from token.");
 
-            // مرر الـ forceCreate للـ service إذا كانت مدعومة هناك، أو تعامل معها
             return Ok(await _urgentCaseService.CreateAsync(CurrentUserId, dto, forceCreate));
         }
         [HttpPut("UpdateCase/{id:long}")]
