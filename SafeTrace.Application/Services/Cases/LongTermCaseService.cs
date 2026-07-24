@@ -143,7 +143,7 @@ namespace SafeTrace.Application.Services.Cases
                     CaseId = entity.Id
                 });
         }
-        
+
         public async Task<ApiResponse<string>> UpdateAsync(long id, string userId, UpdateLongTermCaseDto dto)
         {
             var entity = await _caseHelper.GetValidCaseAsync<LongTermMissingCase>(
@@ -208,8 +208,47 @@ namespace SafeTrace.Application.Services.Cases
                             entity.CaseFiles.Add(photo);
                     }
 
-                    if (dto.PrimaryPhotoId.HasValue)
+                    // ── FIX: PrimaryImage (crop-and-replace primary photo) was previously
+                    // silently ignored — the frontend sent it, but nothing ever consumed it.
+                    // Takes precedence over PrimaryPhotoId, matching the frontend behavior
+                    // (it clears primaryPhotoId to null whenever a new cropped primary is confirmed).
+                    if (dto.PrimaryImage is not null)
+                    {
+                        // If the old primary was already removed above via DeletedPhotoIds,
+                        // it's no longer in entity.CaseFiles, so this safely returns null
+                        // and we won't try to delete it twice.
+                        var oldPrimary = entity.CaseFiles.FirstOrDefault(p => p.IsPrimary);
+
+                        var newPrimaryPhotos = await _caseHelper.CreateCaseFilesAsync(
+                            dto.PrimaryImage,
+                            null,
+                            null,
+                            FolderName,
+                            entity.Id);
+
+                        uploadedPhotos.AddRange(newPrimaryPhotos);
+                        var newPrimary = newPrimaryPhotos.First();
+
+                        if (oldPrimary is not null)
+                        {
+                            filesToDelete.Add(oldPrimary.ImagePath);
+
+                            if (!string.IsNullOrWhiteSpace(oldPrimary.FaceId))
+                                faceIdsToDelete.Add(oldPrimary.FaceId);
+
+                            entity.CaseFiles.Remove(oldPrimary);
+                        }
+
+                        foreach (var f in entity.CaseFiles)
+                            f.IsPrimary = false;
+
+                        newPrimary.IsPrimary = true;
+                        entity.CaseFiles.Add(newPrimary);
+                    }
+                    else if (dto.PrimaryPhotoId.HasValue)
+                    {
                         _caseHelper.SetPrimaryImage(entity.CaseFiles, dto.PrimaryPhotoId.Value);
+                    }
 
                     if (entity.Status != CaseStatus.Pending &&
                         entity.Status != CaseStatus.Deleted)
@@ -226,6 +265,8 @@ namespace SafeTrace.Application.Services.Cases
                 },
                 onFailureAsync: async ex =>
                 {
+                    // uploadedPhotos already includes any new primary photo created above,
+                    // so face-cleanup on failure covers it automatically.
                     _caseHelper.CleanupPhysicalFiles(uploadedPhotos.Select(x => x.ImagePath));
 
                     await _caseHelper.DeleteFacesAsync(
@@ -252,6 +293,6 @@ namespace SafeTrace.Application.Services.Cases
                 userId);
 
             return ApiResponse<string>.Ok(message: "تم تحديث حالة الفقد طويلة المدة بنجاح.");
-        }
+        }   
     }
 }

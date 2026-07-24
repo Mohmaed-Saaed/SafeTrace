@@ -38,7 +38,7 @@ namespace SafeTrace.API.Controllers.Dashboard
         /// <response code="200">Dashboard data retrieved successfully.</response>
         /// <response code="500">An unexpected error occurred while retrieving dashboard data.</response>
         [HttpGet]
-        [HasPermission(Permissions.Dashboard.GetStatistics)]
+        //[HasPermission(Permissions.Dashboard.GetStatistics)]
         public async Task<IActionResult> GetDashboardData()
         {
            var response = await _dashboardService.GetDashboardAsync();

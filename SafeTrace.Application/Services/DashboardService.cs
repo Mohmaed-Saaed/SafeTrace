@@ -1,15 +1,6 @@
 using Microsoft.AspNetCore.Identity;
-using Microsoft.EntityFrameworkCore;
 using SafeTrace.Application.DTOs.Dashboard.Response;
 using SafeTrace.Application.DTOs.Dashboard.Request;
-using SafeTrace.Application.DTOs.Responses;
-using SafeTrace.Application.Interfaces.IServices;
-using SafeTrace.Domain.Entities;
-using SafeTrace.Domain.Enums;
-using SafeTrace.Domain.Interfaces.IUnitOfWork;
-using System;
-using System.Collections.Generic;
-using System.Text;
 
 namespace SafeTrace.Application.Services
 {
@@ -29,16 +20,29 @@ namespace SafeTrace.Application.Services
             var casesQuery = _unitOfWork.Repository<Case>()
                 .Query(tracked: false);
 
-            var DonationQuery =  _unitOfWork.Repository<Donation>()
+            var donationQuery =  _unitOfWork.Repository<Donation>()
                 .Query(tracked: false);
 
-            decimal TotalSumDonations = await  DonationQuery.Where(x => x.PaymentStatus == PaymentStatus.Succeeded).SumAsync(x => x.Amount);
+            var complaints = _unitOfWork.Repository<Complaint>()
+                .Query(tracked: false);
 
-            int TotalCountFailedDonations = await  DonationQuery.Where(x => x.PaymentStatus == PaymentStatus.Failed).CountAsync();
+            var aiSearchUsage = _unitOfWork.Repository<AiSearchUsage>()
+                .Query(tracked: false);
 
-            int TotalCountSucceededDonations = await  DonationQuery.Where(x => x.PaymentStatus == PaymentStatus.Succeeded).CountAsync();
+            decimal totalSumDonations = await donationQuery.Where(x => x.PaymentStatus == PaymentStatus.Succeeded).SumAsync(x => x.Amount);
 
-            int TotalCountPendingDonations = await  DonationQuery.Where(x => x.PaymentStatus == PaymentStatus.Pending).CountAsync();
+            int totalCountFailedDonations = await donationQuery.Where(x => x.PaymentStatus == PaymentStatus.Failed).CountAsync();
+
+            int totalCountSucceededDonations = await donationQuery.Where(x => x.PaymentStatus == PaymentStatus.Succeeded).CountAsync();
+
+            int totalCountPendingDonations = await donationQuery.Where(x => x.PaymentStatus == PaymentStatus.Pending).CountAsync();
+
+            int totalSolvedComplaints = await complaints.Where(x => x.ComplaintStatus == ComplaintStatus.Solved).CountAsync();
+
+            int totalUnSolvedComplaints = await complaints.Where(x => x.ComplaintStatus == ComplaintStatus.UnSolved).CountAsync();
+
+            int totalDailyAISearch = await aiSearchUsage.CountAsync(x => x.CreatedAt.Date == DateTime.Now.Date);
+
 
             var users = await _userManager.GetUsersInRoleAsync("User");
 
@@ -76,10 +80,13 @@ namespace SafeTrace.Application.Services
                     TotalPendingCases = totalPending,
                     TotalExpiredCases = totalExpired,
                     TotalRejectedCases = totalRejected,
-                    TotalSumDonations = TotalSumDonations,
-                    TotalCountFailedDonations = TotalCountFailedDonations,
-                    TotalCountSucceededDonations = TotalCountSucceededDonations,
-                    TotalCountPendingDonations = TotalCountPendingDonations,
+                    TotalSumDonations = totalSumDonations,
+                    TotalCountFailedDonations = totalCountFailedDonations,
+                    TotalCountSucceededDonations = totalCountSucceededDonations,
+                    TotalCountPendingDonations = totalCountPendingDonations,
+                    TotalDailyAISearch = totalDailyAISearch,
+                    TotalSolvedComplaints = totalSolvedComplaints,
+                    TotalUnSolvedComplaints = totalUnSolvedComplaints,
                     CaseTypes = caseTypes
                 });
         }
