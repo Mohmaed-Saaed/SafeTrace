@@ -41,6 +41,10 @@ namespace SafeTrace.Application.Interfaces.IServices.ICases
 
         Task DeleteFacesAsync(IEnumerable<string> faceIds, long caseIdForLogging);
 
+        Task SendCaseApprovedNotificationAsync(Case entity);
+
+        Task SendCaseRejectedNotificationAsync(Case entity, string rejectionReason);
+
         Task<DuplicateCheckResult> CheckDuplicateCaseAsync(
            CaseType currentCaseType,
            CaseMatchSubjectInfoDto subject,

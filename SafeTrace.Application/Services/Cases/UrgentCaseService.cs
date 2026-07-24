@@ -19,8 +19,7 @@ namespace SafeTrace.Application.Services.Cases
         private const int RateLimitDays = 2;
         private const int ExpirationHours = 48;
         private const double NotifyRadiusM = 50_000_000; // 500 km
-        private const string detailsUrl = "/urgent/";
-        private const string FrontendBaseUrl = "https://leqaaweb.runasp.net";
+        private const string detailsUrl = EmailTemplates.UrgentCaseDetailsRoute;
 
         public UrgentCaseService(
             ILogger<UrgentCaseService> logger,
@@ -492,8 +491,7 @@ namespace SafeTrace.Application.Services.Cases
                     .Select(u => new
                     {
                         u.Id,
-                        u.Email,
-                        FullName = $"{u.FName} {u.LName}"
+                        u.Email
                     })
                     .ToListAsync();
 
@@ -529,12 +527,14 @@ namespace SafeTrace.Application.Services.Cases
                         if (!string.IsNullOrWhiteSpace(user.Email))
                         {
                             var body = EmailTemplates.BuildUrgentCaseNotificationEmailTemplate(
-                                receiverName: user.FullName,
+                                caseName: $"{entity.FName} {entity.SName} {entity.TName} {entity.LName}".Trim(),
                                 caseCode: entity.CaseCode,
                                 age: entity.Age,
+                                gender: entity.Gender,
                                 government: entity.Government,
                                 city: entity.City,
-                                detailsUrl: $"{FrontendBaseUrl}{detailsUrl}{entity.Id}");
+                                publishedAt: entity.CreatedAt,
+                                detailsUrl: EmailTemplates.GetCaseDetailsUrl(entity.CaseType, entity.Id));
 
                             await _emailService.SendEmailAsync(
                                 user.Email,

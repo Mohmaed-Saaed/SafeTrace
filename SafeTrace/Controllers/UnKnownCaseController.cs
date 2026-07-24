@@ -84,9 +84,9 @@ namespace SafeTrace.API.Controllers
 
         [HttpPut("Reject/{id:long}")]
         [HasPermission(Permissions.UnknownCases.Reject)]
-        public async Task<IActionResult> Reject(long id)
+        public async Task<IActionResult> Reject(long id, [FromBody] string rejectionReason)
         {
-            return Ok(await _unKnownServiceCase.RejectAsync(id));
+            return Ok(await _unKnownServiceCase.RejectAsync(id, rejectionReason));
         }
 
         [HttpDelete("Delete/{id:long}")]

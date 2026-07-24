@@ -109,6 +109,8 @@ namespace SafeTrace.Application.Services.Cases
                     return true;
                 });
 
+            await _caseHelper.SendCaseApprovedNotificationAsync(entity);
+
             _logger.LogInformation("Case {CaseId} approved.", entity.Id);
 
             return ApiResponse<string>.Ok(message: "تمت الموافقة على الحالة بنجاح.");
@@ -117,8 +119,11 @@ namespace SafeTrace.Application.Services.Cases
         /// <summary>
         /// Rejects a pending case or restores its previous status if available.
         /// </summary>
-        public virtual async Task<ApiResponse<string>> RejectAsync(long caseId)
+        public virtual async Task<ApiResponse<string>> RejectAsync(long caseId, string rejectionReason)
         {
+            if (string.IsNullOrWhiteSpace(rejectionReason))
+                throw new BadRequestException("سبب الرفض مطلوب.");
+
             var entity = await _caseHelper.GetValidCaseAsync<TEntity>(caseId);
 
             if (entity.Status == CaseStatus.Rejected)
@@ -149,6 +154,8 @@ namespace SafeTrace.Application.Services.Cases
 
                     return true;
                 });
+
+            await _caseHelper.SendCaseRejectedNotificationAsync(entity, rejectionReason.Trim());
 
             _logger.LogInformation(
                 "Case {CaseId} rejected (Pending -> {Status}).",
@@ -469,7 +476,7 @@ namespace SafeTrace.Application.Services.Cases
             var entity = await _caseHelper.GetValidCaseAsync<TEntity>(
                 id,
                 tracked: false,
-                allowDeleted: activeOnly ? false : true,
+                allowDeleted: !activeOnly,
                 includes: includes);
 
             if (activeOnly && entity.Status != CaseStatus.Active)
