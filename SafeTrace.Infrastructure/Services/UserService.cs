@@ -155,7 +155,27 @@ namespace SafeTrace.Infrastructure.Services
             var user = await _userManager.FindByIdAsync(dto.UserId);
             if (user == null) throw new NotFoundException("لم يتم العثور على هذا الحساب في النظام.");
 
-            if (user.Email == SystemConstants.RootAdminEmail) throw new ForbiddenException("غير مسموح بالمساس بصلاحيات أو دور المالك الأساسي للنظام.");
+            var currentUser = await _userManager.FindByIdAsync(currentUserId);
+            var currentUserRoles = await _userManager.GetRolesAsync(currentUser!);
+            var currentUserRole = currentUserRoles.FirstOrDefault() ?? "User";
+            
+            var targetUserRoles = await _userManager.GetRolesAsync(user);
+            var targetUserRole = targetUserRoles.FirstOrDefault() ?? "User";
+
+            if (targetUserRole == "SuperAdmin") 
+                throw new ForbiddenException("غير مسموح بالمساس بصلاحيات أو دور المالك الأساسي للنظام.");
+
+            if (currentUserRole == "Admin")
+            {
+                if (targetUserRole == "Admin")
+                    throw new ForbiddenException("غير مسموح للمسؤول بتعديل صلاحيات أو دور مسؤول آخر.");
+
+                if (dto.NewRole == "Admin" || dto.NewRole == "SuperAdmin")
+                    throw new ForbiddenException("غير مسموح لك بترقية مستخدم إلى مسؤول أو مدير النظام.");
+            }
+            
+            if (dto.NewRole == "SuperAdmin" && currentUserRole != "SuperAdmin")
+                throw new ForbiddenException("لا يمكن لأي شخص ترقية حساب إلى مدير النظام.");
 
             var roleExists = await _roleManager.RoleExistsAsync(dto.NewRole);
             if (!roleExists) throw new BadRequestException("الدور (Role) المحدد غير موجود.");
@@ -212,8 +232,18 @@ namespace SafeTrace.Infrastructure.Services
             return ApiResponse<string>.Ok(null, "تم تحديث دور المستخدم بنجاح.");
         }
 
-        public async Task<ApiResponse<string>> RegisterByAdminAsync(RegisterByAdminDto dto)
+        public async Task<ApiResponse<string>> RegisterByAdminAsync(string currentUserId, RegisterByAdminDto dto)
         {
+            var currentUser = await _userManager.FindByIdAsync(currentUserId);
+            var currentUserRoles = await _userManager.GetRolesAsync(currentUser!);
+            var currentUserRole = currentUserRoles.FirstOrDefault() ?? "User";
+
+            if (currentUserRole == "Admin" && (dto.Role == "Admin" || dto.Role == "SuperAdmin"))
+                throw new ForbiddenException("غير مسموح للأدمن بإنشاء حساب بصلاحيات مسؤول أو مدير النظام.");
+
+            if (dto.Role == "SuperAdmin" && currentUserRole != "SuperAdmin")
+                throw new ForbiddenException("لا يمكن إنشاء حساب بصلاحية مدير النظام.");
+
             var userExists = await _userManager.FindByEmailAsync(dto.Email);
             if (userExists != null) throw new ConflictException("هذا البريد الإلكتروني مسجل لدينا بالفعل.");
 
@@ -351,7 +381,7 @@ namespace SafeTrace.Infrastructure.Services
             await _notificationService.SendNotificationAsync(new SendNotificationDTO
             {
                 UserId = user.Id,
-                Content = "تم رفض طلب توثيق هويتك. يرجى إعادة رفع صورة هوية أكثر وضوحاً.",
+                Content = "تم رفض طلب توثيق هويتك. يرجى إعادة رفع صورة هوية أكثر وضوحاً ومطابقة للمواصفات.",
                 Type = NotificationType.System
             });
 
@@ -371,13 +401,14 @@ namespace SafeTrace.Infrastructure.Services
             var currentUserRoles = await _userManager.GetRolesAsync(currentUser!);
             var targetUserRoles = await _userManager.GetRolesAsync(targetUser);
 
-            var currentUserRole = currentUserRoles.FirstOrDefault();
-            var targetUserRole = targetUserRoles.FirstOrDefault();
+            var currentUserRole = currentUserRoles.FirstOrDefault() ?? "User";
+            var targetUserRole = targetUserRoles.FirstOrDefault() ?? "User";
 
-            if ((targetUserRole == "Admin" || targetUserRole == "Moderator") && currentUserRole == "Moderator")
-            {
-                throw new ForbiddenException("غير مسموح للمشرف (Moderator) بحظر أو فك حظر مديري النظام (Admins) أو المشرفين الأخرين.");
-            }
+            if (targetUserRole == "SuperAdmin")
+                throw new ForbiddenException("غير مسموح بحظر مدير النظام.");
+
+            if (currentUserRole == "Admin" && targetUserRole == "Admin")
+                throw new ForbiddenException("غير مسموح للمسؤول بحظر مسؤول آخر.");
 
             bool isCurrentlyBlocked = targetUser.LockoutEnd.HasValue && targetUser.LockoutEnd.Value > DateTimeOffset.UtcNow;
 
@@ -463,7 +494,8 @@ namespace SafeTrace.Infrastructure.Services
             var user = await _userManager.FindByIdAsync(dto.UserId);
             if (user == null) throw new NotFoundException("لم يتم العثور على هذا الحساب.");
 
-            if (user.Email == SystemConstants.RootAdminEmail) throw new ForbiddenException("غير مسموح بتعديل الصلاحيات المباشرة للمالك الأساسي للنظام.");
+            var isSuperAdmin = await _userManager.IsInRoleAsync(user, "SuperAdmin");
+            if (isSuperAdmin) throw new ForbiddenException("غير مسموح بتعديل الصلاحيات المباشرة للمالك الأساسي للنظام.");
 
             var repo = _unitOfWork.Repository<IdentityUserClaim<string>>();
             
@@ -505,10 +537,12 @@ namespace SafeTrace.Infrastructure.Services
         {
             var now = DateTimeOffset.UtcNow;
 
-            var totalUsers = await _userManager.Users.Where(u => u.EmailConfirmed).CountAsync();
-            var verifiedUsers = await _userManager.Users.CountAsync(u => u.VerificationStatus == VerificationStatus.Verified);
-            var pendingUsers = await _userManager.Users.CountAsync(u => u.VerificationStatus == VerificationStatus.Pending);
-            var bannedUsers = await _userManager.Users.CountAsync(u => u.LockoutEnd != null && u.LockoutEnd > now);
+            var baseQuery = _userManager.Users.Where(u => u.EmailConfirmed);
+
+            var totalUsers = await baseQuery.CountAsync();
+            var verifiedUsers = await baseQuery.CountAsync(u => u.VerificationStatus == VerificationStatus.Verified);
+            var pendingUsers = await baseQuery.CountAsync(u => u.VerificationStatus == VerificationStatus.Pending);
+            var bannedUsers = await baseQuery.CountAsync(u => u.LockoutEnd != null && u.LockoutEnd > now);
 
             var activeUsers = totalUsers - bannedUsers;
             var unverifiedUsers = totalUsers - verifiedUsers - pendingUsers;

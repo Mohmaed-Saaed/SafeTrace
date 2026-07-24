@@ -71,7 +71,7 @@ namespace SafeTrace.API.Controllers
         [HasPermission(Permissions.Users.RegisterByAdmin)]
         public async Task<IActionResult> RegisterByAdmin([FromBody] RegisterByAdminDto dto)
         {
-            var response = await _userService.RegisterByAdminAsync(dto);
+            var response = await _userService.RegisterByAdminAsync(GetCurrentUserId(), dto);
             return Ok(response);
         }
 

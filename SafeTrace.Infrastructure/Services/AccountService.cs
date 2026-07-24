@@ -604,6 +604,7 @@ namespace SafeTrace.Infrastructure.Services
                 
                 string browser = "غير معروف";
                 string os = "غير معروف";
+                string deviceName = "غير معروف";
 
                 if (!string.IsNullOrEmpty(userAgentStr))
                 {
@@ -611,10 +612,11 @@ namespace SafeTrace.Infrastructure.Services
                     var clientInfo = uaParser.Parse(userAgentStr);
                     browser = clientInfo.UA.Family;
                     os = clientInfo.OS.Family;
+                    deviceName = clientInfo.Device.Family;
                 }
 
-                var mailBody = EmailTemplates.BuildLoginAlertTemplate(user.FName, ipAddress, browser, os);
-                _ = _emailService.SendEmailAsync(user.Email!, "لقاء - تنبيه أمني: تسجيل دخول جديد", mailBody);
+                var mailBody = EmailTemplates.BuildLoginAlertTemplate(user.FName, ipAddress, browser, os, deviceName);
+                _ = _emailService.SendEmailAsync(user.Email!, "تنبيه - أمان الحساب: تسجيل دخول جديد", mailBody);
 
                 _ = _notificationService.SendNotificationAsync(new SendNotificationDTO
                 {

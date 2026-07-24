@@ -44,6 +44,7 @@ namespace SafeTrace.Application.Constants
         {
             public const string GetStatistics = "Dashboard.GetStatistics";
             public const string GetCasesStatistics = "Dashboard.GetCasesStatistics";
+            public const string GetAuditLogs = "Dashboard.GetAuditLogs";
         }
 
         public static class AiMatching

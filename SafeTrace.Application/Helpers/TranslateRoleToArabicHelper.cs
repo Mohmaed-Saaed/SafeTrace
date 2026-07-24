@@ -6,10 +6,11 @@
         {
             return role switch
             {
-                "Admin" => "مدير النظام",
+                "SuperAdmin" => "مدير النظام",
+                "Admin" => "مسؤول",
                 "Moderator" => "مشرف",
                 "VerifiedUser" => "مستخدم موثق",
-                "User" => "مستخدم عادي",
+                "User" => "مستخدم غير موثق",
                 _ => role
             };
         }

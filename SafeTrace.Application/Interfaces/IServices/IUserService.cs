@@ -8,7 +8,7 @@ namespace SafeTrace.Application.Interfaces.IServices
     {
         Task<ApiResponse<PaginationResponseDto<GetUserDto>>> GetAllUsersAsync(UserFilterDto filterDto);
         Task<ApiResponse<GetUserByIdDto>> GetUserByIdAsync(string userId);
-        Task<ApiResponse<string>> RegisterByAdminAsync(RegisterByAdminDto dto);
+        Task<ApiResponse<string>> RegisterByAdminAsync(string currentUserId, RegisterByAdminDto dto);
         Task<ApiResponse<string>> ApproveUserAsync(string userId);
         Task<ApiResponse<string>> RejectUserAsync(string userId);
         Task<ApiResponse<string>> ToggleUserBlockStatusAsync(string currentUserId, string userId);

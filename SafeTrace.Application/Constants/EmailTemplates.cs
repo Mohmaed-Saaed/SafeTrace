@@ -252,7 +252,7 @@ namespace SafeTrace.Application.Constants
             </div>";
         }
 
-        public static string BuildLoginAlertTemplate(string fullName, string ipAddress, string browser, string os)
+        public static string BuildLoginAlertTemplate(string fullName, string ipAddress, string browser, string os, string deviceName)
         {
             return $@"
             <div dir='rtl' style='font-family: ""Segoe UI"", Tahoma, Geneva, Verdana, sans-serif; max-width: 550px; margin: 0 auto; padding: 30px; border: 1px solid #eef2f5; border-radius: 12px; background-color: #ffffff; box-shadow: 0 4px 15px rgba(0,0,0,0.03); text-align: right;'>
@@ -271,6 +271,7 @@ namespace SafeTrace.Application.Constants
                     <p style='margin: 8px 0; color: #334155;'><strong>IP:</strong> <span dir='ltr' style='color: #2563eb;'>{ipAddress}</span></p>
                     <p style='margin: 8px 0; color: #334155;'><strong>Browser:</strong> <span dir='ltr' style='color: #2563eb;'>{browser}</span></p>
                     <p style='margin: 8px 0; color: #334155;'><strong>OS:</strong> <span dir='ltr' style='color: #2563eb;'>{os}</span></p>
+                    <p style='margin: 8px 0; color: #334155;'><strong>Device:</strong> <span dir='ltr' style='color: #2563eb;'>{deviceName}</span></p>
                 </div>
                 
                 <p style='color: #ef4444; font-size: 14px; font-weight: 600; text-align: center;'>إذا لم تكن أنت من قام بتسجيل الدخول، يرجى تغيير كلمة المرور فوراً لحماية حسابك.</p>
