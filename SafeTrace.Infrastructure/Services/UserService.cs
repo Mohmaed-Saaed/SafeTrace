@@ -115,11 +115,11 @@ namespace SafeTrace.Infrastructure.Services
 
                 var rolesGroupedByUserId = userRoles
                                             .GroupBy(ur => ur.UserId)
-                                            .ToDictionary(g => g.Key, g => g.Select(x => x.RoleName).FirstOrDefault() ?? "User");
+                                            .ToDictionary(g => g.Key, g => g.Select(x => x.RoleName).FirstOrDefault() ?? UserRole.User.ToString());
 
                 foreach (var dto in userDtos)
                 {
-                    dto.Role = rolesGroupedByUserId.TryGetValue(dto.Id, out var role) ? role : "User";
+                    dto.Role = rolesGroupedByUserId.TryGetValue(dto.Id, out var role) ? role : UserRole.User.ToString();
                 }
             }
 
@@ -143,7 +143,7 @@ namespace SafeTrace.Infrastructure.Services
             var userDto = _mapper.Map<GetUserByIdDto>(user);
 
             var roles = await _userManager.GetRolesAsync(user);
-            userDto.Role = roles.FirstOrDefault() ?? "User";
+            userDto.Role = roles.FirstOrDefault() ?? UserRole.User.ToString();
 
             return ApiResponse<GetUserByIdDto>.Ok(userDto);
         }
@@ -157,31 +157,31 @@ namespace SafeTrace.Infrastructure.Services
 
             var currentUser = await _userManager.FindByIdAsync(currentUserId);
             var currentUserRoles = await _userManager.GetRolesAsync(currentUser!);
-            var currentUserRole = currentUserRoles.FirstOrDefault() ?? "User";
+            var currentUserRole = currentUserRoles.FirstOrDefault() ?? UserRole.User.ToString();
             
             var targetUserRoles = await _userManager.GetRolesAsync(user);
-            var targetUserRole = targetUserRoles.FirstOrDefault() ?? "User";
+            var targetUserRole = targetUserRoles.FirstOrDefault() ?? UserRole.User.ToString();
 
-            if (targetUserRole == "SuperAdmin") 
+            if (targetUserRole == UserRole.SuperAdmin.ToString()) 
                 throw new ForbiddenException("غير مسموح بالمساس بصلاحيات أو دور المالك الأساسي للنظام.");
 
-            if (currentUserRole == "Admin")
+            if (currentUserRole == UserRole.Admin.ToString())
             {
-                if (targetUserRole == "Admin")
+                if (targetUserRole == UserRole.Admin.ToString())
                     throw new ForbiddenException("غير مسموح للمسؤول بتعديل صلاحيات أو دور مسؤول آخر.");
 
-                if (dto.NewRole == "Admin" || dto.NewRole == "SuperAdmin")
+                if (dto.NewRole == UserRole.Admin.ToString() || dto.NewRole == UserRole.SuperAdmin.ToString())
                     throw new ForbiddenException("غير مسموح لك بترقية مستخدم إلى مسؤول أو مدير النظام.");
             }
             
-            if (dto.NewRole == "SuperAdmin" && currentUserRole != "SuperAdmin")
+            if (dto.NewRole == UserRole.SuperAdmin.ToString() && currentUserRole != UserRole.SuperAdmin.ToString())
                 throw new ForbiddenException("لا يمكن لأي شخص ترقية حساب إلى مدير النظام.");
 
             var roleExists = await _roleManager.RoleExistsAsync(dto.NewRole);
             if (!roleExists) throw new BadRequestException("الدور (Role) المحدد غير موجود.");
 
             var currentRoles = await _userManager.GetRolesAsync(user);
-            var currentRole = currentRoles.FirstOrDefault() ?? "User";
+            var currentRole = currentRoles.FirstOrDefault() ?? UserRole.User.ToString();
 
             var removeResult = await _userManager.RemoveFromRolesAsync(user, currentRoles);
             if (!removeResult.Succeeded) throw new BadRequestException("فشل في إزالة الدور الحالي للمستخدم.");
@@ -189,12 +189,12 @@ namespace SafeTrace.Infrastructure.Services
             var addResult = await _userManager.AddToRoleAsync(user, dto.NewRole);
             if (!addResult.Succeeded) throw new BadRequestException("فشل في تعيين الدور الجديد للمستخدم.");
 
-            if (currentRole != "User")
+            if (currentRole != UserRole.User.ToString())
             {
                 user.VerificationStatus = VerificationStatus.Unverified;
             }
 
-            if (dto.NewRole != "User")
+            if (dto.NewRole != UserRole.User.ToString())
             {
                 user.VerificationStatus = VerificationStatus.Verified;
             }
@@ -236,12 +236,12 @@ namespace SafeTrace.Infrastructure.Services
         {
             var currentUser = await _userManager.FindByIdAsync(currentUserId);
             var currentUserRoles = await _userManager.GetRolesAsync(currentUser!);
-            var currentUserRole = currentUserRoles.FirstOrDefault() ?? "User";
+            var currentUserRole = currentUserRoles.FirstOrDefault() ?? UserRole.User.ToString();
 
-            if (currentUserRole == "Admin" && (dto.Role == "Admin" || dto.Role == "SuperAdmin"))
+            if (currentUserRole == UserRole.Admin.ToString() && (dto.Role == UserRole.Admin.ToString() || dto.Role == UserRole.SuperAdmin.ToString()))
                 throw new ForbiddenException("غير مسموح للأدمن بإنشاء حساب بصلاحيات مسؤول أو مدير النظام.");
 
-            if (dto.Role == "SuperAdmin" && currentUserRole != "SuperAdmin")
+            if (dto.Role == UserRole.SuperAdmin.ToString() && currentUserRole != UserRole.SuperAdmin.ToString())
                 throw new ForbiddenException("لا يمكن إنشاء حساب بصلاحية مدير النظام.");
 
             var userExists = await _userManager.FindByEmailAsync(dto.Email);
@@ -263,7 +263,7 @@ namespace SafeTrace.Infrastructure.Services
                     EmailConfirmed = true,
                 };
 
-                if (dto.Role != "User")
+                if (dto.Role != UserRole.User.ToString())
                 {
                     user.VerificationStatus = VerificationStatus.Verified;
                 }
@@ -315,12 +315,12 @@ namespace SafeTrace.Infrastructure.Services
             if (user.VerificationStatus != VerificationStatus.Pending) throw new BadRequestException("لا يمكن قبول طلب التوثيق لأنه ليس في حالة انتظار المراجعة.");
 
             var currentRoles = await _userManager.GetRolesAsync(user);
-            var currentRole = currentRoles.FirstOrDefault() ?? "User";
+            var currentRole = currentRoles.FirstOrDefault() ?? UserRole.User.ToString();
 
             var removeResult = await _userManager.RemoveFromRolesAsync(user, currentRoles);
             if (!removeResult.Succeeded) throw new BadRequestException("فشل في إزالة الدور الحالي للمستخدم.");
 
-            var addResult = await _userManager.AddToRoleAsync(user, "VerifiedUser");
+            var addResult = await _userManager.AddToRoleAsync(user, UserRole.VerifiedUser.ToString());
             if (!addResult.Succeeded) throw new BadRequestException("فشل في ترقية حساب المستخدم إلى 'مستخدم موثق'.");
 
             user.VerificationStatus = VerificationStatus.Verified;
@@ -401,13 +401,13 @@ namespace SafeTrace.Infrastructure.Services
             var currentUserRoles = await _userManager.GetRolesAsync(currentUser!);
             var targetUserRoles = await _userManager.GetRolesAsync(targetUser);
 
-            var currentUserRole = currentUserRoles.FirstOrDefault() ?? "User";
-            var targetUserRole = targetUserRoles.FirstOrDefault() ?? "User";
+            var currentUserRole = currentUserRoles.FirstOrDefault() ?? UserRole.User.ToString();
+            var targetUserRole = targetUserRoles.FirstOrDefault() ?? UserRole.User.ToString();
 
-            if (targetUserRole == "SuperAdmin")
+            if (targetUserRole == UserRole.SuperAdmin.ToString())
                 throw new ForbiddenException("غير مسموح بحظر مدير النظام.");
 
-            if (currentUserRole == "Admin" && targetUserRole == "Admin")
+            if (currentUserRole == UserRole.Admin.ToString() && targetUserRole == UserRole.Admin.ToString())
                 throw new ForbiddenException("غير مسموح للمسؤول بحظر مسؤول آخر.");
 
             bool isCurrentlyBlocked = targetUser.LockoutEnd.HasValue && targetUser.LockoutEnd.Value > DateTimeOffset.UtcNow;
@@ -494,7 +494,7 @@ namespace SafeTrace.Infrastructure.Services
             var user = await _userManager.FindByIdAsync(dto.UserId);
             if (user == null) throw new NotFoundException("لم يتم العثور على هذا الحساب.");
 
-            var isSuperAdmin = await _userManager.IsInRoleAsync(user, "SuperAdmin");
+            var isSuperAdmin = await _userManager.IsInRoleAsync(user, UserRole.SuperAdmin.ToString());
             if (isSuperAdmin) throw new ForbiddenException("غير مسموح بتعديل الصلاحيات المباشرة للمالك الأساسي للنظام.");
 
             var repo = _unitOfWork.Repository<IdentityUserClaim<string>>();

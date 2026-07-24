@@ -3,6 +3,7 @@ using SafeTrace.Application.DTOs.Responses;
 using SafeTrace.Application.DTOs.RolePermission.Request;
 using SafeTrace.Application.DTOs.RolePermission.Response;
 using SafeTrace.Application.Exceptions;
+using SafeTrace.Domain.Enums;
 
 namespace SafeTrace.Infrastructure.Services
 {
@@ -62,7 +63,7 @@ namespace SafeTrace.Infrastructure.Services
             var role = await _roleManager.FindByIdAsync(roleId);
             if (role == null) throw new NotFoundException("هذا الدور غير موجود.");
 
-            var coreRoles = new List<string> { "SuperAdmin", "Admin", "User", "VerifiedUser", "Moderator" };
+            var coreRoles = new List<string> { UserRole.SuperAdmin.ToString(), UserRole.Admin.ToString(), UserRole.User.ToString(), UserRole.VerifiedUser.ToString(), UserRole.Moderator.ToString() };
             if (coreRoles.Contains(role.Name!)) throw new ForbiddenException("لا يمكن حذف الأدوار الأساسية للنظام.");
 
             var usersInRole = await _userManager.GetUsersInRoleAsync(role.Name!);
@@ -112,7 +113,7 @@ namespace SafeTrace.Infrastructure.Services
             var role = await _roleManager.FindByIdAsync(dto.RoleId);
             if (role == null) throw new NotFoundException("لم يتم العثور على هذا الدور (Role).");
 
-            if (role.Name == "SuperAdmin") 
+            if (role.Name == UserRole.SuperAdmin.ToString()) 
                 throw new ForbiddenException("لأسباب أمنية، لا يمكن تعديل صلاحيات دور المالك الاساسي للنظام");
 
             var repo = _unitOfWork.Repository<IdentityRoleClaim<string>>();

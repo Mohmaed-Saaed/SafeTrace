@@ -80,7 +80,7 @@ namespace SafeTrace.Infrastructure.Services
                     throw new BadRequestException("فشلت عملية التسجيل، يرجى المحاولة مرة أخرى.");
                 }
 
-                await _userManager.AddToRoleAsync(user, "User");
+                await _userManager.AddToRoleAsync(user, UserRole.User.ToString());
                 var otp = await _otpService.GenerateAndSaveOtpAsync(user.Id, OtpType.EmailConfirmation);
                 await _unitOfWork.CommitTransactionAsync();
 
@@ -387,7 +387,7 @@ namespace SafeTrace.Infrastructure.Services
                 await _unitOfWork.CommitTransactionAsync();
 
                 var roles = await _userManager.GetRolesAsync(user);
-                var role = roles.FirstOrDefault() ?? "User";
+                var role = roles.FirstOrDefault() ?? UserRole.User.ToString();
                 var newAccessToken = _tokenService.GenerateAccessToken(user, role);
 
                 SetRefreshTokenCookie(newRefreshToken.Token, newRefreshToken.ExpiresAt);
@@ -442,7 +442,7 @@ namespace SafeTrace.Infrastructure.Services
         private async Task<AuthResponseDto> GenerateAuthTokensAndSaveAsync(ApplicationUser user)
         {
             var roles = await _userManager.GetRolesAsync(user);
-            var role = roles.FirstOrDefault() ?? "User";
+            var role = roles.FirstOrDefault() ?? UserRole.User.ToString();
             var accessToken = _tokenService.GenerateAccessToken(user, role);
             var refreshToken = _tokenService.GenerateRefreshToken();
 
@@ -518,7 +518,7 @@ namespace SafeTrace.Infrastructure.Services
                         throw new BadRequestException("فشل في إنشاء الحساب.");
                     }
 
-                    await _userManager.AddToRoleAsync(user, "User");
+                    await _userManager.AddToRoleAsync(user, UserRole.User.ToString());
                 }
                 else
                 {
