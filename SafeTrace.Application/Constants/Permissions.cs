@@ -11,8 +11,6 @@ namespace SafeTrace.Application.Constants
         {
             public const string GetById = "UrgentCases.GetById";
             public const string HardDelete = "UrgentCases.HardDelete";
-            public const string Reject = "UrgentCases.Reject";
-            public const string Approve = "UrgentCases.Approve";
             public const string MarkAsFounded = "UrgentCases.MarkAsFounded";
         }
 
