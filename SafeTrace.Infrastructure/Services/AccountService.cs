@@ -80,7 +80,7 @@ namespace SafeTrace.Infrastructure.Services
                     throw new BadRequestException("فشلت عملية التسجيل، يرجى المحاولة مرة أخرى.");
                 }
 
-                await _userManager.AddToRoleAsync(user, "User");
+                await _userManager.AddToRoleAsync(user, UserRole.User.ToString());
                 var otp = await _otpService.GenerateAndSaveOtpAsync(user.Id, OtpType.EmailConfirmation);
                 await _unitOfWork.CommitTransactionAsync();
 
@@ -387,7 +387,7 @@ namespace SafeTrace.Infrastructure.Services
                 await _unitOfWork.CommitTransactionAsync();
 
                 var roles = await _userManager.GetRolesAsync(user);
-                var role = roles.FirstOrDefault() ?? "User";
+                var role = roles.FirstOrDefault() ?? UserRole.User.ToString();
                 var newAccessToken = _tokenService.GenerateAccessToken(user, role);
 
                 SetRefreshTokenCookie(newRefreshToken.Token, newRefreshToken.ExpiresAt);
@@ -442,7 +442,7 @@ namespace SafeTrace.Infrastructure.Services
         private async Task<AuthResponseDto> GenerateAuthTokensAndSaveAsync(ApplicationUser user)
         {
             var roles = await _userManager.GetRolesAsync(user);
-            var role = roles.FirstOrDefault() ?? "User";
+            var role = roles.FirstOrDefault() ?? UserRole.User.ToString();
             var accessToken = _tokenService.GenerateAccessToken(user, role);
             var refreshToken = _tokenService.GenerateRefreshToken();
 
@@ -518,7 +518,7 @@ namespace SafeTrace.Infrastructure.Services
                         throw new BadRequestException("فشل في إنشاء الحساب.");
                     }
 
-                    await _userManager.AddToRoleAsync(user, "User");
+                    await _userManager.AddToRoleAsync(user, UserRole.User.ToString());
                 }
                 else
                 {
@@ -604,6 +604,7 @@ namespace SafeTrace.Infrastructure.Services
                 
                 string browser = "غير معروف";
                 string os = "غير معروف";
+                string deviceName = "غير معروف";
 
                 if (!string.IsNullOrEmpty(userAgentStr))
                 {
@@ -611,10 +612,11 @@ namespace SafeTrace.Infrastructure.Services
                     var clientInfo = uaParser.Parse(userAgentStr);
                     browser = clientInfo.UA.Family;
                     os = clientInfo.OS.Family;
+                    deviceName = clientInfo.Device.Family;
                 }
 
-                var mailBody = EmailTemplates.BuildLoginAlertTemplate(user.FName, ipAddress, browser, os);
-                _ = _emailService.SendEmailAsync(user.Email!, "لقاء - تنبيه أمني: تسجيل دخول جديد", mailBody);
+                var mailBody = EmailTemplates.BuildLoginAlertTemplate(user.FName, ipAddress, browser, os, deviceName);
+                _ = _emailService.SendEmailAsync(user.Email!, "تنبيه - أمان الحساب: تسجيل دخول جديد", mailBody);
 
                 _ = _notificationService.SendNotificationAsync(new SendNotificationDTO
                 {

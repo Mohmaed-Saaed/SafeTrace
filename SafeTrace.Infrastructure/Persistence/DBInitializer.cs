@@ -19,7 +19,7 @@ namespace SafeTrace.Infrastructure.Persistence
 
         public async Task Initialize()
         {
-            string[] Roles = { "User", "Admin", "VerifiedUser", "Moderator" };
+            string[] Roles = { "User", "SuperAdmin", "Admin", "VerifiedUser", "Moderator" };
 
             foreach (string role in Roles)
             {
@@ -30,30 +30,42 @@ namespace SafeTrace.Infrastructure.Persistence
                 } 
             }
 
+            //await _userManager.DeleteAsync(await _userManager.FindByEmailAsync("girlsicpccommunity@gmail.com"));
+
             var adminEmail = SystemConstants.RootAdminEmail;
             var user = await _userManager.FindByEmailAsync(adminEmail);
-            if(user != null && !await _userManager.IsInRoleAsync(user, "Admin"))
+            if (user != null && !await _userManager.IsInRoleAsync(user, "SuperAdmin"))
             {
-                await _userManager.AddToRoleAsync(user, "Admin");
+                await _userManager.AddToRoleAsync(user, "SuperAdmin");
             }
 
+            string[] SuperAdminPermissions = {Permissions.Dashboard.GetStatistics, Permissions.Dashboard.GetCasesStatistics, Permissions.Dashboard.GetAuditLogs,
+                                              Permissions.Users.Reject, Permissions.Users.Approve, Permissions.Users.GetPermissions, Permissions.Users.AssignPermissions, Permissions.Users.GetAll, Permissions.Users.GetById, Permissions.Users.ToggleBlock, Permissions.Users.RegisterByAdmin, Permissions.Users.ChangeRole, Permissions.Users.GetUsersStatistics,
+                                              Permissions.Roles.Delete, Permissions.Roles.Create, Permissions.Roles.GetPermissionsByRoleId, Permissions.Roles.UpdateRolePermissions,
+                                              Permissions.Donations.GetDonations, Permissions.Donations.GetDonationStatistics,
+                                              Permissions.Complaints.GetAll, Permissions.Complaints.GetById, Permissions.Complaints.MarkAsSolved, Permissions.Complaints.HardDelete, Permissions.Complaints.GetComplaintsStatistics,
+                                              Permissions.Cases.GetAll,
+                                              Permissions.UrgentCases.GetById, Permissions.UrgentCases.HardDelete, Permissions.UrgentCases.MarkAsFounded,
+                                              Permissions.LongTermCases.GetById, Permissions.LongTermCases.HardDelete, Permissions.LongTermCases.Reject, Permissions.LongTermCases.Approve, Permissions.LongTermCases.MarkAsFounded, Permissions.LongTermCases.Create, Permissions.LongTermCases.Update, Permissions.LongTermCases.SoftDelete,
+                                              Permissions.UnknownCases.GetById, Permissions.UnknownCases.HardDelete, Permissions.UnknownCases.Reject, Permissions.UnknownCases.Approve, Permissions.UnknownCases.MarkAsFounded, Permissions.UnknownCases.Create, Permissions.UnknownCases.Update, Permissions.UnknownCases.SoftDelete,
+                                              Permissions.Chat.GetAll, Permissions.Chat.GetById, Permissions.Chat.GetMessages, Permissions.Chat.HardDelete, Permissions.Chat.DeleteMessageForEveryone, Permissions.Chat.GetChatStatistics,
+                                              Permissions.AiMatching.Search};
+
             string[] AdminPermissions = {Permissions.Dashboard.GetStatistics, Permissions.Dashboard.GetCasesStatistics,
-                                         Permissions.Users.Reject, Permissions.Users.Approve, Permissions.Users.GetPermissions, Permissions.Users.AssignPermissions, Permissions.Users.GetAll, Permissions.Users.GetById, Permissions.Users.ToggleBlock, Permissions.Users.RegisterByAdmin, Permissions.Users.ChangeRole, Permissions.Users.GetUsersStatistics,
-                                         Permissions.Roles.Delete, Permissions.Roles.Create, Permissions.Roles.GetPermissionsByRoleId, Permissions.Roles.UpdateRolePermissions,
-                                         Permissions.Donations.GetDonations, Permissions.Donations.GetDonationStatistics,
+                                         Permissions.Users.Reject, Permissions.Users.Approve, Permissions.Users.GetAll, Permissions.Users.GetById, Permissions.Users.ToggleBlock, Permissions.Users.RegisterByAdmin, Permissions.Users.ChangeRole, Permissions.Users.GetUsersStatistics,
                                          Permissions.Complaints.GetAll, Permissions.Complaints.GetById, Permissions.Complaints.MarkAsSolved, Permissions.Complaints.HardDelete, Permissions.Complaints.GetComplaintsStatistics,
                                          Permissions.Cases.GetAll,
-                                         Permissions.UrgentCases.GetById, Permissions.UrgentCases.HardDelete, Permissions.UrgentCases.Reject, Permissions.UrgentCases.Approve, Permissions.UrgentCases.MarkAsFounded,
+                                         Permissions.UrgentCases.GetById, Permissions.UrgentCases.HardDelete, Permissions.UrgentCases.MarkAsFounded,
                                          Permissions.LongTermCases.GetById, Permissions.LongTermCases.HardDelete, Permissions.LongTermCases.Reject, Permissions.LongTermCases.Approve, Permissions.LongTermCases.MarkAsFounded, Permissions.LongTermCases.Create, Permissions.LongTermCases.Update, Permissions.LongTermCases.SoftDelete,
                                          Permissions.UnknownCases.GetById, Permissions.UnknownCases.HardDelete, Permissions.UnknownCases.Reject, Permissions.UnknownCases.Approve, Permissions.UnknownCases.MarkAsFounded, Permissions.UnknownCases.Create, Permissions.UnknownCases.Update, Permissions.UnknownCases.SoftDelete,
                                          Permissions.Chat.GetAll, Permissions.Chat.GetById, Permissions.Chat.GetMessages, Permissions.Chat.HardDelete, Permissions.Chat.DeleteMessageForEveryone, Permissions.Chat.GetChatStatistics,
                                          Permissions.AiMatching.Search};
 
             string[] ModeratorPermissions = {Permissions.Dashboard.GetCasesStatistics,
-                                             Permissions.Users.Reject, Permissions.Users.Approve, Permissions.Users.GetAll, Permissions.Users.GetById, Permissions.Users.ToggleBlock, Permissions.Users.GetUsersStatistics,
+                                             Permissions.Users.Reject, Permissions.Users.Approve, Permissions.Users.GetAll, Permissions.Users.GetById, Permissions.Users.GetUsersStatistics,
                                              Permissions.Complaints.GetAll, Permissions.Complaints.GetById, Permissions.Complaints.MarkAsSolved, Permissions.Complaints.GetComplaintsStatistics,
                                              Permissions.Cases.GetAll,
-                                             Permissions.UrgentCases.GetById, Permissions.UrgentCases.Reject, Permissions.UrgentCases.Approve, Permissions.UrgentCases.MarkAsFounded,
+                                             Permissions.UrgentCases.GetById, Permissions.UrgentCases.MarkAsFounded,
                                              Permissions.LongTermCases.GetById, Permissions.LongTermCases.Reject, Permissions.LongTermCases.Approve, Permissions.LongTermCases.MarkAsFounded, Permissions.LongTermCases.Create, Permissions.LongTermCases.Update, Permissions.LongTermCases.SoftDelete,
                                              Permissions.UnknownCases.GetById, Permissions.UnknownCases.Reject, Permissions.UnknownCases.Approve, Permissions.UnknownCases.MarkAsFounded, Permissions.UnknownCases.Create, Permissions.UnknownCases.Update, Permissions.UnknownCases.SoftDelete,
                                              Permissions.Chat.GetById, Permissions.Chat.GetMessages, Permissions.Chat.DeleteMessageForEveryone,
@@ -69,6 +81,7 @@ namespace SafeTrace.Infrastructure.Persistence
                                         Permissions.Chat.GetById, Permissions.Chat.GetMessages, Permissions.Chat.DeleteMessageForEveryone,
                                         Permissions.AiMatching.Search};
 
+            await AssignPermissionsToRoleAsync("SuperAdmin", SuperAdminPermissions);
             await AssignPermissionsToRoleAsync("Admin", AdminPermissions);
             await AssignPermissionsToRoleAsync("Moderator", ModeratorPermissions);
             await AssignPermissionsToRoleAsync("VerifiedUser", VerifiedUserPermissions);

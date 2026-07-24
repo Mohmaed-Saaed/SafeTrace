@@ -11,8 +11,6 @@ namespace SafeTrace.Application.Constants
         {
             public const string GetById = "UrgentCases.GetById";
             public const string HardDelete = "UrgentCases.HardDelete";
-            public const string Reject = "UrgentCases.Reject";
-            public const string Approve = "UrgentCases.Approve";
             public const string MarkAsFounded = "UrgentCases.MarkAsFounded";
         }
 
@@ -44,6 +42,7 @@ namespace SafeTrace.Application.Constants
         {
             public const string GetStatistics = "Dashboard.GetStatistics";
             public const string GetCasesStatistics = "Dashboard.GetCasesStatistics";
+            public const string GetAuditLogs = "Dashboard.GetAuditLogs";
         }
 
         public static class AiMatching

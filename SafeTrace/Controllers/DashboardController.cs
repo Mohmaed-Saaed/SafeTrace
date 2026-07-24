@@ -38,7 +38,7 @@ namespace SafeTrace.API.Controllers.Dashboard
         /// <response code="200">Dashboard data retrieved successfully.</response>
         /// <response code="500">An unexpected error occurred while retrieving dashboard data.</response>
         [HttpGet]
-        [HasPermission(Permissions.Dashboard.GetStatistics)]
+        //[HasPermission(Permissions.Dashboard.GetStatistics)]
         public async Task<IActionResult> GetDashboardData()
         {
            var response = await _dashboardService.GetDashboardAsync();
@@ -68,15 +68,10 @@ namespace SafeTrace.API.Controllers.Dashboard
         [ProducesResponseType(typeof(ApiResponse<PaginationResponseDto<AuditLogDto>>), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         [ProducesResponseType(StatusCodes.Status403Forbidden)]
+        [HasPermission(Permissions.Dashboard.GetAuditLogs)]
         [HttpGet("audit-logs")]
         public async Task<IActionResult> GetAuditLogs([FromQuery] AuditLogQueryDto query)
         {
-            var userEmail = User.FindFirstValue(ClaimTypes.Email);
-            if (userEmail != SystemConstants.RootAdminEmail)
-            {
-                throw new ForbiddenException("ليس لديك صلاحية لعرض سجلات النظام.");
-            }
-
             var response = await _dashboardService.GetAuditLogsAsync(query);
             return Ok(response);
         }

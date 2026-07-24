@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using SafeTrace.Application.DTOs.User_Profiel_DTOS;
 using SafeTrace.Application.DTOs.User_Profiel_DTOS.Update_Profile_DTOS;
@@ -54,13 +54,7 @@ namespace SafeTrace.Application.Services.UserProfileServices
                 var roles = await _userManager.GetRolesAsync(user);
                 var phoneNumber = await _userManager.GetPhoneNumberAsync(user);
                 var dto = _mapper.Map<GetUserInfoDTO>(user);
-                dto.Role = roles.Contains(UserRole.Admin.ToString())
-                    ? UserRole.Admin.ToString()
-                    : roles.Contains(UserRole.Moderator.ToString())
-                        ? UserRole.Moderator.ToString()
-                        : roles.Contains(UserRole.VerifiedUser.ToString())
-                            ? UserRole.VerifiedUser.ToString()
-                            : UserRole.User.ToString();
+                dto.Role = roles.FirstOrDefault() ?? UserRole.User.ToString();
                 var request = _httpContextAccessor.HttpContext.Request;
 
                 //string baseUrl = $"{request.Scheme}://{request.Host}";
@@ -89,10 +83,7 @@ namespace SafeTrace.Application.Services.UserProfileServices
             var profile = _mapper.Map<VisitUserDTO>(user);
             //profile.PhoneNumber = phoneNumber;
             //profile.Email = email;
-            profile.Role = role.Contains(UserRole.Admin.ToString()) ? UserRole.Admin.ToString()
-                : role.Contains(UserRole.Moderator.ToString()) ? UserRole.Moderator.ToString()
-                : role.Contains(UserRole.VerifiedUser.ToString()) ? UserRole.VerifiedUser.ToString()
-                : UserRole.User.ToString();
+            profile.Role = role.FirstOrDefault() ?? UserRole.User.ToString();
 
             return ApiResponse<VisitUserDTO?>.Ok(profile, "تم جلب الملف الشخصي");
         }
