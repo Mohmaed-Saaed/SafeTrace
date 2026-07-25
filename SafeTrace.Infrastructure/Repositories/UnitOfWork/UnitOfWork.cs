@@ -1,4 +1,4 @@
-﻿using System.Data;
+using System.Data;
 using Microsoft.EntityFrameworkCore.Storage;
 using SafeTrace.Domain.Interfaces.IUnitOfWork;
 using SafeTrace.Infrastructure.DataAccess;
@@ -79,8 +79,20 @@ namespace SafeTrace.Infrastructure.Repositories.UnitOfWork
                 _currentTransaction = null;
             }
         }
+        private static readonly HashSet<string> AllowedSequenceNames = new(StringComparer.OrdinalIgnoreCase)
+        {
+            "LongTermCaseSequence",
+            "UrgentCaseSequence",
+            "UnknownCaseSequence"
+        };
+
         public async Task<int> GetNextSequenceValueAsync(string sequenceName)
         {
+            if (string.IsNullOrWhiteSpace(sequenceName) || !AllowedSequenceNames.Contains(sequenceName))
+            {
+                throw new ArgumentException("اسم التسلسل غير صالج.", nameof(sequenceName));
+            }
+
             var connection = _context.Database.GetDbConnection();
 
             var shouldCloseConnection = connection.State != ConnectionState.Open;
@@ -91,7 +103,7 @@ namespace SafeTrace.Infrastructure.Repositories.UnitOfWork
             try
             {
                 await using var command = connection.CreateCommand();
-                command.CommandText = $"SELECT NEXT VALUE FOR {sequenceName}";
+                command.CommandText = $"SELECT NEXT VALUE FOR [{sequenceName}]";
 
                 var result = await command.ExecuteScalarAsync();
 

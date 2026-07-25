@@ -6,6 +6,7 @@ using SafeTrace.Application.DTOs.Cases.Response;
 using SafeTrace.Application.DTOs.NotificationDTOS;
 using SafeTrace.Application.DTOs.UrgentCase.Request;
 using SafeTrace.Application.DTOs.UrgentCase.Response;
+using Microsoft.Extensions.DependencyInjection;
 using SafeTrace.Application.Interfaces.IServices.ICases;
 using SafeTrace.Application.Interfaces.IServices.INotificationSewrvice;
 
@@ -15,6 +16,7 @@ namespace SafeTrace.Application.Services.Cases
     {
         private readonly INotificationServices _notificationServices;
         private readonly IEmailService _emailService;
+        private readonly IServiceScopeFactory _scopeFactory;
         private const string FolderName = "UrgentCases";
         private const int RateLimitDays = 2;
         private const int ExpirationHours = 48;
@@ -28,11 +30,13 @@ namespace SafeTrace.Application.Services.Cases
             IMapper mapper,
             ICaseHelperService caseHelper,
             INotificationServices notificationServices,
-            IEmailService emailService)
+            IEmailService emailService,
+            IServiceScopeFactory scopeFactory)
             : base(unitOfWork, mapper, caseHelper, logger)
         {
             _notificationServices = notificationServices;
             _emailService = emailService;
+            _scopeFactory = scopeFactory;
         }
 
         /// <summary>
@@ -49,7 +53,7 @@ namespace SafeTrace.Application.Services.Cases
         /// </summary>
         protected override IQueryable<UrgentCase> ApplyCustomFilter(IQueryable<UrgentCase> query, UrgentCasesFilterDto filter)
         {
-            if (!filter.Latitude.HasValue && !filter.Longitude.HasValue)
+            if (!filter.Latitude.HasValue || !filter.Longitude.HasValue)
                 return query;
 
             var location = CreateUserLocation(filter);
@@ -62,7 +66,7 @@ namespace SafeTrace.Application.Services.Cases
         /// </summary>
         protected override IQueryable<UrgentCase> ApplyCustomSorting(IQueryable<UrgentCase> query, UrgentCasesFilterDto filter)
         {
-            if (!filter.Latitude.HasValue && !filter.Longitude.HasValue)
+            if (!filter.Latitude.HasValue || !filter.Longitude.HasValue)
                 return query;
 
             var location = CreateUserLocation(filter);
@@ -175,77 +179,6 @@ namespace SafeTrace.Application.Services.Cases
                     CaseId = entity.Id
                 });
         }
-
-        /// <summary>
-        /// Updates an existing urgent case with new photos and location.
-        /// </summary>
-        //public async Task<ApiResponse<string>> UpdateAsync(long id, string userId, UrgentCaseUpdateDto updateDto)
-        //{
-        //    var entity = await _caseHelper.GetValidCaseAsync<UrgentCase>(
-        //        id,
-        //        userId,
-        //        checkOwnership: true,
-        //        includes: [x => x.CaseFiles]);
-
-        //    _caseHelper.ValidateCaseIsEditable(entity);
-
-        //    var uploadedPhotos = new List<CaseFile>();
-        //    var filesToDelete = new List<string>();
-
-        //    await ExecuteInTransactionAsync(
-        //        action: async () =>
-        //        {
-        //            if (updateDto.NewPhotos?.Count > 0)
-        //            {
-        //                var primaryImage = updateDto.NewPhotos[0];
-        //                var additionalImages = updateDto.NewPhotos.Skip(1);
-
-        //                uploadedPhotos = await _caseHelper.CreateCaseFilesAsync(
-        //                    primaryImage, additionalImages, null, FolderName, entity.Id);
-
-        //                foreach (var photo in uploadedPhotos)
-        //                    entity.CaseFiles.Add(photo);
-        //            }
-
-        //            if (updateDto.DeletedPhotoIds?.Count > 0)
-        //            {
-        //                var toRemove = entity.CaseFiles
-        //                    .Where(p => updateDto.DeletedPhotoIds.Contains(p.Id))
-        //                    .ToList();
-
-        //                filesToDelete.AddRange(toRemove.Select(p => p.ImagePath));
-
-        //                foreach (var photo in toRemove)
-        //                    entity.CaseFiles.Remove(photo);
-        //            }
-
-        //            _mapper.Map(updateDto, entity);
-        //            entity.UpdatedAt = DateTime.UtcNow;
-        //            entity.AgeCategoryId = await _caseHelper.ResolveAgeCategoryIdAsync(entity.Age);
-
-        //            if (updateDto.Latitude.HasValue && updateDto.Longitude.HasValue)
-        //            {
-        //                entity.Location = new Point(updateDto.Longitude.Value, updateDto.Latitude.Value) { SRID = 4326 };
-        //            }
-
-        //            _unitOfWork.Repository<UrgentCase>().Update(entity);
-
-        //            return true;
-        //        },
-        //        onFailureAsync: ex =>
-        //        {
-        //            _caseHelper.CleanupPhysicalFiles(uploadedPhotos.Select(p => p.ImagePath));
-        //            _logger.LogError(ex, "Failed to update urgent case {CaseId} for user {UserId}", id, userId);
-        //            return Task.CompletedTask;
-        //        });
-
-        //    _logger.LogInformation("Urgent case {CaseId} updated by user {UserId}.", entity.Id, userId);
-
-        //    _caseHelper.CleanupPhysicalFiles(filesToDelete);
-
-        //    return ApiResponse<string>.Ok(message: "تم تحديث الحالة العاجلة بنجاح.");
-        //}
-
 
         /// <summary>
         /// Updates an existing urgent case with new photos and location.
@@ -511,8 +444,12 @@ namespace SafeTrace.Application.Services.Cases
 
                     try
                     {
+                        using var scope = _scopeFactory.CreateScope();
+                        var notificationServices = scope.ServiceProvider.GetRequiredService<INotificationServices>();
+                        var emailService = scope.ServiceProvider.GetRequiredService<IEmailService>();
+
                         // Send Notification
-                        await _notificationServices.SendNotificationAsync(new SendNotificationDTO
+                        await notificationServices.SendNotificationAsync(new SendNotificationDTO
                         {
                             UserId = user.Id,
                             Content = notificationContent,
@@ -532,7 +469,7 @@ namespace SafeTrace.Application.Services.Cases
                                 publishedAt: entity.CreatedAt,
                                 detailsUrl: EmailTemplates.GetCaseDetailsUrl(entity.CaseType, entity.Id));
 
-                            await _emailService.SendEmailAsync(
+                            await emailService.SendEmailAsync(
                                 user.Email,
                                 subject,
                                 body);
