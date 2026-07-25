@@ -233,11 +233,12 @@ namespace SafeTrace.Application.Services.Cases
                 return;
 
             var detailsPath = EmailTemplates.GetCaseDetailsRoute(entity.CaseType);
+            var directLink = $"{detailsPath}{entity.Id}?action=approved&caseId={entity.Id}&caseCode={Uri.EscapeDataString(entity.CaseCode ?? string.Empty)}";
 
             await SendNotificationSafelyAsync(
                 user.Id,
                 $"✅ تمت الموافقة على حالتك.\n\nكود الحالة:\n{entity.CaseCode}\n\nيمكنك الآن البحث عن الحالة باستخدام كود الحالة أو متابعة تفاصيلها.",
-                detailsPath + entity.Id,
+                directLink,
                 entity.Id,
                 "approved");
 
@@ -263,11 +264,12 @@ namespace SafeTrace.Application.Services.Cases
                 return;
 
             var detailsPath = EmailTemplates.GetCaseDetailsRoute(entity.CaseType);
+            var directLink = $"{detailsPath}{entity.Id}?action=rejected&caseId={entity.Id}&caseCode={Uri.EscapeDataString(entity.CaseCode ?? string.Empty)}&rejectionReason={Uri.EscapeDataString(rejectionReason ?? string.Empty)}";
 
             await SendNotificationSafelyAsync(
                 user.Id,
                 $"❌ تم رفض الحالة.\n\nسبب الرفض:\n\n{rejectionReason}",
-                detailsPath + entity.Id,
+                directLink,
                 entity.Id,
                 "rejected");
 
@@ -305,7 +307,7 @@ namespace SafeTrace.Application.Services.Cases
                 {
                     UserId = userId,
                     Content = content,
-                    Type = NotificationType.System,
+                    Type = NotificationType.Message,
                     NotificationDirectLink = detailsPath
                 });
             }
