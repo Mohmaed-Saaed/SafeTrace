@@ -107,5 +107,16 @@ namespace SafeTrace.API.Controllers
 
             return Ok(await _urgentCaseService.GetUrgentCreationStatusAsync(CurrentUserId));
         }
+
+        [HttpGet("MyCaseDetails/{id:long}")]
+        [Authorize]
+        public async Task<IActionResult> GetMyCaseById(long id)
+        {
+            if (CurrentUserId == null)
+                throw new UnauthorizedException("?? ??? ?????? ??? ???? ????????.");
+
+            return Ok(await _urgentCaseService.GetMyCaseByIdAsync(id, CurrentUserId));
+        }
+
     }
 }
