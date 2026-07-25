@@ -85,7 +85,9 @@ namespace SafeTrace.API
                         .AllowAnyHeader()
                         .AllowAnyMethod()
                         .AllowCredentials()
-                        .SetIsOriginAllowed((host) => true); // More permissive for development
+                        .SetIsOriginAllowed((host) => true) // More permissive for development
+                        .WithExposedHeaders("Content-Disposition");
+
                 });
             });
             // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi

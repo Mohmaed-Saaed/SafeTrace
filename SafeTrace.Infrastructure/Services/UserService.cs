@@ -565,7 +565,7 @@ namespace SafeTrace.Infrastructure.Services
 
         public async Task<List<GetUserDto>> GetAllUsersForReportAsync(
         UserFilterDto filterDto)
-        {
+        { 
             var query = _userManager.Users
                 .AsNoTracking()
                 .Where(u => u.EmailConfirmed);

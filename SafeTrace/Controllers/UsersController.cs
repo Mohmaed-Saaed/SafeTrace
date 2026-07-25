@@ -225,7 +225,7 @@ namespace SafeTrace.API.Controllers
         /// <returns>A PDF file containing the users report.</returns>
         [HttpPost("report/pdf")]
         public async Task<IActionResult> GenerateUsersPdfReport(
-            [FromQuery] UserFilterDto filter)
+            [FromBody] UserFilterDto filter)
         {
             var file = await _userService.GenerateUsersPdfReportAsync(filter);
 
