@@ -1,9 +1,16 @@
+using System.ComponentModel.DataAnnotations;
+using SafeTrace.Application.Common.Validators.Attributes;
 using SafeTrace.Application.DTOs.Cases.Request;
 
 namespace SafeTrace.Application.DTOs.UrgentCase.Request
 {
     public class UrgentCaseCreateDto : CaseCreateBaseDto
     {
+        [Required(ErrorMessage = "Event date is required.")]
+        [UrgentEventDate(6)]
+        [DataType(DataType.Date)]
+        public DateTime? EventDate { get; set; }
+
         [Required(ErrorMessage = "First name is required.")]
         [ArabicText(ErrorMessage = "First name must contain Arabic letters and spaces only.")]
         [StringLength(60, MinimumLength = 2, ErrorMessage = "First name must be between 2 and 60 characters.")]
