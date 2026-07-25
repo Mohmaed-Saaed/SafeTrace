@@ -27,8 +27,6 @@ namespace SafeTrace.Application.Services.Cases
             IUnitOfWork unitOfWork,
             IMapper mapper,
             ICaseHelperService caseHelper,
-            INotificationServices notificationServices,
-            IEmailService emailService,
             IServiceScopeFactory scopeFactory)
             : base(unitOfWork, mapper, caseHelper, logger)
         {
