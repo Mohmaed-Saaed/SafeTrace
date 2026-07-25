@@ -16,6 +16,10 @@ namespace SafeTrace.Application.Interfaces.IServices
         Task<ComplaintResponseDto> CreateAsync(string userId, CreateComplaintDto dto);
         Task DeleteAsync(long id);
         Task<ComplaintStatisticsDto> GetStatisticsAsync();
-        Task ResolveAsync(long id, ResolveComplaintDto dto);  
+        Task ResolveAsync(long id, ResolveComplaintDto dto);
+        Task<List<ComplaintResponseDto>> GetAllForReportAsync(ComplaintFilterDto filter);
+        Task<byte[]> GeneratePdfReportAsync(ComplaintFilterDto filter);
+        Task<byte[]> GenerateExcelReportAsync(
+        ComplaintFilterDto filter);
     }
 }
