@@ -8,6 +8,9 @@ namespace SafeTrace.Application.DTOs.User_Profiel_DTOS
         public string FullName { get; set; } = null!;
         public int Age { get; set; }
         public AgeCategoryDto? AgeCategory { get; set; }
+
+        public long? FoundPersonInfoId { get; set; }
+
         public Gender Gender { get; set; }
         public CaseStatus Status { get; set; }
         public string Government { get; set; } = null!;
