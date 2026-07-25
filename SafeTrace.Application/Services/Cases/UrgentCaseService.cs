@@ -14,8 +14,6 @@ namespace SafeTrace.Application.Services.Cases
 {
     public class UrgentCaseService : BaseCasesService<UrgentCase, UrgentCaseListDto, UrgentCaseDetailDto, UrgentCasesFilterDto>, IUrgentCaseService
     {
-        private readonly INotificationServices _notificationServices;
-        private readonly IEmailService _emailService;
         private readonly IServiceScopeFactory _scopeFactory;
         private const string FolderName = "UrgentCases";
         private const int RateLimitDays = 2;
@@ -34,8 +32,6 @@ namespace SafeTrace.Application.Services.Cases
             IServiceScopeFactory scopeFactory)
             : base(unitOfWork, mapper, caseHelper, logger)
         {
-            _notificationServices = notificationServices;
-            _emailService = emailService;
             _scopeFactory = scopeFactory;
         }
 
