@@ -214,7 +214,7 @@ namespace SafeTrace.Infrastructure.Reports
                 column.Item().PaddingTop(5).Row(row =>
                 {
                     row.RelativeItem()
-                        .Text("لقاء - نظام إدارة الشكاوى")
+                        .Text("لقاء - نظام إدارة التقارير")
                         .FontSize(9)
                         .FontColor(Colors.Grey.Darken1);
 

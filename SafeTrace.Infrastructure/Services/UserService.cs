@@ -22,6 +22,7 @@ namespace SafeTrace.Infrastructure.Services
         private readonly IEmailService _emailService;
         private readonly INotificationServices _notificationService;
         private readonly ILogger<UserService> _logger;
+        private readonly IPdfGeneratorService _pdfGenerator;
 
         public UserService(
             UserManager<ApplicationUser> userManager,
@@ -31,7 +32,8 @@ namespace SafeTrace.Infrastructure.Services
             IFileStorageService fileStorageService,
             IEmailService emailService,
             INotificationServices notificationService,
-            ILogger<UserService> logger)
+            ILogger<UserService> logger,
+            IPdfGeneratorService pdfGenerator)
         {
             _userManager = userManager;
             _roleManager = roleManager;
@@ -41,6 +43,7 @@ namespace SafeTrace.Infrastructure.Services
             _emailService = emailService;
             _notificationService = notificationService;
             _logger = logger;
+            _pdfGenerator = pdfGenerator;
         }
 
         public async Task<ApiResponse<PaginationResponseDto<GetUserDto>>> GetAllUsersAsync(UserFilterDto filterDto)
@@ -558,6 +561,161 @@ namespace SafeTrace.Infrastructure.Services
             };
 
             return ApiResponse<UserStatisticsDto>.Ok(statsDto, "تم جلب إحصائيات المستخدمين بنجاح.");
+        }
+
+        public async Task<List<GetUserDto>> GetAllUsersForReportAsync(
+        UserFilterDto filterDto)
+        {
+            var query = _userManager.Users
+                .AsNoTracking()
+                .Where(u => u.EmailConfirmed);
+
+
+            if (!string.IsNullOrWhiteSpace(filterDto.SearchTerm))
+            {
+                var term = filterDto.SearchTerm.Trim().ToLower();
+
+                query = query.Where(u =>
+                    (u.FName + " " + u.LName).ToLower().Contains(term) ||
+                    u.Email!.ToLower().Contains(term) ||
+                    u.PhoneNumber!.Contains(term));
+            }
+
+
+            if (filterDto.VerificationStatus.HasValue)
+            {
+                query = query.Where(u =>
+                    u.VerificationStatus == filterDto.VerificationStatus.Value);
+            }
+
+
+            if (filterDto.IsBlocked.HasValue)
+            {
+                var now = DateTimeOffset.UtcNow;
+
+                if (filterDto.IsBlocked.Value)
+                {
+                    query = query.Where(u =>
+                        u.LockoutEnd.HasValue &&
+                        u.LockoutEnd > now);
+                }
+                else
+                {
+                    query = query.Where(u =>
+                        !u.LockoutEnd.HasValue ||
+                        u.LockoutEnd <= now);
+                }
+            }
+
+
+            if (!string.IsNullOrWhiteSpace(filterDto.RoleId))
+            {
+                var userIdsInRole = _unitOfWork
+                    .Repository<IdentityUserRole<string>>()
+                    .Query()
+                    .Where(ur => ur.RoleId == filterDto.RoleId)
+                    .Select(ur => ur.UserId);
+
+                query = query.Where(u => userIdsInRole.Contains(u.Id));
+            }
+
+
+            var users = await query
+                .OrderBy(u => u.FName)
+                .ThenBy(u => u.LName)
+                .Select(u => new GetUserDto
+                {
+                    Id = u.Id,
+                    FName = u.FName,
+                    LName = u.LName,
+                    Email = u.Email ?? string.Empty,
+                    PhoneNumber = u.PhoneNumber ?? string.Empty,
+                    VerificationStatus = u.VerificationStatus,
+                    IsBlocked = u.LockoutEnd.HasValue &&
+                                u.LockoutEnd > DateTimeOffset.UtcNow
+                })
+                .ToListAsync();
+
+
+            if (users.Any())
+            {
+                var userIds = users.Select(u => u.Id).ToList();
+
+                var roleQuery = _unitOfWork
+                    .Repository<IdentityRole>()
+                    .Query();
+
+                var userRoleQuery = _unitOfWork
+                    .Repository<IdentityUserRole<string>>()
+                    .Query();
+
+                var userRoles = await (
+                    from ur in userRoleQuery
+                    join r in roleQuery
+                        on ur.RoleId equals r.Id
+                    where userIds.Contains(ur.UserId)
+                    select new
+                    {
+                        ur.UserId,
+                        RoleName = r.Name
+                    })
+                    .ToListAsync();
+
+                var rolesByUser = userRoles
+                    .GroupBy(x => x.UserId)
+                    .ToDictionary(
+                        g => g.Key,
+                        g => g.First().RoleName ?? UserRole.User.ToString());
+
+                foreach (var user in users)
+                {
+                    user.Role = rolesByUser.TryGetValue(user.Id, out var role)
+                        ? role
+                        : UserRole.User.ToString();
+                }
+            }
+
+
+            return users;
+        }
+
+        public async Task<byte[]> GenerateUsersPdfReportAsync(
+        UserFilterDto filter)
+        {
+            var users = await GetAllUsersForReportAsync(filter);
+
+            var statistics = new UserStatisticsDto
+            {
+                TotalUsers = users.Count,
+
+                ActiveUsers = users.Count(x => !x.IsBlocked),
+
+                BannedUsers = users.Count(x => x.IsBlocked),
+
+                VerifiedUsers = users.Count(x =>
+                    x.VerificationStatus == VerificationStatus.Verified),
+
+                PendingVerificationUsers = users.Count(x =>
+                    x.VerificationStatus == VerificationStatus.Pending),
+
+                UnverifiedUsers = users.Count(x =>
+                    x.VerificationStatus == VerificationStatus.Unverified)
+            };
+
+
+            string? roleName = null;
+
+            if (!string.IsNullOrWhiteSpace(filter.RoleId))
+            {
+                roleName = (await _roleManager.FindByIdAsync(filter.RoleId))?.Name;
+            }
+
+
+            return _pdfGenerator.GenerateUsersPdf(
+                users,
+                statistics,
+                filter,
+                roleName);
         }
     }
 }

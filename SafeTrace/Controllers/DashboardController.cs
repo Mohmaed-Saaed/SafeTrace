@@ -1,13 +1,15 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using SafeTrace.Application.Constants;
-using SafeTrace.Application.DTOs.Dashboard.Response;
+using SafeTrace.Application.DTOs.Cases.Request;
 using SafeTrace.Application.DTOs.Dashboard.Request;
+using SafeTrace.Application.DTOs.Dashboard.Response;
 using SafeTrace.Application.DTOs.Responses;
-using SafeTrace.Application.Interfaces.IServices;
-using System.Security.Claims;
-using SafeTrace.Infrastructure.Authorization;
 using SafeTrace.Application.Exceptions;
+using SafeTrace.Application.Interfaces.IServices;
+using SafeTrace.Infrastructure.Authorization;
+using System.Security.Claims;
 
 namespace SafeTrace.API.Controllers.Dashboard
 {
@@ -74,6 +76,20 @@ namespace SafeTrace.API.Controllers.Dashboard
         {
             var response = await _dashboardService.GetAuditLogsAsync(query);
             return Ok(response);
+        }
+
+        [HttpPost("cases/report/pdf")]
+        public async Task<IActionResult> GenerateCasesPdfReport(
+            [FromQuery] CasesReportFilterDto filter)
+        {
+            var file = await _dashboardService
+                .GeneratePdfReportAsync(filter);
+
+
+            return File(
+                file,
+                "application/pdf",
+                $"Cases_Report_{DateTime.UtcNow:yyyyMMddHHmmss}.pdf");
         }
     }
 }

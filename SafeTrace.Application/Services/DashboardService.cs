@@ -1,6 +1,9 @@
 using Microsoft.AspNetCore.Identity;
-using SafeTrace.Application.DTOs.Dashboard.Response;
+using SafeTrace.Application.Common.Enums;
+using SafeTrace.Application.DTOs.Cases.Request;
 using SafeTrace.Application.DTOs.Dashboard.Request;
+using SafeTrace.Application.DTOs.Dashboard.Response;
+
 
 namespace SafeTrace.Application.Services
 {
@@ -9,10 +12,13 @@ namespace SafeTrace.Application.Services
 
         private readonly IUnitOfWork _unitOfWork;
         private readonly UserManager<ApplicationUser> _userManager;
+        private readonly IPdfGeneratorService _pdfGenerator;
         public DashboardService(IUnitOfWork unitOfWork
-            , UserManager<ApplicationUser> userManager) { 
+            , UserManager<ApplicationUser> userManager,
+            IPdfGeneratorService pdfGenerator) { 
             _unitOfWork = unitOfWork;
             _userManager = userManager;
+            _pdfGenerator = pdfGenerator;
 
         }
         async Task<ApiResponse<DashboardDto>> IDashboardService.GetDashboardAsync()
@@ -166,6 +172,254 @@ namespace SafeTrace.Application.Services
             };
 
             return ApiResponse<PaginationResponseDto<AuditLogDto>>.Ok(response);
+        }
+
+        public async Task<List<CaseReportDto>> GetAllForReportAsync(
+        CasesReportFilterDto filter)
+        {
+            var query = _unitOfWork.Repository<Case>()
+                .Query(tracked: false);
+                
+
+
+
+            query = ApplyFilter(query, filter);
+
+
+            query = ApplySorting(query, filter);
+
+
+
+            return await query
+                .Select(c => new CaseReportDto
+                {
+                    Id = c.Id,
+
+                    CaseCode = c.CaseCode,
+
+                    CaseType = c.CaseType,
+
+                    Status = c.Status,
+
+                    FullName =
+                        string.Join(" ",
+                        new[]
+                        {
+                        c.FName,
+                        c.SName,
+                        c.TName,
+                        c.LName
+                        }
+                        .Where(x => !string.IsNullOrEmpty(x))),
+
+
+                    Gender = c.Gender,
+
+                    Age = c.Age,
+
+                    City = c.City,
+
+                    Government = c.Government,
+
+                    CreatedAt = c.CreatedAt
+                })
+                .ToListAsync();
+        }
+
+        public async Task<byte[]> GeneratePdfReportAsync(
+            CasesReportFilterDto filter)
+        {
+            var cases = await GetAllForReportAsync(filter);
+
+
+            var statistics = new CasesStatisticsDto
+            {
+                Total = cases.Count,
+
+                Urgent = cases.Count(c =>
+                    c.CaseType == CaseType.Urgent),
+
+                LongTerm = cases.Count(c =>
+                    c.CaseType == CaseType.LongTerm),
+
+                Unknown = cases.Count(c =>
+                    c.CaseType == CaseType.Unknown),
+
+                Active = cases.Count(c =>
+                    c.Status == CaseStatus.Active),
+
+                Found = cases.Count(c =>
+                    c.Status == CaseStatus.Found)
+            };
+
+
+            return _pdfGenerator.GenerateCasesPdf(
+                cases,
+                statistics,
+                filter);
+        }
+
+    //    public async Task<byte[]> GenerateExcelReportAsync(
+    //CasesFilterBaseDto filter)
+    //    {
+    //        var cases = await GetAllForReportAsync(filter);
+
+
+    //        var statistics = new CasesStatisticsDto
+    //        {
+    //            Total = cases.Count,
+
+    //            Urgent = cases.Count(c =>
+    //                c.CaseType == CaseType.Urgent),
+
+    //            LongTerm = cases.Count(c =>
+    //                c.CaseType == CaseType.LongTerm),
+
+    //            Unknown = cases.Count(c =>
+    //                c.CaseType == CaseType.Unknown),
+
+    //            Active = cases.Count(c =>
+    //                c.Status == CaseStatus.Active),
+
+    //            Found = cases.Count(c =>
+    //                c.Status == CaseStatus.Found)
+    //        };
+
+
+    //        return _excelGenerator.GenerateCasesExcel(
+    //            cases,
+    //            statistics,
+    //            filter);
+    //    }
+        private IQueryable<Case> ApplyFilter(
+            IQueryable<Case> query,
+            CasesReportFilterDto filter)
+        {
+
+            if (filter.Status.HasValue)
+            {
+                query = query.Where(c =>
+                    c.Status == filter.Status.Value);
+            }
+
+            if (filter.Type.HasValue) 
+            {
+                query = query.Where(c =>
+                c.CaseType == filter.Type.Value);
+            }
+
+            if (filter.Gender.HasValue)
+            {
+                query = query.Where(c =>
+                    c.Gender == filter.Gender.Value);
+            }
+
+
+
+            if (!string.IsNullOrWhiteSpace(filter.CaseCode))
+            {
+                query = query.Where(c =>
+                    c.CaseCode.Contains(filter.CaseCode));
+            }
+
+
+            if (!string.IsNullOrWhiteSpace(filter.Government))
+            {
+                query = query.Where(c =>
+                    c.Government.Contains(filter.Government));
+            }
+
+
+            if (!string.IsNullOrWhiteSpace(filter.City))
+            {
+                query = query.Where(c =>
+                    c.City.Contains(filter.City));
+            }
+
+
+            if (filter.MinAge.HasValue)
+            {
+                query = query.Where(c =>
+                    c.Age >= filter.MinAge.Value);
+            }
+
+            if (filter.MaxAge.HasValue)
+            {
+                query = query.Where(c =>
+                    c.Age <= filter.MaxAge.Value);
+            }
+
+
+            if (filter.FromDate.HasValue)
+            {
+                query = query.Where(c =>
+                    c.CreatedAt >= filter.FromDate.Value);
+            }
+
+
+            if (filter.ToDate.HasValue)
+            {
+                query = query.Where(c =>
+                    c.CreatedAt <= filter.ToDate.Value);
+            }
+
+            if (!string.IsNullOrWhiteSpace(filter.FullName))
+            {
+                var name = filter.FullName.Trim();
+
+
+                query = query.Where(c =>
+                    (
+                        c.FName +
+                        " " +
+                        c.SName +
+                        " " +
+                        c.TName +
+                        " " +
+                        c.LName
+                    )
+                    .Contains(name));
+            }
+
+
+            return query;
+        }
+
+        private IQueryable<Case> ApplySorting(
+            IQueryable<Case> query,
+            CasesReportFilterDto filter)
+        {
+
+            if (filter.AgeSort.HasValue)
+            {
+                query = filter.AgeSort.Value switch
+                {
+                    AgeSort.Asc =>
+                        query.OrderBy(c => c.Age),
+
+                    AgeSort.Desc =>
+                        query.OrderByDescending(c => c.Age),
+
+                    _ => query
+                };
+            }
+
+            if (filter.DateSort.HasValue)
+            {
+                query = filter.DateSort.Value switch
+                {
+                    DateSort.Newest =>
+                        query.OrderByDescending(c => c.CreatedAt),
+
+                    DateSort.Oldest =>
+                        query.OrderBy(c => c.CreatedAt),
+
+                    _ => query
+                };
+            }
+
+
+            return query;
         }
     }
 }
