@@ -85,35 +85,65 @@ namespace SafeTrace.API.Controllers
         }
 
         /// <summary>
-        /// Retrieves detailed information about a specific chat.
+        /// Retrieves detailed information about a specific chat for administrators.
         /// </summary>
         /// <remarks>
-        /// Returns chat metadata including:
-        /// - Chat identifier.
-        /// - Related case information.
-        /// - Sender and receiver details.
-        /// - The other participant's name for the current user.
+        /// Returns complete chat information including:
+        /// - Chat and related case details.
+        /// - Sender and receiver information.
         /// - Chat creation date.
-        /// - Soft delete information (available only for administrators).
+        /// - Soft delete status for both participants.
+        /// - Deletion timestamps for both participants.
         /// </remarks>
         /// <param name="chatId">The unique identifier of the chat.</param>
         /// <response code="200">Chat details retrieved successfully.</response>
-        /// <response code="401">User is not authenticated.</response>
-        /// <response code="403">User is not authorized to access this chat.</response>
+        /// <response code="401">Administrator is not authenticated.</response>
+        /// <response code="403">Administrator does not have permission to view chat details.</response>
         /// <response code="404">Chat was not found.</response>
         [ProducesResponseType(typeof(ChatDetailsDto), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         [ProducesResponseType(StatusCodes.Status403Forbidden)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
 
-        [HttpGet("{chatId:long}")]
+        [HttpGet("admin/{chatId:long}")]
         [HasPermission(Permissions.Chat.GetById)]
+        public async Task<IActionResult> GetDashChatDetails([FromRoute] long chatId)
+        {
+            var chat = await _chatService.GetDashChatDetailsAsync(chatId);
+            return Ok(chat);
+        }
+
+        /// <summary>
+        /// Retrieves detailed information about a specific chat for the authenticated user.
+        /// </summary>
+        /// <remarks>
+        /// Returns chat information including:
+        /// - Chat identifier.
+        /// - Related case information.
+        /// - The other participant's details.
+        /// - Chat creation date.
+        ///
+        /// The authenticated user must be a participant in the requested chat.
+        /// </remarks>
+        /// <param name="chatId">The unique identifier of the chat.</param>
+        /// <response code="200">Chat details retrieved successfully.</response>
+        /// <response code="401">User is not authenticated.</response>
+        /// <response code="403">User is not a participant in the requested chat.</response>
+        /// <response code="404">Chat was not found.</response>
+        [ProducesResponseType(typeof(ChatDetailsDto), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status403Forbidden)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+
+        [Authorize]
+        [HttpGet("{chatId:long}")]
         public async Task<IActionResult> GetChatDetails([FromRoute] long chatId)
         {
             var userId = GetCurrentUserId();
-            var chat = await _chatService.GetChatDetailsAsync(chatId, userId, IsAdmin);
+            var chat = await _chatService.GetUserChatDetailsAsync(chatId, userId);
             return Ok(chat);
         }
+
 
 
         /// <summary>

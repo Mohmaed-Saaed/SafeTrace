@@ -224,105 +224,156 @@ namespace SafeTrace.Application.Services
             return ApiResponse<IEnumerable<ChatSummaryDto>>.Ok(
                 result, "تم جلب المحادثات بنجاح.");
         }
-        public async Task<ApiResponse<ChatDetailsDto>> GetChatDetailsAsync(long chatId, string currentUserId, bool isAdmin)
+        //public async Task<ApiResponse<ChatDetailsDto>> GetChatDetailsAsync(long chatId, string currentUserId, bool isAdmin)
+        //{
+        //    _logger.LogInformation(
+        //    "User {UserId} requested chat details for Chat {ChatId}.",
+        //    currentUserId,
+        //    chatId);
+
+        //    var chat = await _unitOfWork.Repository<Chat>()
+        //        .GetOneAsync(
+        //            c => c.Id == chatId,
+        //            tracked: false,
+        //            c => c.Case,
+        //            c =>c.Case.CaseFiles,
+        //            c => c.Sender,
+        //            c => c.Receiver)
+        //        ?? throw new NotFoundException($"{chatId}لم يتم العثور على المحادثة.");
+        //    if (!isAdmin)
+        //    {
+        //        EnsureParticipant(chat, currentUserId);
+        //    }
+        //    foreach (var file in chat.Case.CaseFiles)
+        //    {
+        //        _logger.LogInformation(
+        //            "Image={Image}, IsPrimary={Primary}",
+        //            file.ImagePath,
+        //            file.IsPrimary
+        //        );
+        //    }
+        //    var primaryImage = chat.Case.CaseFiles.FirstOrDefault(f => f.IsPrimary)?.ImagePath;
+
+        //    var dto = new ChatDetailsDto
+        //    {
+        //        ChatId = chat.Id,
+        //        CaseId = chat.CaseId,
+        //        CaseTitle = $"{chat.Case.FName} {chat.Case.SName} {chat.Case.TName} {chat.Case.LName}",
+        //        CaseImage = primaryImage,
+        //        CaseType = chat.Case.CaseType,
+
+        //        CreatedAt = chat.CreatedAt
+        //    };
+
+        //    if (isAdmin)
+        //    {
+        //        dto.SenderId = chat.SenderId;
+        //        dto.SenderName = $"{chat.Sender.FName} {chat.Sender.LName}";
+        //        dto.SenderImage = chat.Sender.ProfileImage;
+
+        //        dto.ReceiverId = chat.ReceiverId;
+        //        dto.ReceiverName = $"{chat.Receiver.FName} {chat.Receiver.LName}";
+        //        dto.ReceiverImage = chat.Receiver.ProfileImage;
+
+        //        dto.DeletedBySender = chat.DeletedBySender;
+        //        dto.DeletedByReceiver = chat.DeletedByReceiver;
+
+        //        dto.SenderDeletedAt = chat.SenderDeletedAt.HasValue
+        //        ? DateTime.SpecifyKind(chat.SenderDeletedAt.Value, DateTimeKind.Utc)
+        //        : null;
+
+        //        dto.ReceiverDeletedAt = chat.ReceiverDeletedAt.HasValue
+        //            ? DateTime.SpecifyKind(chat.ReceiverDeletedAt.Value, DateTimeKind.Utc)
+        //            : null;
+
+        //        dto.OtherUserId = chat.SenderId == currentUserId
+        //            ? chat.Receiver.Id
+        //            : chat.Sender.Id;
+
+        //        dto.OtherUserName = chat.SenderId == currentUserId
+        //            ? $"{chat.Receiver.FName} {chat.Receiver.LName}"
+        //        : $"{chat.Sender.FName} {chat.Sender.LName}";
+
+        //        dto.OtherUserImage = chat.SenderId == currentUserId
+        //             ? chat.Receiver.ProfileImage
+        //            : chat.Sender.ProfileImage;
+        //    }
+        //    else
+        //    {
+        //        dto.OtherUserId = chat.SenderId == currentUserId
+        //            ? chat.Receiver.Id
+        //            : chat.Sender.Id;
+
+        //        dto.OtherUserName = chat.SenderId == currentUserId
+        //            ? $"{chat.Receiver.FName} {chat.Receiver.LName}"
+        //        : $"{chat.Sender.FName} {chat.Sender.LName}";
+
+        //        dto.OtherUserImage = chat.SenderId == currentUserId
+        //             ? chat.Receiver.ProfileImage
+        //            : chat.Sender.ProfileImage;
+        //    }
+
+        //    _logger.LogInformation(
+        //    "Chat {ChatId} details returned for user {UserId}.",
+        //    chatId,
+        //    currentUserId);
+
+        //    return ApiResponse<ChatDetailsDto>.Ok(
+        //       dto,
+        //        "تم جلب تفاصيل المحادثة بنجاح.");
+
+        //}
+
+        public async Task<ApiResponse<ChatDetailsDto>> GetUserChatDetailsAsync(
+        long chatId,
+        string currentUserId)
         {
-            _logger.LogInformation(
-            "User {UserId} requested chat details for Chat {ChatId}.",
-            currentUserId,
-            chatId);
+            var chat = await GetChatAsync(chatId);
 
-            var chat = await _unitOfWork.Repository<Chat>()
-                .GetOneAsync(
-                    c => c.Id == chatId,
-                    tracked: false,
-                    c => c.Case,
-                    c =>c.Case.CaseFiles,
-                    c => c.Sender,
-                    c => c.Receiver)
-                ?? throw new NotFoundException($"{chatId}لم يتم العثور على المحادثة.");
-            if (!isAdmin)
-            {
-                EnsureParticipant(chat, currentUserId);
-            }
-            foreach (var file in chat.Case.CaseFiles)
-            {
-                _logger.LogInformation(
-                    "Image={Image}, IsPrimary={Primary}",
-                    file.ImagePath,
-                    file.IsPrimary
-                );
-            }
-            var primaryImage = chat.Case.CaseFiles.FirstOrDefault(f => f.IsPrimary)?.ImagePath;
+            EnsureParticipant(chat, currentUserId);
 
-            var dto = new ChatDetailsDto
-            {
-                ChatId = chat.Id,
-                CaseId = chat.CaseId,
-                CaseTitle = $"{chat.Case.FName} {chat.Case.SName} {chat.Case.TName} {chat.Case.LName}",
-                CaseImage = primaryImage,
-                CaseType = chat.Case.CaseType,
+            var dto = BuildBaseDto(chat);
 
-                CreatedAt = chat.CreatedAt
-            };
+            var otherUser = chat.SenderId == currentUserId
+                ? chat.Receiver
+                : chat.Sender;
 
-            if (isAdmin)
-            {
-                dto.SenderId = chat.SenderId;
-                dto.SenderName = $"{chat.Sender.FName} {chat.Sender.LName}";
-                dto.SenderImage = chat.Sender.ProfileImage;
+            dto.OtherUserId = otherUser.Id;
+            dto.OtherUserName = $"{otherUser.FName} {otherUser.LName}";
+            dto.OtherUserImage = otherUser.ProfileImage;
 
-                dto.ReceiverId = chat.ReceiverId;
-                dto.ReceiverName = $"{chat.Receiver.FName} {chat.Receiver.LName}";
-                dto.ReceiverImage = chat.Receiver.ProfileImage;
+            return ApiResponse<ChatDetailsDto>.Ok(dto, "تم جلب تفاصيل المحادثة بنجاح.");
+        }
 
-                dto.DeletedBySender = chat.DeletedBySender;
-                dto.DeletedByReceiver = chat.DeletedByReceiver;
+        public async Task<ApiResponse<ChatDetailsDto>> GetDashChatDetailsAsync(long chatId)
+        {
+            var chat = await GetChatAsync(chatId);
 
-                dto.SenderDeletedAt = chat.SenderDeletedAt.HasValue
+            var dto = BuildBaseDto(chat);
+
+            dto.SenderId = chat.SenderId;
+            dto.SenderName = $"{chat.Sender.FName} {chat.Sender.LName}";
+            dto.SenderImage = chat.Sender.ProfileImage;
+
+            dto.ReceiverId = chat.ReceiverId;
+            dto.ReceiverName = $"{chat.Receiver.FName} {chat.Receiver.LName}";
+            dto.ReceiverImage = chat.Receiver.ProfileImage;
+
+            dto.DeletedBySender = chat.DeletedBySender;
+            dto.DeletedByReceiver = chat.DeletedByReceiver;
+
+            dto.SenderDeletedAt = chat.SenderDeletedAt.HasValue
                 ? DateTime.SpecifyKind(chat.SenderDeletedAt.Value, DateTimeKind.Utc)
                 : null;
 
-                dto.ReceiverDeletedAt = chat.ReceiverDeletedAt.HasValue
-                    ? DateTime.SpecifyKind(chat.ReceiverDeletedAt.Value, DateTimeKind.Utc)
-                    : null;
+            dto.ReceiverDeletedAt = chat.ReceiverDeletedAt.HasValue
+                ? DateTime.SpecifyKind(chat.ReceiverDeletedAt.Value, DateTimeKind.Utc)
+                : null;
 
-                dto.OtherUserId = chat.SenderId == currentUserId
-                    ? chat.Receiver.Id
-                    : chat.Sender.Id;
-
-                dto.OtherUserName = chat.SenderId == currentUserId
-                    ? $"{chat.Receiver.FName} {chat.Receiver.LName}"
-                : $"{chat.Sender.FName} {chat.Sender.LName}";
-
-                dto.OtherUserImage = chat.SenderId == currentUserId
-                     ? chat.Receiver.ProfileImage
-                    : chat.Sender.ProfileImage;
-            }
-            else
-            {
-                dto.OtherUserId = chat.SenderId == currentUserId
-                    ? chat.Receiver.Id
-                    : chat.Sender.Id;
-
-                dto.OtherUserName = chat.SenderId == currentUserId
-                    ? $"{chat.Receiver.FName} {chat.Receiver.LName}"
-                : $"{chat.Sender.FName} {chat.Sender.LName}";
-
-                dto.OtherUserImage = chat.SenderId == currentUserId
-                     ? chat.Receiver.ProfileImage
-                    : chat.Sender.ProfileImage;
-            }
-
-            _logger.LogInformation(
-            "Chat {ChatId} details returned for user {UserId}.",
-            chatId,
-            currentUserId);
-
-            return ApiResponse<ChatDetailsDto>.Ok(
-               dto,
-                "تم جلب تفاصيل المحادثة بنجاح.");
-
+            return ApiResponse<ChatDetailsDto>.Ok(dto, "تم جلب تفاصيل المحادثة بنجاح.");
         }
+
+
         public async Task <ApiResponse<List<MessageDto>>> GetPaginatedMessagesAsync(long chatId, string currentUserId,bool isAdmin)
         {
             _logger.LogInformation(
@@ -630,6 +681,35 @@ namespace SafeTrace.Application.Services
 
                 throw new ForbiddenException("ليس لديك صلاحية للوصول إلى هذه المحادثة.");
             }
+        }
+
+        private async Task<Chat> GetChatAsync(long chatId)
+        {
+            return await _unitOfWork.Repository<Chat>()
+                .GetOneAsync(
+                    c => c.Id == chatId,
+                    tracked: false,
+                    c => c.Case,
+                    c => c.Case.CaseFiles,
+                    c => c.Sender,
+                    c => c.Receiver)
+                ?? throw new NotFoundException($"لم يتم العثور على المحادثة {chatId}.");
+        }
+
+        private ChatDetailsDto BuildBaseDto(Chat chat)
+        {
+            var primaryImage = chat.Case.CaseFiles
+                .FirstOrDefault(f => f.IsPrimary)?.ImagePath;
+
+            return new ChatDetailsDto
+            {
+                ChatId = chat.Id,
+                CaseId = chat.CaseId,
+                CaseTitle = $"{chat.Case.FName} {chat.Case.SName} {chat.Case.TName} {chat.Case.LName}",
+                CaseImage = primaryImage,
+                CaseType = chat.Case.CaseType,
+                CreatedAt = DateTime.SpecifyKind(chat.CreatedAt, DateTimeKind.Utc)
+            };
         }
 
     }

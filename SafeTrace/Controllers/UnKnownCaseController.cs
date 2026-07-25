@@ -115,5 +115,15 @@ namespace SafeTrace.API.Controllers
         {
             return Ok(await _unKnownServiceCase.PermanentDeleteAsync(id));
         }
+
+        [HttpGet("MyCaseDetails/{id:long}")]
+        [Authorize]
+        public async Task<IActionResult> GetMyCaseById(long id)
+        {
+            if (CurrentUserId == null)
+                throw new UnauthorizedException("لم يتم التعرف على هوية المستخدم.");
+
+            return Ok(await _unKnownServiceCase.GetMyCaseByIdAsync(id, CurrentUserId));
+        }
     }
 }
