@@ -15,5 +15,7 @@ namespace SafeTrace.Application.Interfaces.IServices.ICases
         Task<ApiResponse<string>> SoftDeleteAsync(long caseId, string userId, bool checkOwnership = true);
         Task<ApiResponse<string>> MarkAsFoundAsync(long caseId, string userId, FoundPersonInfoRequestDto foundPersonInfo, bool checkOwnership = true);
         Task<ApiResponse<string>> PermanentDeleteAsync(long caseId);
+
+        Task<ApiResponse<TDetailDto>> GetMyCaseByIdAsync(long id, string userId);
     }
 }

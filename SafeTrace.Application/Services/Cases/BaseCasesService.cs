@@ -471,7 +471,7 @@ namespace SafeTrace.Application.Services.Cases
         }
 
         // Retrieves a case by ID, validates its status if required, and maps it to the requested DTO.
-        protected  async Task<TDto> GetByIdInternalAsync<TDto>(long id, bool activeOnly, params Expression<Func<TEntity, object>>[] includes)
+        protected async Task<TDto> GetByIdInternalAsync<TDto>(long id, bool activeOnly, params Expression<Func<TEntity, object>>[] includes)
         {
             var entity = await _caseHelper.GetValidCaseAsync<TEntity>(
                 id,
@@ -484,6 +484,27 @@ namespace SafeTrace.Application.Services.Cases
 
             return _mapper.Map<TDto>(entity);
         }
-    
+        public virtual async Task<ApiResponse<TDetailDto>> GetMyCaseByIdAsync(long id, string userId)
+        {
+            var entity = await _caseHelper.GetValidCaseAsync<TEntity>(
+            id,
+            userId: userId,
+            checkOwnership: true,
+           allowDeleted: false,
+           tracked: false,
+          x => x.CaseFiles,
+          x => x.User,
+          x => x.AgeCategory);
+     
+            if (entity.Status == CaseStatus.Deleted)
+                throw new NotFoundException("الحالة غير موجودة.");
+
+            var dto = _mapper.Map<TDetailDto>(entity);
+
+            await AfterGetByIdAsync(dto, id, false);
+
+            return ApiResponse<TDetailDto>.Ok(dto, "تم استرجاع بيانات الحالة بنجاح.");
+        }
+
     }
 }
