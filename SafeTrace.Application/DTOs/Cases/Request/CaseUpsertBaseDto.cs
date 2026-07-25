@@ -28,11 +28,6 @@ namespace SafeTrace.Application.DTOs.Cases.Request
         [StringLength(200, ErrorMessage = "Street cannot exceed 200 characters.")]
         public string Street { get; set; } = null!;
 
-        [Required(ErrorMessage = "Event date is required.")]
-        [PastDate(ErrorMessage = "Event date cannot be in the future.")]
-        [DataType(DataType.Date)]
-        public DateTime? EventDate { get; set; }
-
         // OPTIONAL FIELDS
 
         [StringLength(60, ErrorMessage = "Second name cannot exceed 60 characters.")]

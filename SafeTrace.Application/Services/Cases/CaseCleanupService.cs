@@ -13,7 +13,7 @@ namespace SafeTrace.Application.Services.Cases
 
         public async Task CleanupExpiredUrgentCasesAsync()
         {
-            var expirationDate = DateTime.UtcNow.AddHours(-48);
+            var now = DateTime.UtcNow;
             const int batchSize = 500; 
             int updatedRows;
 
@@ -22,12 +22,12 @@ namespace SafeTrace.Application.Services.Cases
                 updatedRows = await _unitOfWork
                     .Repository<UrgentCase>()
                     .Query()
-                    .Where(x => x.Status == CaseStatus.Active && x.CreatedAt <= expirationDate)
+                    .Where(x => x.Status == CaseStatus.Active && x.EndDate <= now)
                     .Take(batchSize)
                     .ExecuteUpdateAsync(s => s
                         .SetProperty(u => u.Status, CaseStatus.Expired)
                         .SetProperty(u => u.PreviousStatus, CaseStatus.Active)
-                        .SetProperty(u => u.DeletedAt, DateTime.UtcNow)
+                        .SetProperty(u => u.UpdatedAt, now)
                     );
 
             } while (updatedRows == batchSize);

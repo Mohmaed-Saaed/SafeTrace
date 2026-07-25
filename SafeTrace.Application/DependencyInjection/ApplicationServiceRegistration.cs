@@ -1,4 +1,4 @@
-﻿using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection;
 using SafeTrace.Application.Interfaces;
 using SafeTrace.Application.Interfaces.IServices.common;
 using SafeTrace.Application.Interfaces.IServices.ICases;
@@ -8,7 +8,6 @@ using SafeTrace.Application.Services;
 using SafeTrace.Application.Services.Cases;
 using SafeTrace.Application.Services.NotificationServices;
 using SafeTrace.Application.Services.UserProfileServices;
-using SafeTrace.Infrastructure.Service.Founded;
 
 namespace SafeTrace.Application.DependencyInjection
 {

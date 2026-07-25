@@ -6,7 +6,7 @@ using SafeTrace.Application.Interfaces;
 using static System.Net.WebRequestMethods;
 
 
-namespace SafeTrace.Infrastructure.Service.Founded
+namespace SafeTrace.Application.Services
 {
     public class FoundedService : IFoundedService
     {
@@ -32,9 +32,10 @@ namespace SafeTrace.Infrastructure.Service.Founded
                     (string.IsNullOrEmpty(query.Search)
                         || f.Case.FName!.Contains(query.Search)
                         || f.Case.SName!.Contains(query.Search))
-                        && (!query.CaseType.HasValue || f.Case.CaseType == query.CaseType.Value) 
+                    && (!query.CaseType.HasValue || f.Case.CaseType == query.CaseType.Value) 
                     && (!query.Gender.HasValue || f.Case.Gender == query.Gender.Value)
-                    && (!query.MaxAge.HasValue || f.Case.Age >= query.MinAge && f.Case.Age <= query.MaxAge) );
+                    && (query.MinAge <= 0 || f.Case.Age >= query.MinAge)
+                    && (!query.MaxAge.HasValue || f.Case.Age <= query.MaxAge.Value));
 
 
             var totalCount = await queryable.CountAsync();
@@ -68,13 +69,13 @@ namespace SafeTrace.Infrastructure.Service.Founded
             if (foundPerson is null)
             {
                 _logger.LogWarning($"Found person with Id {id} was not found");
-                throw new NotFoundException("Found person is not found");
+                throw new NotFoundException("الشخص المُعثر عليه غير موجود.");
             }
 
             return new ApiResponse<PostDetailsResponseDTO>
             {
                 Success = true,
-                Message = "Post details retrieved successfully",
+                Message = "تم استرجاع تفاصيل الحالة بنجاح.",
                 Data = _mapper.Map<PostDetailsResponseDTO>(foundPerson)
             };
         }
