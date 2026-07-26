@@ -22,12 +22,14 @@ namespace SafeTrace.Infrastructure.Services
         private readonly IMapper _mapper;
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly HttpClient _httpClient;
+        private readonly IPdfGeneratorService _pdfGenerator;
         public PaymentService(IConfiguration confg,
             IUnitOfWork unitOfWork,
             UserManager<ApplicationUser> userManager,
             HttpClient httpClient,
             ILogger<PaymentService> logger,
-            IMapper mapper
+            IMapper mapper,
+            IPdfGeneratorService pdfGenerator
             )
         {
             _config = confg;
@@ -36,6 +38,7 @@ namespace SafeTrace.Infrastructure.Services
             _httpClient = httpClient;
             _logger = logger;
             _mapper = mapper;
+            _pdfGenerator = pdfGenerator;
         }
         public async Task<ApiResponse<CreateDonationResponseDto>> CreateDonationPaymobAsync(CreateDonationRequestDto request, string? currentUserId)
         {
@@ -421,5 +424,95 @@ namespace SafeTrace.Infrastructure.Services
 
             return ApiResponse<AdminDonationStatisticsDto>.Ok(stats, "تم استرجاع الإحصائيات بنجاح.");
         }
+
+        public async Task<List<DonationAdminListDto>> GetAllForReportAsync(
+            DonationAdminQueryDto query)
+        {
+            var donationsQuery = _unitOfWork.Repository<Donation>()
+                .Query(
+                    tracked: false,
+                    includes: d => d.User);
+
+
+            if (query.Status.HasValue)
+            {
+                donationsQuery = donationsQuery
+                    .Where(d => d.PaymentStatus == query.Status.Value);
+            }
+
+
+            if (!string.IsNullOrEmpty(query.userEmail))
+            {
+                donationsQuery = donationsQuery
+                    .Where(d => d.User != null &&
+                                d.User.Email.Contains(query.userEmail));
+            }
+
+
+            var donations = await donationsQuery
+                .OrderByDescending(d => d.CreatedAt)
+                .ToListAsync();
+
+
+            return _mapper.Map<List<DonationAdminListDto>>(donations);
+        }
+
+        public async Task<byte[]> GeneratePdfReportAsync(
+        DonationAdminQueryDto query)
+        {
+            var donations = await GetAllForReportAsync(query);
+
+
+            var statistics = new AdminDonationStatisticsDto
+            {
+                TotalCount = donations.Count,
+
+                TotalAmount = donations.Sum(x => x.Amount),
+
+                SucceededCount = donations.Count(x =>
+                    x.PaymentStatus == PaymentStatus.Succeeded),
+
+                PendingCount = donations.Count(x =>
+                    x.PaymentStatus == PaymentStatus.Pending),
+
+                FailedCount = donations.Count(x =>
+                    x.PaymentStatus == PaymentStatus.Failed)
+            };
+
+
+            return _pdfGenerator.GenerateDonationsPdf(
+                donations,
+                statistics,
+                query);
+        }
+
+        //public async Task<byte[]> GenerateExcelReportAsync(
+        //    DonationAdminQueryDto query)
+        //{
+        //    var donations = await GetAllForReportAsync(query);
+
+
+        //    var statistics = new AdminDonationStatisticsDto
+        //    {
+        //        TotalCount = donations.Count,
+
+        //        TotalAmount = donations.Sum(x => x.Amount),
+
+        //        SucceededCount = donations.Count(x =>
+        //            x.PaymentStatus == PaymentStatus.Succeeded),
+
+        //        PendingCount = donations.Count(x =>
+        //            x.PaymentStatus == PaymentStatus.Pending),
+
+        //        FailedCount = donations.Count(x =>
+        //            x.PaymentStatus == PaymentStatus.Failed)
+        //    };
+
+
+        //    return _excelGenerator.GenerateDonationsExcel(
+        //        donations,
+        //        statistics,
+        //        query);
+        //}
     }
 }

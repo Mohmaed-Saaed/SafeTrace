@@ -16,5 +16,8 @@ namespace SafeTrace.Application.Interfaces.IServices
         Task<ApiResponse<UserPermissionsResponseDto>> GetUserPermissionsAsync(string userId);
         Task<ApiResponse<string>> AssignUserPermissionsAsync(string currentUserId, AssignUserPermissionsDto dto);
         Task<ApiResponse<UserStatisticsDto>> GetUsersStatisticsAsync();
+        Task<List<GetUserDto>> GetAllUsersForReportAsync(UserFilterDto filterDto);
+
+        Task<byte[]> GenerateUsersPdfReportAsync(UserFilterDto filter);
     }
 }

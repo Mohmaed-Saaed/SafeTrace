@@ -1,10 +1,14 @@
-    using ElmahCore.Mvc;
-    using Microsoft.AspNetCore.Mvc;
-    using SafeTrace.API.ExceptionHandlers;
-    using SafeTrace.API.ExtensionMethods;
     using Audit.Core;
     using Audit.EntityFramework;
-    using System.Security.Claims;
+    using ElmahCore.Mvc;
+    using Hangfire;
+    using Hangfire.Dashboard.BasicAuthorization;
+    using Microsoft.AspNetCore.Mvc;
+    using NetTopologySuite.Geometries;
+    using QuestPDF.Drawing;
+    using QuestPDF.Infrastructure;
+    using SafeTrace.API.ExceptionHandlers;
+    using SafeTrace.API.ExtensionMethods;
     using SafeTrace.API.Hubs;
     using SafeTrace.Application.DependencyInjection;
     using SafeTrace.Application.Hubs;
@@ -14,13 +18,12 @@
     using SafeTrace.Infrastructure.DependencyInjection;
     using Serilog;
     using System.Reflection;
-    using System.Text.Json.Serialization;
-    using Hangfire;
-    using Hangfire.Dashboard.BasicAuthorization;
-    using NetTopologySuite.Geometries;
+    using System.Security.Claims;
     using System.Text.Json;
+    using System.Text.Json.Serialization;
 
-    namespace SafeTrace.API
+
+namespace SafeTrace.API
     {
         public class Program
         {
@@ -34,9 +37,14 @@
 
                 builder.Host.UseSerilog();
 
-                // Add services to the container.
+                QuestPDF.Settings.License = LicenseType.Community;
+                FontManager.RegisterFont(File.OpenRead(Path.Combine(builder.Environment.WebRootPath, "Fonts", "Cairo-Regular.ttf")));
+                FontManager.RegisterFont(File.OpenRead(Path.Combine(builder.Environment.WebRootPath, "Fonts", "Cairo-Bold.ttf")));
 
-                builder.Services.AddEndpointsApiExplorer();
+
+            // Add services to the container.
+
+            builder.Services.AddEndpointsApiExplorer();
 
                 builder.Services.AddHttpContextAccessor();
 
@@ -77,7 +85,9 @@
                         .AllowAnyHeader()
                         .AllowAnyMethod()
                         .AllowCredentials()
-                        .SetIsOriginAllowed((host) => true); // More permissive for development
+                        .SetIsOriginAllowed((host) => true) // More permissive for development
+                        .WithExposedHeaders("Content-Disposition");
+
                 });
             });
             // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi

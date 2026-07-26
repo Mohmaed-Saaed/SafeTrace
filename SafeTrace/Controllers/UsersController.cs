@@ -1,9 +1,12 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SafeTrace.Application.Constants;
 using SafeTrace.Application.DTOs.Responses;
 using SafeTrace.Application.DTOs.User.Request;
 using SafeTrace.Application.DTOs.User.Response;
 using SafeTrace.Application.Interfaces.IServices;
+using SafeTrace.Application.Services;
+using SafeTrace.Domain.Enums;
 using SafeTrace.Infrastructure.Authorization;
 using System.Security.Claims;
 
@@ -213,6 +216,23 @@ namespace SafeTrace.API.Controllers
         {
             var response = await _userService.GetUsersStatisticsAsync();
             return Ok(response);
+        }
+
+        /// <summary>
+        /// Generates a PDF report for users based on the provided filters.
+        /// </summary>
+        /// <param name="filter">The filters used to generate the report.</param>
+        /// <returns>A PDF file containing the users report.</returns>
+        [HttpPost("report/pdf")]
+        public async Task<IActionResult> GenerateUsersPdfReport(
+            [FromBody] UserFilterDto filter)
+        {
+            var file = await _userService.GenerateUsersPdfReportAsync(filter);
+
+            return File(
+                file,
+                "application/pdf",
+                $"Users_Report_{DateTime.UtcNow:yyyyMMddHHmmss}.pdf");
         }
     }
 }

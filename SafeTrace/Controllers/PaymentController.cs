@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using SafeTrace.Application.Constants;
 using SafeTrace.Application.DTOs.Payment.Request;
 using SafeTrace.Application.Interfaces.IServices;
+using SafeTrace.Domain.Enums;
 using SafeTrace.Infrastructure.Authorization;
 using System.Security.Claims;
 using System.Text.Json;
@@ -83,5 +84,34 @@ namespace SafeTrace.API.Controllers
             var response = await _paymentService.GetDonationStatisticsAsync();
             return Ok(response);
         }
+
+        [HttpGet("export-pdf")]
+        public async Task<IActionResult> ExportDonationsPdf(
+        [FromQuery] DonationAdminQueryDto query)
+        {
+            var file = await _paymentService
+                .GeneratePdfReportAsync(query);
+
+
+            return File(
+                file,
+                "application/pdf",
+                $"Donations_Report_{DateTime.Now:yyyyMMdd}.pdf");
+        }
+
+    //    [HttpGet("export-excel")]
+    //    [Authorize(Roles = nameof(UserRole.Admin))]
+    //    public async Task<IActionResult> ExportDonationsExcel(
+    //[FromQuery] DonationAdminQueryDto query)
+    //    {
+    //        var file = await _donationService
+    //            .GenerateExcelReportAsync(query);
+
+
+    //        return File(
+    //            file,
+    //            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    //            $"Donations_Report_{DateTime.Now:yyyyMMdd}.xlsx");
+    //    }
     }
 }

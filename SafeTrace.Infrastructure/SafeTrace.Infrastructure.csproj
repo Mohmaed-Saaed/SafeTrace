@@ -27,6 +27,7 @@
 		<PackageReference Include="AutoMapper" Version="16.1.1" />
 		<PackageReference Include="AWSSDK.Extensions.NETCore.Setup" Version="4.0.4.11" />
 		<PackageReference Include="AWSSDK.Rekognition" Version="4.0.4.8" />
+		<PackageReference Include="ClosedXML" Version="0.105.0" />
 		<PackageReference Include="ElmahCore" Version="2.1.2" />
 		<PackageReference Include="ElmahCore.Sql" Version="2.1.2" />
 		<PackageReference Include="MailKit" Version="4.17.0" />
@@ -39,6 +40,7 @@
 			<PrivateAssets>all</PrivateAssets>
 			<IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
 		</PackageReference>
+		<PackageReference Include="QuestPDF" Version="2026.7.1" />
 		<PackageReference Include="System.Data.SqlClient" Version="4.8.6" />
 		<PackageReference Include="UAParser" Version="3.1.47" />
 	</ItemGroup>

@@ -41,6 +41,8 @@ namespace SafeTrace.Infrastructure.DependencyInjection
             services.AddScoped<IAuthCleanupService, AuthCleanupService>();
             services.AddScoped<IFaceRecognitionService, FaceRecognitionService>();
             services.AddHttpClient<IPaymentService, PaymentService>();
+            services.AddScoped<IPdfGeneratorService, PdfGeneratorService>();
+            services.AddScoped<IExcelGeneratorService, ExcelGeneratorService>();
 
             var awsOptions = configuration.GetAWSOptions("AWS");
             var accessKey = configuration["AWS:AccessKey"];
