@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.Text;
 using Microsoft.AspNetCore.Http;
+using SafeTrace.Application.Common.Validators.Attributes;
 using SafeTrace.Application.Interfaces.IServices;
 using SafeTrace.Domain.Enums;
 
@@ -22,8 +23,12 @@ namespace SafeTrace.Application.DTOs.User_Profiel_DTOS
         public double? HomeLatitude { get; set; }
         public double? HomeLongitude { get; set; }
 
+        [AllowedPhotoTypes(ErrorMessage = "Only JPG, JPEG, PNG, and WebP images are allowed.")]
+        [MaxPhotoSize(5, ErrorMessage = "Each photo must not exceed 5 MB.")]
         public IFormFile? IdentificationImage { get; set; }
 
+        [AllowedPhotoTypes(ErrorMessage = "Only JPG, JPEG, PNG, and WebP images are allowed.")]
+        [MaxPhotoSize(5, ErrorMessage = "Each photo must not exceed 5 MB.")]
         public IFormFile? ProfileImage { get; set; }
 
 

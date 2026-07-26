@@ -27,7 +27,7 @@ namespace SafeTrace.Application.DTOs.LongTermCase.Request
 
         /// <summary>If provided, replaces the existing police report image.</summary>
         [MaxPhotoSize(10, ErrorMessage = "Police report must not exceed 10 MB.")]
-        [AllowedPhotoTypes(ErrorMessage = "Only JPEG, PNG, and WebP images are allowed.")]
+        [AllowedPhotoTypes(ErrorMessage = "Only JPG, JPEG, PNG, and WebP images are allowed.")]
         public IFormFile? PoliceReportImage { get; set; }
     }
 }
