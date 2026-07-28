@@ -58,7 +58,7 @@ namespace SafeTrace.Infrastructure.Services
                         {
                             ["رقم الحالة"] = string.IsNullOrWhiteSpace(filter.CaseCode) ? "الكل" : filter.CaseCode,
                             ["البحث"] = string.IsNullOrWhiteSpace(filter.Search) ? "لا يوجد" : filter.Search,
-                            ["الحالة"] = filter.Status.HasValue ? filter.Status.ToString()! : "الكل"
+                            ["الحالة"] = filter.Status.HasValue ? GetStatusName(filter.Status.Value) : "الكل"
                         });
 
                         column.Item().Row(row =>

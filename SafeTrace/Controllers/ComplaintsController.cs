@@ -130,7 +130,7 @@ namespace SafeTrace.API.Controllers
 
         [HttpPost("report/pdf")]
         public async Task<IActionResult> GeneratePdf(
-          [FromQuery] ComplaintFilterDto filter)
+          [FromBody] ComplaintFilterDto filter)
         {
             var pdf = await _complaintService.GeneratePdfReportAsync(filter);
 
@@ -139,18 +139,6 @@ namespace SafeTrace.API.Controllers
                 "application/pdf",
                 $"ComplaintsReport-{DateTime.UtcNow:yyyyMMddHHmmss}.pdf");
         }
-        [HttpPost("report/excel")]
-        public async Task<IActionResult> ExportComplaintsExcel(
-            [FromQuery] ComplaintFilterDto filter)
-        {
-            var fileBytes = await _complaintService
-                .GenerateExcelReportAsync(filter);
-
-
-            return File(
-                fileBytes,
-                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                $"Complaints_Report_{DateTime.Now:yyyyMMdd}.xlsx");
-        }
+        
     }
 }

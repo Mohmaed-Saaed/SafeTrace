@@ -85,9 +85,9 @@ namespace SafeTrace.API.Controllers
             return Ok(response);
         }
 
-        [HttpGet("export-pdf")]
+        [HttpPost("export-pdf")]
         public async Task<IActionResult> ExportDonationsPdf(
-        [FromQuery] DonationAdminQueryDto query)
+        [FromBody] DonationAdminQueryDto query)
         {
             var file = await _paymentService
                 .GeneratePdfReportAsync(query);
@@ -99,19 +99,5 @@ namespace SafeTrace.API.Controllers
                 $"Donations_Report_{DateTime.Now:yyyyMMdd}.pdf");
         }
 
-    //    [HttpGet("export-excel")]
-    //    [Authorize(Roles = nameof(UserRole.Admin))]
-    //    public async Task<IActionResult> ExportDonationsExcel(
-    //[FromQuery] DonationAdminQueryDto query)
-    //    {
-    //        var file = await _donationService
-    //            .GenerateExcelReportAsync(query);
-
-
-    //        return File(
-    //            file,
-    //            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-    //            $"Donations_Report_{DateTime.Now:yyyyMMdd}.xlsx");
-    //    }
     }
 }
