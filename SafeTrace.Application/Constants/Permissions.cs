@@ -43,6 +43,7 @@ namespace SafeTrace.Application.Constants
             public const string GetStatistics = "Dashboard.GetStatistics";
             public const string GetCasesStatistics = "Dashboard.GetCasesStatistics";
             public const string GetAuditLogs = "Dashboard.GetAuditLogs";
+            public const string GenerateCasesPdfReport = "Dashboard.GenerateCasesPdfReport";
         }
 
         public static class AiMatching
@@ -57,12 +58,14 @@ namespace SafeTrace.Application.Constants
             public const string HardDelete = "Complaints.HardDelete";
             public const string MarkAsSolved = "Complaints.MarkAsSolved";
             public const string GetComplaintsStatistics = "Complaints.GetComplaintsStatistics";
+            public const string GenerateComplaintsPdfReport = "Complaints.GenerateComplaintsPdfReport";
         }
 
         public static class Donations
         {
             public const string GetDonations = "Donations.GetDonations";
             public const string GetDonationStatistics = "Donations.GetDonationStatistics";
+            public const string GenerateDonationsPdfReport = "Donations.GenerateDonationsPdfReport";
         }
 
         public static class Roles
@@ -85,6 +88,7 @@ namespace SafeTrace.Application.Constants
             public const string Reject = "Users.Reject";
             public const string ToggleBlock = "Users.ToggleBlock";
             public const string GetUsersStatistics = "Users.GetUsersStatistics";
+            public const string GenerateUsersPdfReport = "Users.GenerateUsersPdfReport";
         }
 
         public static class Chat
