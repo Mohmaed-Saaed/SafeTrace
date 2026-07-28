@@ -19,6 +19,7 @@ namespace SafeTrace.Application.Services.Cases
         private const int RateLimitDays = 2;
         private const int ExpirationHours = 48;
         private const double NotifyRadiusM = 500_000; // 500 km
+        private const double LocationShiftNotificationThresholdMeters = 5000; // 5 km
 
         private const string detailsUrl = EmailTemplates.UrgentCaseDetailsRoute;
 
@@ -195,6 +196,7 @@ namespace SafeTrace.Application.Services.Cases
             // from the AI matching (vector) database — the exact issue you were
             // originally worried about.
             var faceIdsToDelete = new List<string>();
+            bool locationShifted = false;
 
             await ExecuteInTransactionAsync(
                 action: async () =>
@@ -282,7 +284,22 @@ namespace SafeTrace.Application.Services.Cases
 
                     if (updateDto.Latitude.HasValue && updateDto.Longitude.HasValue)
                     {
-                        entity.Location = new Point(updateDto.Longitude.Value, updateDto.Latitude.Value) { SRID = 4326 };
+                        var newLat = updateDto.Latitude.Value;
+                        var newLon = updateDto.Longitude.Value;
+
+                        if (entity.Location != null)
+                        {
+                            var oldLat = entity.Location.Y;
+                            var oldLon = entity.Location.X;
+
+                            var distanceMeters = CalculateDistanceMeters(oldLat, oldLon, newLat, newLon);
+                            if (distanceMeters >= LocationShiftNotificationThresholdMeters)
+                            {
+                                locationShifted = true;
+                            }
+                        }
+
+                        entity.Location = new Point(newLon, newLat) { SRID = 4326 };
                     }
 
                     _unitOfWork.Repository<UrgentCase>().Update(entity);
@@ -303,6 +320,11 @@ namespace SafeTrace.Application.Services.Cases
 
                     _logger.LogError(ex, "Failed to update urgent case {CaseId} for user {UserId}", id, userId);
                 });
+
+            if (locationShifted && entity.Status == CaseStatus.Active)
+            {
+                await NotifyNearbyUsersAsync(entity);
+            }
 
             _logger.LogInformation("Urgent case {CaseId} updated by user {UserId}.", entity.Id, userId);
 
@@ -493,6 +515,19 @@ namespace SafeTrace.Application.Services.Cases
                     entity.CaseCode);
             }
         }
-            
+
+        private static double CalculateDistanceMeters(double lat1, double lon1, double lat2, double lon2)
+        {
+            const double R = 6371000; // Earth mean radius in meters
+            var dLat = ToRadians(lat2 - lat1);
+            var dLon = ToRadians(lon2 - lon1);
+            var a = Math.Sin(dLat / 2) * Math.Sin(dLat / 2) +
+                    Math.Cos(ToRadians(lat1)) * Math.Cos(ToRadians(lat2)) *
+                    Math.Sin(dLon / 2) * Math.Sin(dLon / 2);
+            var c = 2 * Math.Atan2(Math.Sqrt(a), Math.Sqrt(1 - a));
+            return R * c;
+        }
+
+        private static double ToRadians(double degrees) => degrees * Math.PI / 180.0;
     }
 }
