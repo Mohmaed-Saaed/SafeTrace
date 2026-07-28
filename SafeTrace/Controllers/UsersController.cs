@@ -224,6 +224,7 @@ namespace SafeTrace.API.Controllers
         /// <param name="filter">The filters used to generate the report.</param>
         /// <returns>A PDF file containing the users report.</returns>
         [HttpPost("report/pdf")]
+        [HasPermission(Permissions.Users.GenerateUsersPdfReport)]
         public async Task<IActionResult> GenerateUsersPdfReport(
             [FromBody] UserFilterDto filter)
         {

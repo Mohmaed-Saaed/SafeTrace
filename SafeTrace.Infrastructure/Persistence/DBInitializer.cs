@@ -30,8 +30,6 @@ namespace SafeTrace.Infrastructure.Persistence
                 } 
             }
 
-            //await _userManager.DeleteAsync(await _userManager.FindByEmailAsync("girlsicpccommunity@gmail.com"));
-
             var adminEmail = SystemConstants.RootAdminEmail;
             var user = await _userManager.FindByEmailAsync(adminEmail);
             if (user != null && !await _userManager.IsInRoleAsync(user, "SuperAdmin"))
@@ -39,11 +37,11 @@ namespace SafeTrace.Infrastructure.Persistence
                 await _userManager.AddToRoleAsync(user, "SuperAdmin");
             }
 
-            string[] SuperAdminPermissions = {Permissions.Dashboard.GetStatistics, Permissions.Dashboard.GetCasesStatistics, Permissions.Dashboard.GetAuditLogs,
-                                              Permissions.Users.Reject, Permissions.Users.Approve, Permissions.Users.GetPermissions, Permissions.Users.AssignPermissions, Permissions.Users.GetAll, Permissions.Users.GetById, Permissions.Users.ToggleBlock, Permissions.Users.RegisterByAdmin, Permissions.Users.ChangeRole, Permissions.Users.GetUsersStatistics,
+            string[] SuperAdminPermissions = {Permissions.Dashboard.GetStatistics, Permissions.Dashboard.GetCasesStatistics, Permissions.Dashboard.GetAuditLogs, Permissions.Dashboard.GenerateCasesPdfReport,
+                                              Permissions.Users.Reject, Permissions.Users.Approve, Permissions.Users.GetPermissions, Permissions.Users.AssignPermissions, Permissions.Users.GetAll, Permissions.Users.GetById, Permissions.Users.ToggleBlock, Permissions.Users.RegisterByAdmin, Permissions.Users.ChangeRole, Permissions.Users.GetUsersStatistics, Permissions.Users.GenerateUsersPdfReport,
                                               Permissions.Roles.Delete, Permissions.Roles.Create, Permissions.Roles.GetPermissionsByRoleId, Permissions.Roles.UpdateRolePermissions,
-                                              Permissions.Donations.GetDonations, Permissions.Donations.GetDonationStatistics,
-                                              Permissions.Complaints.GetAll, Permissions.Complaints.GetById, Permissions.Complaints.MarkAsSolved, Permissions.Complaints.HardDelete, Permissions.Complaints.GetComplaintsStatistics,
+                                              Permissions.Donations.GetDonations, Permissions.Donations.GetDonationStatistics, Permissions.Donations.GenerateDonationsPdfReport,
+                                              Permissions.Complaints.GetAll, Permissions.Complaints.GetById, Permissions.Complaints.MarkAsSolved, Permissions.Complaints.HardDelete, Permissions.Complaints.GetComplaintsStatistics, Permissions.Complaints.GenerateComplaintsPdfReport,
                                               Permissions.Cases.GetAll,
                                               Permissions.UrgentCases.GetById, Permissions.UrgentCases.HardDelete, Permissions.UrgentCases.MarkAsFounded,
                                               Permissions.LongTermCases.GetById, Permissions.LongTermCases.HardDelete, Permissions.LongTermCases.Reject, Permissions.LongTermCases.Approve, Permissions.LongTermCases.MarkAsFounded, Permissions.LongTermCases.Create, Permissions.LongTermCases.Update, Permissions.LongTermCases.SoftDelete,
@@ -51,9 +49,9 @@ namespace SafeTrace.Infrastructure.Persistence
                                               Permissions.Chat.GetAll, Permissions.Chat.GetById, Permissions.Chat.GetMessages, Permissions.Chat.HardDelete, Permissions.Chat.DeleteMessageForEveryone, Permissions.Chat.GetChatStatistics,
                                               Permissions.AiMatching.Search};
 
-            string[] AdminPermissions = {Permissions.Dashboard.GetStatistics, Permissions.Dashboard.GetCasesStatistics,
-                                         Permissions.Users.Reject, Permissions.Users.Approve, Permissions.Users.GetAll, Permissions.Users.GetById, Permissions.Users.ToggleBlock, Permissions.Users.RegisterByAdmin, Permissions.Users.ChangeRole, Permissions.Users.GetUsersStatistics,
-                                         Permissions.Complaints.GetAll, Permissions.Complaints.GetById, Permissions.Complaints.MarkAsSolved, Permissions.Complaints.HardDelete, Permissions.Complaints.GetComplaintsStatistics,
+            string[] AdminPermissions = {Permissions.Dashboard.GetStatistics, Permissions.Dashboard.GetCasesStatistics, Permissions.Dashboard.GenerateCasesPdfReport,
+                                         Permissions.Users.Reject, Permissions.Users.Approve, Permissions.Users.GetAll, Permissions.Users.GetById, Permissions.Users.ToggleBlock, Permissions.Users.RegisterByAdmin, Permissions.Users.ChangeRole, Permissions.Users.GetUsersStatistics, Permissions.Users.GenerateUsersPdfReport,
+                                         Permissions.Complaints.GetAll, Permissions.Complaints.GetById, Permissions.Complaints.MarkAsSolved, Permissions.Complaints.HardDelete, Permissions.Complaints.GetComplaintsStatistics, Permissions.Complaints.GenerateComplaintsPdfReport,
                                          Permissions.Cases.GetAll,
                                          Permissions.UrgentCases.GetById, Permissions.UrgentCases.HardDelete, Permissions.UrgentCases.MarkAsFounded,
                                          Permissions.LongTermCases.GetById, Permissions.LongTermCases.HardDelete, Permissions.LongTermCases.Reject, Permissions.LongTermCases.Approve, Permissions.LongTermCases.MarkAsFounded, Permissions.LongTermCases.Create, Permissions.LongTermCases.Update, Permissions.LongTermCases.SoftDelete,
@@ -61,9 +59,9 @@ namespace SafeTrace.Infrastructure.Persistence
                                          Permissions.Chat.GetAll, Permissions.Chat.GetById, Permissions.Chat.GetMessages, Permissions.Chat.HardDelete, Permissions.Chat.DeleteMessageForEveryone, Permissions.Chat.GetChatStatistics,
                                          Permissions.AiMatching.Search};
 
-            string[] ModeratorPermissions = {Permissions.Dashboard.GetCasesStatistics,
-                                             Permissions.Users.Reject, Permissions.Users.Approve, Permissions.Users.GetAll, Permissions.Users.GetById, Permissions.Users.GetUsersStatistics,
-                                             Permissions.Complaints.GetAll, Permissions.Complaints.GetById, Permissions.Complaints.MarkAsSolved, Permissions.Complaints.GetComplaintsStatistics,
+            string[] ModeratorPermissions = {Permissions.Dashboard.GetCasesStatistics, Permissions.Dashboard.GenerateCasesPdfReport,
+                                             Permissions.Users.Reject, Permissions.Users.Approve, Permissions.Users.GetAll, Permissions.Users.GetById, Permissions.Users.GetUsersStatistics, Permissions.Users.GenerateUsersPdfReport,
+                                             Permissions.Complaints.GetAll, Permissions.Complaints.GetById, Permissions.Complaints.MarkAsSolved, Permissions.Complaints.GetComplaintsStatistics, Permissions.Complaints.GenerateComplaintsPdfReport,
                                              Permissions.Cases.GetAll,
                                              Permissions.UrgentCases.GetById, Permissions.UrgentCases.MarkAsFounded,
                                              Permissions.LongTermCases.GetById, Permissions.LongTermCases.Reject, Permissions.LongTermCases.Approve, Permissions.LongTermCases.MarkAsFounded, Permissions.LongTermCases.Create, Permissions.LongTermCases.Update, Permissions.LongTermCases.SoftDelete,

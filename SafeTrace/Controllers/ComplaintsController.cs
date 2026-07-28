@@ -129,6 +129,7 @@ namespace SafeTrace.API.Controllers
         }
 
         [HttpPost("report/pdf")]
+        [HasPermission(Permissions.Complaints.GenerateComplaintsPdfReport)]
         public async Task<IActionResult> GeneratePdf(
           [FromQuery] ComplaintFilterDto filter)
         {
