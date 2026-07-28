@@ -18,19 +18,23 @@ namespace SafeTrace.Application.Services
         private readonly IEmailService _emailService;
         private readonly IPdfGeneratorService _pdfGenerator;
         private readonly IExcelGeneratorService _excelGenerator;
+        private readonly ILogger<ComplaintService> _logger;
+
 
         public ComplaintService(
             IUnitOfWork unitOfWork,
             INotificationServices notificationService,
             IEmailService emailService,
             IPdfGeneratorService pdfGenerator,
-            IExcelGeneratorService excelGenerator)
+            IExcelGeneratorService excelGenerator,
+            ILogger<ComplaintService> logger)
         {
             _unitOfWork = unitOfWork;
             _notificationService = notificationService;
             _emailService = emailService;
             _pdfGenerator = pdfGenerator;
             _excelGenerator = excelGenerator;
+            _logger = logger;
         }
 
         public async Task<PaginationResponseDto<ComplaintResponseDto>> GetAllAsync(ComplaintFilterDto filter)
@@ -185,6 +189,9 @@ namespace SafeTrace.Application.Services
         public async Task<byte[]> GeneratePdfReportAsync(
             ComplaintFilterDto filter)
         {
+            _logger.LogInformation(
+            "Report Filter Status: {Status}",
+            filter.Status);
             var complaints = await GetAllForReportAsync(filter);
 
             var statistics = new ComplaintStatisticsDto

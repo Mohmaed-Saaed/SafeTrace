@@ -80,7 +80,7 @@ namespace SafeTrace.API.Controllers.Dashboard
 
         [HttpPost("cases/report/pdf")]
         public async Task<IActionResult> GenerateCasesPdfReport(
-            [FromQuery] CasesReportFilterDto filter)
+            [FromBody] CasesReportFilterDto filter)
         {
             var file = await _dashboardService
                 .GeneratePdfReportAsync(filter);
