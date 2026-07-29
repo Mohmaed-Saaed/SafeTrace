@@ -337,62 +337,29 @@ namespace SafeTrace.Application.Services.Cases
             _ => caseType.ToString()
         };
 
-        private async Task<MatchedCasesResult> FindMatchedCasesAsync(CaseMatchSubjectInfoDto subject, IFormFile primaryImage)
+        private async Task<List<MatchedCaseDto>> FindMatchedCasesAsync(IFormFile primaryImage)
         {
             var faceMatches = await SearchFacesAsync(primaryImage);
             if (faceMatches.Count == 0)
-                return MatchedCasesResult.Empty;
+                return [];
 
             var candidateCases = await LoadCandidateCasesAsync(faceMatches);
             if (candidateCases.Count == 0)
-                return MatchedCasesResult.Empty;
+                return [];
 
-            var matchedCases = FilterMatchedCases(candidateCases, faceMatches, subject);
-
-            return new MatchedCasesResult
-            {
-                HasMatched = matchedCases.Count != 0,
-                DuplicateCases = matchedCases
-            };
+            return FilterMatchedCases(candidateCases, faceMatches);
         }
 
         public async Task<DuplicateCheckResult> CheckDuplicateCaseAsync(
             CaseType currentCaseType,
-            CaseMatchSubjectInfoDto subject,
-            IFormFile primaryImage,
-            Func<MatchedCaseDto, Task> onSameTypeMatchAsync,
-            bool forceCreate = false)
+            IFormFile primaryImage)
         {
-            var matchResult = await FindMatchedCasesAsync(subject, primaryImage);
-
-            if (!matchResult.HasMatched)
-                return DuplicateCheckResult.None;
-
-            var sameTypeDuplicate = matchResult.DuplicateCases.FirstOrDefault(x => x.CaseType == currentCaseType);
-
-            if (sameTypeDuplicate != null)
-            {
-                await onSameTypeMatchAsync(sameTypeDuplicate);
-
-                return new DuplicateCheckResult
-                {
-                    RequiresConfirmation = false,
-                    IsSameTypeDuplicate = true,
-                    MatchedCases = matchResult.DuplicateCases
-                };
-            }
-
-            if (forceCreate)
-            {
-                _logger.LogInformation("Cross-type duplicate(s) found but forceCreate=true.");
-
-                return DuplicateCheckResult.None;
-            }
+            var matchedCases = await FindMatchedCasesAsync(primaryImage);
 
             return new DuplicateCheckResult
             {
-                RequiresConfirmation = true,
-                MatchedCases = matchResult.DuplicateCases
+                IsBlocked = false,
+                MatchedCases = matchedCases
             };
         }
         
@@ -417,7 +384,6 @@ namespace SafeTrace.Application.Services.Cases
             if (faceIds.Count == 0)
                 return [];
 
-   
             return await _unitOfWork.Repository<Case>()
                 .Query(tracked: false, includes: [c => c.CaseFiles, c => c.User])
                 .Where(c =>
@@ -430,7 +396,7 @@ namespace SafeTrace.Application.Services.Cases
                 c.CaseFiles.Any(f => f.FaceId != null && faceIds.Contains(f.FaceId))).ToListAsync();
         }
 
-        private List<MatchedCaseDto> FilterMatchedCases(IReadOnlyCollection<Case> candidateCases, IReadOnlyCollection<FaceMatchResult> faceMatches, CaseMatchSubjectInfoDto subject)
+        private List<MatchedCaseDto> FilterMatchedCases(IReadOnlyCollection<Case> candidateCases, IReadOnlyCollection<FaceMatchResult> faceMatches)
         {
             var matchedCases = new List<MatchedCaseDto>();
 
@@ -455,7 +421,7 @@ namespace SafeTrace.Application.Services.Cases
 
                 var similarity = matchedFace.Similarity ?? 0;
 
-                if (!PassesVerification(candidate, similarity, subject))
+                if (!PassesVerification(similarity))
                     continue;
 
                 var dto = _mapper.Map<MatchedCaseDto>(candidate);
@@ -468,18 +434,10 @@ namespace SafeTrace.Application.Services.Cases
             return matchedCases;
         }
 
-        private static bool PassesVerification(Case candidate, float similarity, CaseMatchSubjectInfoDto subject)
+
+        private static bool PassesVerification(float similarity)
         {
-            if (similarity < MinimumSimilarity)
-                return false;
-
-            if (candidate.Gender != subject.Gender)
-                return false;
-
-            if (Math.Abs(candidate.Age - subject.Age) > MaxAgeDifference)
-                return false;
-
-            return true;
+            return similarity >= MinimumSimilarity;
         }
     }
 }

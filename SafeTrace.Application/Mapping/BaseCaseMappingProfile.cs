@@ -21,7 +21,8 @@ namespace SafeTrace.Application.Mapping
                         .FirstOrDefault()));
 
             CreateMap<Case, CaseDetailBaseDto>()
-                .ForMember(d => d.Photos, o => o.MapFrom(s => s.CaseFiles))
+                .ForMember(d => d.Photos, o => o.MapFrom(s => s.CaseFiles.Where(f => f.Type == FileType.Image)))
+                .ForMember(d => d.Video, o => o.MapFrom(s => s.CaseFiles.Where(f => f.Type == FileType.Video).Select(f => f.ImagePath).FirstOrDefault()))
                 .ForMember(d => d.FoundPersonInfo, o => o.MapFrom(s => s.FoundPersonInfo))
                 .ForMember(d => d.AgeCategory, o => o.MapFrom(s => s.AgeCategory))
                 .ForMember(d => d.User, o => o.MapFrom(s => s.User));
