@@ -227,7 +227,7 @@ namespace SafeTrace.Infrastructure.Services
             await _notificationService.SendNotificationAsync(new SendNotificationDTO
             {
                 UserId = user.Id,
-                Content = $"تم تغيير دورك في النظام إلى: {TranslateRoleToArabicHelper.TranslateRoleToArabic(dto.NewRole)}",
+                Content = $"تم تحديث دورك في النظام إلى '{TranslateRoleToArabicHelper.TranslateRoleToArabic(dto.NewRole)}'. يرجى مراجعة بريدك الإلكتروني لمعرفة التفاصيل والتعليمات المتعلقة بصلاحياتك الجديدة.",
                 Type = NotificationType.System
             });
 
@@ -293,7 +293,7 @@ namespace SafeTrace.Infrastructure.Services
                 await _notificationService.SendNotificationAsync(new SendNotificationDTO
                 {
                     UserId = user.Id,
-                    Content = "مرحباً بك في منصة لقاء! تم تفعيل حسابك من قِبل الإدارة.",
+                    Content = "مرحباً بك في منصة لقاء! تم إنشاء حساب جديد لك بواسطة الإدارة. يرجى مراجعة بريدك الإلكتروني للحصول على رابط تفعيل الحساب وتعيين كلمة المرور.",
                     Type = NotificationType.System
                 });
 
@@ -344,7 +344,7 @@ namespace SafeTrace.Infrastructure.Services
             await _notificationService.SendNotificationAsync(new SendNotificationDTO
             {
                 UserId = user.Id,
-                Content = "تمت مراجعة هويتك بنجاح. حسابك الآن يمتلك صلاحيات مستخدم موثق.",
+                Content = "تهانينا! تمت الموافقة على طلب توثيق هويتك. حسابك الآن موثق بالكامل مما يتيح لك الاستفادة من ميزات إضافية في المنصة.",
                 Type = NotificationType.System
             });
 
@@ -352,7 +352,7 @@ namespace SafeTrace.Infrastructure.Services
             return ApiResponse<string>.Ok(null, "تمت الموافقة على توثيق المستخدم بنجاح.");
         }
 
-        public async Task<ApiResponse<string>> RejectUserAsync(string userId)
+        public async Task<ApiResponse<string>> RejectUserAsync(string userId, RejectUserDto dto)
         {
             var user = await _userManager.FindByIdAsync(userId);
             if (user == null) throw new NotFoundException("لم يتم العثور على هذا الحساب في النظام.");
@@ -377,21 +377,25 @@ namespace SafeTrace.Infrastructure.Services
 
                 throw new BadRequestException("تعذر رفض طلب توثيق المستخدم. يرجى المحاولة مرة أخرى.");
             }
+            if (string.IsNullOrWhiteSpace(dto.Reason))
+            {
+                dto.Reason = "يرجى إعادة رفع صورة واضحة ومقروءة للوجه الأمامي والخلفي لبطاقة الهوية ليتمكن فريقنا من توثيق حسابك بنجاح.";
+            }
 
-            var emailBody = EmailTemplates.BuildVerificationRejectedTemplate(user.FName);
+            var emailBody = EmailTemplates.BuildVerificationRejectedTemplate(user.FName, dto.Reason);
             await _emailService.SendEmailAsync(user.Email!, "لقاء - تم رفض طلب توثيق حسابك", emailBody);
 
             await _notificationService.SendNotificationAsync(new SendNotificationDTO
             {
                 UserId = user.Id,
-                Content = "تم رفض طلب توثيق هويتك. يرجى إعادة رفع صورة هوية أكثر وضوحاً ومطابقة للمواصفات.",
+                Content = $"تم رفض طلب توثيق هويتك. يرجى مراجعة بريدك الإلكتروني لمعرفة التفاصيل والسبب وراء الرفض.",
                 Type = NotificationType.System
             });
 
             return ApiResponse<string>.Ok(null, "تم رفض طلب توثيق المستخدم بنجاح.");
         }
 
-        public async Task<ApiResponse<string>> ToggleUserBlockStatusAsync(string currentUserId, string userId)
+        public async Task<ApiResponse<string>> ToggleUserBlockStatusAsync(string currentUserId, string userId, SafeTrace.Application.DTOs.User.Request.ToggleBlockDto? dto = null)
         {
             if (currentUserId == userId) throw new BadRequestException("لا يمكنك حظر حسابك الشخصي.");
 
@@ -425,7 +429,7 @@ namespace SafeTrace.Infrastructure.Services
                 await _notificationService.SendNotificationAsync(new SendNotificationDTO
                 {
                     UserId = targetUser.Id,
-                    Content = "تم إلغاء الحظر عن حسابك. يمكنك استخدام المنصة الآن.",
+                    Content = "تم إلغاء الحظر عن حسابك بنجاح. يمكنك الآن تسجيل الدخول واستخدام كافة ميزات المنصة مرة أخرى.",
                     Type = NotificationType.System
                 });
 
@@ -449,13 +453,14 @@ namespace SafeTrace.Infrastructure.Services
                 }
                 await _unitOfWork.SaveAsync();
 
-                var emailBody = EmailTemplates.BuildBlockStatusChangedTemplate(targetUser.FName, true);
+                var reason = string.IsNullOrWhiteSpace(dto?.Reason) ? "تم حظر الحساب نتيجة انتهاك شروط وسياسات المنصة." : dto.Reason;
+                var emailBody = EmailTemplates.BuildBlockStatusChangedTemplate(targetUser.FName, true, reason);
                 await _emailService.SendEmailAsync(targetUser.Email!, "لقاء - تنبيه: تم حظر حسابك في منصة لقاء", emailBody);
 
                 await _notificationService.SendNotificationAsync(new SendNotificationDTO
                 {
                     UserId = targetUser.Id,
-                    Content = "تم حظر حسابك بواسطة الإدارة.",
+                    Content = "تم حظر حسابك في المنصة. يرجى مراجعة بريدك الإلكتروني لمعرفة التفاصيل.",
                     Type = NotificationType.System
                 });
 
@@ -528,7 +533,7 @@ namespace SafeTrace.Infrastructure.Services
             await _notificationService.SendNotificationAsync(new SendNotificationDTO
             {
                 UserId = user.Id,
-                Content = "قامت إدارة النظام بتحديث صلاحياتك الفردية (الاستثنائية).",
+                Content = "تم تحديث الصلاحيات الاستثنائية الممنوحة لحسابك. يرجى مراجعة بريدك الإلكتروني للاطلاع على تفاصيل الصلاحيات الجديدة.",
                 Type = NotificationType.System
             });
 
