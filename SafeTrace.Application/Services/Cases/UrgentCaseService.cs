@@ -72,47 +72,41 @@ namespace SafeTrace.Application.Services.Cases
         /// <summary>
         /// Creates a new urgent case with expiration and rate limiting.
         /// </summary>
-        public async Task<ApiResponse<CreateCaseResultDto>> CreateAsync(string userId, UrgentCaseCreateDto dto, bool forceCreate = false)
+        public async Task<ApiResponse<CreateCaseResponseDto>> CreateAsync(string userId, UrgentCaseCreateDto dto, bool forceCreate = false)
         {
             var rateLimitViolation = await CheckRateLimitAsync(userId);
             if (rateLimitViolation is not null)
             {
-               return ApiResponse<CreateCaseResultDto>.Fail(rateLimitViolation);
+               return ApiResponse<CreateCaseResponseDto>.Fail(rateLimitViolation);
             }
 
-            var subject = new CaseMatchSubjectInfoDto
-            {
-                Gender = dto.Gender,
-                Age = dto.Age
-            };
+            var duplicateCheck = await _caseHelper.CheckDuplicateCaseAsync(CaseType.Urgent, dto.PrimaryImage);
 
-            var checkResult = await _caseHelper.CheckDuplicateCaseAsync(
-                CaseType.Urgent,
-                subject,
-                dto.PrimaryImage,
-                onSameTypeMatchAsync: duplicate => Task.CompletedTask,
-                forceCreate);
-
-            if (checkResult.IsSameTypeDuplicate)
+            if (duplicateCheck.MatchedCases.Count > 0)
             {
-                return ApiResponse<CreateCaseResultDto>.Ok(
-                    new CreateCaseResultDto
-                    {
-                        IsCreated = false,
-                        IsSameTypeDuplicate = true,
-                        MatchedCases = checkResult.MatchedCases
-                    });
-            }
+                var isBlocked = duplicateCheck.MatchedCases.Any(c => c.CaseType == CaseType.Urgent || c.CaseType == CaseType.LongTerm);
 
-            if (checkResult.RequiresConfirmation)
-            {
-                return ApiResponse<CreateCaseResultDto>.Ok(
-                    new CreateCaseResultDto
-                    {
-                        IsCreated = false,
-                        IsSameTypeDuplicate = false,
-                        MatchedCases = checkResult.MatchedCases
-                    });
+                if (isBlocked)
+                {
+                    return ApiResponse<CreateCaseResponseDto>.Ok(
+                        new CreateCaseResponseDto
+                        {
+                            IsCreated = false,
+                            IsBlocked = true,
+                            MatchedCases = duplicateCheck.MatchedCases
+                        });
+                }
+
+                if (!forceCreate)
+                {
+                    return ApiResponse<CreateCaseResponseDto>.Ok(
+                        new CreateCaseResponseDto
+                        {
+                            IsCreated = false,
+                            IsBlocked = false,
+                            MatchedCases = duplicateCheck.MatchedCases
+                        });
+                }
             }
 
             var now = DateTime.UtcNow;
@@ -167,11 +161,13 @@ namespace SafeTrace.Application.Services.Cases
             
             await NotifyNearbyUsersAsync(entity);
 
-            return ApiResponse<CreateCaseResultDto>.Ok(
-                new CreateCaseResultDto
+            return ApiResponse<CreateCaseResponseDto>.Ok(
+                new CreateCaseResponseDto
                 {
                     IsCreated = true,
-                    CaseId = entity.Id
+                    IsBlocked = false,
+                    CaseId = entity.Id,
+                    MatchedCases = []
                 });
         }
 

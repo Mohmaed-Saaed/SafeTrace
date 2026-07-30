@@ -41,43 +41,37 @@ namespace SafeTrace.Application.Services.Cases
         /// - a match with a DIFFERENT case type blocks creation and returns the matched case(s),
         ///   unless forceCreate is true.
         /// </summary>
-        public async Task<ApiResponse<CreateCaseResultDto>> CreateAsync(string userId, CreateLongTermCaseDto dto, bool forceCreate = false)
+        public async Task<ApiResponse<CreateCaseResponseDto>> CreateAsync(string userId, CreateLongTermCaseDto dto, bool forceCreate = false)
         {
             await _caseHelper.ValidateVerifiedUserAsync(userId);
 
-            var subject = new CaseMatchSubjectInfoDto
-            {
-                Gender = dto.Gender,
-                Age = dto.Age
-            };
+            var duplicateCheck = await _caseHelper.CheckDuplicateCaseAsync(CaseType.LongTerm, dto.PrimaryImage);
 
-            var checkResult = await _caseHelper.CheckDuplicateCaseAsync(
-                CaseType.LongTerm,
-                subject,
-                dto.PrimaryImage,
-                onSameTypeMatchAsync: duplicate => Task.CompletedTask,
-                forceCreate);
-
-            if (checkResult.IsSameTypeDuplicate)
+            if (duplicateCheck.MatchedCases.Count > 0)
             {
-                return ApiResponse<CreateCaseResultDto>.Ok(
-                    new CreateCaseResultDto
-                    {
-                        IsCreated = false,
-                        IsSameTypeDuplicate = true,
-                        MatchedCases = checkResult.MatchedCases
-                    });
-            }
+                var isBlocked = duplicateCheck.MatchedCases.Any(c => c.CaseType == CaseType.LongTerm || c.CaseType == CaseType.Urgent);
 
-            if (checkResult.RequiresConfirmation)
-            {
-                return ApiResponse<CreateCaseResultDto>.Ok(
-                    new CreateCaseResultDto
-                    {
-                        IsCreated = false,
-                        IsSameTypeDuplicate = false,
-                        MatchedCases = checkResult.MatchedCases
-                    });
+                if (isBlocked)
+                {
+                    return ApiResponse<CreateCaseResponseDto>.Ok(
+                        new CreateCaseResponseDto
+                        {
+                            IsCreated = false,
+                            IsBlocked = true,
+                            MatchedCases = duplicateCheck.MatchedCases
+                        });
+                }
+
+                if (!forceCreate)
+                {
+                    return ApiResponse<CreateCaseResponseDto>.Ok(
+                        new CreateCaseResponseDto
+                        {
+                            IsCreated = false,
+                            IsBlocked = false,
+                            MatchedCases = duplicateCheck.MatchedCases
+                        });
+                }
             }
 
             var entity = _mapper.Map<LongTermMissingCase>(dto);
@@ -136,11 +130,13 @@ namespace SafeTrace.Application.Services.Cases
                 entity.CaseCode,
                 userId);
 
-            return ApiResponse<CreateCaseResultDto>.Ok(
-                new CreateCaseResultDto
+            return ApiResponse<CreateCaseResponseDto>.Ok(
+                new CreateCaseResponseDto
                 {
                     IsCreated = true,
-                    CaseId = entity.Id
+                    IsBlocked = false,
+                    CaseId = entity.Id,
+                    MatchedCases = []
                 });
         }
 
