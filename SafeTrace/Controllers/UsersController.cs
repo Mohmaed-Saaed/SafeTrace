@@ -133,9 +133,9 @@ namespace SafeTrace.API.Controllers
         [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
         [HttpPost("reject/{userId}")]
         [HasPermission(Permissions.Users.Reject)]
-        public async Task<IActionResult> RejectUser(string userId)
+        public async Task<IActionResult> RejectUser(string userId, [FromBody] RejectUserDto dto)
         {
-            var response = await _userService.RejectUserAsync(userId);
+            var response = await _userService.RejectUserAsync(userId, dto);
             return Ok(response);
         }
 
@@ -158,9 +158,9 @@ namespace SafeTrace.API.Controllers
         [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
         [HttpPost("toggle-block/{userId}")]
         [HasPermission(Permissions.Users.ToggleBlock)]
-        public async Task<IActionResult> ToggleBlockStatus(string userId)
+        public async Task<IActionResult> ToggleBlockStatus(string userId, [FromBody] SafeTrace.Application.DTOs.User.Request.ToggleBlockDto? dto = null)
         {
-            var response = await _userService.ToggleUserBlockStatusAsync(GetCurrentUserId(), userId);
+            var response = await _userService.ToggleUserBlockStatusAsync(GetCurrentUserId(), userId, dto);
             return Ok(response);
         }
 
@@ -224,6 +224,7 @@ namespace SafeTrace.API.Controllers
         /// <param name="filter">The filters used to generate the report.</param>
         /// <returns>A PDF file containing the users report.</returns>
         [HttpPost("report/pdf")]
+        [HasPermission(Permissions.Users.GenerateUsersPdfReport)]
         public async Task<IActionResult> GenerateUsersPdfReport(
             [FromBody] UserFilterDto filter)
         {

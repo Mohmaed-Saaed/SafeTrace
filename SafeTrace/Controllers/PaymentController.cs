@@ -85,6 +85,7 @@ namespace SafeTrace.API.Controllers
             return Ok(response);
         }
 
+        [HasPermission(Permissions.Donations.GenerateDonationsPdfReport)]
         [HttpPost("export-pdf")]
         public async Task<IActionResult> ExportDonationsPdf(
         [FromBody] DonationAdminQueryDto query)

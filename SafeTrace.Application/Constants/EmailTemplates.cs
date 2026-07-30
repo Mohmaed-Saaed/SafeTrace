@@ -237,7 +237,7 @@ namespace SafeTrace.Application.Constants
             </div>";
         }
 
-        public static string BuildVerificationRejectedTemplate(string fullName)
+        public static string BuildVerificationRejectedTemplate(string fullName, string rejectionReason)
         {
             return $@"
             <div dir='rtl' style='background-color: #F8F9FF; font-family: ""Cairo"", ""Segoe UI"", Tahoma, sans-serif; padding: 40px 15px; width: 100%; box-sizing: border-box; text-align: right;'>
@@ -254,11 +254,13 @@ namespace SafeTrace.Application.Constants
                         <h2 style='color: #091426; font-size: 22px; font-weight: 700; margin: 0 0 16px 0;'>مرحباً، {fullName}</h2>
                         
                         <div style='background-color: #FFEDEC; border: 1px solid #BA1A1A; padding: 20px 24px; border-radius: 16px; margin: 24px 0; color: #BA1A1A; font-size: 15px; font-weight: 700; text-align: center;'>
-                            ❌ عذراً، لم نتمكن من قبول صورة إثبات الهوية التي قمت برفعها.
+                            ❌ عذراً، لم نتمكن من الموافقة على طلب توثيق حسابك في الوقت الحالي.
                         </div>
                         
-                        <p style='color: #0B1C30; font-size: 16px; line-height: 1.9; margin: 0 0 16px 0;'>أسباب الرفض الشائعة تشمل: عدم وضوح الصورة، أو عدم وضوح البيانات، أو عدم تصوير الوجه الأمامي للبطاقة.</p>
-                        <p style='color: #0B1C30; font-size: 16px; line-height: 1.9; margin: 0 0 24px 0;'>يرجى تسجيل الدخول إلى حسابك، والتوجه إلى الإعدادات، وإعادة رفع صورة واضحة ومقروءة (للوجه الأمامي) لبطاقة الهوية ليتمكن فريقنا من توثيق حسابك بنجاح.</p>
+                        <div style='background-color: #F8F9FF; border: 1px solid #C5C6CD; padding: 20px 24px; border-radius: 16px; margin: 24px 0; color: #0B1C30; font-size: 15px; line-height: 1.8;'>
+                            <div style='font-weight: 700; color: #091426; margin-bottom: 8px;'>سبب الرفض:</div>
+                            {rejectionReason}
+                        </div>
                         
                         <hr style='border: 0; border-top: 1px solid #E2E8F0; margin: 32px 0 24px 0;' />
                         <p style='color: #0B1C30; font-size: 15px; margin: 0; font-weight: 700;'>مع خالص التحية،<br/><span style='color: #0058BE;'>فريق عمل منصة لقاء</span></p>
@@ -267,7 +269,7 @@ namespace SafeTrace.Application.Constants
             </div>";
         }
 
-        public static string BuildBlockStatusChangedTemplate(string fullName, bool isBlocked)
+        public static string BuildBlockStatusChangedTemplate(string fullName, bool isBlocked, string? blockReason = null)
         {
             string status = isBlocked ? "حظر" : "إلغاء الحظر عن";
             string message = isBlocked
@@ -275,6 +277,13 @@ namespace SafeTrace.Application.Constants
                 : "تم تفعيل حسابك مرة أخرى في منصة لقاء. يمكنك الآن تسجيل الدخول والمشاركة.";
             
             string bgClass = isBlocked ? "background-color: #FFEDEC; border: 1px solid #BA1A1A; color: #BA1A1A;" : "background-color: #E6F6F4; border: 1px solid #00A292; color: #006B60;";
+
+            var reasonBlock = isBlocked && !string.IsNullOrWhiteSpace(blockReason)
+                ? $@"<div style='background-color: #F8F9FF; border: 1px solid #C5C6CD; padding: 20px 24px; border-radius: 16px; margin: 24px 0; color: #0B1C30; font-size: 15px; line-height: 1.8; text-align: right;'>
+                        <div style='font-weight: 700; color: #091426; margin-bottom: 8px;'>سبب الحظر:</div>
+                        {blockReason}
+                    </div>"
+                : "";
 
             return $@"
             <div dir='rtl' style='background-color: #F8F9FF; font-family: ""Cairo"", ""Segoe UI"", Tahoma, sans-serif; padding: 40px 15px; width: 100%; box-sizing: border-box; text-align: right;'>
@@ -294,6 +303,8 @@ namespace SafeTrace.Application.Constants
                         <div style='{bgClass} padding: 20px 24px; border-radius: 16px; margin: 24px 0; font-weight: 700; font-size: 16px; text-align: center;'>
                             الإجراء: {status} الحساب
                         </div>
+
+                        {reasonBlock}
                         
                         <p style='color: #0B1C30; font-size: 16px; line-height: 1.9; margin: 0 0 24px 0;'>{message}</p>
                         
