@@ -29,7 +29,7 @@ namespace SafeTrace.Infrastructure.Services
         private readonly IMapper _mapper;
         private readonly ILogger<AccountService> _logger;
         private readonly IOtpService _otpService;
-        private readonly HttpClient _httpClient;
+        private readonly IHttpClientFactory _httpClientFactory;
         private readonly IHttpContextAccessor _httpContextAccessor;
         private readonly INotificationServices _notificationService;
 
@@ -42,6 +42,7 @@ namespace SafeTrace.Infrastructure.Services
             IMapper mapper,
             IOtpService otpService,
             ILogger<AccountService> logger,
+            IHttpClientFactory httpClientFactory,
             IHttpContextAccessor httpContextAccessor,
             INotificationServices notificationService)
         {
@@ -53,7 +54,7 @@ namespace SafeTrace.Infrastructure.Services
             _mapper = mapper;
             _logger = logger;
             _otpService = otpService;
-            _httpClient = new HttpClient();
+            _httpClientFactory = httpClientFactory;
             _httpContextAccessor = httpContextAccessor;
             _notificationService = notificationService;
         }
@@ -305,7 +306,8 @@ namespace SafeTrace.Infrastructure.Services
             try
             {
                 var verifyUrl = $"https://oauth2.googleapis.com/tokeninfo?id_token={externalLoginDto.ProviderToken}";
-                var googleResponse = await _httpClient.GetAsync(verifyUrl);
+                var client = _httpClientFactory.CreateClient();
+                var googleResponse = await client.GetAsync(verifyUrl);
                 if (!googleResponse.IsSuccessStatusCode)
                     throw new UnauthorizedException("فشل التحقق من حساب جوجل الخاص بك.");
 

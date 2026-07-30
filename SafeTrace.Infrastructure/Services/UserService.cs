@@ -78,7 +78,7 @@ namespace SafeTrace.Infrastructure.Services
 
             if (!string.IsNullOrWhiteSpace(filterDto.RoleId))
             {
-                var userIdsInRole = _unitOfWork.Repository<IdentityUserRole<string>>().Query()
+                var userIdsInRole = _unitOfWork.Repository<IdentityUserRole<string>>().Query(tracked: false)
                     .Where(ur => ur.RoleId == filterDto.RoleId)
                     .Select(ur => ur.UserId);
 
@@ -107,8 +107,8 @@ namespace SafeTrace.Infrastructure.Services
             {
                 var userIds = userDtos.Select(u => u.Id).ToList();
 
-                var roleQuery = _unitOfWork.Repository<IdentityRole>().Query();
-                var userRoleQuery = _unitOfWork.Repository<IdentityUserRole<string>>().Query();
+                var roleQuery = _unitOfWork.Repository<IdentityRole>().Query(tracked: false);
+                var userRoleQuery = _unitOfWork.Repository<IdentityUserRole<string>>().Query(tracked: false);
 
                 var userRoles = await (from ur in userRoleQuery
                                        join r in roleQuery on ur.RoleId equals r.Id
