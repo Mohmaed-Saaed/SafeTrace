@@ -9,6 +9,7 @@ using SafeTrace.Application.Exceptions;
 using SafeTrace.Application.Interfaces.IServices.ICases;
 using SafeTrace.Application.Interfaces.IServices.INotificationSewrvice;
 using SafeTrace.Application.Constants;
+using Hangfire;
 
 namespace SafeTrace.Application.Services.Cases
 {
@@ -317,16 +318,17 @@ namespace SafeTrace.Application.Services.Cases
             }
         }
 
-        private async Task SendEmailSafelyAsync(string email, string subject, string body, long caseId, string action)
+        private Task SendEmailSafelyAsync(string email, string subject, string body, long caseId, string action)
         {
             try
             {
-                await _emailService.SendEmailAsync(email, subject, body);
+                BackgroundJob.Enqueue<IEmailService>(x => x.SendEmailAsync(email, subject, body));
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Failed to send {Action} email for case {CaseId}.", action, caseId);
             }
+            return Task.CompletedTask;
         }
 
         private static string GetCaseTypeName(CaseType caseType) => caseType switch

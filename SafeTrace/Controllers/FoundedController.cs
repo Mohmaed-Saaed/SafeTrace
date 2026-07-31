@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SafeTrace.Application.DTOs.Founded.Request;
 using SafeTrace.Application.Interfaces;
@@ -6,9 +6,7 @@ using SafeTrace.Application.Interfaces;
 
 namespace SafeTrace.API.Controllers
 {
-    [Route("api/[controller]")]
-    [ApiController]
-    public class FoundedController : ControllerBase
+    public class FoundedController : BaseApiController
     {
 
         private readonly IFoundedService _foundedService;

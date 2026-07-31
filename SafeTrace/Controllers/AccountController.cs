@@ -13,9 +13,7 @@ using Microsoft.AspNetCore.RateLimiting;
 
 namespace SafeTrace.API.Controllers
 {
-    [Route("api/[controller]")]
-    [ApiController]
-    public class AccountController : ControllerBase
+    public class AccountController : BaseApiController
     {
         private readonly IAccountService _accountService;
 
@@ -185,10 +183,7 @@ namespace SafeTrace.API.Controllers
         [HttpPost("change-password")]
         public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordDto dto)
         {
-            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            if (string.IsNullOrEmpty(userId)) throw new UnauthorizedException("تعذر التحقق من هوية المستخدم.");
-
-            var response = await _accountService.ChangePasswordAsync(userId, dto);
+            var response = await _accountService.ChangePasswordAsync(CurrentUserId, dto);
             return Ok(response);
         }
 

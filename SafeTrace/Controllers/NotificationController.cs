@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SafeTrace.Application.Constants;
 using SafeTrace.Application.DTOs.NotificationDTOS;
@@ -8,10 +8,7 @@ using System.Security.Claims;
 
 namespace SafeTrace.API.Controllers
 {
-    [Route("api/[controller]")]
-    [ApiController]
-
-    public class NotificationController : ControllerBase
+    public class NotificationController : BaseApiController
     {
         private readonly INotificationServices _notificationService;
         public NotificationController(INotificationServices notificationService)
@@ -45,8 +42,7 @@ namespace SafeTrace.API.Controllers
             [FromQuery] int page = 1,
     [FromQuery] int pageSize = 10)
         {
-            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            var notifications = await _notificationService.GetUserNotificationsAsync(userId!, page,
+            var notifications = await _notificationService.GetUserNotificationsAsync(CurrentUserId, page,
         pageSize);
             return Ok(notifications);
         }
@@ -84,8 +80,7 @@ namespace SafeTrace.API.Controllers
         [Authorize]
         public async Task<IActionResult> MarkAllAsRead()
         {
-            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            await _notificationService.MarkAllAsReadAsync(userId!);
+            await _notificationService.MarkAllAsReadAsync(CurrentUserId);
             return Ok();
         }
     }

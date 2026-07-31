@@ -9,9 +9,7 @@ using System.Security.Claims;
 
 namespace SafeTrace.API.Controllers
 {
-    [Route("api/[controller]")]
-    [ApiController]
-    public class ChatsController : ControllerBase
+    public class ChatsController : BaseApiController
     {
         private readonly IChatService _chatService;
 
@@ -38,7 +36,7 @@ namespace SafeTrace.API.Controllers
         [Authorize]
         public async Task<IActionResult> GetStartContext(long caseId)
         {
-            var userId = GetCurrentUserId();
+            var userId = CurrentUserId;
             var result = await _chatService.GetStartChatContextAsync(caseId, userId);
             return Ok(result);  
         }
@@ -61,7 +59,7 @@ namespace SafeTrace.API.Controllers
         [Authorize]
         public async Task<IActionResult> CreateChat([FromBody] StartChatRequest request)
         {
-            var userId = GetCurrentUserId();
+            var userId = CurrentUserId;
             var chat = await _chatService.StartOrGetChatAsync(request.CaseId, userId);
             return Ok(chat);
         }
@@ -79,7 +77,7 @@ namespace SafeTrace.API.Controllers
         [Authorize]
         public async Task<IActionResult> GetUserChats()
         {
-            var userId = GetCurrentUserId();
+            var userId = CurrentUserId;
             var chats = await _chatService.GetUserChatsAsync(userId);
             return Ok(chats);
         }
@@ -139,7 +137,7 @@ namespace SafeTrace.API.Controllers
         [HttpGet("{chatId:long}")]
         public async Task<IActionResult> GetChatDetails([FromRoute] long chatId)
         {
-            var userId = GetCurrentUserId();
+            var userId = CurrentUserId;
             var chat = await _chatService.GetUserChatDetailsAsync(chatId, userId);
             return Ok(chat);
         }
@@ -162,7 +160,7 @@ namespace SafeTrace.API.Controllers
         public async Task<IActionResult> GetMessages(
            [FromRoute] long chatId)
         {
-            var userId = GetCurrentUserId();
+            var userId = CurrentUserId;
             var messages = await _chatService.GetPaginatedMessagesAsync(chatId, userId,IsAdmin);
             return Ok(messages);
 
@@ -182,7 +180,7 @@ namespace SafeTrace.API.Controllers
         [Authorize]
         public async Task<IActionResult> DeleteChat(long chatId)
         {
-            var userId = GetCurrentUserId();
+            var userId = CurrentUserId;
             var deleted = await _chatService.DeleteChatAsync(chatId, userId);
             return Ok(deleted);
         }
@@ -241,12 +239,6 @@ namespace SafeTrace.API.Controllers
         {
             var result = await _chatService.GetChatStatisticsAsync();
             return Ok(result);
-        }
-
-        private string GetCurrentUserId()
-        {
-            return User.FindFirstValue(ClaimTypes.NameIdentifier)
-                ?? throw new UnauthorizedAccessException("User identity could not be resolved.");
         }
 
         private bool IsAdmin => User.IsInRole("Admin");

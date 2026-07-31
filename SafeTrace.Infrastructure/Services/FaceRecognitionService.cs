@@ -153,7 +153,7 @@ namespace SafeTrace.Infrastructure.Services
             catch (Exception ex) when (!(ex is BadRequestException))
             {
                 _logger.LogError(ex, "Error detecting faces for validation.");
-                throw new BadRequestException("حدث خطأ أثناء تحليل الصورة المرفوعة.");
+                throw new BadRequestException("حدث خطأ أثناء تحليل الصورة المرفوعة. حاول مره أخرى بصورة اكثر وضوحا.");
             }
 
             try

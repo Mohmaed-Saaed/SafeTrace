@@ -13,9 +13,7 @@ using System.Security.Claims;
 
 namespace SafeTrace.API.Controllers.Dashboard
 {
-    [Route("api/[controller]")]
-    [ApiController]
-    public class DashboardController : ControllerBase
+    public class DashboardController : BaseApiController
     {
         private readonly IDashboardService _dashboardService;
         public DashboardController(IDashboardService dashboardService)  
