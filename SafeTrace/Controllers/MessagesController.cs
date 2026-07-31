@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using SafeTrace.Application.Constants;
@@ -9,9 +9,7 @@ using System.Security.Claims;
 
 namespace SafeTrace.API.Controllers
 {
-    [Route("api/[controller]")]
-    [ApiController]
-    public class MessagesController : ControllerBase
+    public class MessagesController : BaseApiController
     {
         private readonly IMessageService _messageService;
 
@@ -35,7 +33,7 @@ namespace SafeTrace.API.Controllers
         [Authorize]
         public async Task<IActionResult> SendMessage([FromForm] SendMessageRequest request)
         {
-            var senderId = GetCurrentUserId();
+            var senderId = CurrentUserId;
             var message = await _messageService.SendMessageAsync(request, senderId);
             return CreatedAtAction(
                 actionName: null,
@@ -53,7 +51,7 @@ namespace SafeTrace.API.Controllers
         [Authorize]
         public async Task<IActionResult> MarkAsRead([FromRoute] long chatId)
         {
-            var userId = GetCurrentUserId();
+            var userId = CurrentUserId;
             var result = await _messageService.MarkMessagesAsReadAsync(chatId, userId);
             return Ok(result);
         }
@@ -72,7 +70,7 @@ namespace SafeTrace.API.Controllers
         [Authorize]
         public async Task<IActionResult> DeleteMessage([FromRoute] long messageId)
         {
-            var userId = GetCurrentUserId();
+            var userId = CurrentUserId;
             var deleted = await _messageService.DeleteMessageAsync(messageId, userId);
 
             return Ok(deleted);
@@ -93,17 +91,12 @@ namespace SafeTrace.API.Controllers
         [HasPermission(Permissions.Chat.DeleteMessageForEveryone)]
         public async Task<IActionResult> DeleteMessageForEveryone([FromRoute]long messageId)
         {
-            var userId = GetCurrentUserId();
+            var userId = CurrentUserId;
             var deleted = await _messageService.DeleteMessageForEveryoneAsync(messageId, userId);
 
             return Ok(deleted);
         }
 
 
-        private string GetCurrentUserId()
-        {
-            return User.FindFirstValue(ClaimTypes.NameIdentifier)
-                ?? throw new UnauthorizedAccessException("User identity could not be resolved.");
-        }
     }
 }

@@ -8,13 +8,14 @@ using SafeTrace.Application.DTOs.Auth.Response;
 using SafeTrace.Application.DTOs.Responses;
 using SafeTrace.Application.Exceptions;
 using SafeTrace.Domain.Enums;
-using System.Net;
-using System.Text.Json;
 using System.Collections.Concurrent;
 using System.Threading;
+using System.Net;
+using System.Text.Json;
 using SafeTrace.Application.DTOs.NotificationDTOS;
 using SafeTrace.Application.Interfaces.IServices.INotificationSewrvice;
 using UAParser;
+using Hangfire;
 
 namespace SafeTrace.Infrastructure.Services
 {
@@ -29,7 +30,7 @@ namespace SafeTrace.Infrastructure.Services
         private readonly IMapper _mapper;
         private readonly ILogger<AccountService> _logger;
         private readonly IOtpService _otpService;
-        private readonly HttpClient _httpClient;
+        private readonly IHttpClientFactory _httpClientFactory;
         private readonly IHttpContextAccessor _httpContextAccessor;
         private readonly INotificationServices _notificationService;
 
@@ -42,6 +43,7 @@ namespace SafeTrace.Infrastructure.Services
             IMapper mapper,
             IOtpService otpService,
             ILogger<AccountService> logger,
+            IHttpClientFactory httpClientFactory,
             IHttpContextAccessor httpContextAccessor,
             INotificationServices notificationService)
         {
@@ -53,7 +55,7 @@ namespace SafeTrace.Infrastructure.Services
             _mapper = mapper;
             _logger = logger;
             _otpService = otpService;
-            _httpClient = new HttpClient();
+            _httpClientFactory = httpClientFactory;
             _httpContextAccessor = httpContextAccessor;
             _notificationService = notificationService;
         }
@@ -89,11 +91,11 @@ namespace SafeTrace.Infrastructure.Services
                 try
                 {
                     var mailBody = EmailTemplates.BuildArabicOtpEmailTemplate($"{user.FName} {user.LName}", otp, "تأكيد الحساب الرقمي", "شكراً لتسجيلك في منصة لقاء. يرجى استخدام رمز التحقق التالي لتفعيل حسابك وتأكيد البريد الإلكتروني الخاص بك.");
-                    await _emailService.SendEmailAsync(user.Email!, "لقاء - رمز تفعيل الحساب", mailBody);
+                    BackgroundJob.Enqueue<IEmailService>(x => x.SendEmailAsync(user.Email!, "لقاء - رمز تفعيل الحساب", mailBody));
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(ex, "Failed to send activation email to {Email}", user.Email);
+                    _logger.LogError(ex, "Failed to enqueue activation email to {Email}", user.Email);
                 }
 
                 return ApiResponse<string>.Ok(null, "تم إنشاء الحساب بنجاح. تم إرسال بريد إلكتروني لتفعيل حسابك.");
@@ -165,7 +167,7 @@ namespace SafeTrace.Infrastructure.Services
             _logger.LogInformation("User {Email} has successfully confirmed their email address.", email);
 
             var mailBody = EmailTemplates.BuildEmailConfirmedSuccessTemplate(user.FName);
-            _ = _emailService.SendEmailAsync(user.Email!, "لقاء - تم تأكيد بريدك الإلكتروني", mailBody);
+            BackgroundJob.Enqueue<IEmailService>(x => x.SendEmailAsync(user.Email!, "لقاء - تم تأكيد بريدك الإلكتروني", mailBody));
 
             _ = _notificationService.SendNotificationAsync(new SendNotificationDTO
             {
@@ -186,7 +188,7 @@ namespace SafeTrace.Infrastructure.Services
             var subject = type == OtpType.EmailConfirmation ? "رمز تفعيل الحساب" : "رمز الأمان الخاص بك";
             var mailBody = EmailTemplates.BuildArabicOtpEmailTemplate($"{user.FName} {user.LName}", otp, "طلب رمز تحقق جديد", "بناءً على طلبك، تم إصدار رمز أمان بديل جديد. يرجى إدخاله لإكمال العملية الجارية.");
 
-            await _emailService.SendEmailAsync(user.Email!, $"لقاء - {subject}", mailBody);
+            BackgroundJob.Enqueue<IEmailService>(x => x.SendEmailAsync(user.Email!, $"لقاء - {subject}", mailBody));
 
             _logger.LogInformation("A new OTP of type {Type} was resent to {Email}.", type.ToString(), email);
 
@@ -203,7 +205,7 @@ namespace SafeTrace.Infrastructure.Services
             var otp = await _otpService.GenerateAndSaveOtpAsync(user.Id, OtpType.PasswordReset);
             var mailBody = EmailTemplates.BuildArabicOtpEmailTemplate($"{user.FName} {user.LName}", otp, "طلب إعادة تعيين كلمة المرور", "لقد تلقينا طلباً لإعادة تعيين كلمة المرور الخاصة بحسابك. يرجى استخدام الرمز السري التالي لإتمام عملية التعيين بنجاح.");
 
-            await _emailService.SendEmailAsync(user.Email!, "لقاء - إعادة تعيين كلمة المرور", mailBody);
+            BackgroundJob.Enqueue<IEmailService>(x => x.SendEmailAsync(user.Email!, "لقاء - إعادة تعيين كلمة المرور", mailBody));
 
             _logger.LogInformation("Password reset OTP dispatched to {Email}.", email);
 
@@ -240,7 +242,7 @@ namespace SafeTrace.Infrastructure.Services
                 _logger.LogInformation("User {Email} has successfully reset their password and all sessions were revoked.", user.Email);
 
                 var mailBody = EmailTemplates.BuildPasswordResetSuccessTemplate(user.FName);
-                _ = _emailService.SendEmailAsync(user.Email!, "لقاء - تأكيد إعادة تعيين كلمة المرور", mailBody);
+                BackgroundJob.Enqueue<IEmailService>(x => x.SendEmailAsync(user.Email!, "لقاء - تأكيد إعادة تعيين كلمة المرور", mailBody));
 
                 _ = _notificationService.SendNotificationAsync(new SendNotificationDTO
                 {
@@ -282,7 +284,7 @@ namespace SafeTrace.Infrastructure.Services
                 await _unitOfWork.CommitTransactionAsync();
 
                 var mailBody = EmailTemplates.BuildPasswordResetSuccessTemplate(user.FName);
-                _ = _emailService.SendEmailAsync(user.Email!, "لقاء - تأكيد تغيير كلمة المرور", mailBody);
+                BackgroundJob.Enqueue<IEmailService>(x => x.SendEmailAsync(user.Email!, "لقاء - تأكيد تغيير كلمة المرور", mailBody));
 
                 _ = _notificationService.SendNotificationAsync(new SendNotificationDTO
                 {
@@ -305,7 +307,8 @@ namespace SafeTrace.Infrastructure.Services
             try
             {
                 var verifyUrl = $"https://oauth2.googleapis.com/tokeninfo?id_token={externalLoginDto.ProviderToken}";
-                var googleResponse = await _httpClient.GetAsync(verifyUrl);
+                var client = _httpClientFactory.CreateClient();
+                var googleResponse = await client.GetAsync(verifyUrl);
                 if (!googleResponse.IsSuccessStatusCode)
                     throw new UnauthorizedException("فشل التحقق من حساب جوجل الخاص بك.");
 
@@ -639,7 +642,7 @@ namespace SafeTrace.Infrastructure.Services
                 }
 
                 var mailBody = EmailTemplates.BuildLoginAlertTemplate(user.FName, ipAddress, browser, os, deviceName);
-                _ = _emailService.SendEmailAsync(user.Email!, "تنبيه - أمان الحساب: تسجيل دخول جديد", mailBody);
+                BackgroundJob.Enqueue<IEmailService>(x => x.SendEmailAsync(user.Email!, "تنبيه - أمان الحساب: تسجيل دخول جديد", mailBody));
 
                 _ = _notificationService.SendNotificationAsync(new SendNotificationDTO
                 {

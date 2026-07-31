@@ -13,9 +13,7 @@ using System.Security.Claims;
 
 namespace SafeTrace.API.Controllers
 {
-    [Route("api/[controller]")]
-    [ApiController]
-    public class ComplaintsController : ControllerBase
+    public class ComplaintsController : BaseApiController
     {
         private readonly IComplaintService _complaintService;
 
@@ -85,13 +83,7 @@ namespace SafeTrace.API.Controllers
         [EnableRateLimiting("ComplaintLimit")]
         public async Task<IActionResult> Create([FromBody] CreateComplaintDto dto)
         {
-            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            if (string.IsNullOrEmpty(userId))
-            {
-                throw new UnauthorizedAccessException("تعذر التحقق من هوية المستخدم.");
-            }
-
-            var result = await _complaintService.CreateAsync(userId, dto);
+            var result = await _complaintService.CreateAsync(CurrentUserId, dto);
             return CreatedAtAction(nameof(GetById), new { id = result.Id },
                 ApiResponse<ComplaintResponseDto>.Ok(result, "Complaint created successfully."));
         }

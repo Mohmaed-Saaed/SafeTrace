@@ -7,6 +7,7 @@ using SafeTrace.Application.DTOs.Responses;
 using SafeTrace.Application.Exceptions;
 using SafeTrace.Application.Interfaces.IServices.INotificationSewrvice;
 using SafeTrace.Domain.Enums;
+using Hangfire;
 
 
 namespace SafeTrace.Application.Services
@@ -166,7 +167,7 @@ namespace SafeTrace.Application.Services
             var userName = $"{complaint.User.FName} {complaint.User.LName}";
             var subject = "تم حل شكواك - منصة لقاء";
             var body = EmailTemplates.BuildComplaintResolvedTemplate(userName, dto.SolutionMessage);
-            await _emailService.SendEmailAsync(userEmail, subject, body);
+            BackgroundJob.Enqueue<IEmailService>(x => x.SendEmailAsync(userEmail, subject, body));
         }
 
         public async Task<ComplaintStatisticsDto> GetStatisticsAsync()

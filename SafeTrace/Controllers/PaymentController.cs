@@ -10,12 +10,9 @@ using System.Text.Json;
 
 namespace SafeTrace.API.Controllers
 {
-    [Route("api/[controller]")]
-    [ApiController]
-    public class PaymentController : ControllerBase
+    public class PaymentController : BaseApiController
     {
         private readonly IPaymentService _paymentService;
-        private string? CurrentUserId => User.FindFirstValue(ClaimTypes.NameIdentifier);
         public PaymentController(IPaymentService paymentService) { 
             _paymentService = paymentService;
         }
@@ -27,7 +24,7 @@ namespace SafeTrace.API.Controllers
         [AllowAnonymous]
         public async Task<IActionResult> CreateDonationPaymobIntent([FromBody] CreateDonationRequestDto request)
         {
-          var response = await  _paymentService.CreateDonationPaymobAsync(request, CurrentUserId);
+          var response = await  _paymentService.CreateDonationPaymobAsync(request, CurrentUserIdOrNull);
           return Ok(response);
         }
 
@@ -70,7 +67,7 @@ namespace SafeTrace.API.Controllers
         [Authorize]
         public async Task<IActionResult> GetMyDonations([FromQuery] DonationUserQueryDto query)
         {
-            var response = await _paymentService.GetUserDonationsAsync(User.FindFirstValue(ClaimTypes.NameIdentifier), query);
+            var response = await _paymentService.GetUserDonationsAsync(CurrentUserId, query);
             return Ok(response);
         }
 

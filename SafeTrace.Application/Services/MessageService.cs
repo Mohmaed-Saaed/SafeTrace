@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.SignalR;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using SafeTrace.Application.DTOs.Message;
@@ -13,6 +13,7 @@ using static SafeTrace.Application.Constants.Permissions;
 using SafeTrace.Application.Interfaces.IServices.INotificationSewrvice;
 using SafeTrace.Application.DTOs.NotificationDTOS;
 using SafeTrace.Application.Constants;
+using Hangfire;
 
 
 namespace SafeTrace.Application.Services
@@ -198,7 +199,7 @@ namespace SafeTrace.Application.Services
                 : request.Content,
                 chatLink: $"https://leqaaweb.runasp.net/chat/chat/{request.ChatId}");
 
-            await _emailService.SendEmailAsync(receiverEmail, "رسالة جديدة من لقاء", emailBody);
+            BackgroundJob.Enqueue<IEmailService>(x => x.SendEmailAsync(receiverEmail!, "رسالة جديدة من لقاء", emailBody));
 
             return ApiResponse<MessageDto>.Ok(
             messageDto, "تم إرسال الرسالة بنجاح.");
