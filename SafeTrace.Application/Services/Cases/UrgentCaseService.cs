@@ -48,12 +48,13 @@ namespace SafeTrace.Application.Services.Cases
         /// </summary>
         protected override IQueryable<UrgentCase> ApplyCustomFilter(IQueryable<UrgentCase> query, UrgentCasesFilterDto filter)
         {
-            if (!filter.Latitude.HasValue || !filter.Longitude.HasValue)
+            if (!filter.Latitude.HasValue || !filter.Longitude.HasValue || !filter.RadiusInKm.HasValue)
                 return query;
 
             var location = CreateUserLocation(filter);
+            var radiusInMeters = filter.RadiusInKm.Value * 1000;
 
-            return query.Where(x => x.Location.Distance(location) <= filter.RadiusInMeters);
+            return query.Where(x => x.Location.Distance(location) <= radiusInMeters);
         }
 
         /// <summary>
