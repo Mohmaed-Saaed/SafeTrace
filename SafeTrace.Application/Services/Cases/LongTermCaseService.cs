@@ -2,7 +2,6 @@ using SafeTrace.Application.Interfaces.IServices.ICases;
 using SafeTrace.Application.Common.Enums;
 using SafeTrace.Application.DTOs.LongTermCase.Response;
 using SafeTrace.Application.DTOs.LongTermCase.Request;
-using SafeTrace.Application.DTOs.Cases.Request;
 using SafeTrace.Application.DTOs.Cases.Response;
 
 namespace SafeTrace.Application.Services.Cases
@@ -45,9 +44,24 @@ namespace SafeTrace.Application.Services.Cases
         {
             await _caseHelper.ValidateVerifiedUserAsync(userId);
 
-            var duplicateCheck = await _caseHelper.CheckDuplicateCaseAsync(CaseType.LongTerm, dto.PrimaryImage);
+            var duplicateCheck = await _caseHelper.CheckDuplicateCaseAsync(CaseType.LongTerm, dto.PrimaryImage, userId);
 
-            if (duplicateCheck.MatchedCases.Count > 0)
+            if (duplicateCheck.DuplicateDecision == DuplicateDecision.SameUserPending ||
+                duplicateCheck.DuplicateDecision == DuplicateDecision.SameUserActive ||
+                duplicateCheck.DuplicateDecision == DuplicateDecision.PendingDuplicate)
+            {
+                return ApiResponse<CreateCaseResponseDto>.Ok(
+                    new CreateCaseResponseDto
+                    {
+                        IsCreated = false,
+                        IsBlocked = true,
+                        DuplicateDecision = duplicateCheck.DuplicateDecision,
+                        ExistingCaseId = duplicateCheck.ExistingCaseId,
+                        MatchedCases = []
+                    });
+            }
+
+            if (duplicateCheck.DuplicateDecision == DuplicateDecision.ApprovedDuplicate && duplicateCheck.MatchedCases.Count > 0)
             {
                 var isBlocked = duplicateCheck.MatchedCases.Any(c => c.CaseType == CaseType.LongTerm || c.CaseType == CaseType.Urgent);
 
@@ -58,6 +72,7 @@ namespace SafeTrace.Application.Services.Cases
                         {
                             IsCreated = false,
                             IsBlocked = true,
+                            DuplicateDecision = DuplicateDecision.ApprovedDuplicate,
                             MatchedCases = duplicateCheck.MatchedCases
                         });
                 }
@@ -69,6 +84,7 @@ namespace SafeTrace.Application.Services.Cases
                         {
                             IsCreated = false,
                             IsBlocked = false,
+                            DuplicateDecision = DuplicateDecision.ApprovedDuplicate,
                             MatchedCases = duplicateCheck.MatchedCases
                         });
                 }

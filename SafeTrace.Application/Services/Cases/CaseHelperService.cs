@@ -2,7 +2,6 @@ using System.Linq.Expressions;
 using Microsoft.AspNetCore.Http;
 using SafeTrace.Application.Common.Enums;
 using SafeTrace.Application.DTOs.AiMatching.Response;
-using SafeTrace.Application.DTOs.Cases.Request;
 using SafeTrace.Application.DTOs.Cases.Response;
 using SafeTrace.Application.DTOs.NotificationDTOS;
 using SafeTrace.Application.Exceptions;
@@ -354,14 +353,98 @@ namespace SafeTrace.Application.Services.Cases
 
         public async Task<DuplicateCheckResult> CheckDuplicateCaseAsync(
             CaseType currentCaseType,
-            IFormFile primaryImage)
+            IFormFile primaryImage,
+            string currentUserId)
         {
             var matchedCases = await FindMatchedCasesAsync(primaryImage);
 
+            if (matchedCases.Count == 0)
+            {
+                return new DuplicateCheckResult
+                {
+                    IsBlocked = false,
+                    DuplicateDecision = DuplicateDecision.None,
+                    MatchedCases = []
+                };
+            }
+
+            var sameUserMatches = matchedCases.Where(c => c.UserId == currentUserId).ToList();
+            var diffUserMatches = matchedCases.Where(c => c.UserId != currentUserId).ToList();
+
+            // 1. SameUserPending
+            var sameUserPending = sameUserMatches.FirstOrDefault(c => c.Status == CaseStatus.Pending);
+            if (sameUserPending != null)
+            {
+                return new DuplicateCheckResult
+                {
+                    IsBlocked = true,
+                    DuplicateDecision = DuplicateDecision.SameUserPending,
+                    ExistingCaseId = sameUserPending.Id,
+                    MatchedCases = []
+                };
+            }
+
+            // 2. SameUserActive
+            var sameUserActive = sameUserMatches.FirstOrDefault(c => c.Status == CaseStatus.Active);
+            if (sameUserActive != null)
+            {
+                return new DuplicateCheckResult
+                {
+                    IsBlocked = true,
+                    DuplicateDecision = DuplicateDecision.SameUserActive,
+                    ExistingCaseId = sameUserActive.Id,
+                    MatchedCases = []
+                };
+            }
+
+            // 3. DifferentUserPending
+            var diffUserPending = diffUserMatches.FirstOrDefault(c => c.Status == CaseStatus.Pending);
+            if (diffUserPending != null)
+            {
+                return new DuplicateCheckResult
+                {
+                    IsBlocked = true,
+                    DuplicateDecision = DuplicateDecision.PendingDuplicate,
+                    MatchedCases = []
+                };
+            }
+
+            // 4. DifferentUserActive
+            var diffUserActive = diffUserMatches.Where(c => c.Status == CaseStatus.Active).ToList();
+            if (diffUserActive.Count > 0)
+            {
+                var hasUnknown = diffUserActive.Any(c => c.CaseType == CaseType.Unknown);
+                var hasUrgentOrLongTerm = diffUserActive.Any(c => c.CaseType == CaseType.Urgent || c.CaseType == CaseType.LongTerm);
+
+                if (hasUnknown && !hasUrgentOrLongTerm)
+                {
+                    // AllowUnknown (only Unknown cases matched)
+                    return new DuplicateCheckResult
+                    {
+                        IsBlocked = false,
+                        DuplicateDecision = DuplicateDecision.AllowUnknown,
+                        MatchedCases = []
+                    };
+                }
+                
+                if (hasUrgentOrLongTerm)
+                {
+                    // ApprovedDuplicate (Urgent/LongTerm matches exist)
+                    return new DuplicateCheckResult
+                    {
+                        IsBlocked = true,
+                        DuplicateDecision = DuplicateDecision.ApprovedDuplicate,
+                        MatchedCases = diffUserActive
+                    };
+                }
+            }
+            
+            // 5. No Match (fallback)
             return new DuplicateCheckResult
             {
                 IsBlocked = false,
-                MatchedCases = matchedCases
+                DuplicateDecision = DuplicateDecision.None,
+                MatchedCases = []
             };
         }
         
@@ -389,11 +472,7 @@ namespace SafeTrace.Application.Services.Cases
             return await _unitOfWork.Repository<Case>()
                 .Query(tracked: false, includes: [c => c.CaseFiles, c => c.User])
                 .Where(c =>
-                (
-                    (c.CaseType == CaseType.Unknown && c.Status != CaseStatus.Deleted)
-                    ||
-                    (c.CaseType != CaseType.Unknown && c.Status == CaseStatus.Active)
-                )
+                (c.Status == CaseStatus.Pending || c.Status == CaseStatus.Active)
                 &&
                 c.CaseFiles.Any(f => f.FaceId != null && faceIds.Contains(f.FaceId))).ToListAsync();
         }
