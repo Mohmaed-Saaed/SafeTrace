@@ -243,6 +243,11 @@ namespace SafeTrace.Application.Services.Cases
 
             _caseHelper.ValidateCaseIsEditable(entity);
 
+            if (dto.PrimaryImage != null)
+            {
+                await _caseHelper.ValidatePrimaryImageIdentityAsync(entity, dto.PrimaryImage);
+            }
+
             if (entity.Status == CaseStatus.Active)
             {
                 entity.PreviousStatus = entity.Status;

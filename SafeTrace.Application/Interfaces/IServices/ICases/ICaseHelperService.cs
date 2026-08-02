@@ -45,5 +45,7 @@ namespace SafeTrace.Application.Interfaces.IServices.ICases
             CaseType currentCaseType,
             IFormFile primaryImage,
             string currentUserId);
+
+        Task ValidatePrimaryImageIdentityAsync(Case existingCase, IFormFile? newPrimaryImage);
     }
 }

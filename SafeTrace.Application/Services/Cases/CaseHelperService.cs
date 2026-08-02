@@ -448,6 +448,29 @@ namespace SafeTrace.Application.Services.Cases
             };
         }
         
+        public async Task ValidatePrimaryImageIdentityAsync(Case existingCase, IFormFile? newPrimaryImage)
+        {
+            if (newPrimaryImage == null) return;
+
+            var existingFaceIds = existingCase.CaseFiles?
+                .Where(f => !string.IsNullOrWhiteSpace(f.FaceId))
+                .Select(f => f.FaceId!)
+                .ToHashSet();
+
+            if (existingFaceIds == null || existingFaceIds.Count == 0)
+                return;
+
+            var matches = await _faceRecognitionService.SearchByImageAsync(newPrimaryImage);
+
+            var isSamePerson = matches.Any(m => 
+                existingFaceIds.Contains(m.FaceId) && PassesVerification(m.Similarity ?? 0));
+
+            if (!isSamePerson)
+            {
+                throw new BadRequestException("الصورة الجديدة لا تبدو لنفس الشخص الموجود في هذا البلاغ.\n\nإذا كان هذا شخصًا آخر، يرجى إنشاء بلاغ جديد بدلاً من تعديل البلاغ الحالي.");
+            }
+        }
+
         private async Task<List<FaceMatchResult>> SearchFacesAsync(IFormFile primaryImage)
         {
             var faceMatches = await _faceRecognitionService.SearchByImageAsync(primaryImage);

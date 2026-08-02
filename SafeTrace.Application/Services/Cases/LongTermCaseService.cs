@@ -166,6 +166,11 @@ namespace SafeTrace.Application.Services.Cases
 
             _caseHelper.ValidateCaseIsEditable(entity);
 
+            if (dto.PrimaryImage != null)
+            {
+                await _caseHelper.ValidatePrimaryImageIdentityAsync(entity, dto.PrimaryImage);
+            }
+
             var uploadedPhotos = new List<CaseFile>();
             var filesToDelete = new List<string>();
             var faceIdsToDelete = new List<string>();
