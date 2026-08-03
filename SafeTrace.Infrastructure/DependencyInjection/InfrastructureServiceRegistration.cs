@@ -10,6 +10,7 @@ using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.IdentityModel.Tokens;
 using SafeTrace.Application.Interfaces;
 using SafeTrace.Application.Interfaces.IServices.common;
+using SafeTrace.Application.Constants;
 using SafeTrace.Application.Services;
 using SafeTrace.Infrastructure.Authorization;
 using SafeTrace.Infrastructure.Options;
@@ -196,7 +197,7 @@ namespace SafeTrace.Infrastructure.DependencyInjection
                             Window = TimeSpan.FromMinutes(1)
                         }));
 
-                options.AddPolicy("AuthLimit", httpContext =>
+                options.AddPolicy(RateLimitPolicies.AuthLimit, httpContext =>
                     System.Threading.RateLimiting.RateLimitPartition.GetFixedWindowLimiter(
                         partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? httpContext.Request.Headers.Host.ToString(),
                         factory: partition => new System.Threading.RateLimiting.FixedWindowRateLimiterOptions
@@ -207,7 +208,7 @@ namespace SafeTrace.Infrastructure.DependencyInjection
                             Window = TimeSpan.FromMinutes(15)
                         }));
 
-                options.AddPolicy("AiLimit", httpContext =>
+                options.AddPolicy(RateLimitPolicies.AiLimit, httpContext =>
                     System.Threading.RateLimiting.RateLimitPartition.GetFixedWindowLimiter(
                         partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? httpContext.Request.Headers.Host.ToString(),
                         factory: partition => new System.Threading.RateLimiting.FixedWindowRateLimiterOptions
@@ -218,7 +219,7 @@ namespace SafeTrace.Infrastructure.DependencyInjection
                             Window = TimeSpan.FromMinutes(1)
                         }));
 
-                options.AddPolicy("ComplaintLimit", httpContext =>
+                options.AddPolicy(RateLimitPolicies.ComplaintsLimit, httpContext =>
                     System.Threading.RateLimiting.RateLimitPartition.GetFixedWindowLimiter(
                         partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? httpContext.Request.Headers.Host.ToString(),
                         factory: partition => new System.Threading.RateLimiting.FixedWindowRateLimiterOptions

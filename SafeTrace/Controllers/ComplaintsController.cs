@@ -80,7 +80,7 @@ namespace SafeTrace.API.Controllers
         /// </remarks>
         [HttpPost]
         [Authorize] //--------------------------->permission check is commented out for testing purposes. Remove the comment in production.
-        [EnableRateLimiting("ComplaintLimit")]
+        [EnableRateLimiting(RateLimitPolicies.ComplaintsLimit)]
         public async Task<IActionResult> Create([FromBody] CreateComplaintDto dto)
         {
             var result = await _complaintService.CreateAsync(CurrentUserId, dto);
