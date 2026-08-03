@@ -9,6 +9,7 @@ using SafeTrace.Application.DTOs.User.Response;
 using SafeTrace.Application.Exceptions;
 using SafeTrace.Application.Helpers;
 using SafeTrace.Application.Interfaces.IServices.INotificationSewrvice;
+using SafeTrace.Application.Interfaces.IServices.common;
 using SafeTrace.Domain.Enums;
 using Hangfire;
 
@@ -25,6 +26,7 @@ namespace SafeTrace.Infrastructure.Services
         private readonly INotificationServices _notificationService;
         private readonly ILogger<UserService> _logger;
         private readonly IPdfGeneratorService _pdfGenerator;
+        private readonly IImageUrlService _imageUrlService;
 
         public UserService(
             UserManager<ApplicationUser> userManager,
@@ -35,7 +37,8 @@ namespace SafeTrace.Infrastructure.Services
             IEmailService emailService,
             INotificationServices notificationService,
             ILogger<UserService> logger,
-            IPdfGeneratorService pdfGenerator)
+            IPdfGeneratorService pdfGenerator,
+            IImageUrlService imageUrlService)
         {
             _userManager = userManager;
             _roleManager = roleManager;
@@ -46,6 +49,7 @@ namespace SafeTrace.Infrastructure.Services
             _notificationService = notificationService;
             _logger = logger;
             _pdfGenerator = pdfGenerator;
+            _imageUrlService = imageUrlService;
         }
 
         public async Task<ApiResponse<PaginationResponseDto<GetUserDto>>> GetAllUsersAsync(UserFilterDto filterDto)
@@ -146,6 +150,10 @@ namespace SafeTrace.Infrastructure.Services
             if (user == null) throw new NotFoundException("لم يتم العثور على هذا الحساب في النظام.");
 
             var userDto = _mapper.Map<GetUserByIdDto>(user);
+
+            userDto.ProfileImage = _imageUrlService.Build(userDto.ProfileImage);
+            userDto.IdentificationImageFront = _imageUrlService.Build(userDto.IdentificationImageFront);
+            userDto.IdentificationImageBack = _imageUrlService.Build(userDto.IdentificationImageBack);
 
             var roles = await _userManager.GetRolesAsync(user);
             userDto.Role = roles.FirstOrDefault() ?? UserRole.User.ToString();
