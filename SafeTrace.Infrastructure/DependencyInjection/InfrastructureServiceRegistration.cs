@@ -23,10 +23,43 @@ namespace SafeTrace.Infrastructure.DependencyInjection
         public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration configuration)
         {
             services.AddMemoryCache();
+            
+            services.AddAppDbContext(configuration);
+            services.AddAppServices();
+            services.AddAppAws(configuration);
+            
+            services.Configure<JwtOptions>(configuration.GetSection("Jwt"));
+            services.Configure<MailSettingsOptions>(configuration.GetSection("MailSettings"));
 
+            services.AddSingleton<IAuthorizationPolicyProvider, PermissionPolicyProvider>();
+            services.AddScoped<IAuthorizationHandler, PermissionHandler>();
+
+            services.AddAppIdentity();
+            services.AddAppAuthentication(configuration);
+            services.AddAuthorization();
+
+            services.AddElmah<SqlErrorLog>(options =>
+            {
+                options.Path = "/elmah";
+                options.ConnectionString = configuration.GetConnectionString("DefaultConnection");
+                options.OnPermissionCheck = context => true;
+            });
+
+            services.AddAppRateLimiting();
+
+            return services;
+        }
+
+        private static IServiceCollection AddAppDbContext(this IServiceCollection services, IConfiguration configuration)
+        {
             services.AddDbContext<ApplicationDbContext>(options =>
                 options.UseSqlServer(configuration.GetConnectionString("DefaultConnection"), x => x.UseNetTopologySuite()));
+            
+            return services;
+        }
 
+        private static IServiceCollection AddAppServices(this IServiceCollection services)
+        {
             services.AddScoped<IDBInitializer, DBInitializer>();
             services.AddScoped<IUnitOfWork, UnitOfWork>();
             services.AddScoped<IFileStorageService, FileStorageService>();
@@ -44,7 +77,13 @@ namespace SafeTrace.Infrastructure.DependencyInjection
             services.AddHttpClient<IPaymentService, PaymentService>();
             services.AddScoped<IPdfGeneratorService, PdfGeneratorService>();
             services.AddScoped<IExcelGeneratorService, ExcelGeneratorService>();
+            services.AddScoped<IComplaintService, ComplaintService>();
 
+            return services;
+        }
+
+        private static IServiceCollection AddAppAws(this IServiceCollection services, IConfiguration configuration)
+        {
             var awsOptions = configuration.GetAWSOptions("AWS");
             var accessKey = configuration["AWS:AccessKey"];
             var secretKey = configuration["AWS:SecretKey"];
@@ -57,15 +96,11 @@ namespace SafeTrace.Infrastructure.DependencyInjection
             services.AddDefaultAWSOptions(awsOptions);
             services.AddAWSService<Amazon.Rekognition.IAmazonRekognition>();
 
-            services.Configure<JwtOptions>(configuration.GetSection("Jwt"));
-            services.Configure<MailSettingsOptions>(configuration.GetSection("MailSettings"));
+            return services;
+        }
 
-            services.AddSingleton<IAuthorizationPolicyProvider, PermissionPolicyProvider>();
-            services.AddScoped<IAuthorizationHandler, PermissionHandler>();
-
-
-            services.AddScoped<IComplaintService, ComplaintService>();
-
+        private static IServiceCollection AddAppIdentity(this IServiceCollection services)
+        {
             services.AddIdentity<ApplicationUser, IdentityRole>(options =>
             {
                 options.Password.RequiredLength = 8;
@@ -83,6 +118,11 @@ namespace SafeTrace.Infrastructure.DependencyInjection
             .AddEntityFrameworkStores<ApplicationDbContext>()
             .AddDefaultTokenProviders();
 
+            return services;
+        }
+
+        private static IServiceCollection AddAppAuthentication(this IServiceCollection services, IConfiguration configuration)
+        {
             var jwtOptions = configuration.GetSection("Jwt").Get<JwtOptions>();
 
             services.AddAuthentication(options =>
@@ -111,13 +151,11 @@ namespace SafeTrace.Infrastructure.DependencyInjection
                     OnMessageReceived = context =>
                     {
                         var accessToken = context.Request.Query["access_token"];
-
                         var path = context.HttpContext.Request.Path;
 
                         if (!string.IsNullOrEmpty(accessToken) &&
                              (path.StartsWithSegments("/chatHub") ||
-     path.StartsWithSegments("/SafeTrace.Application/Hubs/notifications")))
-
+                              path.StartsWithSegments("/SafeTrace.Application/Hubs/notifications")))
                         {
                             context.Token = accessToken;
                         }
@@ -158,17 +196,11 @@ namespace SafeTrace.Infrastructure.DependencyInjection
                 };
             });
 
-            services.AddAuthorization();
+            return services;
+        }
 
-            services.AddElmah<SqlErrorLog>(options =>
-            {
-                options.Path = "/elmah";
-
-                options.ConnectionString = configuration.GetConnectionString("DefaultConnection");
-
-                options.OnPermissionCheck = context => true;
-            });
-
+        private static IServiceCollection AddAppRateLimiting(this IServiceCollection services)
+        {
             services.AddRateLimiter(options =>
             {
                 options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
