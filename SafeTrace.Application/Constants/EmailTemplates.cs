@@ -202,7 +202,7 @@ namespace SafeTrace.Application.Constants
                 <p style='color: #0B1C30; font-size: 16px; line-height: 1.9; margin: 0 0 24px 0;'>{message}</p>");
         }
 
-        public static string BuildLoginAlertTemplate(string fullName, string ipAddress, string browser, string os, string deviceName)
+        public static string BuildLoginAlertTemplate(string fullName, string ipAddress, string browser, string os)
         {
             return WrapInBaseLayout($@"
                 <h2 style='color: #BA1A1A; font-size: 22px; font-weight: 800; margin: 0 0 16px 0;'>🔔 تنبيه أمني: تسجيل دخول جديد</h2>
@@ -218,13 +218,9 @@ namespace SafeTrace.Application.Constants
                             <td style='padding: 14px 20px; color: #75777D; font-weight: 600;'>Browser:</td>
                             <td style='padding: 14px 20px; color: #0B1C30; font-weight: 700;' dir='ltr'>{browser}</td>
                         </tr>
-                        <tr style='border-bottom: 1px solid #E2E8F0;'>
+                        <tr style='background-color: #FFFFFF;'>
                             <td style='padding: 14px 20px; color: #75777D; font-weight: 600;'>OS:</td>
                             <td style='padding: 14px 20px; color: #0B1C30; font-weight: 700;' dir='ltr'>{os}</td>
-                        </tr>
-                        <tr style='background-color: #FFFFFF;'>
-                            <td style='padding: 14px 20px; color: #75777D; font-weight: 600;'>Device:</td>
-                            <td style='padding: 14px 20px; color: #0B1C30; font-weight: 700;' dir='ltr'>{deviceName}</td>
                         </tr>
                     </table>
                 </div>

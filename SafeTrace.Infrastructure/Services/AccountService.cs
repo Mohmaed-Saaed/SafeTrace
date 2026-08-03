@@ -607,7 +607,6 @@ namespace SafeTrace.Infrastructure.Services
                 
                 string browser = "غير معروف";
                 string os = "غير معروف";
-                string deviceName = "غير معروف";
 
                 if (!string.IsNullOrEmpty(userAgentStr))
                 {
@@ -615,33 +614,9 @@ namespace SafeTrace.Infrastructure.Services
                     var clientInfo = uaParser.Parse(userAgentStr);
                     browser = clientInfo.UA.Family;
                     os = clientInfo.OS.Family;
-                    
-                    var deviceFamily = clientInfo.Device.Family;
-                    var brand = clientInfo.Device.Brand;
-                    var model = clientInfo.Device.Model;
-
-                    if (!string.IsNullOrWhiteSpace(brand) && !string.IsNullOrWhiteSpace(model))
-                    {
-                        deviceName = $"{brand} {model}";
-                    }
-                    else if (!string.IsNullOrWhiteSpace(deviceFamily) && deviceFamily != "Other")
-                    {
-                        deviceName = deviceFamily;
-                    }
-                    else
-                    {
-                        if (os.Contains("Windows") || os.Contains("Mac") || os.Contains("Linux") || os.Contains("Ubuntu"))
-                        {
-                            deviceName = "جهاز كمبيوتر (Desktop/Laptop)";
-                        }
-                        else
-                        {
-                            deviceName = "جهاز غير معروف";
-                        }
-                    }
                 }
 
-                var mailBody = EmailTemplates.BuildLoginAlertTemplate(user.FName, ipAddress, browser, os, deviceName);
+                var mailBody = EmailTemplates.BuildLoginAlertTemplate(user.FName, ipAddress, browser, os);
                 BackgroundJob.Enqueue<IEmailService>(x => x.SendEmailAsync(user.Email!, "تنبيه - أمان الحساب: تسجيل دخول جديد", mailBody));
 
                 _ = _notificationService.SendNotificationAsync(new SendNotificationDTO
