@@ -60,14 +60,18 @@ namespace SafeTrace.Application.Services.UserProfileServices
 
                 //string baseUrl = $"{request.Scheme}://{request.Host}";
                 dto.ProfileImage = _imageUrl.Build(dto.ProfileImage);
-                dto.IdentificationImage = _imageUrl.Build(dto.IdentificationImage);
+                dto.IdentificationImageFront = _imageUrl.Build(dto.IdentificationImageFront);
+                dto.IdentificationImageBack = _imageUrl.Build(dto.IdentificationImageBack);
                 //dto.ProfileImage = string.IsNullOrEmpty(dto.ProfileImage)
                 //    ? null
                 //    : $"{baseUrl}{dto.ProfileImage}";
 
-                //dto.IdentificationImage = string.IsNullOrEmpty(dto.IdentificationImage)
+                //dto.IdentificationImageFront = string.IsNullOrEmpty(dto.IdentificationImageFront)
                 //    ? null
-                //    : $"{baseUrl}{dto.IdentificationImage}";
+                //    : $"{baseUrl}{dto.IdentificationImageFront}";
+                //dto.IdentificationImageBack = string.IsNullOrEmpty(dto.IdentificationImageBack)
+                //    ? null
+                //    : $"{baseUrl}{dto.IdentificationImageBack}";
                 return ApiResponse<GetUserInfoDTO?>.Ok(dto, ".اليك بيانات المستخدم");
             }
         }
@@ -114,20 +118,29 @@ namespace SafeTrace.Application.Services.UserProfileServices
         public async Task<ApiResponse<bool>> AddIdImageAsync(string userId, AddIdImageDTO dto)
         {
             var user = await GetUser(userId);
-            if (dto.IdentificationImage is not null)
+            if (dto.IdentificationImageFront is not null && dto.IdentificationImageBack is not null)
             {
                 if (user.VerificationStatus == VerificationStatus.Verified)
                 {
                     throw new BadRequestException("صورة البطاقة موجودة بالفعل .");
                 }
-                var newIdImage =
-                 await _Image.SaveFileAsync(dto.IdentificationImage, "Identification");
-                if (!string.IsNullOrEmpty(user.IdentificationImage))
+                
+                var newIdImageFront =
+                 await _Image.SaveFileAsync(dto.IdentificationImageFront, "Identification/Front");
+                var newIdImageBack =
+                 await _Image.SaveFileAsync(dto.IdentificationImageBack, "Identification/Back");
+
+                if (!string.IsNullOrEmpty(user.IdentificationImageFront))
                 {
-                    _Image.DeleteFile(user.IdentificationImage);
+                    _Image.DeleteFile(user.IdentificationImageFront);
+                }
+                if (!string.IsNullOrEmpty(user.IdentificationImageback))
+                {
+                    _Image.DeleteFile(user.IdentificationImageback);
                 }
 
-                user.IdentificationImage = newIdImage;
+                user.IdentificationImageFront = newIdImageFront;
+                user.IdentificationImageback = newIdImageBack;
                 user.VerificationStatus = VerificationStatus.Pending;
                 var result = await _userManager.UpdateAsync(user);
                 if (!result.Succeeded)

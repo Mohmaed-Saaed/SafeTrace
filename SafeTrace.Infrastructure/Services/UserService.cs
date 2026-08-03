@@ -205,10 +205,12 @@ namespace SafeTrace.Infrastructure.Services
             }
             else
             {
-                if(user.IdentificationImage != null)
+                if(user.IdentificationImageFront != null || user.IdentificationImageback != null)
                 {
-                    _fileStorageService.DeleteFile(user.IdentificationImage);
-                    user.IdentificationImage = null;
+                    if (user.IdentificationImageFront != null) _fileStorageService.DeleteFile(user.IdentificationImageFront);
+                    if (user.IdentificationImageback != null) _fileStorageService.DeleteFile(user.IdentificationImageback);
+                    user.IdentificationImageFront = null;
+                    user.IdentificationImageback = null;
                 }
             }
 
@@ -315,7 +317,7 @@ namespace SafeTrace.Infrastructure.Services
             var user = await _userManager.FindByIdAsync(userId);
             if (user == null) throw new NotFoundException("لم يتم العثور على هذا الحساب في النظام.");
 
-            if (user.IdentificationImage == null) throw new BadRequestException("لا توجد صورة هوية (بطاقة) لهذا المستخدم للموافقة عليها.");
+            if (user.IdentificationImageFront == null || user.IdentificationImageback == null) throw new BadRequestException("لا توجد صورة هوية (بطاقة) لهذا المستخدم للموافقة عليها.");
 
             if (user.VerificationStatus != VerificationStatus.Pending) throw new BadRequestException("لا يمكن قبول طلب التوثيق لأنه ليس في حالة انتظار المراجعة.");
 
@@ -359,15 +361,17 @@ namespace SafeTrace.Infrastructure.Services
             var user = await _userManager.FindByIdAsync(userId);
             if (user == null) throw new NotFoundException("لم يتم العثور على هذا الحساب في النظام.");
 
-            if (user.IdentificationImage == null) throw new BadRequestException("لا توجد صورة هوية (بطاقة) لهذا المستخدم لرفضها.");
+            if (user.IdentificationImageFront == null || user.IdentificationImageback == null) throw new BadRequestException("لا توجد صورة هوية (بطاقة) لهذا المستخدم لرفضها.");
 
             if (user.VerificationStatus != VerificationStatus.Pending) throw new BadRequestException("لا يمكن رفض طلب التوثيق لأنه ليس في حالة انتظار المراجعة.");
 
 
-            var DeletedResult = _fileStorageService.DeleteFile(user.IdentificationImage);
-            if (!DeletedResult) throw new BadRequestException("فشل في مسح صورة الهوية الخاصة بالمستخدم من الخادم.");
+            var deletedFront = user.IdentificationImageFront != null ? _fileStorageService.DeleteFile(user.IdentificationImageFront) : true;
+            var deletedBack = user.IdentificationImageback != null ? _fileStorageService.DeleteFile(user.IdentificationImageback) : true;
+            if (!deletedFront || !deletedBack) throw new BadRequestException("فشل في مسح صورة الهوية الخاصة بالمستخدم من الخادم.");
 
-            user.IdentificationImage = null;
+            user.IdentificationImageFront = null;
+            user.IdentificationImageback = null;
             user.VerificationStatus = VerificationStatus.Unverified;
             
             var result = await _userManager.UpdateAsync(user);
