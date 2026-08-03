@@ -1,5 +1,6 @@
 using AutoMapper;
 using Microsoft.Extensions.Logging;
+using Microsoft.EntityFrameworkCore;
 using SafeTrace.Application.Constants;
 using SafeTrace.Application.DTOs.NotificationDTOS;
 using SafeTrace.Application.DTOs.Responses;
@@ -441,18 +442,11 @@ namespace SafeTrace.Infrastructure.Services
             {
                 await _userManager.SetLockoutEndDateAsync(targetUser, DateTimeOffset.MaxValue);
 
-                var activeTokens = await _unitOfWork.Repository<RefreshToken>().Query()
+                await _unitOfWork.Repository<RefreshToken>().Query()
                                                                                .Where(rt => rt.UserId == userId &&
                                                                                             rt.RevokedAt == null &&
                                                                                             rt.ExpiresAt > DateTime.UtcNow)
-                                                                               .ToListAsync();
-
-                foreach (var token in activeTokens)
-                {
-                    token.RevokedAt = DateTime.UtcNow;
-                    _unitOfWork.Repository<RefreshToken>().Update(token);
-                }
-                await _unitOfWork.SaveAsync();
+                                                                               .ExecuteUpdateAsync(rt => rt.SetProperty(x => x.RevokedAt, DateTime.UtcNow));
 
                 var reason = string.IsNullOrWhiteSpace(dto?.Reason) ? "تم حظر الحساب نتيجة انتهاك شروط وسياسات المنصة." : dto.Reason;
                 var emailBody = EmailTemplates.BuildBlockStatusChangedTemplate(targetUser.FName, true, reason);
