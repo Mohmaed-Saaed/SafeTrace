@@ -11,6 +11,10 @@ namespace SafeTrace.Application.DTOs.Cases.Response
 
         public long? ExistingCaseId { get; init; }
 
+        public CaseType? ExistingCaseType { get; init; }
+
+        public CaseStatus? ExistingStatus { get; init; }
+
         public IReadOnlyList<MatchedCaseDto> MatchedCases { get; init; } = [];
     }
 }

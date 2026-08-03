@@ -360,114 +360,139 @@ namespace SafeTrace.Application.Services.Cases
 
             if (matchedCases.Count == 0)
             {
+                return new DuplicateCheckResult { IsBlocked = false, DuplicateDecision = DuplicateDecision.None, MatchedCases = [] };
+            }
+
+            var sameUserMatch = matchedCases.FirstOrDefault(c => c.UserId == currentUserId);
+            if (sameUserMatch != null)
+            {
+                return new DuplicateCheckResult
+                {
+                    IsBlocked = true,
+                    DuplicateDecision = DuplicateDecision.SameUserDuplicate,
+                    ExistingCaseId = sameUserMatch.Id,
+                    ExistingCaseType = sameUserMatch.CaseType,
+                    ExistingStatus = sameUserMatch.Status,
+                    MatchedCases = []
+                };
+            }
+
+            var pendingOwner = matchedCases.FirstOrDefault(c => c.Status == CaseStatus.Pending && (c.CaseType == CaseType.Urgent || c.CaseType == CaseType.LongTerm));
+            if (pendingOwner != null)
+            {
+                return new DuplicateCheckResult
+                {
+                    IsBlocked = true,
+                    DuplicateDecision = DuplicateDecision.PendingOwnerCase,
+                    ExistingCaseId = pendingOwner.Id,
+                    ExistingCaseType = pendingOwner.CaseType,
+                    ExistingStatus = pendingOwner.Status,
+                    MatchedCases = []
+                };
+            }
+
+            var pendingUnknown = matchedCases.FirstOrDefault(c => c.Status == CaseStatus.Pending && c.CaseType == CaseType.Unknown);
+            if (pendingUnknown != null)
+            {
                 return new DuplicateCheckResult
                 {
                     IsBlocked = false,
-                    DuplicateDecision = DuplicateDecision.None,
+                    DuplicateDecision = DuplicateDecision.PendingUnknownCase,
+                    ExistingCaseId = pendingUnknown.Id,
+                    ExistingCaseType = pendingUnknown.CaseType,
+                    ExistingStatus = pendingUnknown.Status,
                     MatchedCases = []
                 };
             }
 
-            var sameUserMatches = matchedCases.Where(c => c.UserId == currentUserId).ToList();
-            var diffUserMatches = matchedCases.Where(c => c.UserId != currentUserId).ToList();
-
-            // 1. SameUserPending
-            var sameUserPending = sameUserMatches.FirstOrDefault(c => c.Status == CaseStatus.Pending);
-            if (sameUserPending != null)
+            var activeOwner = matchedCases.FirstOrDefault(c => c.Status == CaseStatus.Active && (c.CaseType == CaseType.Urgent || c.CaseType == CaseType.LongTerm));
+            if (activeOwner != null)
             {
                 return new DuplicateCheckResult
                 {
                     IsBlocked = true,
-                    DuplicateDecision = DuplicateDecision.SameUserPending,
-                    ExistingCaseId = sameUserPending.Id,
-                    MatchedCases = []
+                    DuplicateDecision = DuplicateDecision.ActiveOwnerCase,
+                    ExistingCaseId = activeOwner.Id,
+                    ExistingCaseType = activeOwner.CaseType,
+                    ExistingStatus = activeOwner.Status,
+                    MatchedCases = matchedCases
                 };
             }
 
-            // 2. SameUserActive
-            var sameUserActive = sameUserMatches.FirstOrDefault(c => c.Status == CaseStatus.Active);
-            if (sameUserActive != null)
+            var activeUnknown = matchedCases.FirstOrDefault(c => c.Status == CaseStatus.Active && c.CaseType == CaseType.Unknown);
+            if (activeUnknown != null)
             {
                 return new DuplicateCheckResult
                 {
-                    IsBlocked = true,
-                    DuplicateDecision = DuplicateDecision.SameUserActive,
-                    ExistingCaseId = sameUserActive.Id,
-                    MatchedCases = []
+                    IsBlocked = false,
+                    DuplicateDecision = DuplicateDecision.ActiveUnknownCase,
+                    ExistingCaseId = activeUnknown.Id,
+                    ExistingCaseType = activeUnknown.CaseType,
+                    ExistingStatus = activeUnknown.Status,
+                    MatchedCases = matchedCases
                 };
             }
 
-            // 3. DifferentUserPending
-            var diffUserPending = diffUserMatches.FirstOrDefault(c => c.Status == CaseStatus.Pending);
-            if (diffUserPending != null)
-            {
-                return new DuplicateCheckResult
-                {
-                    IsBlocked = true,
-                    DuplicateDecision = DuplicateDecision.PendingDuplicate,
-                    MatchedCases = []
-                };
-            }
-
-            // 4. DifferentUserActive
-            var diffUserActive = diffUserMatches.Where(c => c.Status == CaseStatus.Active).ToList();
-            if (diffUserActive.Count > 0)
-            {
-                var hasUnknown = diffUserActive.Any(c => c.CaseType == CaseType.Unknown);
-                var hasUrgentOrLongTerm = diffUserActive.Any(c => c.CaseType == CaseType.Urgent || c.CaseType == CaseType.LongTerm);
-
-                if (hasUnknown && !hasUrgentOrLongTerm)
-                {
-                    // AllowUnknown (only Unknown cases matched)
-                    return new DuplicateCheckResult
-                    {
-                        IsBlocked = false,
-                        DuplicateDecision = DuplicateDecision.AllowUnknown,
-                        MatchedCases = []
-                    };
-                }
-                
-                if (hasUrgentOrLongTerm)
-                {
-                    // ApprovedDuplicate (Urgent/LongTerm matches exist)
-                    return new DuplicateCheckResult
-                    {
-                        IsBlocked = true,
-                        DuplicateDecision = DuplicateDecision.ApprovedDuplicate,
-                        MatchedCases = diffUserActive
-                    };
-                }
-            }
-            
-            // 5. No Match (fallback)
-            return new DuplicateCheckResult
-            {
-                IsBlocked = false,
-                DuplicateDecision = DuplicateDecision.None,
-                MatchedCases = []
-            };
+            return new DuplicateCheckResult { IsBlocked = false, DuplicateDecision = DuplicateDecision.None, MatchedCases = [] };
         }
-        
-        public async Task ValidatePrimaryImageIdentityAsync(Case existingCase, IFormFile? newPrimaryImage)
+
+        public async Task ValidateUploadedImagesIdentityAsync(
+            IFormFile? primaryImage, 
+            IEnumerable<IFormFile>? additionalImages, 
+            IEnumerable<string>? existingFaceIds = null)
         {
-            if (newPrimaryImage == null) return;
+            var isUpdate = existingFaceIds != null && existingFaceIds.Any();
+            var hasAdditional = additionalImages != null && additionalImages.Any();
 
-            var existingFaceIds = existingCase.CaseFiles?
-                .Where(f => !string.IsNullOrWhiteSpace(f.FaceId))
-                .Select(f => f.FaceId!)
-                .ToHashSet();
-
-            if (existingFaceIds == null || existingFaceIds.Count == 0)
-                return;
-
-            var matches = await _faceRecognitionService.SearchByImageAsync(newPrimaryImage);
-
-            var isSamePerson = matches.Any(m => 
-                existingFaceIds.Contains(m.FaceId) && PassesVerification(m.Similarity ?? 0));
-
-            if (!isSamePerson)
+            if (!isUpdate)
             {
-                throw new BadRequestException("الصورة الجديدة لا تبدو لنفس الشخص الموجود في هذا البلاغ.\n\nإذا كان هذا شخصًا آخر، يرجى إنشاء بلاغ جديد بدلاً من تعديل البلاغ الحالي.");
+                if (primaryImage != null && hasAdditional)
+                {
+                    foreach (var additional in additionalImages!)
+                    {
+                        var comparison = await _faceRecognitionService.CompareFacesAsync(primaryImage, additional);
+                        if (!comparison.Success || !comparison.IsSamePerson)
+                        {
+                            throw new BadRequestException("جميع الصور المرفقة يجب أن تكون لنفس الشخص.");
+                        }
+                    }
+                }
+            }
+            else
+            {
+                if (primaryImage != null)
+                {
+                    var matches = await _faceRecognitionService.SearchByImageAsync(primaryImage);
+                    var isSamePerson = matches.Any(m => existingFaceIds!.Contains(m.FaceId) && PassesVerification(m.Similarity ?? 0));
+                    if (!isSamePerson)
+                    {
+                        throw new BadRequestException("الصورة الجديدة لا تبدو لنفس الشخص الموجود في هذا البلاغ.\n\nإذا كان هذا شخصًا آخر، يرجى إنشاء بلاغ جديد بدلاً من تعديل البلاغ الحالي.");
+                    }
+                    
+                    if (hasAdditional)
+                    {
+                        foreach (var additional in additionalImages!)
+                        {
+                            var comparison = await _faceRecognitionService.CompareFacesAsync(primaryImage, additional);
+                            if (!comparison.Success || !comparison.IsSamePerson)
+                            {
+                                throw new BadRequestException("جميع الصور داخل البلاغ يجب أن تكون لنفس الشخص.");
+                            }
+                        }
+                    }
+                }
+                else if (hasAdditional)
+                {
+                    foreach (var additional in additionalImages!)
+                    {
+                        var matches = await _faceRecognitionService.SearchByImageAsync(additional);
+                        var isSamePerson = matches.Any(m => existingFaceIds!.Contains(m.FaceId) && PassesVerification(m.Similarity ?? 0));
+                        if (!isSamePerson)
+                        {
+                            throw new BadRequestException("جميع الصور داخل البلاغ يجب أن تكون لنفس الشخص.");
+                        }
+                    }
+                }
             }
         }
 

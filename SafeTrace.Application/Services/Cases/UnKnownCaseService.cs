@@ -120,11 +120,11 @@ namespace SafeTrace.Application.Services.Cases
         {
             await _caseHelper.ValidateVerifiedUserAsync(userId);
 
+            await _caseHelper.ValidateUploadedImagesIdentityAsync(dto.PrimaryImage, dto.AdditionalImages);
+
             var duplicateCheck = await _caseHelper.CheckDuplicateCaseAsync(CaseType.Unknown, dto.PrimaryImage, userId);
 
-            if (duplicateCheck.DuplicateDecision == DuplicateDecision.SameUserPending ||
-                duplicateCheck.DuplicateDecision == DuplicateDecision.SameUserActive ||
-                duplicateCheck.DuplicateDecision == DuplicateDecision.PendingDuplicate)
+            if (duplicateCheck.IsBlocked)
             {
                 return ApiResponse<CreateCaseResponseDto>.Ok(
                     new CreateCaseResponseDto
@@ -133,37 +133,25 @@ namespace SafeTrace.Application.Services.Cases
                         IsBlocked = true,
                         DuplicateDecision = duplicateCheck.DuplicateDecision,
                         ExistingCaseId = duplicateCheck.ExistingCaseId,
-                        MatchedCases = []
+                        ExistingCaseType = duplicateCheck.ExistingCaseType,
+                        ExistingStatus = duplicateCheck.ExistingStatus,
+                        MatchedCases = duplicateCheck.MatchedCases
                     });
             }
 
-            if (duplicateCheck.DuplicateDecision == DuplicateDecision.ApprovedDuplicate && duplicateCheck.MatchedCases.Count > 0)
+            if (duplicateCheck.DuplicateDecision != DuplicateDecision.None && !forceCreate)
             {
-                var isBlocked = duplicateCheck.MatchedCases.Any(c => c.CaseType == CaseType.LongTerm || c.CaseType == CaseType.Urgent);
-
-                if (isBlocked)
-                {
-                    return ApiResponse<CreateCaseResponseDto>.Ok(
-                        new CreateCaseResponseDto
-                        {
-                            IsCreated = false,
-                            IsBlocked = true,
-                            DuplicateDecision = DuplicateDecision.ApprovedDuplicate,
-                            MatchedCases = duplicateCheck.MatchedCases
-                        });
-                }
-
-                if (!forceCreate)
-                {
-                    return ApiResponse<CreateCaseResponseDto>.Ok(
-                        new CreateCaseResponseDto
-                        {
-                            IsCreated = false,
-                            IsBlocked = false,
-                            DuplicateDecision = DuplicateDecision.ApprovedDuplicate,
-                            MatchedCases = duplicateCheck.MatchedCases
-                        });
-                }
+                return ApiResponse<CreateCaseResponseDto>.Ok(
+                    new CreateCaseResponseDto
+                    {
+                        IsCreated = false,
+                        IsBlocked = false,
+                        DuplicateDecision = duplicateCheck.DuplicateDecision,
+                        ExistingCaseId = duplicateCheck.ExistingCaseId,
+                        ExistingCaseType = duplicateCheck.ExistingCaseType,
+                        ExistingStatus = duplicateCheck.ExistingStatus,
+                        MatchedCases = duplicateCheck.MatchedCases
+                    });
             }
 
             var sameTypeMatch = duplicateCheck.MatchedCases
@@ -243,10 +231,12 @@ namespace SafeTrace.Application.Services.Cases
 
             _caseHelper.ValidateCaseIsEditable(entity);
 
-            if (dto.PrimaryImage != null)
-            {
-                await _caseHelper.ValidatePrimaryImageIdentityAsync(entity, dto.PrimaryImage);
-            }
+            var existingFaceIds = entity.CaseFiles?
+                .Where(f => !string.IsNullOrWhiteSpace(f.FaceId))
+                .Select(f => f.FaceId!)
+                .ToList();
+
+            await _caseHelper.ValidateUploadedImagesIdentityAsync(dto.PrimaryImage, dto.NewPhotos, existingFaceIds);
 
             if (entity.Status == CaseStatus.Active)
             {
