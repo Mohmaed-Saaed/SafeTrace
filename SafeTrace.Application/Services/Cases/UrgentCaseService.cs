@@ -1,7 +1,6 @@
 using NetTopologySuite.Geometries;
 using SafeTrace.Application.Common.Enums;
 using SafeTrace.Application.Constants;
-using SafeTrace.Application.DTOs.Cases.Request;
 using SafeTrace.Application.DTOs.Cases.Response;
 using SafeTrace.Application.DTOs.NotificationDTOS;
 using SafeTrace.Application.DTOs.UrgentCase.Request;
@@ -81,33 +80,38 @@ namespace SafeTrace.Application.Services.Cases
                return ApiResponse<CreateCaseResponseDto>.Fail(rateLimitViolation);
             }
 
-            var duplicateCheck = await _caseHelper.CheckDuplicateCaseAsync(CaseType.Urgent, dto.PrimaryImage);
+            await _caseHelper.ValidateUploadedImagesIdentityAsync(dto.PrimaryImage, dto.AdditionalImages);
 
-            if (duplicateCheck.MatchedCases.Count > 0)
+            var duplicateCheck = await _caseHelper.CheckDuplicateCaseAsync(CaseType.Urgent, dto.PrimaryImage, userId);
+
+            if (duplicateCheck.IsBlocked)
             {
-                var isBlocked = duplicateCheck.MatchedCases.Any(c => c.CaseType == CaseType.Urgent || c.CaseType == CaseType.LongTerm);
+                return ApiResponse<CreateCaseResponseDto>.Ok(
+                    new CreateCaseResponseDto
+                    {
+                        IsCreated = false,
+                        IsBlocked = true,
+                        DuplicateDecision = duplicateCheck.DuplicateDecision,
+                        ExistingCaseId = duplicateCheck.ExistingCaseId,
+                        ExistingCaseType = duplicateCheck.ExistingCaseType,
+                        ExistingStatus = duplicateCheck.ExistingStatus,
+                        MatchedCases = duplicateCheck.MatchedCases
+                    });
+            }
 
-                if (isBlocked)
-                {
-                    return ApiResponse<CreateCaseResponseDto>.Ok(
-                        new CreateCaseResponseDto
-                        {
-                            IsCreated = false,
-                            IsBlocked = true,
-                            MatchedCases = duplicateCheck.MatchedCases
-                        });
-                }
-
-                if (!forceCreate)
-                {
-                    return ApiResponse<CreateCaseResponseDto>.Ok(
-                        new CreateCaseResponseDto
-                        {
-                            IsCreated = false,
-                            IsBlocked = false,
-                            MatchedCases = duplicateCheck.MatchedCases
-                        });
-                }
+            if (duplicateCheck.DuplicateDecision != DuplicateDecision.None && !forceCreate)
+            {
+                return ApiResponse<CreateCaseResponseDto>.Ok(
+                    new CreateCaseResponseDto
+                    {
+                        IsCreated = false,
+                        IsBlocked = false,
+                        DuplicateDecision = duplicateCheck.DuplicateDecision,
+                        ExistingCaseId = duplicateCheck.ExistingCaseId,
+                        ExistingCaseType = duplicateCheck.ExistingCaseType,
+                        ExistingStatus = duplicateCheck.ExistingStatus,
+                        MatchedCases = duplicateCheck.MatchedCases
+                    });
             }
 
             var now = DateTime.UtcNow;
@@ -184,6 +188,13 @@ namespace SafeTrace.Application.Services.Cases
                 includes: [x => x.CaseFiles]);
 
             _caseHelper.ValidateCaseIsEditable(entity);
+
+            var existingFaceIds = entity.CaseFiles?
+                .Where(f => !string.IsNullOrWhiteSpace(f.FaceId))
+                .Select(f => f.FaceId!)
+                .ToList();
+
+            await _caseHelper.ValidateUploadedImagesIdentityAsync(updateDto.PrimaryImage, updateDto.NewPhotos, existingFaceIds);
 
             var uploadedPhotos = new List<CaseFile>();
             var filesToDelete = new List<string>();

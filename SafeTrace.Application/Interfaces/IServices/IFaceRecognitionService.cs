@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Http;
 using SafeTrace.Application.DTOs.AiMatching.Response;
 
 namespace SafeTrace.Application.Interfaces.IServices
@@ -9,6 +9,7 @@ namespace SafeTrace.Application.Interfaces.IServices
         Task ResetCollectionAsync();
         Task<string> IndexFaceAsync(IFormFile image);
         Task<List<FaceMatchResult>> SearchByImageAsync(IFormFile image);
+        Task<FaceComparisonResult> CompareFacesAsync(IFormFile firstImage, IFormFile secondImage);
         Task<bool> DeleteFaceAsync(string faceId);
         Task<bool> DeleteFacesAsync(List<string> faceIds);
     }

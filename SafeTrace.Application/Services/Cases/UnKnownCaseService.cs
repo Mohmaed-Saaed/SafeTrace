@@ -1,6 +1,5 @@
 using SafeTrace.Application.Common.Enums;
 using SafeTrace.Application.DTOs.AiMatching.Response;
-using SafeTrace.Application.DTOs.Cases.Request;
 using SafeTrace.Application.DTOs.Cases.Response;
 using SafeTrace.Application.DTOs.UnKnownCase.Request;
 using SafeTrace.Application.DTOs.UnKnownCase.Response;
@@ -121,33 +120,38 @@ namespace SafeTrace.Application.Services.Cases
         {
             await _caseHelper.ValidateVerifiedUserAsync(userId);
 
-            var duplicateCheck = await _caseHelper.CheckDuplicateCaseAsync(CaseType.Unknown, dto.PrimaryImage);
+            await _caseHelper.ValidateUploadedImagesIdentityAsync(dto.PrimaryImage, dto.AdditionalImages);
 
-            if (duplicateCheck.MatchedCases.Count > 0)
+            var duplicateCheck = await _caseHelper.CheckDuplicateCaseAsync(CaseType.Unknown, dto.PrimaryImage, userId);
+
+            if (duplicateCheck.IsBlocked)
             {
-                var isBlocked = duplicateCheck.MatchedCases.Any(c => c.CaseType == CaseType.LongTerm || c.CaseType == CaseType.Urgent);
+                return ApiResponse<CreateCaseResponseDto>.Ok(
+                    new CreateCaseResponseDto
+                    {
+                        IsCreated = false,
+                        IsBlocked = true,
+                        DuplicateDecision = duplicateCheck.DuplicateDecision,
+                        ExistingCaseId = duplicateCheck.ExistingCaseId,
+                        ExistingCaseType = duplicateCheck.ExistingCaseType,
+                        ExistingStatus = duplicateCheck.ExistingStatus,
+                        MatchedCases = duplicateCheck.MatchedCases
+                    });
+            }
 
-                if (isBlocked)
-                {
-                    return ApiResponse<CreateCaseResponseDto>.Ok(
-                        new CreateCaseResponseDto
-                        {
-                            IsCreated = false,
-                            IsBlocked = true,
-                            MatchedCases = duplicateCheck.MatchedCases
-                        });
-                }
-
-                if (!forceCreate)
-                {
-                    return ApiResponse<CreateCaseResponseDto>.Ok(
-                        new CreateCaseResponseDto
-                        {
-                            IsCreated = false,
-                            IsBlocked = false,
-                            MatchedCases = duplicateCheck.MatchedCases
-                        });
-                }
+            if (duplicateCheck.DuplicateDecision != DuplicateDecision.None && !forceCreate)
+            {
+                return ApiResponse<CreateCaseResponseDto>.Ok(
+                    new CreateCaseResponseDto
+                    {
+                        IsCreated = false,
+                        IsBlocked = false,
+                        DuplicateDecision = duplicateCheck.DuplicateDecision,
+                        ExistingCaseId = duplicateCheck.ExistingCaseId,
+                        ExistingCaseType = duplicateCheck.ExistingCaseType,
+                        ExistingStatus = duplicateCheck.ExistingStatus,
+                        MatchedCases = duplicateCheck.MatchedCases
+                    });
             }
 
             var sameTypeMatch = duplicateCheck.MatchedCases
@@ -226,6 +230,13 @@ namespace SafeTrace.Application.Services.Cases
                 includes: [x => x.CaseFiles]);
 
             _caseHelper.ValidateCaseIsEditable(entity);
+
+            var existingFaceIds = entity.CaseFiles?
+                .Where(f => !string.IsNullOrWhiteSpace(f.FaceId))
+                .Select(f => f.FaceId!)
+                .ToList();
+
+            await _caseHelper.ValidateUploadedImagesIdentityAsync(dto.PrimaryImage, dto.NewPhotos, existingFaceIds);
 
             if (entity.Status == CaseStatus.Active)
             {

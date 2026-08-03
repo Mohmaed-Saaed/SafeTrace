@@ -43,6 +43,14 @@ namespace SafeTrace.Application.Interfaces.IServices.ICases
 
         Task<DuplicateCheckResult> CheckDuplicateCaseAsync(
             CaseType currentCaseType,
-            IFormFile primaryImage);
+            IFormFile primaryImage,
+            string currentUserId);
+
+
+
+        Task ValidateUploadedImagesIdentityAsync(
+            IFormFile? primaryImage, 
+            IEnumerable<IFormFile>? additionalImages, 
+            IEnumerable<string>? existingFaceIds = null);
     }
 }

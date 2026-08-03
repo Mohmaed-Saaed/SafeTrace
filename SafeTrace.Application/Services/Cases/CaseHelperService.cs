@@ -2,7 +2,6 @@ using System.Linq.Expressions;
 using Microsoft.AspNetCore.Http;
 using SafeTrace.Application.Common.Enums;
 using SafeTrace.Application.DTOs.AiMatching.Response;
-using SafeTrace.Application.DTOs.Cases.Request;
 using SafeTrace.Application.DTOs.Cases.Response;
 using SafeTrace.Application.DTOs.NotificationDTOS;
 using SafeTrace.Application.Exceptions;
@@ -354,17 +353,149 @@ namespace SafeTrace.Application.Services.Cases
 
         public async Task<DuplicateCheckResult> CheckDuplicateCaseAsync(
             CaseType currentCaseType,
-            IFormFile primaryImage)
+            IFormFile primaryImage,
+            string currentUserId)
         {
             var matchedCases = await FindMatchedCasesAsync(primaryImage);
 
-            return new DuplicateCheckResult
+            if (matchedCases.Count == 0)
             {
-                IsBlocked = false,
-                MatchedCases = matchedCases
-            };
+                return new DuplicateCheckResult { IsBlocked = false, DuplicateDecision = DuplicateDecision.None, MatchedCases = [] };
+            }
+
+            var sameUserMatch = matchedCases.FirstOrDefault(c => c.UserId == currentUserId);
+            if (sameUserMatch != null)
+            {
+                return new DuplicateCheckResult
+                {
+                    IsBlocked = true,
+                    DuplicateDecision = DuplicateDecision.SameUserDuplicate,
+                    ExistingCaseId = sameUserMatch.Id,
+                    ExistingCaseType = sameUserMatch.CaseType,
+                    ExistingStatus = sameUserMatch.Status,
+                    MatchedCases = []
+                };
+            }
+
+            var pendingOwner = matchedCases.FirstOrDefault(c => c.Status == CaseStatus.Pending && (c.CaseType == CaseType.Urgent || c.CaseType == CaseType.LongTerm));
+            if (pendingOwner != null)
+            {
+                return new DuplicateCheckResult
+                {
+                    IsBlocked = true,
+                    DuplicateDecision = DuplicateDecision.PendingOwnerCase,
+                    ExistingCaseId = pendingOwner.Id,
+                    ExistingCaseType = pendingOwner.CaseType,
+                    ExistingStatus = pendingOwner.Status,
+                    MatchedCases = []
+                };
+            }
+
+            var pendingUnknown = matchedCases.FirstOrDefault(c => c.Status == CaseStatus.Pending && c.CaseType == CaseType.Unknown);
+            if (pendingUnknown != null)
+            {
+                return new DuplicateCheckResult
+                {
+                    IsBlocked = false,
+                    DuplicateDecision = DuplicateDecision.PendingUnknownCase,
+                    ExistingCaseId = pendingUnknown.Id,
+                    ExistingCaseType = pendingUnknown.CaseType,
+                    ExistingStatus = pendingUnknown.Status,
+                    MatchedCases = []
+                };
+            }
+
+            var activeOwner = matchedCases.FirstOrDefault(c => c.Status == CaseStatus.Active && (c.CaseType == CaseType.Urgent || c.CaseType == CaseType.LongTerm));
+            if (activeOwner != null)
+            {
+                return new DuplicateCheckResult
+                {
+                    IsBlocked = true,
+                    DuplicateDecision = DuplicateDecision.ActiveOwnerCase,
+                    ExistingCaseId = activeOwner.Id,
+                    ExistingCaseType = activeOwner.CaseType,
+                    ExistingStatus = activeOwner.Status,
+                    MatchedCases = matchedCases
+                };
+            }
+
+            var activeUnknown = matchedCases.FirstOrDefault(c => c.Status == CaseStatus.Active && c.CaseType == CaseType.Unknown);
+            if (activeUnknown != null)
+            {
+                return new DuplicateCheckResult
+                {
+                    IsBlocked = false,
+                    DuplicateDecision = DuplicateDecision.ActiveUnknownCase,
+                    ExistingCaseId = activeUnknown.Id,
+                    ExistingCaseType = activeUnknown.CaseType,
+                    ExistingStatus = activeUnknown.Status,
+                    MatchedCases = matchedCases
+                };
+            }
+
+            return new DuplicateCheckResult { IsBlocked = false, DuplicateDecision = DuplicateDecision.None, MatchedCases = [] };
         }
-        
+
+        public async Task ValidateUploadedImagesIdentityAsync(
+            IFormFile? primaryImage, 
+            IEnumerable<IFormFile>? additionalImages, 
+            IEnumerable<string>? existingFaceIds = null)
+        {
+            var isUpdate = existingFaceIds != null && existingFaceIds.Any();
+            var hasAdditional = additionalImages != null && additionalImages.Any();
+
+            if (!isUpdate)
+            {
+                if (primaryImage != null && hasAdditional)
+                {
+                    foreach (var additional in additionalImages!)
+                    {
+                        var comparison = await _faceRecognitionService.CompareFacesAsync(primaryImage, additional);
+                        if (!comparison.Success || !comparison.IsSamePerson)
+                        {
+                            throw new BadRequestException("جميع الصور المرفقة يجب أن تكون لنفس الشخص.");
+                        }
+                    }
+                }
+            }
+            else
+            {
+                if (primaryImage != null)
+                {
+                    var matches = await _faceRecognitionService.SearchByImageAsync(primaryImage);
+                    var isSamePerson = matches.Any(m => existingFaceIds!.Contains(m.FaceId) && PassesVerification(m.Similarity ?? 0));
+                    if (!isSamePerson)
+                    {
+                        throw new BadRequestException("الصورة الجديدة لا تبدو لنفس الشخص الموجود في هذا البلاغ.\n\nإذا كان هذا شخصًا آخر، يرجى إنشاء بلاغ جديد بدلاً من تعديل البلاغ الحالي.");
+                    }
+                    
+                    if (hasAdditional)
+                    {
+                        foreach (var additional in additionalImages!)
+                        {
+                            var comparison = await _faceRecognitionService.CompareFacesAsync(primaryImage, additional);
+                            if (!comparison.Success || !comparison.IsSamePerson)
+                            {
+                                throw new BadRequestException("جميع الصور داخل البلاغ يجب أن تكون لنفس الشخص.");
+                            }
+                        }
+                    }
+                }
+                else if (hasAdditional)
+                {
+                    foreach (var additional in additionalImages!)
+                    {
+                        var matches = await _faceRecognitionService.SearchByImageAsync(additional);
+                        var isSamePerson = matches.Any(m => existingFaceIds!.Contains(m.FaceId) && PassesVerification(m.Similarity ?? 0));
+                        if (!isSamePerson)
+                        {
+                            throw new BadRequestException("جميع الصور داخل البلاغ يجب أن تكون لنفس الشخص.");
+                        }
+                    }
+                }
+            }
+        }
+
         private async Task<List<FaceMatchResult>> SearchFacesAsync(IFormFile primaryImage)
         {
             var faceMatches = await _faceRecognitionService.SearchByImageAsync(primaryImage);
@@ -389,11 +520,7 @@ namespace SafeTrace.Application.Services.Cases
             return await _unitOfWork.Repository<Case>()
                 .Query(tracked: false, includes: [c => c.CaseFiles, c => c.User])
                 .Where(c =>
-                (
-                    (c.CaseType == CaseType.Unknown && c.Status != CaseStatus.Deleted)
-                    ||
-                    (c.CaseType != CaseType.Unknown && c.Status == CaseStatus.Active)
-                )
+                (c.Status == CaseStatus.Pending || c.Status == CaseStatus.Active)
                 &&
                 c.CaseFiles.Any(f => f.FaceId != null && faceIds.Contains(f.FaceId))).ToListAsync();
         }
