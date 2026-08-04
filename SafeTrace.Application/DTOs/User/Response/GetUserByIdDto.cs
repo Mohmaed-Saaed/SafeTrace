@@ -10,7 +10,8 @@ namespace SafeTrace.Application.DTOs.User.Response
         public string Email { get; set; } = null!;
         public string PhoneNumber { get; set; } = null!;
         public string? ProfileImage { get; set; }
-        public string? IdentificationImage { get; set; }
+        public string? IdentificationImageFront { get; set; }
+        public string? IdentificationImageBack { get; set; }
         public VerificationStatus VerificationStatus { get; set; }
         public bool IsBlocked { get; set; }
         public string Role { get; set; } = null!;

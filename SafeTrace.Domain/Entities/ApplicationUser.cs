@@ -9,7 +9,9 @@ namespace SafeTrace.Domain.Entities
 
         public string LName { get; set; } = null!;
 
-        public string? IdentificationImage { get; set; }
+        public string? IdentificationImageFront { get; set; }
+
+        public string? IdentificationImageback { get; set; }
 
         public string? ProfileImage { get; set; }
 

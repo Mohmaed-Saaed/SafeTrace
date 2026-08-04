@@ -1,8 +1,8 @@
-﻿using MailKit.Net.Smtp;
+using MailKit.Net.Smtp;
 using MailKit.Security;
 using Microsoft.Extensions.Options;
 using MimeKit;
-using SafeTrace.Application.Exceptions;
+using Microsoft.Extensions.Logging;
 using SafeTrace.Application.Interfaces.IServices;
 using SafeTrace.Infrastructure.Options;
 using System.Net.Sockets;
@@ -13,19 +13,27 @@ namespace SafeTrace.Infrastructure.Services
     public class EmailService : IEmailService
     {
         private readonly MailSettingsOptions _mailSettings;
+        private readonly ILogger<EmailService> _logger;
 
-        public EmailService(IOptions<MailSettingsOptions> mailSettings)
+        public EmailService(IOptions<MailSettingsOptions> mailSettings, ILogger<EmailService> logger)
         {
             _mailSettings = mailSettings.Value;
+            _logger = logger;
         }
 
         public async Task SendEmailAsync(string toEmail, string subject, string body)
         {
             if (string.IsNullOrWhiteSpace(toEmail))
-                throw new BadRequestException("البريد الإلكتروني للمستلم غير صالح أو مفقود.");
+            {
+                _logger.LogWarning("Email sending failed: Recipient email is missing or invalid.");
+                return;
+            }
 
             if (string.IsNullOrWhiteSpace(_mailSettings.Host) || string.IsNullOrWhiteSpace(_mailSettings.Email))
-                throw new BadRequestException("إعدادات خادم إرسال البريد الإلكتروني (SMTP) غير مكتملة. يرجى مراجعة الدعم الفني.");
+            {
+                _logger.LogError("Email sending failed: SMTP settings are incomplete.");
+                return;
+            }
 
             var email = new MimeMessage();
             email.Sender = MailboxAddress.Parse(_mailSettings.Email);
@@ -52,25 +60,30 @@ namespace SafeTrace.Infrastructure.Services
 
                 await smtp.SendAsync(email);
             }
-            catch (AuthenticationException)
+            catch (AuthenticationException ex)
             {
-                throw new UnauthorizedException("فشلت عملية المصادقة مع خادم البريد الإلكتروني. يرجى التأكد من إعدادات الإرسال.");
+                _logger.LogError(ex, "Authentication failed with the SMTP server.");
+                throw new InvalidOperationException("فشلت عملية المصادقة مع خادم البريد الإلكتروني.", ex);
             }
-            catch (SmtpCommandException)
+            catch (SmtpCommandException ex)
             {
-                throw new BadRequestException("رفض خادم البريد الإلكتروني إرسال الرسالة.");
+                _logger.LogError(ex, "SMTP server rejected the message.");
+                throw new InvalidOperationException("رفض خادم البريد الإلكتروني إرسال الرسالة.", ex);
             }
-            catch (SmtpProtocolException)
+            catch (SmtpProtocolException ex)
             {
-                throw new BadRequestException("حدث خطأ في بروتوكول الاتصال بخادم البريد الإلكتروني.");
+                _logger.LogError(ex, "SMTP protocol error occurred.");
+                throw new InvalidOperationException("حدث خطأ في بروتوكول الاتصال بخادم البريد الإلكتروني.", ex);
             }
-            catch (SocketException)
+            catch (SocketException ex)
             {
-                throw new BadRequestException("تعذر الوصول إلى خادم البريد الإلكتروني. يرجى التحقق من اتصالك بالإنترنت.");
+                _logger.LogError(ex, "Could not connect to the SMTP server.");
+                throw new InvalidOperationException("تعذر الوصول إلى خادم البريد الإلكتروني.", ex);
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                throw new BadRequestException("حدث خطأ غير متوقع أثناء محاولة إرسال البريد الإلكتروني.");
+                _logger.LogError(ex, "An unexpected error occurred while sending email.");
+                throw new InvalidOperationException("حدث خطأ غير متوقع أثناء محاولة إرسال البريد الإلكتروني.", ex);
             }
             finally
             {

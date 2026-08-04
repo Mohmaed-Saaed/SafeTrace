@@ -10,7 +10,7 @@ using SafeTrace.Infrastructure.Authorization;
 
 namespace SafeTrace.API.Controllers
 {
-    [EnableRateLimiting("AiLimit")]
+    [EnableRateLimiting(RateLimitPolicies.AiLimit)]
     public class AiMatchingController : BaseApiController
     {
         private readonly IFaceRecognitionService _faceRecognitionService;

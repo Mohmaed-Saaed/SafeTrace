@@ -2,6 +2,7 @@ using AutoMapper;
 using Microsoft.Extensions.Logging;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 using SafeTrace.Application.Constants;
 using SafeTrace.Application.DTOs.Auth.Request;
 using SafeTrace.Application.DTOs.Auth.Response;
@@ -21,7 +22,6 @@ namespace SafeTrace.Infrastructure.Services
 {
     public class AccountService : IAccountService
     {
-        private static readonly ConcurrentDictionary<string, SemaphoreSlim> _refreshLocks = new();
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly RoleManager<IdentityRole> _roleManager;
         private readonly ITokenService _tokenService;
@@ -337,77 +337,83 @@ namespace SafeTrace.Infrastructure.Services
             if (string.IsNullOrEmpty(refreshTokenFromCookie))
                 throw new UnauthorizedException("انتهت صلاحية الجلسة، يرجى تسجيل الدخول من جديد.");
 
-            var semaphore = _refreshLocks.GetOrAdd(refreshTokenFromCookie, _ => new SemaphoreSlim(1, 1));
-            await semaphore.WaitAsync();
-
             try
             {
                 await _unitOfWork.BeginTransactionAsync();
                 try
                 {
-                var storedRefreshToken = await _unitOfWork.Repository<RefreshToken>()
-                    .GetOneAsync(t => t.Token == refreshTokenFromCookie);
+                    var storedRefreshToken = await _unitOfWork.Repository<RefreshToken>()
+                        .GetOneAsync(t => t.Token == refreshTokenFromCookie);
 
-                if (storedRefreshToken == null) throw new UnauthorizedException("انتهت صلاحية الجلسة، يرجى تسجيل الدخول من جديد.");
+                    if (storedRefreshToken == null) throw new UnauthorizedException("انتهت صلاحية الجلسة، يرجى تسجيل الدخول من جديد.");
 
-                var userId = storedRefreshToken.UserId;
+                    var userId = storedRefreshToken.UserId;
+                    var newRefreshToken = _tokenService.GenerateRefreshToken();
 
-                if (!storedRefreshToken.IsActive)
-                {
-                    bool isWithinGracePeriod = storedRefreshToken.RevokedAt != null && 
-                        storedRefreshToken.ReplacedByToken != null &&
-                        (DateTime.UtcNow - storedRefreshToken.RevokedAt.Value).TotalSeconds <= 60;
-
-                    if (!isWithinGracePeriod)
+                    if (storedRefreshToken.IsActive)
                     {
-                        if (storedRefreshToken.ReplacedByToken != null)
+                        var affectedRows = await _unitOfWork.Repository<RefreshToken>().Query()
+                            .Where(rt => rt.Token == refreshTokenFromCookie && rt.RevokedAt == null)
+                            .ExecuteUpdateAsync(rt => rt.SetProperty(x => x.RevokedAt, DateTime.UtcNow)
+                                                        .SetProperty(x => x.ReplacedByToken, newRefreshToken.Token));
+                        
+                        if (affectedRows == 0)
                         {
-                            await RevokeAllActiveSessionsAsync(userId!);
-                            await _unitOfWork.SaveAsync();
-                            await _unitOfWork.CommitTransactionAsync();
-                            _logger.LogWarning("Token reuse detected for user {UserId}. Revoking all active sessions.", userId);
-                            throw new UnauthorizedException("تم اكتشاف نشاط مريب في الجلسة، تم تسجيل الخروج من جميع الأجهزة كإجراء أمني.");
+                            storedRefreshToken = await _unitOfWork.Repository<RefreshToken>()
+                                .GetOneAsync(t => t.Token == refreshTokenFromCookie);
                         }
-
-                        throw new UnauthorizedException("انتهت صلاحية الجلسة، يرجى تسجيل الدخول من جديد.");
                     }
+
+                    if (!storedRefreshToken!.IsActive)
+                    {
+                        bool isWithinGracePeriod = storedRefreshToken.RevokedAt != null && 
+                            storedRefreshToken.ReplacedByToken != null &&
+                            (DateTime.UtcNow - storedRefreshToken.RevokedAt.Value).TotalSeconds <= 60;
+
+                        if (!isWithinGracePeriod)
+                        {
+                            if (storedRefreshToken.ReplacedByToken != null)
+                            {
+                                await RevokeAllActiveSessionsAsync(userId!);
+                                await _unitOfWork.CommitTransactionAsync();
+                                _logger.LogWarning("Token reuse detected for user {UserId}. Revoking all active sessions.", userId);
+                                throw new UnauthorizedException("تم اكتشاف نشاط مريب في الجلسة، تم تسجيل الخروج من جميع الأجهزة كإجراء أمني.");
+                            }
+
+                            throw new UnauthorizedException("انتهت صلاحية الجلسة، يرجى تسجيل الدخول من جديد.");
+                        }
+                    }
+
+                    var user = await _userManager.FindByIdAsync(userId!);
+                    if (user == null) throw new NotFoundException("هذا الحساب غير موجود.");
+
+                    CheckIfUserIsBlocked(user);
+
+                    newRefreshToken.UserId = user.Id;
+                    await _unitOfWork.Repository<RefreshToken>().CreateAsync(newRefreshToken);
+
+                    await _unitOfWork.SaveAsync();
+                    await _unitOfWork.CommitTransactionAsync();
+
+                    var roles = await _userManager.GetRolesAsync(user);
+                    var role = roles.FirstOrDefault() ?? UserRole.User.ToString();
+                    var newAccessToken = _tokenService.GenerateAccessToken(user, role);
+
+                    SetRefreshTokenCookie(newRefreshToken.Token, newRefreshToken.ExpiresAt);
+
+                    var permissions = await GetUserPermissionsAsync(user);
+
+                    return ApiResponse<AuthResponseDto>.Ok(new AuthResponseDto
+                    {
+                        AccessToken = newAccessToken,
+                        RefreshTokenExpiration = newRefreshToken.ExpiresAt,
+                        Email = user.Email!,
+                        FullName = $"{user.FName} {user.LName}",
+                        ProfileImage = user.ProfileImage,
+                        VerificationStatus = user.VerificationStatus,
+                        Permissions = permissions
+                    }, "تم تجديد الجلسة بنجاح.");
                 }
-
-                var user = await _userManager.FindByIdAsync(userId!);
-                if (user == null) throw new NotFoundException("هذا الحساب غير موجود.");
-
-                CheckIfUserIsBlocked(user);
-
-                var newRefreshToken = _tokenService.GenerateRefreshToken();
-                storedRefreshToken.RevokedAt = DateTime.UtcNow;
-                storedRefreshToken.ReplacedByToken = newRefreshToken.Token;
-
-                newRefreshToken.UserId = user.Id;
-                _unitOfWork.Repository<RefreshToken>().Update(storedRefreshToken);
-                await _unitOfWork.Repository<RefreshToken>().CreateAsync(newRefreshToken);
-
-                await _unitOfWork.SaveAsync();
-                await _unitOfWork.CommitTransactionAsync();
-
-                var roles = await _userManager.GetRolesAsync(user);
-                var role = roles.FirstOrDefault() ?? UserRole.User.ToString();
-                var newAccessToken = _tokenService.GenerateAccessToken(user, role);
-
-                SetRefreshTokenCookie(newRefreshToken.Token, newRefreshToken.ExpiresAt);
-
-                var permissions = await GetUserPermissionsAsync(user);
-
-                return ApiResponse<AuthResponseDto>.Ok(new AuthResponseDto
-                {
-                    AccessToken = newAccessToken,
-                    RefreshTokenExpiration = newRefreshToken.ExpiresAt,
-                    Email = user.Email!,
-                    FullName = $"{user.FName} {user.LName}",
-                    ProfileImage = user.ProfileImage,
-                    VerificationStatus = user.VerificationStatus,
-                    Permissions = permissions
-                }, "تم تجديد الجلسة بنجاح.");
-            }
                 catch
                 {
                     await _unitOfWork.RollbackTransactionAsync();
@@ -416,11 +422,6 @@ namespace SafeTrace.Infrastructure.Services
             }
             finally
             {
-                semaphore.Release();
-                if (semaphore.CurrentCount == 1)
-                {
-                    _refreshLocks.TryRemove(refreshTokenFromCookie, out _);
-                }
             }
         }
 
@@ -480,7 +481,9 @@ namespace SafeTrace.Infrastructure.Services
             }
 
             var roles = await _userManager.GetRolesAsync(user);
-            foreach (var roleName in roles)
+            var roleName = roles.FirstOrDefault();
+            
+            if (!string.IsNullOrEmpty(roleName))
             {
                 var role = await _roleManager.FindByNameAsync(roleName);
                 if (role != null)
@@ -585,17 +588,7 @@ namespace SafeTrace.Infrastructure.Services
                 query = query.Where(rt => rt.Token != currentRefreshToken);
             }
 
-            var activeTokens = await query.ToListAsync();
-
-            if (activeTokens.Any())
-            {
-                foreach (var token in activeTokens)
-                {
-                    token.RevokedAt = DateTime.UtcNow;
-                    _unitOfWork.Repository<RefreshToken>().Update(token);
-                }
-                await _unitOfWork.SaveAsync();
-            }
+            await query.ExecuteUpdateAsync(rt => rt.SetProperty(x => x.RevokedAt, DateTime.UtcNow));
         }
 
         private async Task SendLoginAlertAsync(ApplicationUser user)
@@ -607,7 +600,6 @@ namespace SafeTrace.Infrastructure.Services
                 
                 string browser = "غير معروف";
                 string os = "غير معروف";
-                string deviceName = "غير معروف";
 
                 if (!string.IsNullOrEmpty(userAgentStr))
                 {
@@ -615,33 +607,9 @@ namespace SafeTrace.Infrastructure.Services
                     var clientInfo = uaParser.Parse(userAgentStr);
                     browser = clientInfo.UA.Family;
                     os = clientInfo.OS.Family;
-                    
-                    var deviceFamily = clientInfo.Device.Family;
-                    var brand = clientInfo.Device.Brand;
-                    var model = clientInfo.Device.Model;
-
-                    if (!string.IsNullOrWhiteSpace(brand) && !string.IsNullOrWhiteSpace(model))
-                    {
-                        deviceName = $"{brand} {model}";
-                    }
-                    else if (!string.IsNullOrWhiteSpace(deviceFamily) && deviceFamily != "Other")
-                    {
-                        deviceName = deviceFamily;
-                    }
-                    else
-                    {
-                        if (os.Contains("Windows") || os.Contains("Mac") || os.Contains("Linux") || os.Contains("Ubuntu"))
-                        {
-                            deviceName = "جهاز كمبيوتر (Desktop/Laptop)";
-                        }
-                        else
-                        {
-                            deviceName = "جهاز غير معروف";
-                        }
-                    }
                 }
 
-                var mailBody = EmailTemplates.BuildLoginAlertTemplate(user.FName, ipAddress, browser, os, deviceName);
+                var mailBody = EmailTemplates.BuildLoginAlertTemplate(user.FName, ipAddress, browser, os);
                 BackgroundJob.Enqueue<IEmailService>(x => x.SendEmailAsync(user.Email!, "تنبيه - أمان الحساب: تسجيل دخول جديد", mailBody));
 
                 _ = _notificationService.SendNotificationAsync(new SendNotificationDTO

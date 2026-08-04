@@ -25,7 +25,11 @@ namespace SafeTrace.Application.DTOs.User_Profiel_DTOS
 
         [AllowedPhotoTypes(ErrorMessage = "Only JPG, JPEG, PNG, and WebP images are allowed.")]
         [MaxPhotoSize(5, ErrorMessage = "Each photo must not exceed 5 MB.")]
-        public IFormFile? IdentificationImage { get; set; }
+        public IFormFile? IdentificationImageFront { get; set; }
+
+        [AllowedPhotoTypes(ErrorMessage = "Only JPG, JPEG, PNG, and WebP images are allowed.")]
+        [MaxPhotoSize(5, ErrorMessage = "Each photo must not exceed 5 MB.")]
+        public IFormFile? IdentificationImageBack { get; set; }
 
         [AllowedPhotoTypes(ErrorMessage = "Only JPG, JPEG, PNG, and WebP images are allowed.")]
         [MaxPhotoSize(5, ErrorMessage = "Each photo must not exceed 5 MB.")]
