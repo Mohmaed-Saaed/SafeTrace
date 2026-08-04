@@ -1,3 +1,4 @@
+using Hangfire;
 using SafeTrace.Application.Constants;
 using SafeTrace.Application.DTOs.Complaints;
 using SafeTrace.Application.DTOs.Complaints.Request;
@@ -7,7 +8,7 @@ using SafeTrace.Application.DTOs.Responses;
 using SafeTrace.Application.Exceptions;
 using SafeTrace.Application.Interfaces.IServices.INotificationSewrvice;
 using SafeTrace.Domain.Enums;
-using Hangfire;
+using System.Text;
 
 
 namespace SafeTrace.Application.Services
@@ -206,6 +207,7 @@ namespace SafeTrace.Application.Services
                 complaints,
                 statistics,
                 filter);
+
         }
 
         public async Task<byte[]> GenerateExcelReportAsync(

@@ -1,6 +1,7 @@
 using AutoMapper;
-using Microsoft.Extensions.Logging;
+using Hangfire;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using SafeTrace.Application.Constants;
 using SafeTrace.Application.DTOs.NotificationDTOS;
 using SafeTrace.Application.DTOs.Responses;
@@ -11,7 +12,7 @@ using SafeTrace.Application.Helpers;
 using SafeTrace.Application.Interfaces.IServices.INotificationSewrvice;
 using SafeTrace.Application.Interfaces.IServices.common;
 using SafeTrace.Domain.Enums;
-using Hangfire;
+using System.Text;
 
 namespace SafeTrace.Infrastructure.Services
 {
@@ -728,6 +729,7 @@ namespace SafeTrace.Infrastructure.Services
                 statistics,
                 filter,
                 roleName);
+
         }
     }
 }

@@ -484,6 +484,7 @@ namespace SafeTrace.Infrastructure.Services
                 donations,
                 statistics,
                 query);
+
         }
 
         //public async Task<byte[]> GenerateExcelReportAsync(
