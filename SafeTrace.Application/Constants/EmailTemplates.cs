@@ -260,6 +260,26 @@ namespace SafeTrace.Application.Constants
                 <p style='color: #0B1C30; font-size: 16px; line-height: 1.9; margin: 0 0 24px 0;'>شكراً لك على تأكيد بريدك الإلكتروني. يمكنك الآن الاستفادة من كافة خدمات وميزات منصة لقاء بكامل طاقتها.</p>");
         }
 
+        public static string BuildGoogleRegistrationWelcomeTemplate(string fullName)
+        {
+            return WrapInBaseLayout($@"
+                <h2 style='color: #091426; font-size: 22px; font-weight: 700; margin: 0 0 16px 0;'>مرحباً بك، {fullName}</h2>
+                <p style='color: #0B1C30; font-size: 16px; line-height: 1.9; margin: 0 0 24px 0;'>يسعدنا انضمامك إلى منصة لقاء! لقد قمت بالتسجيل بنجاح باستخدام حساب جوجل الخاص بك.</p>
+                
+                <div style='background-color: #F8F9FF; border: 1px solid #D3E4FE; padding: 20px 24px; border-radius: 16px; margin: 24px 0; color: #0B1C30; font-size: 15px; line-height: 1.8;'>
+                    يمكنك دائماً تسجيل الدخول بسهولة وبضغطة زر باستخدام جوجل. 
+                    ولكن إذا كنت تفضل في أي وقت استخدام كلمة مرور تقليدية، يمكنك تعيين واحدة بسهولة عبر رابط استعادة كلمة المرور.
+                </div>
+
+                <div style='text-align: center; margin: 32px 0;'>
+                    <a href='{SystemConstants.BaseUrl}/auth/forgot-password' style='background: linear-gradient(135deg, #0058BE 0%, #091426 100%); color: #ffffff; padding: 14px 32px; border-radius: 12px; text-decoration: none; font-weight: 700; font-size: 16px; display: inline-block; box-shadow: 0 4px 14px rgba(0, 88, 190, 0.3);'>
+                        تعيين كلمة مرور
+                    </a>
+                </div>
+                
+                <p style='color: #75777D; font-size: 13px; line-height: 1.8; margin: 0;'>إذا لم تكن ترغب في إضافة كلمة مرور، يمكنك تجاهل هذه الخطوة والاستمرار في استخدام حساب جوجل لتسجيل الدخول بشكل طبيعي.</p>");
+        }
+
         public static string BuildUrgentCaseNotificationEmailTemplate(
             string caseName,
             string caseCode,

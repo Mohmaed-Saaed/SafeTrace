@@ -131,7 +131,11 @@ namespace SafeTrace.Infrastructure.Services
 
             if (!user.EmailConfirmed)
             {
-                throw new ForbiddenException("يرجى تأكيد بريدك الإلكتروني أولاً قبل تسجيل الدخول.");
+                var otp = await _otpService.GenerateAndSaveOtpAsync(user.Id, OtpType.EmailConfirmation);
+                var mailBody = EmailTemplates.BuildArabicOtpEmailTemplate($"{user.FName} {user.LName}", otp, "تأكيد الحساب الرقمي", "يرجى استخدام رمز التحقق التالي لتفعيل حسابك وتأكيد البريد الإلكتروني الخاص بك.");
+                BackgroundJob.Enqueue<IEmailService>(x => x.SendEmailAsync(user.Email!, "لقاء - رمز تفعيل الحساب", mailBody));
+
+                throw new ForbiddenException("يرجى تأكيد بريدك الإلكتروني أولاً قبل تسجيل الدخول. لقد قمنا بإرسال رمز تحقق جديد إلى بريدك الإلكتروني.");
             }
 
             await _userManager.ResetAccessFailedCountAsync(user);
@@ -501,12 +505,14 @@ namespace SafeTrace.Infrastructure.Services
 
         private async Task<ApiResponse<AuthResponseDto>> ProcessExternalUserFlowAsync(string email, string firstName, string lastName, string provider)
         {
+            var isNewUser = false;
             var user = await _userManager.FindByEmailAsync(email);
             await _unitOfWork.BeginTransactionAsync();
             try
             {
                 if (user == null)
                 {
+                    isNewUser = true;
                     user = new ApplicationUser
                     {
                         Email = email,
@@ -548,7 +554,15 @@ namespace SafeTrace.Infrastructure.Services
                 var responseData = await GenerateAuthTokensAndSaveAsync(user);
                 await _unitOfWork.CommitTransactionAsync();
 
-                await SendLoginAlertAsync(user);
+                if (isNewUser)
+                {
+                    var mailBody = EmailTemplates.BuildGoogleRegistrationWelcomeTemplate(user.FName);
+                    BackgroundJob.Enqueue<IEmailService>(x => x.SendEmailAsync(user.Email!, "مرحباً بك في منصة لقاء!", mailBody));
+                }
+                else
+                {
+                    await SendLoginAlertAsync(user);
+                }
 
                 return ApiResponse<AuthResponseDto>.Ok(responseData, "تم تسجيل الدخول بنجاح.");
             }
