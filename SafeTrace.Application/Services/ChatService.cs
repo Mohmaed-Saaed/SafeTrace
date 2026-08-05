@@ -384,12 +384,88 @@ namespace SafeTrace.Application.Services
         }
 
 
-        public async Task <ApiResponse<List<MessageDto>>> GetPaginatedMessagesAsync(long chatId, string currentUserId,bool isAdmin)
+        //public async Task <ApiResponse<List<MessageDto>>> GetPaginatedMessagesAsync(long chatId, string currentUserId,bool isAdmin)
+        //{
+        //    _logger.LogInformation(
+        //    "User {UserId} requested messages for Chat {ChatId}.",
+        //    currentUserId,
+        //    chatId);
+
+        //    var chat = await _unitOfWork.Repository<Chat>()
+        //        .GetOneAsync(
+        //            c => c.Id == chatId,
+        //            tracked: false,
+        //            c => c.Case,
+        //            chatId => chatId.Messages)
+        //       ?? throw new NotFoundException($"{chatId}لم يتم العثور على المحادثة.");
+
+        //    if (!isAdmin)
+        //    {
+        //        EnsureParticipant(chat, currentUserId);
+        //    }
+
+        //    IQueryable<Message> query;
+        //    if (isAdmin)
+        //    {
+        //         query = _unitOfWork.Repository<Message>()
+        //        .Query(false)
+        //        .Where(m => m.ChatId == chatId);
+        //    }
+        //    else
+        //    {
+        //         query = _unitOfWork.Repository<Message>()
+        //            .Query(tracked: false)
+        //            .Where(m => m.ChatId == chatId &&
+        //                (
+        //                    (m.SenderId == currentUserId && !m.DeletedBySender)
+        //                    ||
+        //                    (m.ReceiverId == currentUserId && !m.DeletedByReceiver)
+        //                ));
+        //    }
+        //    var totalCount = await query.CountAsync();
+
+        //    var messages = await query
+        //    .OrderBy(m => m.SendAt)
+        //    .ToListAsync();
+
+
+        //    _logger.LogInformation(
+        //    "Returned {Count} messages out of {Total} for Chat {ChatId}.",
+        //     messages.Count(),
+        //     totalCount,
+        //     chatId);
+
+        //    var messageDtos = _mapper.Map<List<MessageDto>>(messages);
+
+        //    if (!isAdmin)
+        //    {
+        //        foreach (var message in messageDtos)
+        //        {
+        //            if (message.IsDeletedForEveryone)
+        //            {
+        //                message.Content = "تم حذف هذه الرسالة";
+        //            }
+        //        }
+        //    }
+        //    foreach (var message in messageDtos)
+        //    {
+        //        message.IsMine = message.SenderId == currentUserId;
+        //    }
+
+
+        //    return ApiResponse<List<MessageDto>>.Ok(messageDtos,
+        //        "تم جلب الرسائل بنجاح.");
+
+
+        //}
+        public async Task<ApiResponse<List<MessageDto>>> GetChatMessagesAsync(
+        long chatId,
+        string currentUserId)
         {
             _logger.LogInformation(
-            "User {UserId} requested messages for Chat {ChatId}.",
-            currentUserId,
-            chatId);
+                "User {UserId} requested messages for Chat {ChatId}.",
+                currentUserId,
+                chatId);
 
             var chat = await _unitOfWork.Repository<Chat>()
                 .GetOneAsync(
@@ -399,66 +475,70 @@ namespace SafeTrace.Application.Services
                     chatId => chatId.Messages)
                ?? throw new NotFoundException($"{chatId}لم يتم العثور على المحادثة.");
 
-            if (!isAdmin)
-            {
-                EnsureParticipant(chat, currentUserId);
-            }
-            
-            IQueryable<Message> query;
-            if (isAdmin)
-            {
-                 query = _unitOfWork.Repository<Message>()
+            EnsureParticipant(chat, currentUserId);
+
+            var messages = await _unitOfWork.Repository<Message>()
                 .Query(false)
-                .Where(m => m.ChatId == chatId);
-            }
-            else
-            {
-                 query = _unitOfWork.Repository<Message>()
-                    .Query(tracked: false)
-                    .Where(m => m.ChatId == chatId &&
-                        (
-                            (m.SenderId == currentUserId && !m.DeletedBySender)
-                            ||
-                            (m.ReceiverId == currentUserId && !m.DeletedByReceiver)
-                        ));
-            }
-            var totalCount = await query.CountAsync();
-
-            var messages = await query
-            .OrderBy(m => m.SendAt)
-            .ToListAsync();
-
+                .Where(m =>
+                    m.ChatId == chatId &&
+                    (
+                        (m.SenderId == currentUserId && !m.DeletedBySender) ||
+                        (m.ReceiverId == currentUserId && !m.DeletedByReceiver)
+                    ))
+                .OrderBy(m => m.SendAt)
+                .ToListAsync();
 
             _logger.LogInformation(
-            "Returned {Count} messages out of {Total} for Chat {ChatId}.",
-             messages.Count(),
-             totalCount,
-             chatId);
+                "Returned {Count} messages for Chat {ChatId}.",
+                messages.Count,
+                chatId);
 
             var messageDtos = _mapper.Map<List<MessageDto>>(messages);
 
-            if (!isAdmin)
-            {
-                foreach (var message in messageDtos)
-                {
-                    if (message.IsDeletedForEveryone)
-                    {
-                        message.Content = "تم حذف هذه الرسالة";
-                    }
-                }
-            }
             foreach (var message in messageDtos)
             {
+                if (message.IsDeletedForEveryone)
+                    message.Content = "تم حذف هذه الرسالة";
+
                 message.IsMine = message.SenderId == currentUserId;
             }
 
-            
-            return ApiResponse<List<MessageDto>>.Ok(messageDtos,
+            return ApiResponse<List<MessageDto>>.Ok(
+                messageDtos,
                 "تم جلب الرسائل بنجاح.");
-
-
         }
 
+        public async Task<ApiResponse<List<MessageDto>>> GetAdminChatMessagesAsync(
+        long chatId)
+        {
+            _logger.LogInformation(
+                "Admin requested messages for Chat {ChatId}.",
+                chatId);
+
+            _ = await _unitOfWork.Repository<Chat>()
+                .GetOneAsync(
+                    c => c.Id == chatId,
+                    tracked: false
+                   )
+               ?? throw new NotFoundException($"{chatId}لم يتم العثور على المحادثة.");
+
+            var messages = await _unitOfWork.Repository<Message>()
+                .Query(false)
+                .Where(m => m.ChatId == chatId)
+                .OrderBy(m => m.SendAt)
+                .ToListAsync();
+
+            _logger.LogInformation(
+                "Returned {Count} messages for Chat {ChatId}.",
+                messages.Count,
+                chatId);
+
+            var messageDtos = _mapper.Map<List<MessageDto>>(messages);
+
+            return ApiResponse<List<MessageDto>>.Ok(
+                messageDtos,
+                "تم جلب الرسائل بنجاح.");
+        }
         public async Task<ApiResponse<ChatDetailsDto>> DeleteChatAsync(long chatId, string userId)
         {
             var chat = await _unitOfWork.Repository<Chat>()
