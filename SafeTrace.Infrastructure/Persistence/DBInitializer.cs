@@ -1,9 +1,5 @@
-using Microsoft.AspNetCore.Identity;
 using SafeTrace.Application.Constants;
 using SafeTrace.Application.Interfaces;
-using SafeTrace.Domain.Interfaces.IUnitOfWork;
-using System.Security.Claims;
-using Microsoft.EntityFrameworkCore;
 
 namespace SafeTrace.Infrastructure.Persistence
 {
@@ -23,7 +19,7 @@ namespace SafeTrace.Infrastructure.Persistence
 
         public async Task Initialize()
         {
-            string[] Roles = { "User", "Admin", "VerifiedUser", "Moderator" };
+            string[] Roles = { "User", "SuperAdmin", "Admin", "VerifiedUser", "Moderator" };
 
             foreach (string role in Roles)
             {
@@ -31,64 +27,59 @@ namespace SafeTrace.Infrastructure.Persistence
                 {
                     var Role = new IdentityRole(role);
                     await _roleManager.CreateAsync(Role);
-                }
+                } 
             }
 
             var adminEmail = SystemConstants.RootAdminEmail;
             var user = await _userManager.FindByEmailAsync(adminEmail);
-            if(user != null && !await _userManager.IsInRoleAsync(user, "Admin"))
+            if (user != null && !await _userManager.IsInRoleAsync(user, "SuperAdmin"))
             {
-                await _userManager.AddToRoleAsync(user, "Admin");
+                await _userManager.AddToRoleAsync(user, "SuperAdmin");
             }
 
-            string[] AdminPermissions = { "UrgentCases.GetAll", "UrgentCases.GetById", "UrgentCases.Create", "UrgentCases.Update", "UrgentCases.SoftDelete", "UrgentCases.HardDelete", "UrgentCases.Reject", "UrgentCases.Approve", "UrgentCases.MarkAsFounded",
-                                          "UnknownCases.GetAll", "UnknownCases.GetById", "UnknownCases.Create", "UnknownCases.Update", "UnknownCases.SoftDelete", "UnknownCases.HardDelete", "UnknownCases.Reject", "UnknownCases.Approve", "UnknownCases.MarkAsFounded",
-                                          "LongTermCases.GetAll", "LongTermCases.GetById", "LongTermCases.Create", "LongTermCases.Update", "LongTermCases.SoftDelete", "LongTermCases.HardDelete", "LongTermCases.Reject", "LongTermCases.Approve", "LongTermCases.MarkAsFounded",
-                                          "Notifications.GetMyNotifications", "Notifications.DeleteNotification", "Notifications.MarkAsRead", "Notifications.MarkAllAsRead",
-                                          "Profile.GetUserInfo", "Profile.UpdateUserInfo", "Profile.UpdateName", "Profile.UpdateHomeLocation", "Profile.UpdateProfileImage", "Profile.UpdateIdImage", "Profile.GetVisitedUserInfo", "Profile.UpdatePhoneNumber", "Profile.GetMyCases",
-                                          "Complaints.GetAll", "Complaints.GetById", "Complaints.Create", "Complaints.HardDelete", "Complaints.MarkAsSolved", "Complaints.GetComplaintsStatistics",
-                                          "Account.ChangePassword",
-                                          "AiMatching.Search",
-                                          "Roles.GetAll", "Roles.Create", "Roles.Delete", "Roles.GetPermissionsByRoleId", "Roles.UpdateRolePermissions",
-                                          "Users.GetAll", "Users.GetById", "Users.RegisterByAdmin",  "Users.ChangeRole", "Users.GetPermissions", "Users.AssignPermissions", "Users.Approve", "Users.Reject", "Users.ToggleBlock", "Users.GetUsersStatistics",
-                                          "Chat.GetAll", "Chat.GetById", "Chat.GetMyChats",  "Chat.GetMessages", "Chat.SendMessage", "Chat.Create", "Chat.StartContext", "Chat.MarkAsRead", "Chat.HardDelete", "Chat.SoftDelete", "Chat.DeleteMessage", "Chat.DeleteMessageForEveryone",
-                                          "Donations.GetDonations", "Donations.GetMyDonations",
-                                          "Dashboard.GetStatistics", "Dashboard.GetCasesStatistics"};
+            string[] SuperAdminPermissions = {Permissions.Dashboard.GetStatistics, Permissions.Dashboard.GetCasesStatistics, Permissions.Dashboard.GetAuditLogs, Permissions.Dashboard.GenerateCasesPdfReport,
+                                              Permissions.Users.Reject, Permissions.Users.Approve, Permissions.Users.GetPermissions, Permissions.Users.AssignPermissions, Permissions.Users.GetAll, Permissions.Users.GetById, Permissions.Users.ToggleBlock, Permissions.Users.RegisterByAdmin, Permissions.Users.ChangeRole, Permissions.Users.GetUsersStatistics, Permissions.Users.GenerateUsersPdfReport,
+                                              Permissions.Roles.Delete, Permissions.Roles.Create, Permissions.Roles.GetPermissionsByRoleId, Permissions.Roles.UpdateRolePermissions,
+                                              Permissions.Donations.GetDonations, Permissions.Donations.GetDonationStatistics, Permissions.Donations.GenerateDonationsPdfReport,
+                                              Permissions.Complaints.GetAll, Permissions.Complaints.GetById, Permissions.Complaints.MarkAsSolved, Permissions.Complaints.HardDelete, Permissions.Complaints.GetComplaintsStatistics, Permissions.Complaints.GenerateComplaintsPdfReport,
+                                              Permissions.Cases.GetAll,
+                                              Permissions.UrgentCases.GetById, Permissions.UrgentCases.HardDelete, Permissions.UrgentCases.MarkAsFounded,
+                                              Permissions.LongTermCases.GetById, Permissions.LongTermCases.HardDelete, Permissions.LongTermCases.Reject, Permissions.LongTermCases.Approve, Permissions.LongTermCases.MarkAsFounded, Permissions.LongTermCases.Create, Permissions.LongTermCases.Update, Permissions.LongTermCases.SoftDelete,
+                                              Permissions.UnknownCases.GetById, Permissions.UnknownCases.HardDelete, Permissions.UnknownCases.Reject, Permissions.UnknownCases.Approve, Permissions.UnknownCases.MarkAsFounded, Permissions.UnknownCases.Create, Permissions.UnknownCases.Update, Permissions.UnknownCases.SoftDelete,
+                                              Permissions.Chat.GetAll, Permissions.Chat.GetById, Permissions.Chat.GetMessages, Permissions.Chat.HardDelete, Permissions.Chat.DeleteMessageForEveryone, Permissions.Chat.GetChatStatistics,
+                                              Permissions.AiMatching.Search};
 
-            string[] ModeratorPermissions = { "UrgentCases.GetAll", "UrgentCases.GetById", "UrgentCases.Create", "UrgentCases.Update", "UrgentCases.SoftDelete", "UrgentCases.Reject", "UrgentCases.Approve", "UrgentCases.MarkAsFounded",
-                                              "UnknownCases.GetAll", "UnknownCases.GetById", "UnknownCases.Create", "UnknownCases.Update", "UnknownCases.SoftDelete", "UnknownCases.Reject", "UnknownCases.Approve", "UnknownCases.MarkAsFounded",
-                                              "LongTermCases.GetAll", "LongTermCases.GetById", "LongTermCases.Create", "LongTermCases.Update", "LongTermCases.SoftDelete", "LongTermCases.Reject", "LongTermCases.Approve", "LongTermCases.MarkAsFounded",
-                                              "Notifications.GetMyNotifications", "Notifications.DeleteNotification", "Notifications.MarkAsRead", "Notifications.MarkAllAsRead",
-                                              "Profile.GetUserInfo", "Profile.UpdateUserInfo", "Profile.UpdateName", "Profile.UpdateHomeLocation", "Profile.UpdateProfileImage", "Profile.UpdateIdImage", "Profile.GetVisitedUserInfo", "Profile.UpdatePhoneNumber", "Profile.GetMyCases",
-                                              "Complaints.GetAll", "Complaints.GetById", "Complaints.Create", "Complaints.MarkAsSolved",
-                                              "Account.ChangePassword",
-                                              "AiMatching.Search",
-                                              "Users.GetAll", "Users.GetById", "Users.Approve", "Users.Reject", "Users.ToggleBlock", "Users.GetUsersStatistics",
-                                              "Roles.GetAll",
-                                              "Chat.GetAll", "Chat.GetById", "Chat.GetMyChats",  "Chat.GetMessages", "Chat.SendMessage", "Chat.Create", "Chat.StartContext", "Chat.MarkAsRead", "Chat.SoftDelete", "Chat.DeleteMessage", "Chat.DeleteMessageForEveryone",
-                                              "Donations.GetMyDonations",
-                                              "Dashboard.GetStatistics", "Dashboard.GetCasesStatistics"};
+            string[] AdminPermissions = {Permissions.Dashboard.GetStatistics, Permissions.Dashboard.GetCasesStatistics, Permissions.Dashboard.GenerateCasesPdfReport,
+                                         Permissions.Users.Reject, Permissions.Users.Approve, Permissions.Users.GetAll, Permissions.Users.GetById, Permissions.Users.ToggleBlock, Permissions.Users.RegisterByAdmin, Permissions.Users.ChangeRole, Permissions.Users.GetUsersStatistics, Permissions.Users.GenerateUsersPdfReport,
+                                         Permissions.Complaints.GetAll, Permissions.Complaints.GetById, Permissions.Complaints.MarkAsSolved, Permissions.Complaints.HardDelete, Permissions.Complaints.GetComplaintsStatistics, Permissions.Complaints.GenerateComplaintsPdfReport,
+                                         Permissions.Cases.GetAll,
+                                         Permissions.UrgentCases.GetById, Permissions.UrgentCases.HardDelete, Permissions.UrgentCases.MarkAsFounded,
+                                         Permissions.LongTermCases.GetById, Permissions.LongTermCases.HardDelete, Permissions.LongTermCases.Reject, Permissions.LongTermCases.Approve, Permissions.LongTermCases.MarkAsFounded, Permissions.LongTermCases.Create, Permissions.LongTermCases.Update, Permissions.LongTermCases.SoftDelete,
+                                         Permissions.UnknownCases.GetById, Permissions.UnknownCases.HardDelete, Permissions.UnknownCases.Reject, Permissions.UnknownCases.Approve, Permissions.UnknownCases.MarkAsFounded, Permissions.UnknownCases.Create, Permissions.UnknownCases.Update, Permissions.UnknownCases.SoftDelete,
+                                         Permissions.Chat.GetAll, Permissions.Chat.GetById, Permissions.Chat.GetMessages, Permissions.Chat.HardDelete, Permissions.Chat.DeleteMessageForEveryone, Permissions.Chat.GetChatStatistics,
+                                         Permissions.AiMatching.Search};
 
-            string[] VerifiedUserPermissions = { "UrgentCases.GetById", "UrgentCases.Create", "UrgentCases.Update", "UrgentCases.SoftDelete", "UrgentCases.MarkAsFounded",
-                                                 "UnknownCases.GetById", "UnknownCases.Create", "UnknownCases.Update", "UnknownCases.SoftDelete", "UnknownCases.MarkAsFounded",
-                                                 "LongTermCases.GetById", "LongTermCases.Create", "LongTermCases.Update", "LongTermCases.SoftDelete", "LongTermCases.MarkAsFounded",
-                                                 "Notifications.GetMyNotifications", "Notifications.DeleteNotification", "Notifications.MarkAsRead", "Notifications.MarkAllAsRead",
-                                                 "Profile.GetUserInfo", "Profile.UpdateUserInfo", "Profile.UpdateName", "Profile.UpdateHomeLocation", "Profile.UpdateProfileImage", "Profile.UpdateIdImage", "Profile.GetVisitedUserInfo", "Profile.UpdatePhoneNumber", "Profile.GetMyCases",
-                                                 "Complaints.Create",
-                                                 "Account.ChangePassword",
-                                                 "AiMatching.Search",
-                                                 "Donations.GetMyDonations",
-                                                 "Chat.GetById", "Chat.GetMyChats",  "Chat.GetMessages", "Chat.SendMessage", "Chat.Create", "Chat.StartContext", "Chat.MarkAsRead", "Chat.SoftDelete", "Chat.DeleteMessage", "Chat.DeleteMessageForEveryone"};
+            string[] ModeratorPermissions = {Permissions.Dashboard.GetCasesStatistics, Permissions.Dashboard.GenerateCasesPdfReport,
+                                             Permissions.Users.Reject, Permissions.Users.Approve, Permissions.Users.GetAll, Permissions.Users.GetById, Permissions.Users.GetUsersStatistics, Permissions.Users.GenerateUsersPdfReport,
+                                             Permissions.Complaints.GetAll, Permissions.Complaints.GetById, Permissions.Complaints.MarkAsSolved, Permissions.Complaints.GetComplaintsStatistics, Permissions.Complaints.GenerateComplaintsPdfReport,
+                                             Permissions.Cases.GetAll,
+                                             Permissions.UrgentCases.GetById, Permissions.UrgentCases.MarkAsFounded,
+                                             Permissions.LongTermCases.GetById, Permissions.LongTermCases.Reject, Permissions.LongTermCases.Approve, Permissions.LongTermCases.MarkAsFounded, Permissions.LongTermCases.Create, Permissions.LongTermCases.Update, Permissions.LongTermCases.SoftDelete,
+                                             Permissions.UnknownCases.GetById, Permissions.UnknownCases.Reject, Permissions.UnknownCases.Approve, Permissions.UnknownCases.MarkAsFounded, Permissions.UnknownCases.Create, Permissions.UnknownCases.Update, Permissions.UnknownCases.SoftDelete,
+                                             Permissions.Chat.GetById, Permissions.Chat.GetMessages, Permissions.Chat.DeleteMessageForEveryone,
+                                             Permissions.AiMatching.Search};
 
-            string[] UserPermissions = { "UrgentCases.GetById", "UrgentCases.Create", "UrgentCases.Update", "UrgentCases.SoftDelete", "UrgentCases.MarkAsFounded",
-                                         "Notifications.GetMyNotifications", "Notifications.DeleteNotification", "Notifications.MarkAsRead", "Notifications.MarkAllAsRead",
-                                         "Profile.GetUserInfo", "Profile.UpdateUserInfo", "Profile.UpdateName", "Profile.UpdateHomeLocation", "Profile.UpdateProfileImage", "Profile.UpdateIdImage", "Profile.GetVisitedUserInfo", "Profile.UpdatePhoneNumber", "Profile.GetMyCases",
-                                         "Complaints.Create",
-                                         "Account.ChangePassword",
-                                         "AiMatching.Search",
-                                         "Donations.GetMyDonations",
-                                         "Chat.GetById", "Chat.GetMyChats",  "Chat.GetMessages", "Chat.SendMessage", "Chat.Create", "Chat.StartContext", "Chat.MarkAsRead", "Chat.SoftDelete", "Chat.DeleteMessage", "Chat.DeleteMessageForEveryone"};
+            string[] VerifiedUserPermissions = {Permissions.UrgentCases.MarkAsFounded,
+                                                Permissions.LongTermCases.MarkAsFounded, Permissions.LongTermCases.Create, Permissions.LongTermCases.Update, Permissions.LongTermCases.SoftDelete,
+                                                Permissions.UnknownCases.MarkAsFounded, Permissions.UnknownCases.Create, Permissions.UnknownCases.Update, Permissions.UnknownCases.SoftDelete,
+                                                Permissions.Chat.GetById, Permissions.Chat.GetMessages, Permissions.Chat.DeleteMessageForEveryone,
+                                                Permissions.AiMatching.Search};
 
+            string[] UserPermissions = {Permissions.UrgentCases.MarkAsFounded,
+                                        Permissions.Chat.GetById, Permissions.Chat.GetMessages, Permissions.Chat.DeleteMessageForEveryone,
+                                        Permissions.AiMatching.Search};
+
+            await AssignPermissionsToRoleAsync("SuperAdmin", SuperAdminPermissions);
             await AssignPermissionsToRoleAsync("Admin", AdminPermissions);
             await AssignPermissionsToRoleAsync("Moderator", ModeratorPermissions);
             await AssignPermissionsToRoleAsync("VerifiedUser", VerifiedUserPermissions);

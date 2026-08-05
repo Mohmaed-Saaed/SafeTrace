@@ -1,4 +1,4 @@
-﻿using AutoMapper;
+using AutoMapper;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 using SafeTrace.Application.DTOs.Payment.Request;
@@ -22,12 +22,14 @@ namespace SafeTrace.Infrastructure.Services
         private readonly IMapper _mapper;
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly HttpClient _httpClient;
+        private readonly IPdfGeneratorService _pdfGenerator;
         public PaymentService(IConfiguration confg,
             IUnitOfWork unitOfWork,
             UserManager<ApplicationUser> userManager,
             HttpClient httpClient,
             ILogger<PaymentService> logger,
-            IMapper mapper
+            IMapper mapper,
+            IPdfGeneratorService pdfGenerator
             )
         {
             _config = confg;
@@ -36,6 +38,7 @@ namespace SafeTrace.Infrastructure.Services
             _httpClient = httpClient;
             _logger = logger;
             _mapper = mapper;
+            _pdfGenerator = pdfGenerator;
         }
         public async Task<ApiResponse<CreateDonationResponseDto>> CreateDonationPaymobAsync(CreateDonationRequestDto request, string? currentUserId)
         {
@@ -80,33 +83,33 @@ namespace SafeTrace.Infrastructure.Services
                 Currency = "EGP",
 
                 PaymentMethods = new()
-    {
-        paymentMethodId
-    },
+                {
+                    paymentMethodId
+                },
 
-                Items = new()
-    {
-        new PaymobItemDto
-        {
-            Name = "Leqaa Donation",
-            Amount = (long)(request.Amount * 100),
-            Description = request.Message ?? "Donation",
-            Quantity = 1
-        }
-    },
+                            Items = new()
+                {
+                    new PaymobItemDto
+                    {
+                        Name = "Liqaa Donation",
+                        Amount = (long)(request.Amount * 100),
+                        Description = request.Message ?? "Donation",
+                        Quantity = 1
+                    }
+                },
 
                 BillingData = new BillingData
                 {
                     FirstName = user?.FName ?? "Guest",
                     LastName = user?.LName ?? "User",
-                    Email = user?.Email ?? "guestLeqaa.com",
+                    Email = user?.Email ?? "liqaaplatform@gmail.com",
                     PhoneNumber = user?.PhoneNumber ?? "01000000000"
                 },
 
                 Extras = new()
-    {
-        { "Donation", true }
-    },
+                {
+                    { "Donation", true }
+                },
 
                 SpecialReference = donation.Reference,
 
@@ -367,8 +370,17 @@ namespace SafeTrace.Infrastructure.Services
         {
 
             var donationsQuery = _unitOfWork.Repository<Donation>()
-                .Query(tracked:false,includes: d => d.User).Where(query.Status != null ? d => d.PaymentStatus == query.Status : d => true
-                && string.IsNullOrEmpty(query.userEmail) || d.User.Email.Contains(query.userEmail));
+                .Query(tracked: false, includes: d => d.User);
+
+            if (query.Status.HasValue)
+            {
+                donationsQuery = donationsQuery.Where(d => d.PaymentStatus == query.Status.Value);
+            }
+
+            if (!string.IsNullOrEmpty(query.userEmail))
+            {
+                donationsQuery = donationsQuery.Where(d => d.User != null && d.User.Email.Contains(query.userEmail));
+            }
 
             var totalCount = await donationsQuery.CountAsync();
 
@@ -386,5 +398,122 @@ namespace SafeTrace.Infrastructure.Services
             };
             return response;
         }
+
+        public async Task<ApiResponse<AdminDonationStatisticsDto>> GetDonationStatisticsAsync()
+        {
+            var statsQuery = await _unitOfWork.Repository<Donation>().Query(tracked: false)
+                .GroupBy(d => d.PaymentStatus)
+                .Select(g => new { Status = g.Key, Count = g.Count(), Amount = g.Sum(d => d.Amount) })
+                .ToListAsync();
+
+            var totalCount = statsQuery.Sum(x => x.Count);
+            var succeededAmount = statsQuery.FirstOrDefault(x => x.Status == PaymentStatus.Succeeded)?.Amount ?? 0;
+
+            var succeededCount = statsQuery.FirstOrDefault(x => x.Status == PaymentStatus.Succeeded)?.Count ?? 0;
+            var pendingCount = statsQuery.FirstOrDefault(x => x.Status == PaymentStatus.Pending)?.Count ?? 0;
+            var failedCount = statsQuery.Where(x => x.Status == PaymentStatus.Failed || x.Status == PaymentStatus.Cancelled).Sum(x => x.Count);
+
+            var stats = new AdminDonationStatisticsDto
+            {
+                TotalAmount = succeededAmount,
+                TotalCount = totalCount,
+                SucceededCount = succeededCount,
+                PendingCount = pendingCount,
+                FailedCount = failedCount
+            };
+
+            return ApiResponse<AdminDonationStatisticsDto>.Ok(stats, "تم استرجاع الإحصائيات بنجاح.");
+        }
+
+        public async Task<List<DonationAdminListDto>> GetAllForReportAsync(
+            DonationAdminQueryDto query)
+        {
+            var donationsQuery = _unitOfWork.Repository<Donation>()
+                .Query(
+                    tracked: false,
+                    includes: d => d.User);
+
+
+            if (query.Status.HasValue)
+            {
+                donationsQuery = donationsQuery
+                    .Where(d => d.PaymentStatus == query.Status.Value);
+            }
+
+
+            if (!string.IsNullOrEmpty(query.userEmail))
+            {
+                donationsQuery = donationsQuery
+                    .Where(d => d.User != null &&
+                                d.User.Email.Contains(query.userEmail));
+            }
+
+
+            var donations = await donationsQuery
+                .OrderByDescending(d => d.CreatedAt)
+                .ToListAsync();
+
+
+            return _mapper.Map<List<DonationAdminListDto>>(donations);
+        }
+
+        public async Task<byte[]> GeneratePdfReportAsync(
+        DonationAdminQueryDto query)
+        {
+            var donations = await GetAllForReportAsync(query);
+
+
+            var statistics = new AdminDonationStatisticsDto
+            {
+                TotalCount = donations.Count,
+
+                TotalAmount = donations.Sum(x => x.Amount),
+
+                SucceededCount = donations.Count(x =>
+                    x.PaymentStatus == PaymentStatus.Succeeded),
+
+                PendingCount = donations.Count(x =>
+                    x.PaymentStatus == PaymentStatus.Pending),
+
+                FailedCount = donations.Count(x =>
+                    x.PaymentStatus == PaymentStatus.Failed)
+            };
+
+
+            return _pdfGenerator.GenerateDonationsPdf(
+                donations,
+                statistics,
+                query);
+
+        }
+
+        //public async Task<byte[]> GenerateExcelReportAsync(
+        //    DonationAdminQueryDto query)
+        //{
+        //    var donations = await GetAllForReportAsync(query);
+
+
+        //    var statistics = new AdminDonationStatisticsDto
+        //    {
+        //        TotalCount = donations.Count,
+
+        //        TotalAmount = donations.Sum(x => x.Amount),
+
+        //        SucceededCount = donations.Count(x =>
+        //            x.PaymentStatus == PaymentStatus.Succeeded),
+
+        //        PendingCount = donations.Count(x =>
+        //            x.PaymentStatus == PaymentStatus.Pending),
+
+        //        FailedCount = donations.Count(x =>
+        //            x.PaymentStatus == PaymentStatus.Failed)
+        //    };
+
+
+        //    return _excelGenerator.GenerateDonationsExcel(
+        //        donations,
+        //        statistics,
+        //        query);
+        //}
     }
 }

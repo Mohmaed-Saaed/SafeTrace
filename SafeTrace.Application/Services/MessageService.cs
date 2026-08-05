@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.SignalR;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using SafeTrace.Application.DTOs.Message;
@@ -13,6 +13,7 @@ using static SafeTrace.Application.Constants.Permissions;
 using SafeTrace.Application.Interfaces.IServices.INotificationSewrvice;
 using SafeTrace.Application.DTOs.NotificationDTOS;
 using SafeTrace.Application.Constants;
+using Hangfire;
 
 
 namespace SafeTrace.Application.Services
@@ -78,6 +79,27 @@ namespace SafeTrace.Application.Services
                 throw new ForbiddenException("ليس لديك صلاحية لإرسال رسائل في هذه المحادثة.");
             }
             var receiverId = chat.SenderId == senderId ? chat.ReceiverId : chat.SenderId;
+            
+            var chatUpdated = false;
+            if (chat.SenderId == receiverId && chat.DeletedBySender)
+            {
+                chat.DeletedBySender = false;
+                chat.SenderDeletedAt = null;
+                chatUpdated = true;
+            }
+
+            if(chat.ReceiverId == receiverId && chat.DeletedByReceiver)
+            {
+                chat.DeletedByReceiver = false;
+                chat.ReceiverDeletedAt = null;
+                chatUpdated = true;
+            }
+
+            if (chatUpdated)
+            {
+                 _unitOfWork.Repository<Chat>().Update(chat);
+            }
+
             string? filePath = null;
             FileType? fileType = null;
 
@@ -177,7 +199,7 @@ namespace SafeTrace.Application.Services
                 : request.Content,
                 chatLink: $"https://leqaaweb.runasp.net/chat/chat/{request.ChatId}");
 
-            await _emailService.SendEmailAsync(receiverEmail, "رسالة جديدة من لقاء", emailBody);
+            BackgroundJob.Enqueue<IEmailService>(x => x.SendEmailAsync(receiverEmail!, "رسالة جديدة من لقاء", emailBody));
 
             return ApiResponse<MessageDto>.Ok(
             messageDto, "تم إرسال الرسالة بنجاح.");
@@ -223,6 +245,32 @@ namespace SafeTrace.Application.Services
             }
 
             await _unitOfWork.SaveAsync();
+
+            var check = await _unitOfWork.Repository<Message>()
+                .Query(false)
+                .Where(m =>
+                    m.ChatId == chatId &&
+                    m.ReceiverId == userId)
+                .Select(m => new
+                {
+                    m.Id,
+                    m.IsRead
+                })
+                .ToListAsync();
+
+
+            _logger.LogInformation(
+                "After Save Read Status: {@Messages}",
+                check
+            );
+
+            _logger.LogInformation(
+            "Messages marked as read. ChatId: {ChatId}, UserId: {UserId}, Count: {Count}",
+            chatId,
+            userId,
+            messages.Count
+        );
+            await _chatNotifier.NotifyMessagesReadAsync(chatId,userId);
 
             var updatedCount = messages.Count;
 
@@ -295,7 +343,7 @@ namespace SafeTrace.Application.Services
             _unitOfWork.Repository<Message>().Update(message);
             await _unitOfWork.SaveAsync();
 
-            await _chatNotifier.NotifyMessageDeletedForEveryone(message.ChatId, message.Id);
+            await _chatNotifier.NotifyMessageDeletedForEveryone(message.ChatId, message.Id, message.ForEveryoneDeletedAt.Value);
 
             return ApiResponse<MessageDto>.Ok(
                 _mapper.Map<MessageDto>(message),

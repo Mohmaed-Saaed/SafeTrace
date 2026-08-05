@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using SafeTrace.Application.Constants;
 using SafeTrace.Application.DTOs.Responses;
 using SafeTrace.Application.DTOs.RolePermission.Request;
@@ -8,9 +9,7 @@ using SafeTrace.Infrastructure.Authorization;
 
 namespace SafeTrace.API.Controllers
 {
-    [Route("api/[controller]")]
-    [ApiController]
-    public class RolesController : ControllerBase
+    public class RolesController : BaseApiController
     {
         private readonly IRolePermissionService _rolePermissionService;
 
@@ -29,7 +28,7 @@ namespace SafeTrace.API.Controllers
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         [ProducesResponseType(StatusCodes.Status403Forbidden)]
         [HttpGet]
-        [HasPermission(Permissions.Roles.GetAll)]
+        [Authorize]
         public async Task<IActionResult> GetAllRoles()
         {
             var response = await _rolePermissionService.GetAllRolesAsync();

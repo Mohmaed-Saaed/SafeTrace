@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using SafeTrace.Application.DTOs.Chat;
 using SafeTrace.Application.DTOs.Message;
@@ -183,15 +183,32 @@ namespace SafeTrace.Application.Services
                     ? $"{c.Receiver.FName} {c.Receiver.LName}"
                     : $"{c.Sender.FName} {c.Sender.LName}",
 
+                    OtherUserImage = c.SenderId == currentUserId
+                    ? c.Receiver.ProfileImage
+                    :c.Sender.ProfileImage,
+
                     LastMessage = c.Messages
                     .OrderByDescending(m => m.SendAt)
-                    .Select(m => m.Content)
-                    .FirstOrDefault(),
+                    .Select(m => m.IsDeletedForEveryone
+                    ? "تم حذف هذه الرسالة"
+                    :!string.IsNullOrEmpty(m.FilePath)
+                        ? m.FileType == FileType.Image
+                           ? (string.IsNullOrEmpty(m.Content)
+                            ? "📷 صورة"
+                            : m.Content + " 📷")
+                        : m.FileType == FileType.Video
+                            ? (string.IsNullOrEmpty(m.Content)
+                                ? "🎥 فيديو"
+                                : m.Content + " 🎥")
+                        : m.Content
+                    : m.Content)
+                .FirstOrDefault(),
 
                     LastMessageDate = c.Messages
                     .OrderByDescending(m => m.SendAt)
-                    .Select(m => (DateTime?)m.SendAt)
+                    .Select(m => m.SendAt)
                     .FirstOrDefault(),
+
 
                     UnreadCount = c.Messages.Count(m =>
                     !m.IsRead && m.ReceiverId == currentUserId)
@@ -199,6 +216,15 @@ namespace SafeTrace.Application.Services
                 .OrderByDescending(x => x.LastMessageDate)
                 .ToListAsync();
 
+            foreach (var chat in result)
+            {
+                if (chat.LastMessageDate.HasValue)
+                {
+                    chat.LastMessageDate = DateTime.SpecifyKind(
+                        chat.LastMessageDate.Value,
+                        DateTimeKind.Utc);
+                }
+            }
 
             _logger.LogInformation(
             "User {UserId} has {Count} chats.",
@@ -208,82 +234,156 @@ namespace SafeTrace.Application.Services
             return ApiResponse<IEnumerable<ChatSummaryDto>>.Ok(
                 result, "تم جلب المحادثات بنجاح.");
         }
-        public async Task<ApiResponse<ChatDetailsDto>> GetChatDetailsAsync(long chatId, string currentUserId, bool isAdmin)
+        //public async Task<ApiResponse<ChatDetailsDto>> GetChatDetailsAsync(long chatId, string currentUserId, bool isAdmin)
+        //{
+        //    _logger.LogInformation(
+        //    "User {UserId} requested chat details for Chat {ChatId}.",
+        //    currentUserId,
+        //    chatId);
+
+        //    var chat = await _unitOfWork.Repository<Chat>()
+        //        .GetOneAsync(
+        //            c => c.Id == chatId,
+        //            tracked: false,
+        //            c => c.Case,
+        //            c =>c.Case.CaseFiles,
+        //            c => c.Sender,
+        //            c => c.Receiver)
+        //        ?? throw new NotFoundException($"{chatId}لم يتم العثور على المحادثة.");
+        //    if (!isAdmin)
+        //    {
+        //        EnsureParticipant(chat, currentUserId);
+        //    }
+        //    foreach (var file in chat.Case.CaseFiles)
+        //    {
+        //        _logger.LogInformation(
+        //            "Image={Image}, IsPrimary={Primary}",
+        //            file.ImagePath,
+        //            file.IsPrimary
+        //        );
+        //    }
+        //    var primaryImage = chat.Case.CaseFiles.FirstOrDefault(f => f.IsPrimary)?.ImagePath;
+
+        //    var dto = new ChatDetailsDto
+        //    {
+        //        ChatId = chat.Id,
+        //        CaseId = chat.CaseId,
+        //        CaseTitle = $"{chat.Case.FName} {chat.Case.SName} {chat.Case.TName} {chat.Case.LName}",
+        //        CaseImage = primaryImage,
+        //        CaseType = chat.Case.CaseType,
+
+        //        CreatedAt = chat.CreatedAt
+        //    };
+
+        //    if (isAdmin)
+        //    {
+        //        dto.SenderId = chat.SenderId;
+        //        dto.SenderName = $"{chat.Sender.FName} {chat.Sender.LName}";
+        //        dto.SenderImage = chat.Sender.ProfileImage;
+
+        //        dto.ReceiverId = chat.ReceiverId;
+        //        dto.ReceiverName = $"{chat.Receiver.FName} {chat.Receiver.LName}";
+        //        dto.ReceiverImage = chat.Receiver.ProfileImage;
+
+        //        dto.DeletedBySender = chat.DeletedBySender;
+        //        dto.DeletedByReceiver = chat.DeletedByReceiver;
+
+        //        dto.SenderDeletedAt = chat.SenderDeletedAt.HasValue
+        //        ? DateTime.SpecifyKind(chat.SenderDeletedAt.Value, DateTimeKind.Utc)
+        //        : null;
+
+        //        dto.ReceiverDeletedAt = chat.ReceiverDeletedAt.HasValue
+        //            ? DateTime.SpecifyKind(chat.ReceiverDeletedAt.Value, DateTimeKind.Utc)
+        //            : null;
+
+        //        dto.OtherUserId = chat.SenderId == currentUserId
+        //            ? chat.Receiver.Id
+        //            : chat.Sender.Id;
+
+        //        dto.OtherUserName = chat.SenderId == currentUserId
+        //            ? $"{chat.Receiver.FName} {chat.Receiver.LName}"
+        //        : $"{chat.Sender.FName} {chat.Sender.LName}";
+
+        //        dto.OtherUserImage = chat.SenderId == currentUserId
+        //             ? chat.Receiver.ProfileImage
+        //            : chat.Sender.ProfileImage;
+        //    }
+        //    else
+        //    {
+        //        dto.OtherUserId = chat.SenderId == currentUserId
+        //            ? chat.Receiver.Id
+        //            : chat.Sender.Id;
+
+        //        dto.OtherUserName = chat.SenderId == currentUserId
+        //            ? $"{chat.Receiver.FName} {chat.Receiver.LName}"
+        //        : $"{chat.Sender.FName} {chat.Sender.LName}";
+
+        //        dto.OtherUserImage = chat.SenderId == currentUserId
+        //             ? chat.Receiver.ProfileImage
+        //            : chat.Sender.ProfileImage;
+        //    }
+
+        //    _logger.LogInformation(
+        //    "Chat {ChatId} details returned for user {UserId}.",
+        //    chatId,
+        //    currentUserId);
+
+        //    return ApiResponse<ChatDetailsDto>.Ok(
+        //       dto,
+        //        "تم جلب تفاصيل المحادثة بنجاح.");
+
+        //}
+
+        public async Task<ApiResponse<ChatDetailsDto>> GetUserChatDetailsAsync(
+        long chatId,
+        string currentUserId)
         {
-            _logger.LogInformation(
-            "User {UserId} requested chat details for Chat {ChatId}.",
-            currentUserId,
-            chatId);
+            var chat = await GetChatAsync(chatId);
 
-            var chat = await _unitOfWork.Repository<Chat>()
-                .GetOneAsync(
-                    c => c.Id == chatId,
-                    tracked: false,
-                    c => c.Case,
-                    c =>c.Case.CaseFiles,
-                    c => c.Sender,
-                    c => c.Receiver)
-                ?? throw new NotFoundException($"{chatId}لم يتم العثور على المحادثة.");
-            if (!isAdmin)
-            {
-                EnsureParticipant(chat, currentUserId);
-            }
-            foreach (var file in chat.Case.CaseFiles)
-            {
-                _logger.LogInformation(
-                    "Image={Image}, IsPrimary={Primary}",
-                    file.ImagePath,
-                    file.IsPrimary
-                );
-            }
-            var primaryImage = chat.Case.CaseFiles.FirstOrDefault(f => f.IsPrimary)?.ImagePath;
+            EnsureParticipant(chat, currentUserId);
 
-            var dto = new ChatDetailsDto
-            {
-                ChatId = chat.Id,
-                CaseId = chat.CaseId,
-                CaseTitle = $"{chat.Case.FName} {chat.Case.SName} {chat.Case.TName} {chat.Case.LName}",
-                CaseImage = primaryImage,
+            var dto = BuildBaseDto(chat);
 
-                CreatedAt = chat.CreatedAt
-            };
+            var otherUser = chat.SenderId == currentUserId
+                ? chat.Receiver
+                : chat.Sender;
 
-            if (isAdmin)
-            {
-                dto.SenderId = chat.SenderId;
-                dto.SenderName = $"{chat.Sender.FName} {chat.Sender.LName}";
-                dto.SenderImage = chat.Sender.ProfileImage;
+            dto.OtherUserId = otherUser.Id;
+            dto.OtherUserName = $"{otherUser.FName} {otherUser.LName}";
+            dto.OtherUserImage = otherUser.ProfileImage;
 
-                dto.ReceiverId = chat.ReceiverId;
-                dto.ReceiverName = $"{chat.Receiver.FName} {chat.Receiver.LName}";
-                dto.ReceiverImage = chat.Receiver.ProfileImage;
-
-                dto.DeletedBySender = chat.DeletedBySender;
-                dto.DeletedByReceiver = chat.DeletedByReceiver;
-                dto.SenderDeletedAt = chat.SenderDeletedAt;
-                dto.ReceiverDeletedAt = chat.ReceiverDeletedAt;
-            }
-            else
-            {
-                dto.OtherUserName = chat.SenderId == currentUserId
-                    ? $"{chat.Receiver.FName} {chat.Receiver.LName}"
-                : $"{chat.Sender.FName} {chat.Sender.LName}";
-
-                dto.OtherUserImage = chat.SenderId == currentUserId
-                     ? chat.Receiver.ProfileImage
-                    : chat.Sender.ProfileImage;
-            }
-
-            _logger.LogInformation(
-            "Chat {ChatId} details returned for user {UserId}.",
-            chatId,
-            currentUserId);
-
-            return ApiResponse<ChatDetailsDto>.Ok(
-               dto,
-                "تم جلب تفاصيل المحادثة بنجاح.");
-
+            return ApiResponse<ChatDetailsDto>.Ok(dto, "تم جلب تفاصيل المحادثة بنجاح.");
         }
+
+        public async Task<ApiResponse<ChatDetailsDto>> GetDashChatDetailsAsync(long chatId)
+        {
+            var chat = await GetChatAsync(chatId);
+
+            var dto = BuildBaseDto(chat);
+
+            dto.SenderId = chat.SenderId;
+            dto.SenderName = $"{chat.Sender.FName} {chat.Sender.LName}";
+            dto.SenderImage = chat.Sender.ProfileImage;
+
+            dto.ReceiverId = chat.ReceiverId;
+            dto.ReceiverName = $"{chat.Receiver.FName} {chat.Receiver.LName}";
+            dto.ReceiverImage = chat.Receiver.ProfileImage;
+
+            dto.DeletedBySender = chat.DeletedBySender;
+            dto.DeletedByReceiver = chat.DeletedByReceiver;
+
+            dto.SenderDeletedAt = chat.SenderDeletedAt.HasValue
+                ? DateTime.SpecifyKind(chat.SenderDeletedAt.Value, DateTimeKind.Utc)
+                : null;
+
+            dto.ReceiverDeletedAt = chat.ReceiverDeletedAt.HasValue
+                ? DateTime.SpecifyKind(chat.ReceiverDeletedAt.Value, DateTimeKind.Utc)
+                : null;
+
+            return ApiResponse<ChatDetailsDto>.Ok(dto, "تم جلب تفاصيل المحادثة بنجاح.");
+        }
+
+
         public async Task <ApiResponse<List<MessageDto>>> GetPaginatedMessagesAsync(long chatId, string currentUserId,bool isAdmin)
         {
             _logger.LogInformation(
@@ -303,9 +403,7 @@ namespace SafeTrace.Application.Services
             {
                 EnsureParticipant(chat, currentUserId);
             }
-            //var (messages, totalCount) = await _unitOfWork.MessageRepository
-            //    .GetPagedMessagesAsync(chatId,currentUserId, page, pageSize);
-
+            
             IQueryable<Message> query;
             if (isAdmin)
             {
@@ -339,7 +437,17 @@ namespace SafeTrace.Application.Services
 
             var messageDtos = _mapper.Map<List<MessageDto>>(messages);
 
-            foreach(var message in messageDtos)
+            if (!isAdmin)
+            {
+                foreach (var message in messageDtos)
+                {
+                    if (message.IsDeletedForEveryone)
+                    {
+                        message.Content = "تم حذف هذه الرسالة";
+                    }
+                }
+            }
+            foreach (var message in messageDtos)
             {
                 message.IsMine = message.SenderId == currentUserId;
             }
@@ -422,7 +530,7 @@ namespace SafeTrace.Application.Services
             var baseQuery = _unitOfWork.Repository<Chat>()
                 .Query(
                  false,
-                 c => c.CreatedAt,
+                 null,
                 OrderBy.Descending,
                 null,
                 null,
@@ -431,11 +539,13 @@ namespace SafeTrace.Application.Services
                 c => c.Sender,
                 c => c.Receiver);
 
+
+
             if (filter.FromDate.HasValue)
                 baseQuery = baseQuery.Where(c => c.CreatedAt >= filter.FromDate);
 
             if (filter.ToDate.HasValue)
-                baseQuery = baseQuery.Where(c => c.CreatedAt <= filter.ToDate);
+                baseQuery = baseQuery.Where(c => c.CreatedAt <= filter.ToDate.Value.Date.AddDays(1).AddTicks(-1));
 
             if (filter.IsDeletedBySender.HasValue)
                 baseQuery = baseQuery.Where(c => c.DeletedBySender == filter.IsDeletedBySender);
@@ -445,21 +555,43 @@ namespace SafeTrace.Application.Services
 
             if (!string.IsNullOrWhiteSpace(filter.Search))
             {
+                var search = filter.Search.Trim();
+
+                var searchWords = search.Split(
+                    ' ',
+                    StringSplitOptions.RemoveEmptyEntries
+                );
+
                 baseQuery = baseQuery.Where(c =>
-                    c.Messages.Any(m => m.Content.Contains(filter.Search)) ||
 
-                    c.Sender.FName.Contains(filter.Search) ||
-                    c.Sender.LName.Contains(filter.Search) ||
+                    c.Messages.Any(m => m.Content.Contains(search)) ||
 
-                    c.Receiver.FName.Contains(filter.Search) ||
-                    c.Receiver.LName.Contains(filter.Search) ||
+                    // Sender
+                    searchWords.All(word =>
+                        (c.Sender.FName + " " + c.Sender.LName)
+                            .Contains(word)
+                    ) ||
 
-                    c.Case.FName.Contains(filter.Search) ||
-                    c.Case.SName.Contains(filter.Search) ||
-                    c.Case.TName.Contains(filter.Search) ||
-                    c.Case.LName.Contains(filter.Search) 
-                    );
+                    // Receiver
+                    searchWords.All(word =>
+                        (c.Receiver.FName + " " + c.Receiver.LName)
+                            .Contains(word)
+                    ) ||
+
+                    // Case Title
+                    searchWords.All(word =>
+                        (c.Case.FName + " " +
+                         c.Case.SName + " " +
+                         c.Case.TName + " " +
+                         c.Case.LName)
+                        .Contains(word)
+                    )
+                );
             }
+            baseQuery = baseQuery.OrderByDescending(c =>
+            c.Messages
+                .Select(m => (DateTime?)m.SendAt)
+                .Max() ?? c.CreatedAt);
 
             var totalCount = await baseQuery.CountAsync();
 
@@ -472,6 +604,8 @@ namespace SafeTrace.Application.Services
             {
                 ChatId = c.Id,
                 CaseId = c.CaseId,
+                CaseTitle = $"{c.Case.FName} {c.Case.SName} {c.Case.TName} {c.Case.LName}",
+                CaseType = c.Case.CaseType,
                 SenderId = c.SenderId,
                 ReceiverId = c.ReceiverId,
 
@@ -489,11 +623,21 @@ namespace SafeTrace.Application.Services
                 .Select(m => m.Content)
                 .FirstOrDefault(),
 
+                LastMessageAt = c.Messages
+                .OrderByDescending(m => m.SendAt)
+                .Select(m => (DateTime?)DateTime.SpecifyKind(m.SendAt, DateTimeKind.Utc))
+                .FirstOrDefault(),
+
                 IsDeletedBySender = c.DeletedBySender,
                 IsDeletedByReceiver = c.DeletedByReceiver,
 
-                SenderDeletedAt = c.SenderDeletedAt,
-                ReceiverDeletedAt = c.ReceiverDeletedAt,
+                SenderDeletedAt = c.SenderDeletedAt.HasValue
+                ? (DateTime?)DateTime.SpecifyKind(c.SenderDeletedAt.Value, DateTimeKind.Utc)
+                : null,
+
+                ReceiverDeletedAt = c.ReceiverDeletedAt.HasValue
+                ? (DateTime?)DateTime.SpecifyKind(c.ReceiverDeletedAt.Value, DateTimeKind.Utc)
+                : null,
             }).ToList();
 
             var result = new PaginationResponseDto<AdminChatsDto>
@@ -508,6 +652,35 @@ namespace SafeTrace.Application.Services
             .Ok(result, "تم جلب المحادثات بنجاح.");
         }
 
+        public async Task<ApiResponse<AdminChatStatisticsDto>> GetChatStatisticsAsync()
+        {
+            var chatsStats = await _unitOfWork.Repository<Chat>().Query(tracked: false)
+                .GroupBy(c => new { c.DeletedBySender, c.DeletedByReceiver })
+                .Select(g => new { g.Key.DeletedBySender, g.Key.DeletedByReceiver, Count = g.Count() })
+                .ToListAsync();
+
+            var totalChats = chatsStats.Sum(x => x.Count);
+            var activeChats = chatsStats.Where(x => !x.DeletedBySender && !x.DeletedByReceiver).Sum(x => x.Count);
+            var deletedBySenderOnly = chatsStats.Where(x => x.DeletedBySender && !x.DeletedByReceiver).Sum(x => x.Count);
+            var deletedByReceiverOnly = chatsStats.Where(x => !x.DeletedBySender && x.DeletedByReceiver).Sum(x => x.Count);
+            var deletedByBoth = chatsStats.Where(x => x.DeletedBySender && x.DeletedByReceiver).Sum(x => x.Count);
+            var totalUnreadMessages = await _unitOfWork.Repository<Message>()
+            .Query(tracked: false)
+            .CountAsync(m => !m.IsRead);
+
+            var stats = new AdminChatStatisticsDto
+            {
+                TotalChats = totalChats,
+                ActiveChats = activeChats,
+                DeletedBySenderOnly = deletedBySenderOnly,
+                DeletedByReceiverOnly = deletedByReceiverOnly,
+                DeletedByBoth = deletedByBoth,
+                TotalUnreadMessages = totalUnreadMessages
+            };
+
+            return ApiResponse<AdminChatStatisticsDto>.Ok(stats, "تم جلب الإحصائيات بنجاح.");
+        }
+
         private void EnsureParticipant(Chat chat, string userId)
         {
             if (chat.SenderId != userId && chat.ReceiverId != userId) {
@@ -518,6 +691,35 @@ namespace SafeTrace.Application.Services
 
                 throw new ForbiddenException("ليس لديك صلاحية للوصول إلى هذه المحادثة.");
             }
+        }
+
+        private async Task<Chat> GetChatAsync(long chatId)
+        {
+            return await _unitOfWork.Repository<Chat>()
+                .GetOneAsync(
+                    c => c.Id == chatId,
+                    tracked: false,
+                    c => c.Case,
+                    c => c.Case.CaseFiles,
+                    c => c.Sender,
+                    c => c.Receiver)
+                ?? throw new NotFoundException($"لم يتم العثور على المحادثة {chatId}.");
+        }
+
+        private ChatDetailsDto BuildBaseDto(Chat chat)
+        {
+            var primaryImage = chat.Case.CaseFiles
+                .FirstOrDefault(f => f.IsPrimary)?.ImagePath;
+
+            return new ChatDetailsDto
+            {
+                ChatId = chat.Id,
+                CaseId = chat.CaseId,
+                CaseTitle = $"{chat.Case.FName} {chat.Case.SName} {chat.Case.TName} {chat.Case.LName}",
+                CaseImage = primaryImage,
+                CaseType = chat.Case.CaseType,
+                CreatedAt = DateTime.SpecifyKind(chat.CreatedAt, DateTimeKind.Utc)
+            };
         }
 
     }

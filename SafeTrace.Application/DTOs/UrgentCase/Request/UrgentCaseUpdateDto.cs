@@ -1,15 +1,18 @@
+using System.ComponentModel.DataAnnotations;
+using SafeTrace.Application.Common.Validators.Attributes;
 using SafeTrace.Application.DTOs.Cases.Request;
 
 namespace SafeTrace.Application.DTOs.UrgentCase.Request
 {
     public class UrgentCaseUpdateDto : CaseUpdateBaseDto
     {
+        [Required(ErrorMessage = "Event date is required.")]
+        [UrgentEventDate(6)]
+        [DataType(DataType.Date)]
+        public DateTime? EventDate { get; set; }
+
         [EnumDataType(typeof(RelationType), ErrorMessage = "Invalid relation type.")]
         public RelationType? Relation { get; set; }
-
-        //[DataType(DataType.DateTime)]
-        //[PastDate(ErrorMessage = "Event date cannot be in the future.")]
-        //public DateTime? EventDate { get; set; }
 
         [Range(-90.0, 90.0, ErrorMessage = "Latitude must be between -90 and 90.")]
         public double? Latitude { get; set; }

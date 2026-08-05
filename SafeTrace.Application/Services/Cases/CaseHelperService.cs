@@ -2,10 +2,13 @@ using System.Linq.Expressions;
 using Microsoft.AspNetCore.Http;
 using SafeTrace.Application.Common.Enums;
 using SafeTrace.Application.DTOs.AiMatching.Response;
-using SafeTrace.Application.DTOs.Cases.Request;
 using SafeTrace.Application.DTOs.Cases.Response;
+using SafeTrace.Application.DTOs.NotificationDTOS;
 using SafeTrace.Application.Exceptions;
 using SafeTrace.Application.Interfaces.IServices.ICases;
+using SafeTrace.Application.Interfaces.IServices.INotificationSewrvice;
+using SafeTrace.Application.Constants;
+using Hangfire;
 
 namespace SafeTrace.Application.Services.Cases
 {
@@ -14,6 +17,8 @@ namespace SafeTrace.Application.Services.Cases
         private readonly IUnitOfWork _unitOfWork;
         private readonly IFileStorageService _fileStorageService;
         private readonly IFaceRecognitionService _faceRecognitionService;
+        private readonly INotificationServices _notificationServices;
+        private readonly IEmailService _emailService;
         private readonly IMapper _mapper;
         private readonly ILogger<CaseHelperService> _logger;
 
@@ -24,12 +29,16 @@ namespace SafeTrace.Application.Services.Cases
             IUnitOfWork unitOfWork,
             IFileStorageService fileStorageService,
             IFaceRecognitionService faceRecognitionService,
+            INotificationServices notificationServices,
+            IEmailService emailService,
             IMapper mapper,
             ILogger<CaseHelperService> logger)
         {
             _unitOfWork = unitOfWork;
             _fileStorageService = fileStorageService;
             _faceRecognitionService = faceRecognitionService;
+            _notificationServices = notificationServices;
+            _emailService = emailService;
             _mapper = mapper;
             _logger = logger;
         }
@@ -132,38 +141,7 @@ namespace SafeTrace.Application.Services.Cases
             return files;
         }
 
-        //private async Task<CaseFile> CreateCaseFileAsync(IFormFile file, string folderName, long caseId, bool isPrimary)
-        //{
-        //    var path = await _fileStorageService.SaveFileAsync(file, folderName);
-
-        //    string? faceId = null;
-
-        //    if (!VideoExtensions.Contains(Path.GetExtension(file.FileName)))
-        //    {
-        //        try
-        //        {
-        //            faceId = await _faceRecognitionService.IndexFaceAsync(file);
-        //        }
-        //        catch (Exception ex)
-        //        {
-        //            _logger.LogWarning(ex, "Failed to index face for file {FileName}.", file.FileName);
-        //        }
-        //    }
-
-        //    return new CaseFile
-        //    {
-        //        CaseId = caseId,
-        //        ImagePath = path,
-        //        FaceId = faceId,
-        //        IsPrimary = isPrimary,
-        //        CreatedAt = DateTime.UtcNow
-        //    };
-        //}
-    private async Task<CaseFile> CreateCaseFileAsync(
-    IFormFile file,
-    string folderName,
-    long caseId,
-    bool isPrimary)
+        private async Task<CaseFile> CreateCaseFileAsync(IFormFile file, string folderName, long caseId, bool isPrimary)
         {
             var path = await _fileStorageService.SaveFileAsync(file, folderName);
 
@@ -171,9 +149,7 @@ namespace SafeTrace.Application.Services.Cases
 
             var extension = Path.GetExtension(file.FileName).ToLowerInvariant();
 
-            var fileType = VideoExtensions.Contains(extension)
-                ? FileType.Video
-                : FileType.Image;
+            var fileType = VideoExtensions.Contains(extension) ? FileType.Video : FileType.Image;
 
             if (fileType == FileType.Image)
             {
@@ -183,9 +159,7 @@ namespace SafeTrace.Application.Services.Cases
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogWarning(ex,
-                        "Failed to index face for file {FileName}.",
-                        file.FileName);
+                    _logger.LogWarning(ex, "Failed to index face for file {FileName}.", file.FileName);
                 }
             }
 
@@ -195,7 +169,7 @@ namespace SafeTrace.Application.Services.Cases
                 ImagePath = path,
                 FaceId = faceId,
                 IsPrimary = isPrimary,
-                 Type= fileType,
+                Type= fileType,
                 CreatedAt = DateTime.UtcNow
             };
         }
@@ -252,111 +226,276 @@ namespace SafeTrace.Application.Services.Cases
             }
         }
 
-        public async Task<MatchedCasesResult> FindMatchedCasesAsync(CaseMatchSubjectInfoDto subject, IFormFile primaryImage)
+        public async Task SendCaseApprovedNotificationAsync(Case entity)
+        {
+            var user = await GetCaseOwnerAsync(entity);
+            if (user is null)
+                return;
+
+            var detailsPath = EmailTemplates.GetCaseDetailsRoute(entity.CaseType);
+            var directLink = $"{detailsPath}{entity.Id}?action=approved&caseId={entity.Id}&caseCode={Uri.EscapeDataString(entity.CaseCode ?? string.Empty)}";
+
+            await SendNotificationSafelyAsync(
+                user.Id,
+                $"✅ تمت الموافقة على حالتك.\n\nكود الحالة:\n{entity.CaseCode}\n\nيمكنك الآن البحث عن الحالة باستخدام كود الحالة أو متابعة تفاصيلها.",
+                directLink,
+                entity.Id,
+                "approved");
+
+            if (!string.IsNullOrWhiteSpace(user.Email))
+            {
+                await SendEmailSafelyAsync(
+                    user.Email,
+                    "تمت الموافقة على حالتك",
+                    EmailTemplates.BuildCaseApprovedEmailTemplate(
+                        $"{user.FName} {user.LName}".Trim(),
+                        entity.CaseCode,
+                        GetCaseTypeName(entity.CaseType),
+                        EmailTemplates.GetCaseDetailsUrl(entity.CaseType, entity.Id)),
+                    entity.Id,
+                    "approved");
+            }
+        }
+
+        public async Task SendCaseRejectedNotificationAsync(Case entity, string rejectionReason)
+        {
+            var user = await GetCaseOwnerAsync(entity);
+            if (user is null)
+                return;
+
+            var detailsPath = EmailTemplates.GetCaseDetailsRoute(entity.CaseType);
+            var directLink = $"{detailsPath}{entity.Id}?action=rejected&caseId={entity.Id}&caseCode={Uri.EscapeDataString(entity.CaseCode ?? string.Empty)}&rejectionReason={Uri.EscapeDataString(rejectionReason ?? string.Empty)}";
+
+            await SendNotificationSafelyAsync(
+                user.Id,
+                $"❌ تم رفض الحالة.\n\nسبب الرفض:\n\n{rejectionReason}",
+                directLink,
+                entity.Id,
+                "rejected");
+
+            if (!string.IsNullOrWhiteSpace(user.Email))
+            {
+                await SendEmailSafelyAsync(
+                    user.Email,
+                    "تم رفض الحالة",
+                    EmailTemplates.BuildCaseRejectedEmailTemplate(
+                        $"{user.FName} {user.LName}".Trim(),
+                        entity.CaseCode,
+                        rejectionReason,
+                        EmailTemplates.GetCaseDetailsUrl(entity.CaseType, entity.Id)),
+                    entity.Id,
+                    "rejected");
+            }
+        }
+
+        private async Task<ApplicationUser?> GetCaseOwnerAsync(Case entity)
+        {
+            var user = await _unitOfWork.Repository<ApplicationUser>()
+                .GetOneAsync(user => user.Id == entity.UserId, tracked: false);
+
+            if (user is null)
+                _logger.LogWarning("Could not send case notification because owner {UserId} was not found for case {CaseId}.", entity.UserId, entity.Id);
+
+            return user;
+        }
+
+        private async Task SendNotificationSafelyAsync(string userId, string content, string detailsPath, long caseId, string action)
+        {
+            try
+            {
+                await _notificationServices.SendNotificationAsync(new SendNotificationDTO
+                {
+                    UserId = userId,
+                    Content = content,
+                    Type = NotificationType.Message,
+                    NotificationDirectLink = detailsPath
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to send {Action} in-app notification for case {CaseId}.", action, caseId);
+            }
+        }
+
+        private Task SendEmailSafelyAsync(string email, string subject, string body, long caseId, string action)
+        {
+            try
+            {
+                BackgroundJob.Enqueue<IEmailService>(x => x.SendEmailAsync(email, subject, body));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to send {Action} email for case {CaseId}.", action, caseId);
+            }
+            return Task.CompletedTask;
+        }
+
+        private static string GetCaseTypeName(CaseType caseType) => caseType switch
+        {
+            CaseType.LongTerm => "حالة فقد طويلة المدة",
+            CaseType.Urgent => "حالة عاجلة",
+            CaseType.Unknown => "حالة مجهول الهوية",
+            _ => caseType.ToString()
+        };
+
+        private async Task<List<MatchedCaseDto>> FindMatchedCasesAsync(IFormFile primaryImage)
         {
             var faceMatches = await SearchFacesAsync(primaryImage);
             if (faceMatches.Count == 0)
-                return MatchedCasesResult.Empty;
+                return [];
 
             var candidateCases = await LoadCandidateCasesAsync(faceMatches);
             if (candidateCases.Count == 0)
-                return MatchedCasesResult.Empty;
+                return [];
 
-            var matchedCases = FilterMatchedCases(candidateCases, faceMatches, subject);
-
-            return new MatchedCasesResult
-            {
-                HasMatched = matchedCases.Count != 0,
-                DuplicateCases = matchedCases
-            };
+            return FilterMatchedCases(candidateCases, faceMatches);
         }
-        //     public async Task<DuplicateCheckResult> CheckDuplicateCaseAsync(
-        //CaseType currentCaseType,
-        //CaseMatchSubjectInfoDto subject,
-        //IFormFile primaryImage,
-        //Func<MatchedCaseDto, Task> onSameTypeMatchAsync,
-        //bool forceCreate = false)
-        //     {
-        //         var matchResult = await FindMatchedCasesAsync(subject, primaryImage);
-
-        //         if (!matchResult.HasMatched)
-        //             return DuplicateCheckResult.None;
-
-        //         // البحث عن تطابق من نفس النوع
-        //         var sameTypeDuplicate = matchResult.DuplicateCases
-        //             .FirstOrDefault(x => x.CaseType == currentCaseType);
-
-        //         if (sameTypeDuplicate != null)
-        //         {
-        //             // بدلاً من الرمي المباشر للـ Exception، سنقوم بإرجاع النتيجة وتحديد أنه تطابق من نفس النوع لمنع الإضافة وعرض التفاصيل
-        //             return new DuplicateCheckResult
-        //             {
-        //                 RequiresConfirmation = false,
-        //                 IsSameTypeDuplicate = true, // تأكد من تعريف هذه الخاصية في كلاس DuplicateCheckResult
-        //                 MatchedCases = matchResult.DuplicateCases
-        //             };
-        //         }
-
-        //         if (forceCreate)
-        //         {
-        //             _logger.LogInformation(
-        //                 "Cross-type duplicate(s) found but forceCreate=true."
-        //             );
-
-        //             return DuplicateCheckResult.None;
-        //         }
-
-        //         return new DuplicateCheckResult
-        //         {
-        //             RequiresConfirmation = true,
-        //             MatchedCases = matchResult.DuplicateCases
-        //         };
-        //     }
 
         public async Task<DuplicateCheckResult> CheckDuplicateCaseAsync(
-                CaseType currentCaseType,
-                CaseMatchSubjectInfoDto subject,
-                IFormFile primaryImage,
-                Func<MatchedCaseDto, Task> onSameTypeMatchAsync,
-                bool forceCreate = false)
+            CaseType currentCaseType,
+            IFormFile primaryImage,
+            string currentUserId)
         {
-            var matchResult = await FindMatchedCasesAsync(subject, primaryImage);
+            var matchedCases = await FindMatchedCasesAsync(primaryImage);
 
-            if (!matchResult.HasMatched)
-                return DuplicateCheckResult.None;
-
-            // البحث عن تطابق من نفس النوع
-            var sameTypeDuplicate = matchResult.DuplicateCases
-                .FirstOrDefault(x => x.CaseType == currentCaseType);
-
-            if (sameTypeDuplicate != null)
+            if (matchedCases.Count == 0)
             {
-                // مهم: لازم ننفذ الـ callback قبل الـ return
-                // ده اللي بيسمح لـ Unknown إنها تلقط الـ match وتعمل merge بيه
-                await onSameTypeMatchAsync(sameTypeDuplicate);
+                return new DuplicateCheckResult { IsBlocked = false, DuplicateDecision = DuplicateDecision.None, MatchedCases = [] };
+            }
 
+            var sameUserMatch = matchedCases.FirstOrDefault(c => c.UserId == currentUserId);
+            if (sameUserMatch != null)
+            {
                 return new DuplicateCheckResult
                 {
-                    RequiresConfirmation = false,
-                    IsSameTypeDuplicate = true,
-                    MatchedCases = matchResult.DuplicateCases
+                    IsBlocked = true,
+                    DuplicateDecision = DuplicateDecision.SameUserDuplicate,
+                    ExistingCaseId = sameUserMatch.Id,
+                    ExistingCaseType = sameUserMatch.CaseType,
+                    ExistingStatus = sameUserMatch.Status,
+                    MatchedCases = []
                 };
             }
 
-            if (forceCreate)
+            var pendingOwner = matchedCases.FirstOrDefault(c => c.Status == CaseStatus.Pending && (c.CaseType == CaseType.Urgent || c.CaseType == CaseType.LongTerm));
+            if (pendingOwner != null)
             {
-                _logger.LogInformation(
-                    "Cross-type duplicate(s) found but forceCreate=true.");
-
-                return DuplicateCheckResult.None;
+                return new DuplicateCheckResult
+                {
+                    IsBlocked = true,
+                    DuplicateDecision = DuplicateDecision.PendingOwnerCase,
+                    ExistingCaseId = pendingOwner.Id,
+                    ExistingCaseType = pendingOwner.CaseType,
+                    ExistingStatus = pendingOwner.Status,
+                    MatchedCases = []
+                };
             }
 
-            return new DuplicateCheckResult
+            var pendingUnknown = matchedCases.FirstOrDefault(c => c.Status == CaseStatus.Pending && c.CaseType == CaseType.Unknown);
+            if (pendingUnknown != null)
             {
-                RequiresConfirmation = true,
-                MatchedCases = matchResult.DuplicateCases
-            };
+                return new DuplicateCheckResult
+                {
+                    IsBlocked = false,
+                    DuplicateDecision = DuplicateDecision.PendingUnknownCase,
+                    ExistingCaseId = pendingUnknown.Id,
+                    ExistingCaseType = pendingUnknown.CaseType,
+                    ExistingStatus = pendingUnknown.Status,
+                    MatchedCases = []
+                };
+            }
+
+            var activeOwner = matchedCases.FirstOrDefault(c => c.Status == CaseStatus.Active && (c.CaseType == CaseType.Urgent || c.CaseType == CaseType.LongTerm));
+            if (activeOwner != null)
+            {
+                return new DuplicateCheckResult
+                {
+                    IsBlocked = true,
+                    DuplicateDecision = DuplicateDecision.ActiveOwnerCase,
+                    ExistingCaseId = activeOwner.Id,
+                    ExistingCaseType = activeOwner.CaseType,
+                    ExistingStatus = activeOwner.Status,
+                    MatchedCases = matchedCases
+                };
+            }
+
+            var activeUnknown = matchedCases.FirstOrDefault(c => c.Status == CaseStatus.Active && c.CaseType == CaseType.Unknown);
+            if (activeUnknown != null)
+            {
+                return new DuplicateCheckResult
+                {
+                    IsBlocked = false,
+                    DuplicateDecision = DuplicateDecision.ActiveUnknownCase,
+                    ExistingCaseId = activeUnknown.Id,
+                    ExistingCaseType = activeUnknown.CaseType,
+                    ExistingStatus = activeUnknown.Status,
+                    MatchedCases = matchedCases
+                };
+            }
+
+            return new DuplicateCheckResult { IsBlocked = false, DuplicateDecision = DuplicateDecision.None, MatchedCases = [] };
         }
+
+        public async Task ValidateUploadedImagesIdentityAsync(
+            IFormFile? primaryImage, 
+            IEnumerable<IFormFile>? additionalImages, 
+            IEnumerable<string>? existingFaceIds = null)
+        {
+            var isUpdate = existingFaceIds != null && existingFaceIds.Any();
+            var hasAdditional = additionalImages != null && additionalImages.Any();
+
+            if (!isUpdate)
+            {
+                if (primaryImage != null && hasAdditional)
+                {
+                    foreach (var additional in additionalImages!)
+                    {
+                        var comparison = await _faceRecognitionService.CompareFacesAsync(primaryImage, additional);
+                        if (!comparison.Success || !comparison.IsSamePerson)
+                        {
+                            throw new BadRequestException("جميع الصور المرفقة يجب أن تكون لنفس الشخص.");
+                        }
+                    }
+                }
+            }
+            else
+            {
+                if (primaryImage != null)
+                {
+                    var matches = await _faceRecognitionService.SearchByImageAsync(primaryImage);
+                    var isSamePerson = matches.Any(m => existingFaceIds!.Contains(m.FaceId) && PassesVerification(m.Similarity ?? 0));
+                    if (!isSamePerson)
+                    {
+                        throw new BadRequestException("الصورة الجديدة لا تبدو لنفس الشخص الموجود في هذا البلاغ.\n\nإذا كان هذا شخصًا آخر، يرجى إنشاء بلاغ جديد بدلاً من تعديل البلاغ الحالي.");
+                    }
+                    
+                    if (hasAdditional)
+                    {
+                        foreach (var additional in additionalImages!)
+                        {
+                            var comparison = await _faceRecognitionService.CompareFacesAsync(primaryImage, additional);
+                            if (!comparison.Success || !comparison.IsSamePerson)
+                            {
+                                throw new BadRequestException("جميع الصور داخل البلاغ يجب أن تكون لنفس الشخص.");
+                            }
+                        }
+                    }
+                }
+                else if (hasAdditional)
+                {
+                    foreach (var additional in additionalImages!)
+                    {
+                        var matches = await _faceRecognitionService.SearchByImageAsync(additional);
+                        var isSamePerson = matches.Any(m => existingFaceIds!.Contains(m.FaceId) && PassesVerification(m.Similarity ?? 0));
+                        if (!isSamePerson)
+                        {
+                            throw new BadRequestException("جميع الصور داخل البلاغ يجب أن تكون لنفس الشخص.");
+                        }
+                    }
+                }
+            }
+        }
+
         private async Task<List<FaceMatchResult>> SearchFacesAsync(IFormFile primaryImage)
         {
             var faceMatches = await _faceRecognitionService.SearchByImageAsync(primaryImage);
@@ -378,23 +517,15 @@ namespace SafeTrace.Application.Services.Cases
             if (faceIds.Count == 0)
                 return [];
 
-   
             return await _unitOfWork.Repository<Case>()
-    .Query(tracked: false, includes: [c => c.CaseFiles, c => c.User])
-    .Where(c =>
-        (
-            (c.CaseType == CaseType.Unknown && c.Status != CaseStatus.Deleted)
-            ||
-            (c.CaseType != CaseType.Unknown && c.Status == CaseStatus.Active)
-        )
-        &&
-        c.CaseFiles.Any(f =>
-            f.FaceId != null &&
-            faceIds.Contains(f.FaceId)))
-    .ToListAsync();
+                .Query(tracked: false, includes: [c => c.CaseFiles, c => c.User])
+                .Where(c =>
+                (c.Status == CaseStatus.Pending || c.Status == CaseStatus.Active)
+                &&
+                c.CaseFiles.Any(f => f.FaceId != null && faceIds.Contains(f.FaceId))).ToListAsync();
         }
 
-        private List<MatchedCaseDto> FilterMatchedCases(IReadOnlyCollection<Case> candidateCases, IReadOnlyCollection<FaceMatchResult> faceMatches, CaseMatchSubjectInfoDto subject)
+        private List<MatchedCaseDto> FilterMatchedCases(IReadOnlyCollection<Case> candidateCases, IReadOnlyCollection<FaceMatchResult> faceMatches)
         {
             var matchedCases = new List<MatchedCaseDto>();
 
@@ -419,7 +550,7 @@ namespace SafeTrace.Application.Services.Cases
 
                 var similarity = matchedFace.Similarity ?? 0;
 
-                if (!PassesVerification(candidate, similarity, subject))
+                if (!PassesVerification(similarity))
                     continue;
 
                 var dto = _mapper.Map<MatchedCaseDto>(candidate);
@@ -432,180 +563,10 @@ namespace SafeTrace.Application.Services.Cases
             return matchedCases;
         }
 
-        private static bool PassesVerification(Case candidate, float similarity, CaseMatchSubjectInfoDto subject)
+
+        private static bool PassesVerification(float similarity)
         {
-            if (similarity < MinimumSimilarity)
-                return false;
-
-            if (candidate.Gender != subject.Gender)
-                return false;
-
-            if (Math.Abs(candidate.Age - subject.Age) > MaxAgeDifference)
-                return false;
-
-            return true;
+            return similarity >= MinimumSimilarity;
         }
-
-        #region unknown Func 
-
-        /// <summary>
-        /// يربط الحالة الجديدة (Unknown) بمجموعة التكرار الخاصة بالحالة المطابقة (لو موجودة)،
-        /// أو ينشئ مجموعة جديدة لو مفيش تطابق.
-        /// ملحوظة: بقى بياخد نتيجة الـ match الجاهزة من CheckDuplicateCaseAsync 
-        /// بدل ما يعمل بحث Face Recognition جديد، عشان نتجنب استدعاء الخدمة مرتين
-        /// وبمعايير مختلفة لنفس الصورة.
-        /// </summary>
-        public async Task LinkCaseToDuplicateGroupAsync(
-            UnknownCase newCase,
-            MatchedCaseDto? sameTypeMatch)
-        {
-            if (sameTypeMatch == null)
-            {
-                await CreateDuplicateGroupAsync(newCase);
-                return;
-            }
-
-            var matchedCase = await GetMatchedCaseAsync(sameTypeMatch.Id, newCase.Id);
-
-            if (matchedCase == null)
-            {
-                // الحالة كانت متطابقة وقت CheckDuplicateCaseAsync لكن بقت غير صالحة
-                // (مثلاً اتحذفت في نفس الوقت) -> نتعامل معاها كأنه مفيش match
-                await CreateDuplicateGroupAsync(newCase);
-                return;
-            }
-
-            var groupLink = await _unitOfWork
-                .Repository<DuplicateGroupCase>()
-                .Query(tracked: true)
-                .FirstOrDefaultAsync(x => x.CaseId == matchedCase.Id);
-
-            if (groupLink == null)
-            {
-                await CreateDuplicateGroupWithCasesAsync(
-                    matchedCase,
-                    newCase,
-                    (decimal)sameTypeMatch.Similarity);
-
-                return;
-            }
-
-            await AddCaseToGroupAsync(
-                groupLink.DuplicateGroupId,
-                newCase.Id,
-                (decimal)sameTypeMatch.Similarity);
-        }
-
-        /// <summary>
-        /// يتحقق من صحة الحالة المطابقة (لسه موجودة/Unknown/مش محذوفة) 
-        /// عن طريق الـ Id مباشرة (بدل البحث بالـ FaceId من جديد، لأن التطابق 
-        /// اتأكد بالفعل جوه CheckDuplicateCaseAsync).
-        /// </summary>
-        public async Task<UnknownCase?> GetMatchedCaseAsync(
-            long caseId,
-            long currentCaseId)
-        {
-            return await _unitOfWork
-                .Repository<UnknownCase>()
-                .Query(tracked: true)
-                .Where(x =>
-                    x.Id == caseId &&
-                    x.Id != currentCaseId &&
-                    x.Status != CaseStatus.Deleted)
-                .FirstOrDefaultAsync();
-        }
-
-        public async Task CreateDuplicateGroupAsync(
-            UnknownCase newCase)
-        {
-            var group = new DuplicateGroup
-            {
-                GroupStatus = DuplicateGroupStatus.Confirmed,
-                CreatedAt = DateTime.UtcNow
-            };
-
-            await _unitOfWork
-                .Repository<DuplicateGroup>()
-                .CreateAsync(group);
-
-            await _unitOfWork
-                .Repository<DuplicateGroupCase>()
-                .CreateAsync(new DuplicateGroupCase
-                {
-                    DuplicateGroup = group,
-                    CaseId = newCase.Id,
-                    SimilarityScore = 100,
-                    MatchedBy = DuplicateMatchType.AI,
-                    CreatedAt = DateTime.UtcNow
-                });
-        }
-
-
-        public async Task CreateDuplicateGroupWithCasesAsync(
-            UnknownCase oldCase,
-            UnknownCase newCase,
-            decimal similarity)
-        {
-            var group = new DuplicateGroup
-            {
-                GroupStatus = DuplicateGroupStatus.Confirmed,
-                CreatedAt = DateTime.UtcNow
-            };
-
-            await _unitOfWork
-                .Repository<DuplicateGroup>()
-                .CreateAsync(group);
-
-            await _unitOfWork
-                .Repository<DuplicateGroupCase>()
-                .CreateAsync(new DuplicateGroupCase
-                {
-                    DuplicateGroup = group,
-                    CaseId = oldCase.Id,
-                    SimilarityScore = 100,
-                    MatchedBy = DuplicateMatchType.AI,
-                    CreatedAt = DateTime.UtcNow
-                });
-
-            await _unitOfWork
-                .Repository<DuplicateGroupCase>()
-                .CreateAsync(new DuplicateGroupCase
-                {
-                    DuplicateGroup = group,
-                    CaseId = newCase.Id,
-                    SimilarityScore = similarity,
-                    MatchedBy = DuplicateMatchType.AI,
-                    CreatedAt = DateTime.UtcNow
-                });
-        }
-        public async Task AddCaseToGroupAsync(
-            long groupId,
-            long caseId,
-            decimal similarity)
-        {
-            var exists = await _unitOfWork
-                .Repository<DuplicateGroupCase>()
-                .Query()
-                .AnyAsync(x =>
-                    x.DuplicateGroupId == groupId &&
-                    x.CaseId == caseId);
-
-            if (exists)
-                return;
-
-            await _unitOfWork
-                .Repository<DuplicateGroupCase>()
-                .CreateAsync(new DuplicateGroupCase
-                {
-                    DuplicateGroupId = groupId,
-                    CaseId = caseId,
-                    SimilarityScore = similarity,
-                    MatchedBy = DuplicateMatchType.AI,
-                    CreatedAt = DateTime.UtcNow
-                });
-        }
-        #endregion
-
-
     }
 }

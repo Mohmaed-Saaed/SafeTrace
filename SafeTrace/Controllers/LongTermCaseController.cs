@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SafeTrace.Application.Constants;
 using SafeTrace.Application.DTOs.Cases.Request;
@@ -15,10 +15,8 @@ namespace SafeTrace.API.Controllers
     /// <summary>
     /// Endpoints for managing long-term missing person cases.
     /// </summary>
-    [Route("api/[controller]")]
-    [ApiController]
     [Produces("application/json")]
-    public class LongTermCaseController : ControllerBase
+    public class LongTermCaseController : BaseApiController
     {
         private readonly ILongTermCaseService _service;
 
@@ -26,8 +24,6 @@ namespace SafeTrace.API.Controllers
         {
             _service = service;
         }
-
-        private string? CurrentUserId => User.FindFirstValue(ClaimTypes.NameIdentifier);
 
         /// <summary>Gets a paginated list of active long-term cases.</summary>
         /// <param name="filter">Filtering, sorting and pagination options.</param>
@@ -42,7 +38,7 @@ namespace SafeTrace.API.Controllers
         /// <summary>Gets a paginated list of all long-term cases (any status) — admin only.</summary>
         /// <param name="filter">Filtering, sorting and pagination options.</param>
         [HttpGet("Admin/GetCases")]
-        [HasPermission(Permissions.LongTermCases.GetAll)]
+        [HasPermission(Permissions.Cases.GetAll)]
         [ProducesResponseType(typeof(ApiResponse<PaginationResponseDto<LongTermCaseDetailDto>>), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         [ProducesResponseType(StatusCodes.Status403Forbidden)]
@@ -131,16 +127,16 @@ namespace SafeTrace.API.Controllers
             return Ok(await _service.ApproveAsync(id));
         }
 
-        /// <summary>Rejects a pending case, or restores its previous status if available.</summary>
+        /// <summary>Rejects a pending case and records the supplied reason in the notification sent to its owner.</summary>
         /// <param name="id">Case ID.</param>
         [HttpPut("Reject/{id:long}")]
         [HasPermission(Permissions.LongTermCases.Reject)]
         [ProducesResponseType(typeof(ApiResponse<string>), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
-        public async Task<IActionResult> Reject(long id)
+        public async Task<IActionResult> Reject(long id, [FromBody] string rejectionReason)
         {
-            return Ok(await _service.RejectAsync(id));
+            return Ok(await _service.RejectAsync(id, rejectionReason));
         }
 
         /// <summary>Soft-deletes a case, preserving its data for future recovery.</summary>
@@ -183,6 +179,16 @@ namespace SafeTrace.API.Controllers
         public async Task<IActionResult> PermanentDelete(long id)
         {
             return Ok(await _service.PermanentDeleteAsync(id));
+        }
+
+        [HttpGet("MyCaseDetails/{id:long}")]
+        [Authorize]
+        public async Task<IActionResult> GetMyCaseById(long id)
+        {
+            if (CurrentUserId == null)
+                throw new UnauthorizedException("لم يتم التعرف على هوية المستخدم.");
+
+            return Ok(await _service.GetMyCaseByIdAsync(id, CurrentUserId));
         }
     }
 }

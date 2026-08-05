@@ -1,8 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-
-namespace SafeTrace.Application.DTOs.UnKnownCase.Response
+﻿namespace SafeTrace.Application.DTOs.UnKnownCase.Response
 {
     public class RelatedUnknownCaseDto
     {
@@ -12,7 +8,7 @@ namespace SafeTrace.Application.DTOs.UnKnownCase.Response
 
     public DateTime CreatedAt { get; set; }
 
-    public float Similarity { get; set; }
+    public float? Similarity { get; set; }
 
     public string MainPhotoPath { get; set; } = null!;
     }

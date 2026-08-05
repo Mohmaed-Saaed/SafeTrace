@@ -6,6 +6,7 @@ namespace SafeTrace.Application.DTOs.Cases.Response
         public string CaseCode { get; set; } = null!;
         public CaseType CaseType { get; set; }
         public CaseStatus Status { get; set; }
+        public string UserId { get; set; } = null!;
 
         public string? FName { get; set; }
         public string? SName { get; set; }

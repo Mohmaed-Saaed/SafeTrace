@@ -33,9 +33,10 @@ namespace SafeTrace.Application.Services
             var user = await _userManager.FindByIdAsync(userId);
             if (user == null) throw new UnauthorizedException("تعذر التحقق من هوية المستخدم.");
 
-            var isAdmin = await _userManager.IsInRoleAsync(user, "Admin");
+            var isUser = await _userManager.IsInRoleAsync(user, "User");
+            var isVerifiedUser = await _userManager.IsInRoleAsync(user, "VerifiedUser");
 
-            if (!isAdmin)
+            if (isUser || isVerifiedUser)
             {
                 var today = DateTime.UtcNow.Date;
 
@@ -53,7 +54,7 @@ namespace SafeTrace.Application.Services
 
             var faceMatches = await _faceRecognitionService.SearchByImageAsync(image);
 
-            if (!isAdmin)
+            if (isUser || isVerifiedUser)
             {
                 await _unitOfWork.Repository<AiSearchUsage>().CreateAsync(new AiSearchUsage 
                 { 

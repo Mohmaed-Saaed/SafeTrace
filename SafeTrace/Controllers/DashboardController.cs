@@ -1,16 +1,19 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using SafeTrace.Application.Constants;
+using SafeTrace.Application.DTOs.Cases.Request;
+using SafeTrace.Application.DTOs.Dashboard.Request;
 using SafeTrace.Application.DTOs.Dashboard.Response;
 using SafeTrace.Application.DTOs.Responses;
+using SafeTrace.Application.Exceptions;
 using SafeTrace.Application.Interfaces.IServices;
 using SafeTrace.Infrastructure.Authorization;
+using System.Security.Claims;
 
 namespace SafeTrace.API.Controllers.Dashboard
 {
-    [Route("api/[controller]")]
-    [ApiController]
-    public class DashboardController : ControllerBase
+    public class DashboardController : BaseApiController
     {
         private readonly IDashboardService _dashboardService;
         public DashboardController(IDashboardService dashboardService)  
@@ -57,6 +60,35 @@ namespace SafeTrace.API.Controllers.Dashboard
         {
             var response = await _dashboardService.GetCasesStatisticsAsync();
             return Ok(response);
+        }
+
+        /// <summary>
+        /// استرجاع سجلات النظام (Audit Logs). متاح فقط للمدير الأساسي.
+        /// </summary>
+        [ProducesResponseType(typeof(ApiResponse<PaginationResponseDto<AuditLogDto>>), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status403Forbidden)]
+        [HasPermission(Permissions.Dashboard.GetAuditLogs)]
+        [HttpGet("audit-logs")]
+        public async Task<IActionResult> GetAuditLogs([FromQuery] AuditLogQueryDto query)
+        {
+            var response = await _dashboardService.GetAuditLogsAsync(query);
+            return Ok(response);
+        }
+
+        [HttpPost("cases/report/pdf")]
+        [HasPermission(Permissions.Dashboard.GenerateCasesPdfReport)]
+        public async Task<IActionResult> GenerateCasesPdfReport(
+            [FromBody] CasesReportFilterDto filter)
+        {
+            var file = await _dashboardService
+                .GeneratePdfReportAsync(filter);
+
+
+            return File(
+                file,
+                "application/pdf",
+                $"Cases_Report_{DateTime.UtcNow:yyyyMMddHHmmss}.pdf");
         }
     }
 }

@@ -24,7 +24,8 @@ namespace SafeTrace.Application.Mapping
                 $"{s.Sender.FName} {s.Sender.LName}"))
             .ForMember(d => d.ReceiverName,
             opt => opt.MapFrom(s =>
-                $"{s.Receiver.FName} {s.Receiver.LName}"));
+                $"{s.Receiver.FName} {s.Receiver.LName}"))
+            ;
 
 
 
@@ -54,14 +55,19 @@ namespace SafeTrace.Application.Mapping
                 src.ReceiverDeletedAt.HasValue
                 ? DateTime.SpecifyKind(src.ReceiverDeletedAt.Value, DateTimeKind.Utc)
                 : (DateTime?)null))
+             //.ForMember(
+             //   dest => dest.Content,
+             //   opt => opt.MapFrom(src =>
+             //   src.IsDeletedForEveryone
+             //   ? "تم حذف هذه الرسالة"
+             //   : src.Content
+             //   ))
              .ForMember(
                 dest => dest.Content,
-                opt => opt.MapFrom(src =>
-                src.IsDeletedForEveryone
-                ? "تم حذف هذه الرسالة"
-                : src.Content
-                )
-                );
+                opt => opt.MapFrom(src => src.Content))
+                ;
+
+
         }
     }
      

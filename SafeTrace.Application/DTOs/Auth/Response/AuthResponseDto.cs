@@ -1,4 +1,5 @@
-﻿using SafeTrace.Domain.Enums;
+using SafeTrace.Domain.Enums;
+using System.Collections.Generic;
 
 namespace SafeTrace.Application.DTOs.Auth.Response
 {
@@ -10,5 +11,6 @@ namespace SafeTrace.Application.DTOs.Auth.Response
         public string FullName { get; set; } = null!;
         public string? ProfileImage { get; set; }
         public VerificationStatus VerificationStatus { get; set; }
+        public List<string> Permissions { get; set; } = new();
     }
 }

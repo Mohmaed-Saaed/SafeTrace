@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SafeTrace.Application.Constants;
 using SafeTrace.Application.DTOs.Cases.Request;
@@ -10,9 +10,7 @@ using System.Security.Claims;
 
 namespace SafeTrace.API.Controllers
 {
-    [Route("api/[controller]")]
-    [ApiController]
-    public class UnknownCaseController : ControllerBase
+    public class UnknownCaseController : BaseApiController
     {
         private readonly IUnknownCaseService _unKnownServiceCase;
 
@@ -22,8 +20,6 @@ namespace SafeTrace.API.Controllers
             _unKnownServiceCase = unKnownServiceCase;
         }
 
-        private string? CurrentUserId => User.FindFirstValue(ClaimTypes.NameIdentifier);
-
         [HttpGet("GetCases")]
         [AllowAnonymous]
         public async Task<IActionResult> GetAll([FromQuery] UnknownCasesFilterDto filter)
@@ -32,7 +28,7 @@ namespace SafeTrace.API.Controllers
         }
 
         [HttpGet("Admin/GetCases")]
-        [HasPermission(Permissions.UnknownCases.GetAll)]
+        [HasPermission(Permissions.Cases.GetAll)]
         public async Task<IActionResult> AdminGetAll([FromQuery] UnknownCasesFilterDto filter)
         {
             return Ok(await _unKnownServiceCase.AdminGetAllAsync(filter));
@@ -84,9 +80,9 @@ namespace SafeTrace.API.Controllers
 
         [HttpPut("Reject/{id:long}")]
         [HasPermission(Permissions.UnknownCases.Reject)]
-        public async Task<IActionResult> Reject(long id)
+        public async Task<IActionResult> Reject(long id, [FromBody] string rejectionReason)
         {
-            return Ok(await _unKnownServiceCase.RejectAsync(id));
+            return Ok(await _unKnownServiceCase.RejectAsync(id, rejectionReason));
         }
 
         [HttpDelete("Delete/{id:long}")]
@@ -114,6 +110,16 @@ namespace SafeTrace.API.Controllers
         public async Task<IActionResult> PermanentDelete(long id)
         {
             return Ok(await _unKnownServiceCase.PermanentDeleteAsync(id));
+        }
+
+        [HttpGet("MyCaseDetails/{id:long}")]
+        [Authorize]
+        public async Task<IActionResult> GetMyCaseById(long id)
+        {
+            if (CurrentUserId == null)
+                throw new UnauthorizedException("لم يتم التعرف على هوية المستخدم.");
+
+            return Ok(await _unKnownServiceCase.GetMyCaseByIdAsync(id, CurrentUserId));
         }
     }
 }

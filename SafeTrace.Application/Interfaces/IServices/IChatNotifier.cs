@@ -11,6 +11,11 @@ namespace SafeTrace.Application.Interfaces.IServices
 
         Task NotifyMessageDeletedForEveryone(
         long chatId,
-        long messageId);
-    }
+        long messageId,
+        DateTime deletedAt);
+
+        Task NotifyMessagesReadAsync(
+        long chatId,
+        string userId);
+        }
 }

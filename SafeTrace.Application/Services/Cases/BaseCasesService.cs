@@ -32,9 +32,7 @@ namespace SafeTrace.Application.Services.Cases
         /// </summary>
         public virtual async Task<ApiResponse<PaginationResponseDto<TListDto>>> GetAllAsync(TFilterDto filter)
         {
-            var query = _unitOfWork.Repository<TEntity>()
-                .Query(tracked: false, includes: x => x.CaseFiles)
-                .Where(x => x.Status == CaseStatus.Active);
+            var query = BuildGetAllQuery();
 
             var response = await GetPagedResultAsync<TListDto>(query, filter);
 
@@ -65,6 +63,8 @@ namespace SafeTrace.Application.Services.Cases
                 activeOnly: true,
                 includes: [x => x.CaseFiles, x => x.User, x => x.AgeCategory]);
 
+            await AfterGetByIdAsync(dto, id,false);
+
             return ApiResponse<TDetailDto>.Ok(dto, "تم استرجاع بيانات الحالة بنجاح.");
         }
 
@@ -77,9 +77,8 @@ namespace SafeTrace.Application.Services.Cases
                 id,
                 activeOnly: false,
                 includes: [x => x.CaseFiles, x => x.User, x => x.AgeCategory, x => x.FoundPersonInfo]);
-
-            return ApiResponse<TDetailDto>
-                .Ok(dto, "تم استرجاع بيانات الحالة بنجاح.");
+            await AfterGetByIdAsync(dto, id, true);
+            return ApiResponse<TDetailDto>.Ok(dto, "تم استرجاع بيانات الحالة بنجاح.");
         }
         
         /// <summary>
@@ -110,6 +109,8 @@ namespace SafeTrace.Application.Services.Cases
                     return true;
                 });
 
+            await _caseHelper.SendCaseApprovedNotificationAsync(entity);
+
             _logger.LogInformation("Case {CaseId} approved.", entity.Id);
 
             return ApiResponse<string>.Ok(message: "تمت الموافقة على الحالة بنجاح.");
@@ -118,8 +119,11 @@ namespace SafeTrace.Application.Services.Cases
         /// <summary>
         /// Rejects a pending case or restores its previous status if available.
         /// </summary>
-        public virtual async Task<ApiResponse<string>> RejectAsync(long caseId)
+        public virtual async Task<ApiResponse<string>> RejectAsync(long caseId, string rejectionReason)
         {
+            if (string.IsNullOrWhiteSpace(rejectionReason))
+                throw new BadRequestException("سبب الرفض مطلوب.");
+
             var entity = await _caseHelper.GetValidCaseAsync<TEntity>(caseId);
 
             if (entity.Status == CaseStatus.Rejected)
@@ -150,6 +154,8 @@ namespace SafeTrace.Application.Services.Cases
 
                     return true;
                 });
+
+            await _caseHelper.SendCaseRejectedNotificationAsync(entity, rejectionReason.Trim());
 
             _logger.LogInformation(
                 "Case {CaseId} rejected (Pending -> {Status}).",
@@ -326,6 +332,27 @@ namespace SafeTrace.Application.Services.Cases
         protected virtual Task OnMarkedAsFoundAsync(TEntity entity) => Task.CompletedTask;
         
         /// <summary>
+        /// Builds the base query used by <see cref="GetAllAsync"/> before shared filtering, sorting,
+        /// and pagination (see <see cref="GetPagedResultAsync{TDto}"/>) are applied.
+        /// Default: active cases with their CaseFiles included.
+        /// Derived services can override this to change includes or pre-shape the query
+        /// (e.g. duplicate-group deduplication) without touching the shared filter/sort/pagination/mapping pipeline.
+        /// </summary>
+        protected virtual IQueryable<TEntity> BuildGetAllQuery()
+        {
+            return _unitOfWork.Repository<TEntity>()
+                .Query(tracked: false, includes: x => x.CaseFiles)
+                .Where(x => x.Status == CaseStatus.Active);
+        }
+
+        /// <summary>
+        /// Hook invoked by <see cref="GetByIdAsync"/> after the entity has been mapped to <typeparamref name="TDetailDto"/>,
+        /// allowing derived services to enrich the DTO with feature-specific data
+        /// (e.g. populating related/duplicate cases). No-op by default.
+        /// </summary>
+        protected virtual Task AfterGetByIdAsync(TDetailDto dto, long id,bool isAdmin) => Task.CompletedTask;
+
+        /// <summary>
         /// Allows derived services to apply additional filtering. Default: no extra filters. 
         /// </summary>
         protected virtual IQueryable<TEntity> ApplyCustomFilter(IQueryable<TEntity> query, TFilterDto filter)=> query;
@@ -358,13 +385,18 @@ namespace SafeTrace.Application.Services.Cases
 
             if (!string.IsNullOrWhiteSpace(filter.FullName))
             {
-                var keyword = filter.FullName.Trim();
+                var name = filter.FullName.Trim();
 
                 query = query.Where(x =>
-                    x.FName.Contains(keyword) ||
-                    x.SName.Contains(keyword) ||
-                    x.TName.Contains(keyword) ||
-                    x.LName.Contains(keyword));
+                    (x.FName ?? "").Contains(name) ||
+                    (x.SName ?? "").Contains(name) ||
+                    (x.TName ?? "").Contains(name) ||
+                    (x.LName ?? "").Contains(name));
+            }
+
+            if (!string.IsNullOrWhiteSpace(filter.CaseCode))
+            {
+               query = query.Where(x => EF.Functions.Like(x.CaseCode, $"%{filter.CaseCode}%"));
             }
 
             if (filter.FromDate.HasValue)
@@ -380,39 +412,36 @@ namespace SafeTrace.Application.Services.Cases
         }
         private IQueryable<TEntity> ApplySorting(IQueryable<TEntity> query, TFilterDto filter)
         {
-            IOrderedQueryable<TEntity>? orderedQuery = null;
-
-            if (!string.IsNullOrWhiteSpace(filter.FullName))
-            {
-                var keyword = filter.FullName.Trim();
-
-                orderedQuery = query.OrderBy(x =>
-                    x.FName.Contains(keyword) ? 0 :
-                    x.SName.Contains(keyword) ? 1 :
-                    x.TName.Contains(keyword) ? 2 :
-                    x.LName.Contains(keyword) ? 3 : 4);
-            }
-
             query = ApplyCustomSorting(query, filter);
 
-            orderedQuery ??= query as IOrderedQueryable<TEntity>;
+            IOrderedQueryable<TEntity>? ordered = null;
 
             if (filter.AgeSort.HasValue)
             {
-                var asc = filter.AgeSort == AgeSort.Asc;
-                orderedQuery = asc ? query.OrderBy(x => x.Age) : query.OrderByDescending(x => x.Age);
+                ordered = filter.AgeSort == AgeSort.Asc
+                    ? query.OrderBy(x => x.Age)
+                    : query.OrderByDescending(x => x.Age);
             }
 
             if (filter.DateSort.HasValue)
             {
-                var newest = filter.DateSort == DateSort.Newest;
-                orderedQuery = orderedQuery == null
-                    ? (newest ? query.OrderByDescending(x => x.CreatedAt) : query.OrderBy(x => x.CreatedAt))
-                    : (newest ? orderedQuery.ThenByDescending(x => x.CreatedAt) : orderedQuery.ThenBy(x => x.CreatedAt));
+                if (ordered == null)
+                {
+                    ordered = filter.DateSort == DateSort.Newest
+                        ? query.OrderByDescending(x => x.CreatedAt)
+                        : query.OrderBy(x => x.CreatedAt);
+                }
+                else
+                {
+                    ordered = filter.DateSort == DateSort.Newest
+                        ? ordered.ThenByDescending(x => x.CreatedAt)
+                        : ordered.ThenBy(x => x.CreatedAt);
+                }
             }
 
-            return orderedQuery ?? query.OrderByDescending(x => x.CreatedAt);
+            return ordered ?? query.OrderByDescending(x => x.CreatedAt);
         }
+                
         private static IQueryable<TEntity> ApplyPagination(IQueryable<TEntity> query, TFilterDto filter)
         {
             filter.Page = Math.Max(filter.Page, 1);
@@ -442,11 +471,12 @@ namespace SafeTrace.Application.Services.Cases
         }
 
         // Retrieves a case by ID, validates its status if required, and maps it to the requested DTO.
-        protected  async Task<TDto> GetByIdInternalAsync<TDto>(long id, bool activeOnly, params Expression<Func<TEntity, object>>[] includes)
+        protected async Task<TDto> GetByIdInternalAsync<TDto>(long id, bool activeOnly, params Expression<Func<TEntity, object>>[] includes)
         {
             var entity = await _caseHelper.GetValidCaseAsync<TEntity>(
                 id,
                 tracked: false,
+                allowDeleted: !activeOnly,
                 includes: includes);
 
             if (activeOnly && entity.Status != CaseStatus.Active)
@@ -454,6 +484,27 @@ namespace SafeTrace.Application.Services.Cases
 
             return _mapper.Map<TDto>(entity);
         }
-    
+        public virtual async Task<ApiResponse<TDetailDto>> GetMyCaseByIdAsync(long id, string userId)
+        {
+            var entity = await _caseHelper.GetValidCaseAsync<TEntity>(
+            id,
+            userId: userId,
+            checkOwnership: true,
+           allowDeleted: false,
+           tracked: false,
+          x => x.CaseFiles,
+          x => x.User,
+          x => x.AgeCategory);
+     
+            if (entity.Status == CaseStatus.Deleted)
+                throw new NotFoundException("الحالة غير موجودة.");
+
+            var dto = _mapper.Map<TDetailDto>(entity);
+
+            await AfterGetByIdAsync(dto, id, false);
+
+            return ApiResponse<TDetailDto>.Ok(dto, "تم استرجاع بيانات الحالة بنجاح.");
+        }
+
     }
 }

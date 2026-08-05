@@ -30,5 +30,6 @@ namespace SafeTrace.Application.DTOs.Cases.Response
         public AgeCategoryDto? AgeCategory { get; set; }
         public UserDto? User { get; set; }
         public List<CasePhotoDto> Photos { get; set; } = [];
+        public string? Video { get; set; }
     }
 }

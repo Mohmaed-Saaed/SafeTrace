@@ -11,9 +11,11 @@ namespace SafeTrace.Application.Interfaces.IServices.ICases
         Task<ApiResponse<TDetailDto>> AdminGetByIdAsync(long id);
  
         Task<ApiResponse<string>> ApproveAsync(long caseId);
-        Task<ApiResponse<string>> RejectAsync(long caseId);
+        Task<ApiResponse<string>> RejectAsync(long caseId, string rejectionReason);
         Task<ApiResponse<string>> SoftDeleteAsync(long caseId, string userId, bool checkOwnership = true);
         Task<ApiResponse<string>> MarkAsFoundAsync(long caseId, string userId, FoundPersonInfoRequestDto foundPersonInfo, bool checkOwnership = true);
         Task<ApiResponse<string>> PermanentDeleteAsync(long caseId);
+
+        Task<ApiResponse<TDetailDto>> GetMyCaseByIdAsync(long id, string userId);
     }
 }

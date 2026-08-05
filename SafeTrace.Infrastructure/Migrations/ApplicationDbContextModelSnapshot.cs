@@ -223,11 +223,8 @@ namespace SafeTrace.Infrastructure.Migrations
                         .IsConcurrencyToken()
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<double?>("CurrentLocationLatitude")
-                        .HasColumnType("float");
-
-                    b.Property<double?>("CurrentLocationLongitude")
-                        .HasColumnType("float");
+                    b.Property<Point>("CurrentLocation")
+                        .HasColumnType("geography");
 
                     b.Property<string>("Email")
                         .HasMaxLength(256)
@@ -241,13 +238,13 @@ namespace SafeTrace.Infrastructure.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
 
-                    b.Property<double?>("HomeLocationLatitude")
-                        .HasColumnType("float");
+                    b.Property<Point>("HomeLocation")
+                        .HasColumnType("geography");
 
-                    b.Property<double?>("HomeLocationLongitude")
-                        .HasColumnType("float");
+                    b.Property<string>("IdentificationImageFront")
+                        .HasColumnType("nvarchar(max)");
 
-                    b.Property<string>("IdentificationImage")
+                    b.Property<string>("IdentificationImageback")
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("LName")
@@ -307,6 +304,46 @@ namespace SafeTrace.Infrastructure.Migrations
                         .HasFilter("[NormalizedUserName] IS NOT NULL");
 
                     b.ToTable("ApplicationUsers", (string)null);
+                });
+
+            modelBuilder.Entity("SafeTrace.Domain.Entities.AuditLog", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("AffectedColumns")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("DateTime")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("NewValues")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("OldValues")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("PrimaryKey")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("TableName")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("UserId")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("AuditLogs");
                 });
 
             modelBuilder.Entity("SafeTrace.Domain.Entities.Case", b =>
@@ -660,7 +697,7 @@ namespace SafeTrace.Infrastructure.Migrations
                         .HasMaxLength(10)
                         .HasColumnType("nvarchar(10)");
 
-                    b.Property<decimal>("SimilarityScore")
+                    b.Property<decimal?>("SimilarityScore")
                         .HasColumnType("decimal(18,2)");
 
                     b.HasKey("Id");

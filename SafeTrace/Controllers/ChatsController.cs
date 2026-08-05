@@ -1,16 +1,15 @@
-﻿using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using SafeTrace.Application.DTOs.Chat;
 using SafeTrace.Application.Constants;
+using SafeTrace.Application.DTOs.Chat;
 using SafeTrace.Application.Interfaces.IServices;
 using SafeTrace.Infrastructure.Authorization;
 using System.Security.Claims;
 
 namespace SafeTrace.API.Controllers
 {
-    [Route("api/[controller]")]
-    [ApiController]
-    public class ChatsController : ControllerBase
+    public class ChatsController : BaseApiController
     {
         private readonly IChatService _chatService;
 
@@ -34,10 +33,10 @@ namespace SafeTrace.API.Controllers
         /// <response code="401">Unauthorized.</response>
         /// <response code="404">The specified case was not found.</response>
         [HttpGet("start-context/{caseId}")]
-        [HasPermission(Permissions.Chat.StartContext)]
+        [Authorize]
         public async Task<IActionResult> GetStartContext(long caseId)
         {
-            var userId = GetCurrentUserId();
+            var userId = CurrentUserId;
             var result = await _chatService.GetStartChatContextAsync(caseId, userId);
             return Ok(result);  
         }
@@ -57,10 +56,10 @@ namespace SafeTrace.API.Controllers
         /// <response code="403">The user does not have permission to create chats.</response>
         /// <response code="404">The specified case was not found.</response>
         [HttpPost("create")]
-        [HasPermission(Permissions.Chat.Create)]
+        [Authorize]
         public async Task<IActionResult> CreateChat([FromBody] StartChatRequest request)
         {
-            var userId = GetCurrentUserId();
+            var userId = CurrentUserId;
             var chat = await _chatService.StartOrGetChatAsync(request.CaseId, userId);
             return Ok(chat);
         }
@@ -75,44 +74,74 @@ namespace SafeTrace.API.Controllers
         /// <response code="401">Unauthorized.</response>
 
         [HttpGet]
-        [HasPermission(Permissions.Chat.GetMyChats)]
+        [Authorize]
         public async Task<IActionResult> GetUserChats()
         {
-            var userId = GetCurrentUserId();
+            var userId = CurrentUserId;
             var chats = await _chatService.GetUserChatsAsync(userId);
             return Ok(chats);
         }
 
         /// <summary>
-        /// Retrieves detailed information about a specific chat.
+        /// Retrieves detailed information about a specific chat for administrators.
         /// </summary>
         /// <remarks>
-        /// Returns chat metadata including:
-        /// - Chat identifier.
-        /// - Related case information.
-        /// - Sender and receiver details.
-        /// - The other participant's name for the current user.
+        /// Returns complete chat information including:
+        /// - Chat and related case details.
+        /// - Sender and receiver information.
         /// - Chat creation date.
-        /// - Soft delete information (available only for administrators).
+        /// - Soft delete status for both participants.
+        /// - Deletion timestamps for both participants.
         /// </remarks>
         /// <param name="chatId">The unique identifier of the chat.</param>
         /// <response code="200">Chat details retrieved successfully.</response>
-        /// <response code="401">User is not authenticated.</response>
-        /// <response code="403">User is not authorized to access this chat.</response>
+        /// <response code="401">Administrator is not authenticated.</response>
+        /// <response code="403">Administrator does not have permission to view chat details.</response>
         /// <response code="404">Chat was not found.</response>
         [ProducesResponseType(typeof(ChatDetailsDto), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         [ProducesResponseType(StatusCodes.Status403Forbidden)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
 
-        [HttpGet("{chatId:long}")]
+        [HttpGet("admin/{chatId:long}")]
         [HasPermission(Permissions.Chat.GetById)]
-        public async Task<IActionResult> GetChatDetails([FromRoute] long chatId)
+        public async Task<IActionResult> GetDashChatDetails([FromRoute] long chatId)
         {
-            var userId = GetCurrentUserId();
-            var chat = await _chatService.GetChatDetailsAsync(chatId, userId, IsAdmin);
+            var chat = await _chatService.GetDashChatDetailsAsync(chatId);
             return Ok(chat);
         }
+
+        /// <summary>
+        /// Retrieves detailed information about a specific chat for the authenticated user.
+        /// </summary>
+        /// <remarks>
+        /// Returns chat information including:
+        /// - Chat identifier.
+        /// - Related case information.
+        /// - The other participant's details.
+        /// - Chat creation date.
+        ///
+        /// The authenticated user must be a participant in the requested chat.
+        /// </remarks>
+        /// <param name="chatId">The unique identifier of the chat.</param>
+        /// <response code="200">Chat details retrieved successfully.</response>
+        /// <response code="401">User is not authenticated.</response>
+        /// <response code="403">User is not a participant in the requested chat.</response>
+        /// <response code="404">Chat was not found.</response>
+        [ProducesResponseType(typeof(ChatDetailsDto), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status403Forbidden)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+
+        [Authorize]
+        [HttpGet("{chatId:long}")]
+        public async Task<IActionResult> GetChatDetails([FromRoute] long chatId)
+        {
+            var userId = CurrentUserId;
+            var chat = await _chatService.GetUserChatDetailsAsync(chatId, userId);
+            return Ok(chat);
+        }
+
 
 
         /// <summary>
@@ -131,7 +160,7 @@ namespace SafeTrace.API.Controllers
         public async Task<IActionResult> GetMessages(
            [FromRoute] long chatId)
         {
-            var userId = GetCurrentUserId();
+            var userId = CurrentUserId;
             var messages = await _chatService.GetPaginatedMessagesAsync(chatId, userId,IsAdmin);
             return Ok(messages);
 
@@ -148,10 +177,10 @@ namespace SafeTrace.API.Controllers
         /// <response code="404">Chat not found.</response>
         /// 
         [HttpDelete("{chatId:long}")]
-        [HasPermission(Permissions.Chat.SoftDelete)]
+        [Authorize]
         public async Task<IActionResult> DeleteChat(long chatId)
         {
-            var userId = GetCurrentUserId();
+            var userId = CurrentUserId;
             var deleted = await _chatService.DeleteChatAsync(chatId, userId);
             return Ok(deleted);
         }
@@ -196,10 +225,20 @@ namespace SafeTrace.API.Controllers
             return Ok(result);
         }
 
-        private string GetCurrentUserId()
+        /// <summary>
+        /// Retrieves statistics about all chats in the system.
+        /// </summary>
+        /// <remarks>
+        /// Available only for administrators.
+        /// </remarks>
+        /// <response code="200">Statistics retrieved successfully.</response>
+        /// <response code="403">Forbidden.</response>
+        [HttpGet("admin/statistics")]
+        [HasPermission(Permissions.Chat.GetChatStatistics)]
+        public async Task<IActionResult> GetChatStatistics()
         {
-            return User.FindFirstValue(ClaimTypes.NameIdentifier)
-                ?? throw new UnauthorizedAccessException("User identity could not be resolved.");
+            var result = await _chatService.GetChatStatisticsAsync();
+            return Ok(result);
         }
 
         private bool IsAdmin => User.IsInRole("Admin");

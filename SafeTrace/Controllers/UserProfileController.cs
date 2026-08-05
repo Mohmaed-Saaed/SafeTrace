@@ -1,20 +1,15 @@
-﻿using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SafeTrace.Application.Constants;
 using SafeTrace.Application.DTOs.Responses;
 using SafeTrace.Application.DTOs.User_Profiel_DTOS;
 using SafeTrace.Application.DTOs.User_Profiel_DTOS.Update_Profile_DTOS;
-using SafeTrace.Application.Interfaces.IServices;
 using SafeTrace.Application.Interfaces.IServices.IUserProfile;
-using SafeTrace.Application.Services.UserProfileServices;
 using SafeTrace.Infrastructure.Authorization;
+using System.Security.Claims;
 namespace SafeTrace.API.Controllers
 {
-
-    [Route("api/[controller]")]
-    [ApiController]
-    public class UserProfileController : ControllerBase
+    public class UserProfileController : BaseApiController
     {
         private readonly IUserProfileService _user;
         public UserProfileController(IUserProfileService userProfileService)
@@ -30,11 +25,11 @@ namespace SafeTrace.API.Controllers
         /// </summary>
         /// <returns></returns>
         [HttpGet("GetInfo")]
-        [HasPermission(Permissions.Profile.GetUserInfo)]
+        [Authorize]
         public async Task<IActionResult> GetUserInfo()
         {
             //var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            var profile = await _user.GetProfileInfoAsync(GetCurrentUserId());
+            var profile = await _user.GetProfileInfoAsync(CurrentUserId);
             return Ok(profile);
         }
         /// <summary>
@@ -43,7 +38,7 @@ namespace SafeTrace.API.Controllers
         /// <param name="Id">معرف المستخدم.</param>
         /// <returns>بيانات الملف الشخصي للمستخدم.</returns>
         [HttpGet("GetVisitedUserInfo/{Id}")]
-        [HasPermission(Permissions.Profile.GetVisitedUserInfo)]
+        [Authorize]
         public async Task<IActionResult> GetVisitedUserInfo([FromRoute] string Id)
         {
             var profile = await _user.GetVisitedUserAsync(Id);
@@ -57,10 +52,10 @@ namespace SafeTrace.API.Controllers
         /// </summary>
         /// <returns></returns>
         [HttpPut("UpdateName")]
-        [HasPermission(Permissions.Profile.UpdateName)]
+        [Authorize]
         public async Task<IActionResult> UpdateName([FromForm] UpdateNameDTO dTO)
         {
-            var result = await _user.UpdateNameAsync(GetCurrentUserId(), dTO);
+            var result = await _user.UpdateNameAsync(CurrentUserId, dTO);
 
             return Ok(result);
         }
@@ -70,10 +65,10 @@ namespace SafeTrace.API.Controllers
         /// </summary>
         /// <returns></returns>
         [HttpPut("UpdateProfileImage")]
-        [HasPermission(Permissions.Profile.UpdateProfileImage)]
+        [Authorize]
         public async Task<IActionResult> UpdateProfileImage([FromForm] UpdateProfileImageDTO dTO)
         {
-            var result = await _user.UpdateProfilImageesync(GetCurrentUserId(), dTO);
+            var result = await _user.UpdateProfilImageesync(CurrentUserId, dTO);
             return Ok(result);
         }
 
@@ -82,11 +77,11 @@ namespace SafeTrace.API.Controllers
         /// </summary>
         /// <returns></returns>
         [HttpDelete("ProfileImage")]
-        [HasPermission(Permissions.Profile.UpdateProfileImage)]
+        [Authorize]
         public async Task<IActionResult> RemoveProfileImage()
         {
 
-            var result = await _user.RemoveProfileImageAsync(GetCurrentUserId());
+            var result = await _user.RemoveProfileImageAsync(CurrentUserId);
 
             return Ok(result);
         }
@@ -95,10 +90,10 @@ namespace SafeTrace.API.Controllers
         /// </summary>
         /// <returns></returns>
         [HttpPut("AddIdImage")]
-        [HasPermission(Permissions.Profile.UpdateIdImage)]
+        [Authorize]
         public async Task<IActionResult> AddIdImage([FromForm] AddIdImageDTO dTO)
         {
-            var result = await _user.AddIdImageAsync(GetCurrentUserId(), dTO);
+            var result = await _user.AddIdImageAsync(CurrentUserId, dTO);
 
             return Ok(result);
         }
@@ -107,10 +102,21 @@ namespace SafeTrace.API.Controllers
         /// </summary>
         /// <returns></returns>
         [HttpPut("UpdateHomeLocation")]
-        [HasPermission(Permissions.Profile.UpdateHomeLocation)]
+        [Authorize]
         public async Task<IActionResult> UpdateHomeLocation([FromForm] UpdateHomeLocationDTO dTO)
         {
-            var result = await _user.UpdateHomeLocationAsync(GetCurrentUserId(), dTO);
+            var result = await _user.UpdateHomeLocationAsync(CurrentUserId, dTO);
+            return Ok(result);
+        }
+        /// <summary>
+        /// لتحديد الموقع الحالي للمستخدم
+        /// </summary>
+        /// <returns></returns>
+        [HttpPut("UpdateCurrentLocation")]
+        [Authorize]
+        public async Task<IActionResult> UpdateCurrentLoc(UpdateCurrentLocationDTO dto)
+        {
+            var result = await _user.UpdateCurrentLocation(CurrentUserId, dto);
             return Ok(result);
         }
 
@@ -120,41 +126,27 @@ namespace SafeTrace.API.Controllers
         /// <returns></returns>
 
         [HttpPut("UpdatePhoneNumber")]
-        [HasPermission(Permissions.Profile.UpdatePhoneNumber)]
+        [Authorize]
         public async Task<IActionResult> UpdatePhoneNumber([FromForm] ChangePhoneNumberDTO dto)
         {
-            var result = await _user.UpdatePhoneNumberAsync(GetCurrentUserId(), dto);
+            var result = await _user.UpdatePhoneNumberAsync(CurrentUserId, dto);
             return Ok(result);
         }
 
 
-        private string GetCurrentUserId()
-        {
-            return User.FindFirstValue(ClaimTypes.NameIdentifier) ?? throw new UnauthorizedAccessException("تعذر التحقق من هوية المستخدم.");
-        }
 
-        #region Old Update End Point
 
-        [HttpPut("UpdateInfo")]
-        [HasPermission(Permissions.Profile.UpdateUserInfo)]
-        public async Task<IActionResult> UpdateUserInfo([FromForm] UpdateProfileInfoDTO dTO)
-        {
-            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            var UpdateProfile = await _user.UpdateProfileInfoAsync(userId, dTO);
-            if (UpdateProfile == null)
-                return NotFound();
-            return Ok(UpdateProfile);
-        }
-        #endregion 
+
+
         #endregion
-    
+
         #region My Cases
         [HttpGet("MyCases")]
-        [HasPermission(Permissions.Profile.GetMyCases)]
+        [Authorize]
         [ProducesResponseType(typeof(ApiResponse<PaginationResponseDto<MyCaseListItemDto>>), StatusCodes.Status200OK)]
         public async Task<IActionResult> GetMyCases([FromQuery] MyCasesFilterDto filter)
         {
-            var result = await _user.GetMyCasesAsync(GetCurrentUserId(), filter);
+            var result = await _user.GetMyCasesAsync(CurrentUserId, filter);
 
             return Ok(result);
         }

@@ -8,7 +8,8 @@ namespace SafeTrace.Application.DTOs.Founded.Request
     public class FoundedHeaderQueryDTO
     {
         public string? Search { get; set; }
-        public int AgeCategory { get; set; }
+        public int MinAge { get; set; }
+        public int? MaxAge { get; set; }
         public CaseType? CaseType { get; set; }
         public Gender? Gender { get; set; }
         public int Page { get; set; } = 1;
