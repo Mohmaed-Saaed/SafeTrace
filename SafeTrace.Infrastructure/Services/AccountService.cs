@@ -72,6 +72,9 @@ namespace SafeTrace.Infrastructure.Services
             await _unitOfWork.BeginTransactionAsync();
             try
             {
+                registerDto.FName = registerDto.FName.Trim();
+                registerDto.LName = registerDto.LName.Trim();
+                
                 var user = _mapper.Map<ApplicationUser>(registerDto);
                 var result = await _userManager.CreateAsync(user, registerDto.Password);
 

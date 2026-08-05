@@ -273,8 +273,8 @@ namespace SafeTrace.Infrastructure.Services
                 {
                     UserName = dto.Email,
                     Email = dto.Email,
-                    FName = dto.FName,
-                    LName = dto.LName,
+                    FName = dto.FName.Trim(),
+                    LName = dto.LName.Trim(),
                     PhoneNumber = dto.PhoneNumber,
                     EmailConfirmed = true,
                 };
