@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Logging;
+using Microsoft.EntityFrameworkCore;
 using SafeTrace.Domain.Enums;
 using System.Security.Cryptography;
 
@@ -17,14 +18,9 @@ namespace SafeTrace.Infrastructure.Services
 
         public async Task<string> GenerateAndSaveOtpAsync(string userId, OtpType type)
         {
-            var existingOtps = await _unitOfWork.Repository<UserOtp>().Query()
-                                                                      .Where(o => o.UserId == userId && o.Type == type && !o.IsUsed)
-                                                                      .ToListAsync(); 
-            foreach (var existingOtp in existingOtps)
-            {
-                existingOtp.IsUsed = true;
-                _unitOfWork.Repository<UserOtp>().Update(existingOtp);
-            }
+            await _unitOfWork.Repository<UserOtp>().Query()
+                                                   .Where(o => o.UserId == userId && o.Type == type && !o.IsUsed)
+                                                   .ExecuteUpdateAsync(o => o.SetProperty(x => x.IsUsed, true));
 
             var randomCode = RandomNumberGenerator.GetInt32(100000, 999999).ToString();
             var userOtp = new UserOtp
@@ -46,17 +42,15 @@ namespace SafeTrace.Infrastructure.Services
 
         public async Task<bool> ValidateOtpAsync(string userId, string code, OtpType type)
         {
-            var userOtp = await _unitOfWork.Repository<UserOtp>().GetOneAsync(o => o.UserId == userId && o.Code == code && o.Type == type && !o.IsUsed && o.ExpiryTime > DateTime.UtcNow);
+            var affectedRows = await _unitOfWork.Repository<UserOtp>().Query()
+                .Where(o => o.UserId == userId && o.Code == code && o.Type == type && !o.IsUsed && o.ExpiryTime > DateTime.UtcNow)
+                .ExecuteUpdateAsync(o => o.SetProperty(x => x.IsUsed, true));
 
-            if (userOtp == null)
+            if (affectedRows == 0)
             {
                 _logger.LogWarning("Invalid or expired OTP validation attempt for User ID: {UserId}, Type: {OtpType}", userId, type.ToString());
                 return false;
             }
-
-            userOtp.IsUsed = true;
-            _unitOfWork.Repository<UserOtp>().Update(userOtp);
-            await _unitOfWork.SaveAsync();
 
             _logger.LogInformation("OTP successfully validated for User ID: {UserId}, Type: {OtpType}", userId, type.ToString());
 

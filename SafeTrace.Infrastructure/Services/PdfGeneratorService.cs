@@ -47,19 +47,54 @@ namespace SafeTrace.Infrastructure.Services
 
                     page.ContentFromRightToLeft();
 
-                    page.Header().Column(column =>
-                        ReportTemplate.Header(column, "تقرير الشكاوى", _logoPath));
+                    page.Header()
+                    .Column(column =>
+                    {
+                        column.Item()
+                            .Row(row =>
+                            {
+                                // اليمين - اللوجو والعنوان
+                                row.RelativeItem(1.3f)
+                                    .Element(container =>
+                                        ReportTemplate.Header(
+                                            container,
+                                            "تقرير الشكاوى",
+                                            _logoPath));
+
+                                row.ConstantItem(20);
+
+                                // الشمال - الفلاتر
+                                row.RelativeItem(0.7f)
+                                    .Element(container =>
+                                        ReportTemplate.Filters(
+                                            container,
+                                            new Dictionary<string, string>
+                                            {
+                                                ["رقم الحالة"] = string.IsNullOrWhiteSpace(filter.CaseCode)
+                                                    ? "الكل"
+                                                    : filter.CaseCode,
+
+                                                ["البحث"] = string.IsNullOrWhiteSpace(filter.Search)
+                                                    ? "لا يوجد"
+                                                    : filter.Search,
+
+                                                ["الحالة"] = filter.Status.HasValue
+                                                    ? GetStatusName(filter.Status.Value)
+                                                    : "الكل"
+                                            }));
+                            });
+                    });
 
                     page.Content().PaddingTop(15).Column(column =>
                     {
                         column.Spacing(20);
 
-                        ReportTemplate.Filters(column, new Dictionary<string, string>
-                        {
-                            ["رقم الحالة"] = string.IsNullOrWhiteSpace(filter.CaseCode) ? "الكل" : filter.CaseCode,
-                            ["البحث"] = string.IsNullOrWhiteSpace(filter.Search) ? "لا يوجد" : filter.Search,
-                            ["الحالة"] = filter.Status.HasValue ? filter.Status.ToString()! : "الكل"
-                        });
+                        //ReportTemplate.Filters(column, new Dictionary<string, string>
+                        //{
+                        //    ["رقم الحالة"] = string.IsNullOrWhiteSpace(filter.CaseCode) ? "الكل" : filter.CaseCode,
+                        //    ["البحث"] = string.IsNullOrWhiteSpace(filter.Search) ? "لا يوجد" : filter.Search,
+                        //    ["الحالة"] = filter.Status.HasValue ? GetStatusName(filter.Status.Value) : "الكل"
+                        //});
 
                         column.Item().Row(row =>
                         {
@@ -128,9 +163,9 @@ namespace SafeTrace.Infrastructure.Services
         }
 
         public byte[] GenerateDonationsPdf(
-    List<DonationAdminListDto> donations,
-    AdminDonationStatisticsDto statistics,
-    DonationAdminQueryDto filter)
+        List<DonationAdminListDto> donations,
+        AdminDonationStatisticsDto statistics,
+        DonationAdminQueryDto filter)
         {
             return Document.Create(document =>
             {
@@ -149,13 +184,44 @@ namespace SafeTrace.Infrastructure.Services
 
 
                     page.Header()
-                        .Column(column =>
-                        {
-                            ReportTemplate.Header(
-                                column,
-                                "تقرير التبرعات",
-                                _logoPath);
-                        });
+                    .Column(column =>
+                    {
+                        column.Item()
+                            .Row(row =>
+                            {
+                                // اليمين - اللوجو والعنوان
+                                row.RelativeItem(1.3f)
+                                    .Element(container =>
+                                        ReportTemplate.Header(
+                                            container,
+                                            "تقرير التبرعات",
+                                            _logoPath));
+
+                                row.ConstantItem(20);
+
+                                // الشمال - الفلاتر
+                                row.RelativeItem(0.7f)
+                                    .Element(container =>
+                                        ReportTemplate.Filters(
+                                            container,
+                                            new Dictionary<string, string>
+                                            {
+                                                {
+                                                    "حالة الدفع",
+                                                    filter.Status.HasValue
+                                                        ? GetPaymentStatusName(filter.Status.Value)
+                                                        : "الكل"
+                                                },
+                                                {
+                                                    "البريد الإلكتروني",
+                                                    string.IsNullOrWhiteSpace(filter.userEmail)
+                                                        ? "الكل"
+                                                        : filter.userEmail
+                                                }
+                                            }));
+                            });
+                    });
+
 
 
                     page.Content()
@@ -167,23 +233,23 @@ namespace SafeTrace.Infrastructure.Services
 
                             #region Filters
 
-                            ReportTemplate.Filters(
-                                column,
-                                new Dictionary<string, string>
-                                {
-                            {
-                                "حالة الدفع",
-                                filter.Status.HasValue
-                                    ? GetPaymentStatusName(filter.Status.Value)
-                                    : "الكل"
-                            },
-                            {
-                                "البريد الإلكتروني",
-                                string.IsNullOrWhiteSpace(filter.userEmail)
-                                    ? "الكل"
-                                    : filter.userEmail
-                            }
-                                });
+                            //ReportTemplate.Filters(
+                            //    column,
+                            //    new Dictionary<string, string>
+                            //    {
+                            //{
+                            //    "حالة الدفع",
+                            //    filter.Status.HasValue
+                            //        ? GetPaymentStatusName(filter.Status.Value)
+                            //        : "الكل"
+                            //},
+                            //{
+                            //    "البريد الإلكتروني",
+                            //    string.IsNullOrWhiteSpace(filter.userEmail)
+                            //        ? "الكل"
+                            //        : filter.userEmail
+                            //}
+                            //    });
 
 
                             #endregion
@@ -340,7 +406,7 @@ namespace SafeTrace.Infrastructure.Services
             {
                 document.Page(page =>
                 {
-                    page.Size(PageSizes.A4.Landscape());
+                    page.Size(PageSizes.A4);
                     page.Margin(25);
                     page.PageColor(Colors.White);
 
@@ -352,14 +418,30 @@ namespace SafeTrace.Infrastructure.Services
 
 
                     page.Header()
-                        .Column(column =>
-                        {
-                            ReportTemplate.Header(
-                                column,
-                                "تقرير الحالات",
-                                _logoPath);
-                        });
+                    .Column(column =>
+                    {
+                        column.Item()
+                            .Row(row =>
+                            {
+                                // اليمين - اللوجو والعنوان
+                                row.RelativeItem(1.3f)
+                                    .Element(container =>
+                                        ReportTemplate.Header(
+                                            container,
+                                            "تقرير الحالات",
+                                            _logoPath));
 
+                                row.ConstantItem(20);
+
+                                // الشمال - الفلاتر
+                                row.RelativeItem(0.7f)
+                                    .Element(container =>
+                                        ReportTemplate.Filters(
+                                            container,
+                                            BuildFilters(filter)));
+
+                            });
+                    });
 
 
                     page.Content()
@@ -369,17 +451,7 @@ namespace SafeTrace.Infrastructure.Services
                             column.Spacing(20);
 
 
-                            #region Filters
                             
-
-                            ReportTemplate.Filters(
-                                column,
-                                BuildFilters(filter));
-
-                            #endregion
-
-
-
                             #region Statistics
 
                             ReportTemplate.Statistics(
@@ -438,7 +510,7 @@ namespace SafeTrace.Infrastructure.Services
                                     columns.RelativeColumn(2);   // Name
                                     columns.RelativeColumn(1.5f);   // Type
                                     columns.RelativeColumn(1.5f);   // Status
-                                    columns.RelativeColumn(.7f);// Age
+                                    columns.RelativeColumn(1f);// Age
                                     columns.RelativeColumn(1.5f);// Government
                                     columns.RelativeColumn(1.5f);// City
                                     columns.RelativeColumn(1.5f);// Date
@@ -473,19 +545,19 @@ namespace SafeTrace.Infrastructure.Services
 
                                     table.Cell()
                                         .Element(c => ReportTemplate.BodyCellStyle(c, i))
-                                        .Text(item.CaseCode);
+                                        .Text(item.CaseCode).FontSize(9);
 
 
 
                                     table.Cell()
                                         .Element(c => ReportTemplate.BodyCellStyle(c, i))
-                                        .Text(item.FullName);
+                                        .Text(item.FullName).FontSize(9);
 
 
 
                                     table.Cell()
                                         .Element(c => ReportTemplate.BodyCellStyle(c, i))
-                                        .Text(GetCaseTypeName(item.CaseType));
+                                        .Text(GetCaseTypeName(item.CaseType)).FontSize(9);
 
 
 
@@ -503,19 +575,19 @@ namespace SafeTrace.Infrastructure.Services
 
                                     table.Cell()
                                         .Element(c => ReportTemplate.BodyCellStyle(c, i))
-                                        .Text(item.Government);
+                                        .Text(item.Government).FontSize(9);
 
 
 
                                     table.Cell()
                                         .Element(c => ReportTemplate.BodyCellStyle(c, i))
-                                        .Text(item.City);
+                                        .Text(item.City).FontSize(9);
 
 
 
                                     table.Cell()
                                         .Element(c => ReportTemplate.BodyCellStyle(c, i))
-                                        .Text(item.CreatedAt.ToString("yyyy/MM/dd"));
+                                        .Text(item.CreatedAt.ToString("yyyy/MM/dd")).FontSize(9);
                                 }
                             });
 
@@ -545,9 +617,9 @@ namespace SafeTrace.Infrastructure.Services
                     "الحالة",
                     GetCaseStatusName(filter.Status.Value));
 
-            if (filter.Type.HasValue)
+            if (filter.CaseType.HasValue)
                 result.Add(
-                    "نوع الحاله", GetCaseTypeName(filter.Type.Value));
+                    "نوع الحاله", GetCaseTypeName(filter.CaseType.Value));
 
 
             if (filter.Gender.HasValue)
@@ -662,7 +734,7 @@ namespace SafeTrace.Infrastructure.Services
             {
                 document.Page(page =>
                 {
-                    page.Size(PageSizes.A4.Landscape());
+                    page.Size(PageSizes.A4);
                     page.Margin(25);
                     page.PageColor(Colors.White);
 
@@ -674,13 +746,30 @@ namespace SafeTrace.Infrastructure.Services
 
 
                     page.Header()
-                        .Column(column =>
-                        {
-                            ReportTemplate.Header(
-                                column,
-                                "تقرير المستخدمين",
-                                _logoPath);
-                        });
+                    .Column(column =>
+                    {
+                        column.Item()
+                            .Row(row =>
+                            {
+                                // اليمين - اللوجو والعنوان
+                                row.RelativeItem(1.3f)
+                                    .Element(container =>
+                                        ReportTemplate.Header(
+                                            container,
+                                            "تقرير المستخدمين",
+                                            _logoPath));
+
+                                row.ConstantItem(20);
+
+                                // الشمال - الفلاتر
+                                row.RelativeItem(0.7f)
+                                    .Element(container =>
+                                        ReportTemplate.Filters(
+                                            container,
+                                            BuildUserFilters(filter,roleName)));
+
+                            });
+                    });
 
 
 
@@ -694,9 +783,9 @@ namespace SafeTrace.Infrastructure.Services
 
                             #region Filters
 
-                            ReportTemplate.Filters(
-                                column,
-                                BuildUserFilters(filter,roleName));
+                            //ReportTemplate.Filters(
+                            //    column,
+                            //    BuildUserFilters(filter, roleName));
 
                             #endregion
 
@@ -759,7 +848,7 @@ namespace SafeTrace.Infrastructure.Services
                                     {
                                         columns.ConstantColumn(30); // #
                                         columns.RelativeColumn(2); // الاسم
-                                        columns.RelativeColumn(2); // البريد
+                                        columns.RelativeColumn(2.5f); // البريد
                                         columns.RelativeColumn(1.5f); // الهاتف
                                         columns.RelativeColumn(1.5f); // الدور
                                         columns.RelativeColumn(1.5f); // التحقق
@@ -796,7 +885,7 @@ namespace SafeTrace.Infrastructure.Services
                                         table.Cell()
                                             .Element(c =>
                                                 ReportTemplate.BodyCellStyle(c, i))
-                                            .Text($"{user.FName} {user.LName}");
+                                            .Text($"{user.FName} {user.LName}").FontSize(9);
 
 
 
@@ -811,7 +900,7 @@ namespace SafeTrace.Infrastructure.Services
                                         table.Cell()
                                             .Element(c =>
                                                 ReportTemplate.BodyCellStyle(c, i))
-                                            .Text(user.PhoneNumber);
+                                            .Text(user.PhoneNumber).FontSize(9);
 
 
 

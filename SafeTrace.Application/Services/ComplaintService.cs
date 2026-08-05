@@ -1,3 +1,4 @@
+using Hangfire;
 using SafeTrace.Application.Constants;
 using SafeTrace.Application.DTOs.Complaints;
 using SafeTrace.Application.DTOs.Complaints.Request;
@@ -7,6 +8,7 @@ using SafeTrace.Application.DTOs.Responses;
 using SafeTrace.Application.Exceptions;
 using SafeTrace.Application.Interfaces.IServices.INotificationSewrvice;
 using SafeTrace.Domain.Enums;
+using System.Text;
 
 
 namespace SafeTrace.Application.Services
@@ -18,19 +20,23 @@ namespace SafeTrace.Application.Services
         private readonly IEmailService _emailService;
         private readonly IPdfGeneratorService _pdfGenerator;
         private readonly IExcelGeneratorService _excelGenerator;
+        private readonly ILogger<ComplaintService> _logger;
+
 
         public ComplaintService(
             IUnitOfWork unitOfWork,
             INotificationServices notificationService,
             IEmailService emailService,
             IPdfGeneratorService pdfGenerator,
-            IExcelGeneratorService excelGenerator)
+            IExcelGeneratorService excelGenerator,
+            ILogger<ComplaintService> logger)
         {
             _unitOfWork = unitOfWork;
             _notificationService = notificationService;
             _emailService = emailService;
             _pdfGenerator = pdfGenerator;
             _excelGenerator = excelGenerator;
+            _logger = logger;
         }
 
         public async Task<PaginationResponseDto<ComplaintResponseDto>> GetAllAsync(ComplaintFilterDto filter)
@@ -162,7 +168,7 @@ namespace SafeTrace.Application.Services
             var userName = $"{complaint.User.FName} {complaint.User.LName}";
             var subject = "تم حل شكواك - منصة لقاء";
             var body = EmailTemplates.BuildComplaintResolvedTemplate(userName, dto.SolutionMessage);
-            await _emailService.SendEmailAsync(userEmail, subject, body);
+            BackgroundJob.Enqueue<IEmailService>(x => x.SendEmailAsync(userEmail, subject, body));
         }
 
         public async Task<ComplaintStatisticsDto> GetStatisticsAsync()
@@ -185,6 +191,9 @@ namespace SafeTrace.Application.Services
         public async Task<byte[]> GeneratePdfReportAsync(
             ComplaintFilterDto filter)
         {
+            _logger.LogInformation(
+            "Report Filter Status: {Status}",
+            filter.Status);
             var complaints = await GetAllForReportAsync(filter);
 
             var statistics = new ComplaintStatisticsDto
@@ -198,6 +207,7 @@ namespace SafeTrace.Application.Services
                 complaints,
                 statistics,
                 filter);
+
         }
 
         public async Task<byte[]> GenerateExcelReportAsync(

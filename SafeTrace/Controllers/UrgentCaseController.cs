@@ -10,9 +10,7 @@ using SafeTrace.Infrastructure.Authorization;
 
 namespace SafeTrace.API.Controllers
 {
-    [Route("api/[controller]")]
-    [ApiController]
-    public class UrgentCaseController : ControllerBase
+    public class UrgentCaseController : BaseApiController
     {
         private readonly IUrgentCaseService _urgentCaseService;
 
@@ -20,8 +18,6 @@ namespace SafeTrace.API.Controllers
         {
             _urgentCaseService = urgentCaseService;
         }
-
-        private string? CurrentUserId => User.FindFirstValue(ClaimTypes.NameIdentifier);
 
         [HttpGet("GetCases")]
         [AllowAnonymous]

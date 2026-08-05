@@ -12,9 +12,7 @@ using System.Security.Claims;
 
 namespace SafeTrace.API.Controllers
 {
-    [Route("api/[controller]")]
-    [ApiController]
-    public class UsersController : ControllerBase
+    public class UsersController : BaseApiController
     {
         private readonly IUserService _userService;
 
@@ -74,7 +72,7 @@ namespace SafeTrace.API.Controllers
         [HasPermission(Permissions.Users.RegisterByAdmin)]
         public async Task<IActionResult> RegisterByAdmin([FromBody] RegisterByAdminDto dto)
         {
-            var response = await _userService.RegisterByAdminAsync(GetCurrentUserId(), dto);
+            var response = await _userService.RegisterByAdminAsync(CurrentUserId, dto);
             return Ok(response);
         }
 
@@ -99,7 +97,7 @@ namespace SafeTrace.API.Controllers
         [HasPermission(Permissions.Users.ChangeRole)]
         public async Task<IActionResult> ChangeUserRole([FromBody] ChangeUserRoleDto dto)
         {
-            var response = await _userService.ChangeUserRoleAsync(GetCurrentUserId(), dto);
+            var response = await _userService.ChangeUserRoleAsync(CurrentUserId, dto);
             return Ok(response);
         }
 
@@ -133,9 +131,9 @@ namespace SafeTrace.API.Controllers
         [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
         [HttpPost("reject/{userId}")]
         [HasPermission(Permissions.Users.Reject)]
-        public async Task<IActionResult> RejectUser(string userId)
+        public async Task<IActionResult> RejectUser(string userId, [FromBody] RejectUserDto dto)
         {
-            var response = await _userService.RejectUserAsync(userId);
+            var response = await _userService.RejectUserAsync(userId, dto);
             return Ok(response);
         }
 
@@ -158,9 +156,9 @@ namespace SafeTrace.API.Controllers
         [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
         [HttpPost("toggle-block/{userId}")]
         [HasPermission(Permissions.Users.ToggleBlock)]
-        public async Task<IActionResult> ToggleBlockStatus(string userId)
+        public async Task<IActionResult> ToggleBlockStatus(string userId, [FromBody] SafeTrace.Application.DTOs.User.Request.ToggleBlockDto? dto = null)
         {
-            var response = await _userService.ToggleUserBlockStatusAsync(GetCurrentUserId(), userId);
+            var response = await _userService.ToggleUserBlockStatusAsync(CurrentUserId, userId, dto);
             return Ok(response);
         }
 
@@ -192,13 +190,8 @@ namespace SafeTrace.API.Controllers
         [HasPermission(Permissions.Users.AssignPermissions)]
         public async Task<IActionResult> AssignUserPermissions([FromBody] AssignUserPermissionsDto dto)
         {
-            var response = await _userService.AssignUserPermissionsAsync(GetCurrentUserId(), dto);
+            var response = await _userService.AssignUserPermissionsAsync(CurrentUserId, dto);
             return Ok(response);
-        }
-
-        private string GetCurrentUserId()
-        {
-            return User.FindFirstValue(ClaimTypes.NameIdentifier) ?? throw new UnauthorizedAccessException("تعذر التحقق من هوية المستخدم.");
         }
 
         /// <summary>

@@ -241,7 +241,10 @@ namespace SafeTrace.Infrastructure.Migrations
                     b.Property<Point>("HomeLocation")
                         .HasColumnType("geography");
 
-                    b.Property<string>("IdentificationImage")
+                    b.Property<string>("IdentificationImageFront")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("IdentificationImageback")
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("LName")

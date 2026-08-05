@@ -153,7 +153,7 @@ namespace SafeTrace.Infrastructure.Services
             catch (Exception ex) when (!(ex is BadRequestException))
             {
                 _logger.LogError(ex, "Error detecting faces for validation.");
-                throw new BadRequestException("حدث خطأ أثناء تحليل الصورة المرفوعة.");
+                throw new BadRequestException("حدث خطأ أثناء تحليل الصورة المرفوعة. حاول مره أخرى بصورة اكثر وضوحا.");
             }
 
             try
@@ -182,6 +182,65 @@ namespace SafeTrace.Infrastructure.Services
             {
                 _logger.LogError(ex, "Error occurred during face search in AWS.");
                 throw new BadRequestException("حدث خطأ أثناء البحث عن الوجوه المشابهة.");
+            }
+        }
+
+        public async Task<FaceComparisonResult> CompareFacesAsync(IFormFile firstImage, IFormFile secondImage)
+        {
+            try
+            {
+                ValidateIsImage(firstImage);
+                ValidateIsImage(secondImage);
+            }
+            catch (BadRequestException ex)
+            {
+                return new FaceComparisonResult { Success = false, Error = ex.Message };
+            }
+
+            try
+            {
+                using var stream1 = await GetImageMemoryStreamAsync(firstImage);
+                using var stream2 = await GetImageMemoryStreamAsync(secondImage);
+
+                var awsImage1 = new Amazon.Rekognition.Model.Image { Bytes = stream1 };
+                var awsImage2 = new Amazon.Rekognition.Model.Image { Bytes = stream2 };
+
+                var request = new CompareFacesRequest
+                {
+                    SourceImage = awsImage1,
+                    TargetImage = awsImage2,
+                    SimilarityThreshold = 75F
+                };
+
+                var response = await _rekognitionClient.CompareFacesAsync(request);
+
+                if (response.FaceMatches.Count > 0)
+                {
+                    var bestMatch = response.FaceMatches.OrderByDescending(m => m.Similarity).First();
+                    return new FaceComparisonResult
+                    {
+                        Success = true,
+                        IsSamePerson = true,
+                        Similarity = bestMatch.Similarity ?? 0f
+                    };
+                }
+
+                if (response.UnmatchedFaces.Count > 0)
+                {
+                    return new FaceComparisonResult
+                    {
+                        Success = true,
+                        IsSamePerson = false,
+                        Similarity = 0
+                    };
+                }
+
+                return new FaceComparisonResult { Success = false, Error = "لم يتم التعرف على أي وجه في إحدى الصورتين." };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error occurred during face comparison.");
+                return new FaceComparisonResult { Success = false, Error = "حدث خطأ أثناء مقارنة الوجوه. قد لا تحتوي إحدى الصورتين على وجه واضح." };
             }
         }
 

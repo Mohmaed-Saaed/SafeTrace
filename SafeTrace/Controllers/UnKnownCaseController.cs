@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SafeTrace.Application.Constants;
 using SafeTrace.Application.DTOs.Cases.Request;
@@ -10,9 +10,7 @@ using System.Security.Claims;
 
 namespace SafeTrace.API.Controllers
 {
-    [Route("api/[controller]")]
-    [ApiController]
-    public class UnknownCaseController : ControllerBase
+    public class UnknownCaseController : BaseApiController
     {
         private readonly IUnknownCaseService _unKnownServiceCase;
 
@@ -21,8 +19,6 @@ namespace SafeTrace.API.Controllers
         {
             _unKnownServiceCase = unKnownServiceCase;
         }
-
-        private string? CurrentUserId => User.FindFirstValue(ClaimTypes.NameIdentifier);
 
         [HttpGet("GetCases")]
         [AllowAnonymous]

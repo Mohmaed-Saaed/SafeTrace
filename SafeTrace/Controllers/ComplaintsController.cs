@@ -13,9 +13,7 @@ using System.Security.Claims;
 
 namespace SafeTrace.API.Controllers
 {
-    [Route("api/[controller]")]
-    [ApiController]
-    public class ComplaintsController : ControllerBase
+    public class ComplaintsController : BaseApiController
     {
         private readonly IComplaintService _complaintService;
 
@@ -82,16 +80,10 @@ namespace SafeTrace.API.Controllers
         /// </remarks>
         [HttpPost]
         [Authorize] //--------------------------->permission check is commented out for testing purposes. Remove the comment in production.
-        [EnableRateLimiting("ComplaintLimit")]
+        [EnableRateLimiting(RateLimitPolicies.ComplaintsLimit)]
         public async Task<IActionResult> Create([FromBody] CreateComplaintDto dto)
         {
-            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            if (string.IsNullOrEmpty(userId))
-            {
-                throw new UnauthorizedAccessException("تعذر التحقق من هوية المستخدم.");
-            }
-
-            var result = await _complaintService.CreateAsync(userId, dto);
+            var result = await _complaintService.CreateAsync(CurrentUserId, dto);
             return CreatedAtAction(nameof(GetById), new { id = result.Id },
                 ApiResponse<ComplaintResponseDto>.Ok(result, "Complaint created successfully."));
         }
@@ -131,7 +123,7 @@ namespace SafeTrace.API.Controllers
         [HttpPost("report/pdf")]
         [HasPermission(Permissions.Complaints.GenerateComplaintsPdfReport)]
         public async Task<IActionResult> GeneratePdf(
-          [FromQuery] ComplaintFilterDto filter)
+          [FromBody] ComplaintFilterDto filter)
         {
             var pdf = await _complaintService.GeneratePdfReportAsync(filter);
 
@@ -140,18 +132,6 @@ namespace SafeTrace.API.Controllers
                 "application/pdf",
                 $"ComplaintsReport-{DateTime.UtcNow:yyyyMMddHHmmss}.pdf");
         }
-        [HttpPost("report/excel")]
-        public async Task<IActionResult> ExportComplaintsExcel(
-            [FromQuery] ComplaintFilterDto filter)
-        {
-            var fileBytes = await _complaintService
-                .GenerateExcelReportAsync(filter);
-
-
-            return File(
-                fileBytes,
-                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                $"Complaints_Report_{DateTime.Now:yyyyMMdd}.xlsx");
-        }
+        
     }
 }

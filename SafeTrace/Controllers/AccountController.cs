@@ -13,9 +13,7 @@ using Microsoft.AspNetCore.RateLimiting;
 
 namespace SafeTrace.API.Controllers
 {
-    [Route("api/[controller]")]
-    [ApiController]
-    public class AccountController : ControllerBase
+    public class AccountController : BaseApiController
     {
         private readonly IAccountService _accountService;
 
@@ -38,7 +36,7 @@ namespace SafeTrace.API.Controllers
         [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
         [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
         [AllowAnonymous]
-        [EnableRateLimiting("AuthLimit")]
+        [EnableRateLimiting(RateLimitPolicies.AuthLimit)]
         [HttpPost("register")]
         public async Task<IActionResult> Register([FromBody] RegisterDto registerDto)
         {
@@ -60,7 +58,7 @@ namespace SafeTrace.API.Controllers
         [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
         [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
         [AllowAnonymous]
-        [EnableRateLimiting("AuthLimit")]
+        [EnableRateLimiting(RateLimitPolicies.AuthLimit)]
         [HttpPost("login")]
         public async Task<IActionResult> Login([FromBody] LoginDto loginDto)
         {
@@ -83,7 +81,7 @@ namespace SafeTrace.API.Controllers
         [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
         [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
         [AllowAnonymous]
-        [EnableRateLimiting("AuthLimit")]
+        [EnableRateLimiting(RateLimitPolicies.AuthLimit)]
         [HttpPost("google-login")]
         public async Task<IActionResult> GoogleLogin([FromBody] ExternalLoginDto externalLoginDto)
         {
@@ -103,7 +101,7 @@ namespace SafeTrace.API.Controllers
         [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
         [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
         [AllowAnonymous]
-        [EnableRateLimiting("AuthLimit")]
+        [EnableRateLimiting(RateLimitPolicies.AuthLimit)]
         [HttpPost("confirm-email")]
         public async Task<IActionResult> ConfirmEmail([FromQuery] string email, [FromQuery] string otpCode)
         {
@@ -121,7 +119,7 @@ namespace SafeTrace.API.Controllers
         [ProducesResponseType(typeof(ApiResponse<string>), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
         [AllowAnonymous]
-        [EnableRateLimiting("AuthLimit")]
+        [EnableRateLimiting(RateLimitPolicies.AuthLimit)]
         [HttpPost("resend-otp")]
         public async Task<IActionResult> ResendOtp([FromQuery] string email, [FromQuery] OtpType type)
         {
@@ -140,7 +138,7 @@ namespace SafeTrace.API.Controllers
         [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
         [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
         [AllowAnonymous]
-        [EnableRateLimiting("AuthLimit")]
+        [EnableRateLimiting(RateLimitPolicies.AuthLimit)]
         [HttpPost("forget-password")]
         public async Task<IActionResult> ForgetPassword([FromQuery] string email)
         {
@@ -161,7 +159,7 @@ namespace SafeTrace.API.Controllers
         [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
         [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
         [AllowAnonymous]
-        [EnableRateLimiting("AuthLimit")]
+        [EnableRateLimiting(RateLimitPolicies.AuthLimit)]
         [HttpPost("reset-password")]
         public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordDto resetPasswordDto)
         {
@@ -181,14 +179,11 @@ namespace SafeTrace.API.Controllers
         [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
         [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
         [Authorize]
-        [EnableRateLimiting("AuthLimit")]
+        [EnableRateLimiting(RateLimitPolicies.AuthLimit)]
         [HttpPost("change-password")]
         public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordDto dto)
         {
-            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            if (string.IsNullOrEmpty(userId)) throw new UnauthorizedException("تعذر التحقق من هوية المستخدم.");
-
-            var response = await _accountService.ChangePasswordAsync(userId, dto);
+            var response = await _accountService.ChangePasswordAsync(CurrentUserId, dto);
             return Ok(response);
         }
 

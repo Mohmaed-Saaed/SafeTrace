@@ -10,10 +10,8 @@ using SafeTrace.Infrastructure.Authorization;
 
 namespace SafeTrace.API.Controllers
 {
-    [Route("api/[controller]")]
-    [ApiController]
-    [EnableRateLimiting("AiLimit")]
-    public class AiMatchingController : ControllerBase
+    [EnableRateLimiting(RateLimitPolicies.AiLimit)]
+    public class AiMatchingController : BaseApiController
     {
         private readonly IFaceRecognitionService _faceRecognitionService;
         private readonly IAIMatchingService _aiMatchingService;
@@ -27,10 +25,7 @@ namespace SafeTrace.API.Controllers
         [HasPermission(Permissions.AiMatching.Search)]
         public async Task<IActionResult> SearchMatchingCases([FromForm] AiMatchingDto aiMatchingDto)
         {
-            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            if (string.IsNullOrEmpty(userId)) throw new UnauthorizedException("تعذر التحقق من هوية المستخدم.");
-
-            var response = await _aiMatchingService.GetMatchingCasesAsync(aiMatchingDto.Image, userId);
+            var response = await _aiMatchingService.GetMatchingCasesAsync(aiMatchingDto.Image, CurrentUserId);
             return Ok(response);
         }
 

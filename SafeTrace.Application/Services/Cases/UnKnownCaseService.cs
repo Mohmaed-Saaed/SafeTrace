@@ -1,6 +1,5 @@
 using SafeTrace.Application.Common.Enums;
 using SafeTrace.Application.DTOs.AiMatching.Response;
-using SafeTrace.Application.DTOs.Cases.Request;
 using SafeTrace.Application.DTOs.Cases.Response;
 using SafeTrace.Application.DTOs.UnKnownCase.Request;
 using SafeTrace.Application.DTOs.UnKnownCase.Response;
@@ -117,38 +116,46 @@ namespace SafeTrace.Application.Services.Cases
                 .ToList();
         }
 
-        public async Task<ApiResponse<CreateCaseResultDto>> CreateUnknownCaseAsync(string userId, CreateUnknownDto dto, bool forceCreate = false)
+        public async Task<ApiResponse<CreateCaseResponseDto>> CreateUnknownCaseAsync(string userId, CreateUnknownDto dto, bool forceCreate = false)
         {
             await _caseHelper.ValidateVerifiedUserAsync(userId);
 
-            var subject = new CaseMatchSubjectInfoDto
+            await _caseHelper.ValidateUploadedImagesIdentityAsync(dto.PrimaryImage, dto.AdditionalImages);
+
+            var duplicateCheck = await _caseHelper.CheckDuplicateCaseAsync(CaseType.Unknown, dto.PrimaryImage, userId);
+
+            if (duplicateCheck.IsBlocked)
             {
-                Gender = dto.Gender,
-                Age = dto.Age
-            };
-
-            MatchedCaseDto? pendingSameTypeMatch = null;
-
-            var checkResult = await _caseHelper.CheckDuplicateCaseAsync(
-                CaseType.Unknown,
-                subject,
-                dto.PrimaryImage,
-                onSameTypeMatchAsync: duplicate =>
-                {
-                    pendingSameTypeMatch = duplicate;
-                    return Task.CompletedTask;
-                },
-                forceCreate);
-
-            if (checkResult.RequiresConfirmation)
-            {
-                return ApiResponse<CreateCaseResultDto>.Ok(
-                    new CreateCaseResultDto
+                return ApiResponse<CreateCaseResponseDto>.Ok(
+                    new CreateCaseResponseDto
                     {
                         IsCreated = false,
-                        MatchedCases = checkResult.MatchedCases
+                        IsBlocked = true,
+                        DuplicateDecision = duplicateCheck.DuplicateDecision,
+                        ExistingCaseId = duplicateCheck.ExistingCaseId,
+                        ExistingCaseType = duplicateCheck.ExistingCaseType,
+                        ExistingStatus = duplicateCheck.ExistingStatus,
+                        MatchedCases = duplicateCheck.MatchedCases
                     });
             }
+
+            if (duplicateCheck.DuplicateDecision != DuplicateDecision.None && !forceCreate)
+            {
+                return ApiResponse<CreateCaseResponseDto>.Ok(
+                    new CreateCaseResponseDto
+                    {
+                        IsCreated = false,
+                        IsBlocked = false,
+                        DuplicateDecision = duplicateCheck.DuplicateDecision,
+                        ExistingCaseId = duplicateCheck.ExistingCaseId,
+                        ExistingCaseType = duplicateCheck.ExistingCaseType,
+                        ExistingStatus = duplicateCheck.ExistingStatus,
+                        MatchedCases = duplicateCheck.MatchedCases
+                    });
+            }
+
+            var sameTypeMatch = duplicateCheck.MatchedCases
+                .FirstOrDefault(c => c.CaseType == CaseType.Unknown);
 
             var entity = _mapper.Map<UnknownCase>(dto);
             entity.UserId = userId;
@@ -179,11 +186,7 @@ namespace SafeTrace.Application.Services.Cases
 
                     await LinkCaseToDuplicateGroupAsync(
                         entity,
-                        pendingSameTypeMatch);
-
-                    _unitOfWork
-                        .Repository<UnknownCase>()
-                        .Update(entity);
+                        sameTypeMatch);
 
                     return true;
                 },
@@ -208,11 +211,13 @@ namespace SafeTrace.Application.Services.Cases
                 "Unknown case {CaseCode} created successfully.",
                 entity.CaseCode);
 
-            return ApiResponse<CreateCaseResultDto>.Ok(
-                new CreateCaseResultDto
+            return ApiResponse<CreateCaseResponseDto>.Ok(
+                new CreateCaseResponseDto
                 {
                     IsCreated = true,
-                    CaseId = entity.Id
+                    IsBlocked = false,
+                    CaseId = entity.Id,
+                    MatchedCases = duplicateCheck.MatchedCases
                 });
         }
 
@@ -225,6 +230,13 @@ namespace SafeTrace.Application.Services.Cases
                 includes: [x => x.CaseFiles]);
 
             _caseHelper.ValidateCaseIsEditable(entity);
+
+            var existingFaceIds = entity.CaseFiles?
+                .Where(f => !string.IsNullOrWhiteSpace(f.FaceId))
+                .Select(f => f.FaceId!)
+                .ToList();
+
+            await _caseHelper.ValidateUploadedImagesIdentityAsync(dto.PrimaryImage, dto.NewPhotos, existingFaceIds);
 
             if (entity.Status == CaseStatus.Active)
             {
@@ -427,7 +439,7 @@ namespace SafeTrace.Application.Services.Cases
 
             await AddCaseToGroupAsync(
                 groupLink.DuplicateGroupId,
-                newCase.Id,
+                newCase,
                 (decimal)sameTypeMatch.Similarity);
         }
 
@@ -460,7 +472,7 @@ namespace SafeTrace.Application.Services.Cases
                 .CreateAsync(new DuplicateGroupCase
                 {
                     DuplicateGroup = group,
-                    CaseId = newCase.Id,
+                    Case = newCase,
                     SimilarityScore = null,
                     MatchedBy = DuplicateMatchType.AI,
                     CreatedAt = DateTime.UtcNow
@@ -484,7 +496,7 @@ namespace SafeTrace.Application.Services.Cases
                 .CreateAsync(new DuplicateGroupCase
                 {
                     DuplicateGroup = group,
-                    CaseId = oldCase.Id,
+                    Case = oldCase,
                     SimilarityScore = null,
                     MatchedBy = DuplicateMatchType.AI,
                     CreatedAt = DateTime.UtcNow
@@ -495,31 +507,21 @@ namespace SafeTrace.Application.Services.Cases
                 .CreateAsync(new DuplicateGroupCase
                 {
                     DuplicateGroup = group,
-                    CaseId = newCase.Id,
+                    Case = newCase,
                     SimilarityScore = similarity,
                     MatchedBy = DuplicateMatchType.AI,
                     CreatedAt = DateTime.UtcNow
                 });
         }
 
-        private async Task AddCaseToGroupAsync(long groupId, long caseId, decimal similarity)
+        private async Task AddCaseToGroupAsync(long groupId, UnknownCase newCase, decimal similarity)
         {
-            var exists = await _unitOfWork
-                .Repository<DuplicateGroupCase>()
-                .Query()
-                .AnyAsync(x =>
-                    x.DuplicateGroupId == groupId &&
-                    x.CaseId == caseId);
-
-            if (exists)
-                return;
-
             await _unitOfWork
                 .Repository<DuplicateGroupCase>()
                 .CreateAsync(new DuplicateGroupCase
                 {
                     DuplicateGroupId = groupId,
-                    CaseId = caseId,
+                    Case = newCase,
                     SimilarityScore = similarity,
                     MatchedBy = DuplicateMatchType.AI,
                     CreatedAt = DateTime.UtcNow

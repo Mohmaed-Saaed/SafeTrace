@@ -13,9 +13,7 @@ using System.Security.Claims;
 
 namespace SafeTrace.API.Controllers.Dashboard
 {
-    [Route("api/[controller]")]
-    [ApiController]
-    public class DashboardController : ControllerBase
+    public class DashboardController : BaseApiController
     {
         private readonly IDashboardService _dashboardService;
         public DashboardController(IDashboardService dashboardService)  
@@ -81,7 +79,7 @@ namespace SafeTrace.API.Controllers.Dashboard
         [HttpPost("cases/report/pdf")]
         [HasPermission(Permissions.Dashboard.GenerateCasesPdfReport)]
         public async Task<IActionResult> GenerateCasesPdfReport(
-            [FromQuery] CasesReportFilterDto filter)
+            [FromBody] CasesReportFilterDto filter)
         {
             var file = await _dashboardService
                 .GeneratePdfReportAsync(filter);

@@ -2,7 +2,6 @@ using SafeTrace.Application.Interfaces.IServices.ICases;
 using SafeTrace.Application.Common.Enums;
 using SafeTrace.Application.DTOs.LongTermCase.Response;
 using SafeTrace.Application.DTOs.LongTermCase.Request;
-using SafeTrace.Application.DTOs.Cases.Request;
 using SafeTrace.Application.DTOs.Cases.Response;
 
 namespace SafeTrace.Application.Services.Cases
@@ -41,42 +40,41 @@ namespace SafeTrace.Application.Services.Cases
         /// - a match with a DIFFERENT case type blocks creation and returns the matched case(s),
         ///   unless forceCreate is true.
         /// </summary>
-        public async Task<ApiResponse<CreateCaseResultDto>> CreateAsync(string userId, CreateLongTermCaseDto dto, bool forceCreate = false)
+        public async Task<ApiResponse<CreateCaseResponseDto>> CreateAsync(string userId, CreateLongTermCaseDto dto, bool forceCreate = false)
         {
             await _caseHelper.ValidateVerifiedUserAsync(userId);
 
-            var subject = new CaseMatchSubjectInfoDto
-            {
-                Gender = dto.Gender,
-                Age = dto.Age
-            };
+            await _caseHelper.ValidateUploadedImagesIdentityAsync(dto.PrimaryImage, dto.AdditionalImages);
 
-            var checkResult = await _caseHelper.CheckDuplicateCaseAsync(
-                CaseType.LongTerm,
-                subject,
-                dto.PrimaryImage,
-                onSameTypeMatchAsync: duplicate => Task.CompletedTask,
-                forceCreate);
+            var duplicateCheck = await _caseHelper.CheckDuplicateCaseAsync(CaseType.LongTerm, dto.PrimaryImage, userId);
 
-            if (checkResult.IsSameTypeDuplicate)
+            if (duplicateCheck.IsBlocked)
             {
-                return ApiResponse<CreateCaseResultDto>.Ok(
-                    new CreateCaseResultDto
+                return ApiResponse<CreateCaseResponseDto>.Ok(
+                    new CreateCaseResponseDto
                     {
                         IsCreated = false,
-                        IsSameTypeDuplicate = true,
-                        MatchedCases = checkResult.MatchedCases
+                        IsBlocked = true,
+                        DuplicateDecision = duplicateCheck.DuplicateDecision,
+                        ExistingCaseId = duplicateCheck.ExistingCaseId,
+                        ExistingCaseType = duplicateCheck.ExistingCaseType,
+                        ExistingStatus = duplicateCheck.ExistingStatus,
+                        MatchedCases = duplicateCheck.MatchedCases
                     });
             }
-
-            if (checkResult.RequiresConfirmation)
+            
+            if (duplicateCheck.DuplicateDecision != DuplicateDecision.None && !forceCreate)
             {
-                return ApiResponse<CreateCaseResultDto>.Ok(
-                    new CreateCaseResultDto
+                return ApiResponse<CreateCaseResponseDto>.Ok(
+                    new CreateCaseResponseDto
                     {
                         IsCreated = false,
-                        IsSameTypeDuplicate = false,
-                        MatchedCases = checkResult.MatchedCases
+                        IsBlocked = false,
+                        DuplicateDecision = duplicateCheck.DuplicateDecision,
+                        ExistingCaseId = duplicateCheck.ExistingCaseId,
+                        ExistingCaseType = duplicateCheck.ExistingCaseType,
+                        ExistingStatus = duplicateCheck.ExistingStatus,
+                        MatchedCases = duplicateCheck.MatchedCases
                     });
             }
 
@@ -136,11 +134,13 @@ namespace SafeTrace.Application.Services.Cases
                 entity.CaseCode,
                 userId);
 
-            return ApiResponse<CreateCaseResultDto>.Ok(
-                new CreateCaseResultDto
+            return ApiResponse<CreateCaseResponseDto>.Ok(
+                new CreateCaseResponseDto
                 {
                     IsCreated = true,
-                    CaseId = entity.Id
+                    IsBlocked = false,
+                    CaseId = entity.Id,
+                    MatchedCases = []
                 });
         }
 
@@ -153,6 +153,13 @@ namespace SafeTrace.Application.Services.Cases
                 includes: [c => c.CaseFiles]);
 
             _caseHelper.ValidateCaseIsEditable(entity);
+
+            var existingFaceIds = entity.CaseFiles?
+                .Where(f => !string.IsNullOrWhiteSpace(f.FaceId))
+                .Select(f => f.FaceId!)
+                .ToList();
+
+            await _caseHelper.ValidateUploadedImagesIdentityAsync(dto.PrimaryImage, dto.NewPhotos, existingFaceIds);
 
             var uploadedPhotos = new List<CaseFile>();
             var filesToDelete = new List<string>();

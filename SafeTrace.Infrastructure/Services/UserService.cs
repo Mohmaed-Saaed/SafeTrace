@@ -1,4 +1,6 @@
 using AutoMapper;
+using Hangfire;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using SafeTrace.Application.Constants;
 using SafeTrace.Application.DTOs.NotificationDTOS;
@@ -8,7 +10,9 @@ using SafeTrace.Application.DTOs.User.Response;
 using SafeTrace.Application.Exceptions;
 using SafeTrace.Application.Helpers;
 using SafeTrace.Application.Interfaces.IServices.INotificationSewrvice;
+using SafeTrace.Application.Interfaces.IServices.common;
 using SafeTrace.Domain.Enums;
+using System.Text;
 
 namespace SafeTrace.Infrastructure.Services
 {
@@ -23,6 +27,7 @@ namespace SafeTrace.Infrastructure.Services
         private readonly INotificationServices _notificationService;
         private readonly ILogger<UserService> _logger;
         private readonly IPdfGeneratorService _pdfGenerator;
+        private readonly IImageUrlService _imageUrlService;
 
         public UserService(
             UserManager<ApplicationUser> userManager,
@@ -33,7 +38,8 @@ namespace SafeTrace.Infrastructure.Services
             IEmailService emailService,
             INotificationServices notificationService,
             ILogger<UserService> logger,
-            IPdfGeneratorService pdfGenerator)
+            IPdfGeneratorService pdfGenerator,
+            IImageUrlService imageUrlService)
         {
             _userManager = userManager;
             _roleManager = roleManager;
@@ -44,6 +50,7 @@ namespace SafeTrace.Infrastructure.Services
             _notificationService = notificationService;
             _logger = logger;
             _pdfGenerator = pdfGenerator;
+            _imageUrlService = imageUrlService;
         }
 
         public async Task<ApiResponse<PaginationResponseDto<GetUserDto>>> GetAllUsersAsync(UserFilterDto filterDto)
@@ -78,7 +85,7 @@ namespace SafeTrace.Infrastructure.Services
 
             if (!string.IsNullOrWhiteSpace(filterDto.RoleId))
             {
-                var userIdsInRole = _unitOfWork.Repository<IdentityUserRole<string>>().Query()
+                var userIdsInRole = _unitOfWork.Repository<IdentityUserRole<string>>().Query(tracked: false)
                     .Where(ur => ur.RoleId == filterDto.RoleId)
                     .Select(ur => ur.UserId);
 
@@ -107,8 +114,8 @@ namespace SafeTrace.Infrastructure.Services
             {
                 var userIds = userDtos.Select(u => u.Id).ToList();
 
-                var roleQuery = _unitOfWork.Repository<IdentityRole>().Query();
-                var userRoleQuery = _unitOfWork.Repository<IdentityUserRole<string>>().Query();
+                var roleQuery = _unitOfWork.Repository<IdentityRole>().Query(tracked: false);
+                var userRoleQuery = _unitOfWork.Repository<IdentityUserRole<string>>().Query(tracked: false);
 
                 var userRoles = await (from ur in userRoleQuery
                                        join r in roleQuery on ur.RoleId equals r.Id
@@ -144,6 +151,10 @@ namespace SafeTrace.Infrastructure.Services
             if (user == null) throw new NotFoundException("لم يتم العثور على هذا الحساب في النظام.");
 
             var userDto = _mapper.Map<GetUserByIdDto>(user);
+
+            userDto.ProfileImage = _imageUrlService.Build(userDto.ProfileImage);
+            userDto.IdentificationImageFront = _imageUrlService.Build(userDto.IdentificationImageFront);
+            userDto.IdentificationImageBack = _imageUrlService.Build(userDto.IdentificationImageBack);
 
             var roles = await _userManager.GetRolesAsync(user);
             userDto.Role = roles.FirstOrDefault() ?? UserRole.User.ToString();
@@ -203,10 +214,12 @@ namespace SafeTrace.Infrastructure.Services
             }
             else
             {
-                if(user.IdentificationImage != null)
+                if(user.IdentificationImageFront != null || user.IdentificationImageback != null)
                 {
-                    _fileStorageService.DeleteFile(user.IdentificationImage);
-                    user.IdentificationImage = null;
+                    if (user.IdentificationImageFront != null) _fileStorageService.DeleteFile(user.IdentificationImageFront);
+                    if (user.IdentificationImageback != null) _fileStorageService.DeleteFile(user.IdentificationImageback);
+                    user.IdentificationImageFront = null;
+                    user.IdentificationImageback = null;
                 }
             }
 
@@ -222,12 +235,12 @@ namespace SafeTrace.Infrastructure.Services
             }
 
             var emailBody = EmailTemplates.BuildRoleChangedTemplate(user.FName, dto.NewRole);
-            await _emailService.SendEmailAsync(user.Email!, "لقاء - تحديث دورك في منصة لقاء", emailBody);
+            BackgroundJob.Enqueue<IEmailService>(x => x.SendEmailAsync(user.Email!, "لقاء - تحديث دورك في منصة لقاء", emailBody));
 
             await _notificationService.SendNotificationAsync(new SendNotificationDTO
             {
                 UserId = user.Id,
-                Content = $"تم تغيير دورك في النظام إلى: {TranslateRoleToArabicHelper.TranslateRoleToArabic(dto.NewRole)}",
+                Content = $"تم تحديث دورك في النظام إلى '{TranslateRoleToArabicHelper.TranslateRoleToArabic(dto.NewRole)}'. يرجى مراجعة بريدك الإلكتروني لمعرفة التفاصيل والتعليمات المتعلقة بصلاحياتك الجديدة.",
                 Type = NotificationType.System
             });
 
@@ -293,7 +306,7 @@ namespace SafeTrace.Infrastructure.Services
                 await _notificationService.SendNotificationAsync(new SendNotificationDTO
                 {
                     UserId = user.Id,
-                    Content = "مرحباً بك في منصة لقاء! تم تفعيل حسابك من قِبل الإدارة.",
+                    Content = "مرحباً بك في منصة لقاء! تم إنشاء حساب جديد لك بواسطة الإدارة. يرجى مراجعة بريدك الإلكتروني للحصول على رابط تفعيل الحساب وتعيين كلمة المرور.",
                     Type = NotificationType.System
                 });
 
@@ -313,7 +326,7 @@ namespace SafeTrace.Infrastructure.Services
             var user = await _userManager.FindByIdAsync(userId);
             if (user == null) throw new NotFoundException("لم يتم العثور على هذا الحساب في النظام.");
 
-            if (user.IdentificationImage == null) throw new BadRequestException("لا توجد صورة هوية (بطاقة) لهذا المستخدم للموافقة عليها.");
+            if (user.IdentificationImageFront == null || user.IdentificationImageback == null) throw new BadRequestException("لا توجد صورة هوية (بطاقة) لهذا المستخدم للموافقة عليها.");
 
             if (user.VerificationStatus != VerificationStatus.Pending) throw new BadRequestException("لا يمكن قبول طلب التوثيق لأنه ليس في حالة انتظار المراجعة.");
 
@@ -344,7 +357,7 @@ namespace SafeTrace.Infrastructure.Services
             await _notificationService.SendNotificationAsync(new SendNotificationDTO
             {
                 UserId = user.Id,
-                Content = "تمت مراجعة هويتك بنجاح. حسابك الآن يمتلك صلاحيات مستخدم موثق.",
+                Content = "تهانينا! تمت الموافقة على طلب توثيق هويتك. حسابك الآن موثق بالكامل مما يتيح لك الاستفادة من ميزات إضافية في المنصة.",
                 Type = NotificationType.System
             });
 
@@ -352,20 +365,22 @@ namespace SafeTrace.Infrastructure.Services
             return ApiResponse<string>.Ok(null, "تمت الموافقة على توثيق المستخدم بنجاح.");
         }
 
-        public async Task<ApiResponse<string>> RejectUserAsync(string userId)
+        public async Task<ApiResponse<string>> RejectUserAsync(string userId, RejectUserDto dto)
         {
             var user = await _userManager.FindByIdAsync(userId);
             if (user == null) throw new NotFoundException("لم يتم العثور على هذا الحساب في النظام.");
 
-            if (user.IdentificationImage == null) throw new BadRequestException("لا توجد صورة هوية (بطاقة) لهذا المستخدم لرفضها.");
+            if (user.IdentificationImageFront == null || user.IdentificationImageback == null) throw new BadRequestException("لا توجد صورة هوية (بطاقة) لهذا المستخدم لرفضها.");
 
             if (user.VerificationStatus != VerificationStatus.Pending) throw new BadRequestException("لا يمكن رفض طلب التوثيق لأنه ليس في حالة انتظار المراجعة.");
 
 
-            var DeletedResult = _fileStorageService.DeleteFile(user.IdentificationImage);
-            if (!DeletedResult) throw new BadRequestException("فشل في مسح صورة الهوية الخاصة بالمستخدم من الخادم.");
+            var deletedFront = user.IdentificationImageFront != null ? _fileStorageService.DeleteFile(user.IdentificationImageFront) : true;
+            var deletedBack = user.IdentificationImageback != null ? _fileStorageService.DeleteFile(user.IdentificationImageback) : true;
+            if (!deletedFront || !deletedBack) throw new BadRequestException("فشل في مسح صورة الهوية الخاصة بالمستخدم من الخادم.");
 
-            user.IdentificationImage = null;
+            user.IdentificationImageFront = null;
+            user.IdentificationImageback = null;
             user.VerificationStatus = VerificationStatus.Unverified;
             
             var result = await _userManager.UpdateAsync(user);
@@ -377,21 +392,25 @@ namespace SafeTrace.Infrastructure.Services
 
                 throw new BadRequestException("تعذر رفض طلب توثيق المستخدم. يرجى المحاولة مرة أخرى.");
             }
+            if (string.IsNullOrWhiteSpace(dto.Reason))
+            {
+                dto.Reason = "يرجى إعادة رفع صورة واضحة ومقروءة للوجه الأمامي والخلفي لبطاقة الهوية ليتمكن فريقنا من توثيق حسابك بنجاح.";
+            }
 
-            var emailBody = EmailTemplates.BuildVerificationRejectedTemplate(user.FName);
-            await _emailService.SendEmailAsync(user.Email!, "لقاء - تم رفض طلب توثيق حسابك", emailBody);
+            var emailBody = EmailTemplates.BuildVerificationRejectedTemplate(user.FName, dto.Reason);
+            BackgroundJob.Enqueue<IEmailService>(x => x.SendEmailAsync(user.Email!, "لقاء - تم رفض طلب توثيق حسابك", emailBody));
 
             await _notificationService.SendNotificationAsync(new SendNotificationDTO
             {
                 UserId = user.Id,
-                Content = "تم رفض طلب توثيق هويتك. يرجى إعادة رفع صورة هوية أكثر وضوحاً ومطابقة للمواصفات.",
+                Content = $"تم رفض طلب توثيق هويتك. يرجى مراجعة بريدك الإلكتروني لمعرفة التفاصيل والسبب وراء الرفض.",
                 Type = NotificationType.System
             });
 
             return ApiResponse<string>.Ok(null, "تم رفض طلب توثيق المستخدم بنجاح.");
         }
 
-        public async Task<ApiResponse<string>> ToggleUserBlockStatusAsync(string currentUserId, string userId)
+        public async Task<ApiResponse<string>> ToggleUserBlockStatusAsync(string currentUserId, string userId, SafeTrace.Application.DTOs.User.Request.ToggleBlockDto? dto = null)
         {
             if (currentUserId == userId) throw new BadRequestException("لا يمكنك حظر حسابك الشخصي.");
 
@@ -420,12 +439,12 @@ namespace SafeTrace.Infrastructure.Services
                 await _userManager.SetLockoutEndDateAsync(targetUser, null);
 
                 var emailBody = EmailTemplates.BuildBlockStatusChangedTemplate(targetUser.FName, false);
-                await _emailService.SendEmailAsync(targetUser.Email!, "لقاء - تم إلغاء الحظر عن حسابك في منصة لقاء", emailBody);
+                BackgroundJob.Enqueue<IEmailService>(x => x.SendEmailAsync(targetUser.Email!, "لقاء - تم إلغاء الحظر عن حسابك في منصة لقاء", emailBody));
 
                 await _notificationService.SendNotificationAsync(new SendNotificationDTO
                 {
                     UserId = targetUser.Id,
-                    Content = "تم إلغاء الحظر عن حسابك. يمكنك استخدام المنصة الآن.",
+                    Content = "تم إلغاء الحظر عن حسابك بنجاح. يمكنك الآن تسجيل الدخول واستخدام كافة ميزات المنصة مرة أخرى.",
                     Type = NotificationType.System
                 });
 
@@ -436,26 +455,20 @@ namespace SafeTrace.Infrastructure.Services
             {
                 await _userManager.SetLockoutEndDateAsync(targetUser, DateTimeOffset.MaxValue);
 
-                var activeTokens = await _unitOfWork.Repository<RefreshToken>().Query()
+                await _unitOfWork.Repository<RefreshToken>().Query()
                                                                                .Where(rt => rt.UserId == userId &&
                                                                                             rt.RevokedAt == null &&
                                                                                             rt.ExpiresAt > DateTime.UtcNow)
-                                                                               .ToListAsync();
+                                                                               .ExecuteUpdateAsync(rt => rt.SetProperty(x => x.RevokedAt, DateTime.UtcNow));
 
-                foreach (var token in activeTokens)
-                {
-                    token.RevokedAt = DateTime.UtcNow;
-                    _unitOfWork.Repository<RefreshToken>().Update(token);
-                }
-                await _unitOfWork.SaveAsync();
-
-                var emailBody = EmailTemplates.BuildBlockStatusChangedTemplate(targetUser.FName, true);
+                var reason = string.IsNullOrWhiteSpace(dto?.Reason) ? "تم حظر الحساب نتيجة انتهاك شروط وسياسات المنصة." : dto.Reason;
+                var emailBody = EmailTemplates.BuildBlockStatusChangedTemplate(targetUser.FName, true, reason);
                 await _emailService.SendEmailAsync(targetUser.Email!, "لقاء - تنبيه: تم حظر حسابك في منصة لقاء", emailBody);
 
                 await _notificationService.SendNotificationAsync(new SendNotificationDTO
                 {
                     UserId = targetUser.Id,
-                    Content = "تم حظر حسابك بواسطة الإدارة.",
+                    Content = "تم حظر حسابك في المنصة. يرجى مراجعة بريدك الإلكتروني لمعرفة التفاصيل.",
                     Type = NotificationType.System
                 });
 
@@ -523,12 +536,12 @@ namespace SafeTrace.Infrastructure.Services
             await _unitOfWork.SaveAsync();
 
             var emailBody = EmailTemplates.BuildPermissionsChangedTemplate(user.FName);
-            await _emailService.SendEmailAsync(user.Email!, "لقاء - تحديث الصلاحيات في منصة لقاء", emailBody);
+            BackgroundJob.Enqueue<IEmailService>(x => x.SendEmailAsync(user.Email!, "لقاء - تحديث الصلاحيات في منصة لقاء", emailBody));
 
             await _notificationService.SendNotificationAsync(new SendNotificationDTO
             {
                 UserId = user.Id,
-                Content = "قامت إدارة النظام بتحديث صلاحياتك الفردية (الاستثنائية).",
+                Content = "تم تحديث الصلاحيات الاستثنائية الممنوحة لحسابك. يرجى مراجعة بريدك الإلكتروني للاطلاع على تفاصيل الصلاحيات الجديدة.",
                 Type = NotificationType.System
             });
 
@@ -716,6 +729,7 @@ namespace SafeTrace.Infrastructure.Services
                 statistics,
                 filter,
                 roleName);
+
         }
     }
 }

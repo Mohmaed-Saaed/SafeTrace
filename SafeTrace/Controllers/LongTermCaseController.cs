@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SafeTrace.Application.Constants;
 using SafeTrace.Application.DTOs.Cases.Request;
@@ -15,10 +15,8 @@ namespace SafeTrace.API.Controllers
     /// <summary>
     /// Endpoints for managing long-term missing person cases.
     /// </summary>
-    [Route("api/[controller]")]
-    [ApiController]
     [Produces("application/json")]
-    public class LongTermCaseController : ControllerBase
+    public class LongTermCaseController : BaseApiController
     {
         private readonly ILongTermCaseService _service;
 
@@ -26,8 +24,6 @@ namespace SafeTrace.API.Controllers
         {
             _service = service;
         }
-
-        private string? CurrentUserId => User.FindFirstValue(ClaimTypes.NameIdentifier);
 
         /// <summary>Gets a paginated list of active long-term cases.</summary>
         /// <param name="filter">Filtering, sorting and pagination options.</param>

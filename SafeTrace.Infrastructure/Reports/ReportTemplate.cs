@@ -9,50 +9,44 @@ namespace SafeTrace.Infrastructure.Reports
         #region Header
 
         public static void Header(
-            ColumnDescriptor column,
-            string reportTitle,
-            string? logoPath = null)
+    IContainer container,
+    string reportTitle,
+    string? logoPath = null)
         {
-            column.Spacing(5);
-
-            column.Item().Row(row =>
+            container.AlignRight().Column(header =>
             {
-                row.RelativeItem().Column(titleCol =>
-                {
-                    titleCol.Item()
-                        .AlignCenter()
-                        .Text("لقاء")
-                        .FontSize(24)
-                        .Bold()
-                        .FontColor(Colors.Blue.Darken2);
-
-                    titleCol.Item()
-                        .AlignCenter()
-                        .Text(reportTitle)
-                        .FontSize(18)
-                        .SemiBold()
-                        .FontColor(Colors.Grey.Darken3);
-                });
+                header.Spacing(5);
 
                 if (!string.IsNullOrWhiteSpace(logoPath) && File.Exists(logoPath))
                 {
-                    row.ConstantItem(60)
+                    header.Item()
+                        .AlignCenter()
+                        .Width(60)
                         .Height(60)
                         .Image(logoPath)
                         .FitArea();
                 }
+
+                header.Item()
+                    .AlignCenter()
+                    .Text("لقاء")
+                    .FontSize(24)
+                    .Bold()
+                    .FontColor(Colors.Blue.Darken2);
+
+                header.Item()
+                    .AlignCenter()
+                    .Text(reportTitle)
+                    .FontSize(18)
+                    .SemiBold()
+                    .FontColor(Colors.Grey.Darken3);
+
+                header.Item()
+                    .AlignCenter()
+                    .Text($"تاريخ إنشاء التقرير : {DateTime.Now:dd/MM/yyyy hh:mm tt}")
+                    .FontSize(10)
+                    .FontColor(Colors.Grey.Darken2);
             });
-
-            column.Item()
-                .AlignRight()
-                .Text($"تاريخ إنشاء التقرير : {DateTime.Now:dd/MM/yyyy hh:mm tt}")
-                .FontSize(10)
-                .FontColor(Colors.Grey.Darken2);
-
-            column.Item()
-                .PaddingTop(10)
-                .LineHorizontal(1.5f)
-                .LineColor(Colors.Blue.Darken2);
         }
 
         #endregion
@@ -60,10 +54,10 @@ namespace SafeTrace.Infrastructure.Reports
         #region Filters
 
         public static void Filters(
-            ColumnDescriptor column,
+            IContainer container,
             Dictionary<string, string> filters)
         {
-            column.Item()
+            container
                 .Background(Colors.Grey.Lighten5)
                 .Border(1)
                 .BorderColor(Colors.Grey.Lighten2)

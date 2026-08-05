@@ -10,12 +10,9 @@ using System.Text.Json;
 
 namespace SafeTrace.API.Controllers
 {
-    [Route("api/[controller]")]
-    [ApiController]
-    public class PaymentController : ControllerBase
+    public class PaymentController : BaseApiController
     {
         private readonly IPaymentService _paymentService;
-        private string? CurrentUserId => User.FindFirstValue(ClaimTypes.NameIdentifier);
         public PaymentController(IPaymentService paymentService) { 
             _paymentService = paymentService;
         }
@@ -27,7 +24,7 @@ namespace SafeTrace.API.Controllers
         [AllowAnonymous]
         public async Task<IActionResult> CreateDonationPaymobIntent([FromBody] CreateDonationRequestDto request)
         {
-          var response = await  _paymentService.CreateDonationPaymobAsync(request, CurrentUserId);
+          var response = await  _paymentService.CreateDonationPaymobAsync(request, CurrentUserIdOrNull);
           return Ok(response);
         }
 
@@ -70,7 +67,7 @@ namespace SafeTrace.API.Controllers
         [Authorize]
         public async Task<IActionResult> GetMyDonations([FromQuery] DonationUserQueryDto query)
         {
-            var response = await _paymentService.GetUserDonationsAsync(User.FindFirstValue(ClaimTypes.NameIdentifier), query);
+            var response = await _paymentService.GetUserDonationsAsync(CurrentUserId, query);
             return Ok(response);
         }
 
@@ -85,10 +82,10 @@ namespace SafeTrace.API.Controllers
             return Ok(response);
         }
 
-        [HttpGet("export-pdf")]
         [HasPermission(Permissions.Donations.GenerateDonationsPdfReport)]
+        [HttpPost("export-pdf")]
         public async Task<IActionResult> ExportDonationsPdf(
-        [FromQuery] DonationAdminQueryDto query)
+        [FromBody] DonationAdminQueryDto query)
         {
             var file = await _paymentService
                 .GeneratePdfReportAsync(query);
@@ -100,19 +97,5 @@ namespace SafeTrace.API.Controllers
                 $"Donations_Report_{DateTime.Now:yyyyMMdd}.pdf");
         }
 
-    //    [HttpGet("export-excel")]
-    //    [Authorize(Roles = nameof(UserRole.Admin))]
-    //    public async Task<IActionResult> ExportDonationsExcel(
-    //[FromQuery] DonationAdminQueryDto query)
-    //    {
-    //        var file = await _donationService
-    //            .GenerateExcelReportAsync(query);
-
-
-    //        return File(
-    //            file,
-    //            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-    //            $"Donations_Report_{DateTime.Now:yyyyMMdd}.xlsx");
-    //    }
     }
 }

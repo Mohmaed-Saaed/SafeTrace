@@ -1,16 +1,12 @@
 using Microsoft.AspNetCore.Http;
 using SafeTrace.Application.Common.Enums;
-using SafeTrace.Application.DTOs.AiMatching.Response;
-using SafeTrace.Application.DTOs.Cases.Request;
 using SafeTrace.Application.DTOs.Cases.Response;
 using System.Linq.Expressions;
-
 
 namespace SafeTrace.Application.Interfaces.IServices.ICases
 {
     public interface ICaseHelperService
     {
-
         Task<TEntity> GetValidCaseAsync<TEntity>(
             long id,
             string? userId = null,
@@ -46,10 +42,15 @@ namespace SafeTrace.Application.Interfaces.IServices.ICases
         Task SendCaseRejectedNotificationAsync(Case entity, string rejectionReason);
 
         Task<DuplicateCheckResult> CheckDuplicateCaseAsync(
-           CaseType currentCaseType,
-           CaseMatchSubjectInfoDto subject,
-           IFormFile primaryImage,
-           Func<MatchedCaseDto, Task> onSameTypeMatchAsync,
-           bool forceCreate = false);
+            CaseType currentCaseType,
+            IFormFile primaryImage,
+            string currentUserId);
+
+
+
+        Task ValidateUploadedImagesIdentityAsync(
+            IFormFile? primaryImage, 
+            IEnumerable<IFormFile>? additionalImages, 
+            IEnumerable<string>? existingFaceIds = null);
     }
 }

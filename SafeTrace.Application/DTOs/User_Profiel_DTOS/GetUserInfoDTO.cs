@@ -1,4 +1,4 @@
-﻿using SafeTrace.Domain.Enums;
+using SafeTrace.Domain.Enums;
 
 namespace SafeTrace.Application.DTOs.User_Profiel_DTOS
 {
@@ -12,7 +12,8 @@ namespace SafeTrace.Application.DTOs.User_Profiel_DTOS
         public double? HomeLongitude { get; set; }
         public string? ProfileImage { get; set; }
         public VerificationStatus VerificationStatus { get; set; } = VerificationStatus.Unverified;
-        public string? IdentificationImage { get; set; }
+        public string? IdentificationImageFront { get; set; }
+        public string? IdentificationImageBack { get; set; }
 
         public string Role { get; set; } = string.Empty;
         public ICollection<MyCaseListItemDto> Cases { get; set; }

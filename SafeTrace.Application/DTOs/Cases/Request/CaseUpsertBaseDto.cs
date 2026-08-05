@@ -48,7 +48,7 @@ namespace SafeTrace.Application.DTOs.Cases.Request
         // PHOTO MANAGEMENT
 
         [MaxPhotoCount(4, ErrorMessage = "You can upload a maximum of 4 additional photos.")]
-        [AllowedPhotoTypes(ErrorMessage = "Only JPEG, PNG, and WebP images are allowed.")]
+        [AllowedPhotoTypes(ErrorMessage = "Only JPG, JPEG, PNG, and WebP images are allowed.")]
         [MaxPhotoSize(5, ErrorMessage = "Each photo must not exceed 5 MB.")]
         public List<IFormFile>? AdditionalImages { get; set; }
 

@@ -1,4 +1,4 @@
-﻿using System.Linq.Expressions;
+using System.Linq.Expressions;
 using SafeTrace.Domain.Common;
 
 namespace SafeTrace.Domain.Interfaces.IRepository
@@ -28,6 +28,7 @@ namespace SafeTrace.Domain.Interfaces.IRepository
         void RemoveRange(IEnumerable<T> entities);
 
         Task<bool> AnyAsync();
+        Task<bool> AnyAsync(Expression<Func<T, bool>> predicate);
 
         Task<int> CountAsync();
         Task<int> CountAsync(Expression<Func<T, bool>> predicate);

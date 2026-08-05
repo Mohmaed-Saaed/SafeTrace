@@ -191,6 +191,16 @@ namespace SafeTrace.Application.Services
                     .OrderByDescending(m => m.SendAt)
                     .Select(m => m.IsDeletedForEveryone
                     ? "تم حذف هذه الرسالة"
+                    :!string.IsNullOrEmpty(m.FilePath)
+                        ? m.FileType == FileType.Image
+                           ? (string.IsNullOrEmpty(m.Content)
+                            ? "📷 صورة"
+                            : m.Content + " 📷")
+                        : m.FileType == FileType.Video
+                            ? (string.IsNullOrEmpty(m.Content)
+                                ? "🎥 فيديو"
+                                : m.Content + " 🎥")
+                        : m.Content
                     : m.Content)
                 .FirstOrDefault(),
 
