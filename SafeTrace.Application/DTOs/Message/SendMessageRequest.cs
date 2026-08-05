@@ -1,4 +1,5 @@
 ﻿using Microsoft.AspNetCore.Http;
+using SafeTrace.Application.Validations;
 using SafeTrace.Domain.Enums;
 using System;
 using System.Collections.Generic;
@@ -16,10 +17,8 @@ namespace SafeTrace.Application.DTOs.Message
         public string? Content { get; set; }
 
         // File attachment (optional)
-        [AllowedPhotoTypes(ErrorMessage = "Only JPG, JPEG, PNG, and WebP images are allowed.")]
-        [MaxPhotoSize(5, ErrorMessage = "Each photo must not exceed 5 MB.")]
-        [AllowedVideoTypes(ErrorMessage = "Only MP4, MOV, and WebM videos are allowed.")]
-        [MaxVideoSize(50, ErrorMessage = "Each video must not exceed 50 MB.")]
+        [AllowedMessageFileTypes(ErrorMessage = "Only JPG, JPEG, PNG, WebP, MP4, MOV, and WebM files are allowed.")]
+        [MaxMessageFileSize]
         public IFormFile? File { get; set; }
     }
 }

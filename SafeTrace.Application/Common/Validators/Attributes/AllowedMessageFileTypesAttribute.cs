@@ -1,14 +1,19 @@
 ﻿using Microsoft.AspNetCore.Http;
-using System;
-using System.Collections.Generic;
-using System.Text;
+using System.ComponentModel.DataAnnotations;
 
 namespace SafeTrace.Application.Common.Validators.Attributes
 {
-    public class AllowedVideoTypesAttribute :ValidationAttribute
+    public class AllowedMessageFileTypesAttribute : ValidationAttribute
     {
         private static readonly HashSet<string> AllowedExtensions = new(StringComparer.OrdinalIgnoreCase)
         {
+            // Images
+            ".jpg",
+            ".jpeg",
+            ".png",
+            ".webp",
+
+            // Videos
             ".mp4",
             ".mov",
             ".webm"
@@ -16,13 +21,19 @@ namespace SafeTrace.Application.Common.Validators.Attributes
 
         private static readonly HashSet<string> AllowedContentTypes = new(StringComparer.OrdinalIgnoreCase)
         {
+            // Images
+            "image/jpeg",
+            "image/png",
+            "image/webp",
+
+            // Videos
             "video/mp4",
             "video/quicktime",
             "video/webm"
         };
 
-        public AllowedVideoTypesAttribute()
-            : base("Only MP4, MOV, and WebM videos are allowed.")
+        public AllowedMessageFileTypesAttribute()
+            : base("Only JPG, JPEG, PNG, WebP, MP4, MOV, and WebM files are allowed.")
         {
         }
 
@@ -47,10 +58,11 @@ namespace SafeTrace.Application.Common.Validators.Attributes
 
             var extension = Path.GetExtension(file.FileName);
 
-            if (string.IsNullOrEmpty(extension) || !AllowedExtensions.Contains(extension))
+            if (string.IsNullOrWhiteSpace(extension) || !AllowedExtensions.Contains(extension))
                 return false;
 
-            if (string.IsNullOrWhiteSpace(file.ContentType) || !AllowedContentTypes.Contains(file.ContentType))
+            if (string.IsNullOrWhiteSpace(file.ContentType) ||
+                !AllowedContentTypes.Contains(file.ContentType))
                 return false;
 
             return true;

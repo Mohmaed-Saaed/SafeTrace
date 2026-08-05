@@ -190,8 +190,8 @@ namespace SafeTrace.Application.Services
                     LastMessage = c.Messages
                     .OrderByDescending(m => m.SendAt)
                     .Select(m => m.IsDeletedForEveryone
-                    ? "تم حذف هذه الرسالة"
-                    :!string.IsNullOrEmpty(m.FilePath)
+                    ? "🚫 تم حذف هذه الرسالة"
+                    : !string.IsNullOrEmpty(m.FilePath)
                         ? m.FileType == FileType.Image
                            ? (string.IsNullOrEmpty(m.Content)
                             ? "📷 صورة"
@@ -700,7 +700,18 @@ namespace SafeTrace.Application.Services
 
                 LastMessage = c.Messages
                 .OrderByDescending(m => m.SendAt)
-                .Select(m => m.Content)
+                .Select(m =>
+                    !string.IsNullOrEmpty(m.FilePath)
+                        ? m.FileType == FileType.Image
+                            ? (string.IsNullOrEmpty(m.Content)
+                                ? "📷 صورة"
+                                : $"{m.Content} 📷")
+                            : m.FileType == FileType.Video
+                                ? (string.IsNullOrEmpty(m.Content)
+                                    ? "🎥 فيديو"
+                                    : $"{m.Content} 🎥")
+                                : m.Content
+                        : m.Content)
                 .FirstOrDefault(),
 
                 LastMessageAt = c.Messages
