@@ -251,6 +251,28 @@ namespace SafeTrace.Infrastructure.DependencyInjection
                             Window = TimeSpan.FromMinutes(1)
                         }));
 
+                options.AddPolicy(RateLimitPolicies.OtpRequestLimit, httpContext =>
+                    System.Threading.RateLimiting.RateLimitPartition.GetFixedWindowLimiter(
+                        partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? httpContext.Request.Headers.Host.ToString(),
+                        factory: partition => new System.Threading.RateLimiting.FixedWindowRateLimiterOptions
+                        {
+                            AutoReplenishment = true,
+                            PermitLimit = 5,
+                            QueueLimit = 0,
+                            Window = TimeSpan.FromMinutes(15)
+                        }));
+
+                options.AddPolicy(RateLimitPolicies.OtpSubmitLimit, httpContext =>
+                    System.Threading.RateLimiting.RateLimitPartition.GetFixedWindowLimiter(
+                        partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? httpContext.Request.Headers.Host.ToString(),
+                        factory: partition => new System.Threading.RateLimiting.FixedWindowRateLimiterOptions
+                        {
+                            AutoReplenishment = true,
+                            PermitLimit = 10,
+                            QueueLimit = 0,
+                            Window = TimeSpan.FromMinutes(15)
+                        }));
+
                 options.AddPolicy(RateLimitPolicies.ComplaintsLimit, httpContext =>
                     System.Threading.RateLimiting.RateLimitPartition.GetFixedWindowLimiter(
                         partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? httpContext.Request.Headers.Host.ToString(),

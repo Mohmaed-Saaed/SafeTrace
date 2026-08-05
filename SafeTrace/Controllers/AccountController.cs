@@ -101,7 +101,7 @@ namespace SafeTrace.API.Controllers
         [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
         [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
         [AllowAnonymous]
-        [EnableRateLimiting(RateLimitPolicies.AuthLimit)]
+        [EnableRateLimiting(RateLimitPolicies.OtpSubmitLimit)]
         [HttpPost("confirm-email")]
         public async Task<IActionResult> ConfirmEmail([FromQuery] string email, [FromQuery] string otpCode)
         {
@@ -119,7 +119,7 @@ namespace SafeTrace.API.Controllers
         [ProducesResponseType(typeof(ApiResponse<string>), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
         [AllowAnonymous]
-        [EnableRateLimiting(RateLimitPolicies.AuthLimit)]
+        [EnableRateLimiting(RateLimitPolicies.OtpRequestLimit)]
         [HttpPost("resend-otp")]
         public async Task<IActionResult> ResendOtp([FromQuery] string email, [FromQuery] OtpType type)
         {
@@ -138,7 +138,7 @@ namespace SafeTrace.API.Controllers
         [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
         [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
         [AllowAnonymous]
-        [EnableRateLimiting(RateLimitPolicies.AuthLimit)]
+        [EnableRateLimiting(RateLimitPolicies.OtpRequestLimit)]
         [HttpPost("forget-password")]
         public async Task<IActionResult> ForgetPassword([FromQuery] string email)
         {
@@ -159,7 +159,7 @@ namespace SafeTrace.API.Controllers
         [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
         [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
         [AllowAnonymous]
-        [EnableRateLimiting(RateLimitPolicies.AuthLimit)]
+        [EnableRateLimiting(RateLimitPolicies.OtpSubmitLimit)]
         [HttpPost("reset-password")]
         public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordDto resetPasswordDto)
         {
