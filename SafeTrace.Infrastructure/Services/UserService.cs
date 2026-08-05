@@ -177,19 +177,16 @@ namespace SafeTrace.Infrastructure.Services
             var targetUserRole = targetUserRoles.FirstOrDefault() ?? UserRole.User.ToString();
 
             if (targetUserRole == UserRole.SuperAdmin.ToString()) 
-                throw new ForbiddenException("غير مسموح بالمساس بصلاحيات أو دور المالك الأساسي للنظام.");
+                throw new ForbiddenException("غير مسموح بالمساس بصلاحيات أو دور مدير النظام.");
 
-            if (currentUserRole == UserRole.Admin.ToString())
-            {
-                if (targetUserRole == UserRole.Admin.ToString())
-                    throw new ForbiddenException("غير مسموح للمسؤول بتعديل صلاحيات أو دور مسؤول آخر.");
-
-                if (dto.NewRole == UserRole.Admin.ToString() || dto.NewRole == UserRole.SuperAdmin.ToString())
-                    throw new ForbiddenException("غير مسموح لك بترقية مستخدم إلى مسؤول أو مدير النظام.");
-            }
-            
             if (dto.NewRole == UserRole.SuperAdmin.ToString())
                 throw new ForbiddenException("لا يمكن لأي شخص تعيين صلاحية مدير النظام من لوحة التحكم.");
+
+            if (dto.NewRole == UserRole.Admin.ToString() && currentUserRole != UserRole.SuperAdmin.ToString())
+                throw new ForbiddenException("فقط مدير النظام (SuperAdmin) يمكنه تعيين أو ترقية أي مستخدم لدور مسؤول (Admin).");
+
+            if (targetUserRole == UserRole.Admin.ToString() && currentUserRole != UserRole.SuperAdmin.ToString())
+                throw new ForbiddenException("فقط مدير النظام (SuperAdmin) يمكنه تعديل دور مسؤول (Admin) آخر.");
 
             var roleExists = await _roleManager.RoleExistsAsync(dto.NewRole);
             if (!roleExists) throw new BadRequestException("الدور (Role) المحدد غير موجود.");
@@ -254,11 +251,11 @@ namespace SafeTrace.Infrastructure.Services
             var currentUserRoles = await _userManager.GetRolesAsync(currentUser!);
             var currentUserRole = currentUserRoles.FirstOrDefault() ?? UserRole.User.ToString();
 
-            if (currentUserRole == UserRole.Admin.ToString() && (dto.Role == UserRole.Admin.ToString() || dto.Role == UserRole.SuperAdmin.ToString()))
-                throw new ForbiddenException("غير مسموح للأدمن بإنشاء حساب بصلاحيات مسؤول أو مدير النظام.");
-
             if (dto.Role == UserRole.SuperAdmin.ToString())
                 throw new ForbiddenException("لا يمكن لأي شخص إنشاء حساب بصلاحية مدير النظام من لوحة التحكم.");
+
+            if (dto.Role == UserRole.Admin.ToString() && currentUserRole != UserRole.SuperAdmin.ToString())
+                throw new ForbiddenException("فقط مدير النظام (SuperAdmin) يمكنه إنشاء حساب بصلاحية مسؤول (Admin).");
 
             var userExists = await _userManager.FindByEmailAsync(dto.Email);
             if (userExists != null) throw new ConflictException("هذا البريد الإلكتروني مسجل لدينا بالفعل.");
@@ -417,8 +414,6 @@ namespace SafeTrace.Infrastructure.Services
             var targetUser = await _userManager.FindByIdAsync(userId);
             if (targetUser == null) throw new NotFoundException("لم يتم العثور على هذا الحساب.");
 
-            if (targetUser.Email == SystemConstants.RootAdminEmail) throw new ForbiddenException("غير مسموح بحظر المدير الأساسي للنظام.");
-
             var currentUser = await _userManager.FindByIdAsync(currentUserId);
             var currentUserRoles = await _userManager.GetRolesAsync(currentUser!);
             var targetUserRoles = await _userManager.GetRolesAsync(targetUser);
@@ -427,10 +422,10 @@ namespace SafeTrace.Infrastructure.Services
             var targetUserRole = targetUserRoles.FirstOrDefault() ?? UserRole.User.ToString();
 
             if (targetUserRole == UserRole.SuperAdmin.ToString())
-                throw new ForbiddenException("غير مسموح بحظر مدير النظام.");
+                throw new ForbiddenException("غير مسموح بحظر مدير النظام (SuperAdmin).");
 
-            if (currentUserRole == UserRole.Admin.ToString() && targetUserRole == UserRole.Admin.ToString())
-                throw new ForbiddenException("غير مسموح للمسؤول بحظر مسؤول آخر.");
+            if (targetUserRole == UserRole.Admin.ToString() && currentUserRole != UserRole.SuperAdmin.ToString())
+                throw new ForbiddenException("فقط مدير النظام (SuperAdmin) يمكنه حظر حساب مسؤول (Admin).");
 
             bool isCurrentlyBlocked = targetUser.LockoutEnd.HasValue && targetUser.LockoutEnd.Value > DateTimeOffset.UtcNow;
 
@@ -553,12 +548,22 @@ namespace SafeTrace.Infrastructure.Services
         {
             var now = DateTimeOffset.UtcNow;
 
-            var baseQuery = _userManager.Users.Where(u => u.EmailConfirmed);
+            var stats = await _userManager.Users
+                .Where(u => u.EmailConfirmed)
+                .GroupBy(u => 1)
+                .Select(g => new
+                {
+                    TotalUsers = g.Count(),
+                    VerifiedUsers = g.Count(u => u.VerificationStatus == VerificationStatus.Verified),
+                    PendingUsers = g.Count(u => u.VerificationStatus == VerificationStatus.Pending),
+                    BannedUsers = g.Count(u => u.LockoutEnd != null && u.LockoutEnd > now)
+                })
+                .FirstOrDefaultAsync();
 
-            var totalUsers = await baseQuery.CountAsync();
-            var verifiedUsers = await baseQuery.CountAsync(u => u.VerificationStatus == VerificationStatus.Verified);
-            var pendingUsers = await baseQuery.CountAsync(u => u.VerificationStatus == VerificationStatus.Pending);
-            var bannedUsers = await baseQuery.CountAsync(u => u.LockoutEnd != null && u.LockoutEnd > now);
+            var totalUsers = stats?.TotalUsers ?? 0;
+            var verifiedUsers = stats?.VerifiedUsers ?? 0;
+            var pendingUsers = stats?.PendingUsers ?? 0;
+            var bannedUsers = stats?.BannedUsers ?? 0;
 
             var activeUsers = totalUsers - bannedUsers;
             var unverifiedUsers = totalUsers - verifiedUsers - pendingUsers;
@@ -589,8 +594,8 @@ namespace SafeTrace.Infrastructure.Services
                 var term = filterDto.SearchTerm.Trim().ToLower();
 
                 query = query.Where(u =>
-                    (u.FName + " " + u.LName).ToLower().Contains(term) ||
-                    u.Email!.ToLower().Contains(term) ||
+                    (u.FName + " " + u.LName).Contains(term) ||
+                    u.Email!.Contains(term) ||
                     u.PhoneNumber!.Contains(term));
             }
 
