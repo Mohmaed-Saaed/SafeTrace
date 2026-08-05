@@ -299,7 +299,19 @@ namespace SafeTrace.Infrastructure.Services
         private async Task<MemoryStream> GetImageMemoryStreamAsync(IFormFile imageFile)
         {
             var outputStream = new MemoryStream();
-            await imageFile.CopyToAsync(outputStream);
+            var extension = Path.GetExtension(imageFile.FileName).ToLowerInvariant();
+
+            if (extension == ".webp" || imageFile.ContentType == "image/webp")
+            {
+                using var inputStream = imageFile.OpenReadStream();
+                using var image = await SixLabors.ImageSharp.Image.LoadAsync(inputStream);
+                await image.SaveAsync(outputStream, new SixLabors.ImageSharp.Formats.Jpeg.JpegEncoder());
+            }
+            else
+            {
+                await imageFile.CopyToAsync(outputStream);
+            }
+
             outputStream.Position = 0;
             return outputStream;
         }
