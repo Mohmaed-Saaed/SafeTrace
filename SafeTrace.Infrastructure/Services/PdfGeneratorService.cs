@@ -1,4 +1,4 @@
-﻿using Amazon.Runtime.Internal.Transform;
+using Amazon.Runtime.Internal.Transform;
 using Microsoft.AspNetCore.Hosting;
 using QuestPDF.Fluent;
 using QuestPDF.Helpers;
@@ -77,6 +77,10 @@ namespace SafeTrace.Infrastructure.Services
                                                 ["البحث"] = string.IsNullOrWhiteSpace(filter.Search)
                                                     ? "لا يوجد"
                                                     : filter.Search,
+                                                
+                                                ["موضوع الشكوى"] = string.IsNullOrWhiteSpace(filter.ContactType)
+                                                    ? "الكل"
+                                                    : filter.ContactType,
 
                                                 ["الحالة"] = filter.Status.HasValue
                                                     ? GetStatusName(filter.Status.Value)
@@ -113,13 +117,14 @@ namespace SafeTrace.Infrastructure.Services
                             {
                                 columns.ConstantColumn(30); // #
                                 columns.RelativeColumn(2);   // البريد الإلكتروني
+                                columns.RelativeColumn(1.5f); // موضوع الشكوى
                                 columns.RelativeColumn(1);   // رقم الحالة
                                 columns.RelativeColumn(1);   // الحالة
                                 columns.RelativeColumn(1);   // تاريخ الإنشاء
                             });
 
                             ReportTemplate.TableHeader(table,
-                                "#", "البريد الإلكتروني", "رقم الحالة", "الحالة", "تاريخ الإنشاء");
+                                "#", "البريد الإلكتروني", "موضوع الشكوى", "رقم الحالة", "الحالة", "تاريخ الإنشاء");
 
                             for (int i = 0; i < complaints.Count; i++)
                             {
@@ -130,6 +135,24 @@ namespace SafeTrace.Infrastructure.Services
 
                                 table.Cell().Element(c => ReportTemplate.BodyCellStyle(c, i))
                                     .Text(complaint.UserEmail)
+                                    .FontSize(9);
+
+                                string contactType = "غير محدد";
+                                if (complaint.Message.StartsWith("["))
+                                {
+                                    int endIndex = complaint.Message.IndexOf("]");
+                                    if (endIndex > 0)
+                                    {
+                                        contactType = complaint.Message.Substring(1, endIndex - 1);
+                                    }
+                                }
+                                else if (!string.IsNullOrWhiteSpace(complaint.CaseCode))
+                                {
+                                    contactType = "شكوى حالة";
+                                }
+
+                                table.Cell().Element(c => ReportTemplate.BodyCellStyle(c, i))
+                                    .Text(contactType)
                                     .FontSize(9);
 
                                 table.Cell().Element(c => ReportTemplate.BodyCellStyle(c, i))

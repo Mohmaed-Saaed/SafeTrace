@@ -1,4 +1,4 @@
-﻿using ClosedXML.Excel;
+using ClosedXML.Excel;
 using SafeTrace.Application.DTOs.Complaints.Request;
 using SafeTrace.Application.DTOs.Complaints.Response;
 using SafeTrace.Domain.Enums;
@@ -71,12 +71,15 @@ namespace SafeTrace.Infrastructure.Services
                 .Value = "البريد الإلكتروني";
 
             worksheet.Cell(headerRow, 3)
-                .Value = "رقم الحالة";
+                .Value = "موضوع الشكوى";
 
             worksheet.Cell(headerRow, 4)
-                .Value = "الحالة";
+                .Value = "رقم الحالة";
 
             worksheet.Cell(headerRow, 5)
+                .Value = "الحالة";
+
+            worksheet.Cell(headerRow, 6)
                 .Value = "تاريخ الإنشاء";
 
 
@@ -96,16 +99,34 @@ namespace SafeTrace.Infrastructure.Services
                     .Value = complaint.UserEmail;
 
 
+                string contactType = "غير محدد";
+                if (complaint.Message.StartsWith("["))
+                {
+                    int endIndex = complaint.Message.IndexOf("]");
+                    if (endIndex > 0)
+                    {
+                        contactType = complaint.Message.Substring(1, endIndex - 1);
+                    }
+                }
+                else if (!string.IsNullOrWhiteSpace(complaint.CaseCode))
+                {
+                    contactType = "شكوى حالة";
+                }
+
                 worksheet.Cell(row, 3)
-                    .Value = complaint.CaseCode ?? "-";
+                    .Value = contactType;
 
 
                 worksheet.Cell(row, 4)
+                    .Value = complaint.CaseCode ?? "-";
+
+
+                worksheet.Cell(row, 5)
                     .Value = GetStatusName(
                         complaint.ComplaintStatus);
 
 
-                worksheet.Cell(row, 5)
+                worksheet.Cell(row, 6)
                     .Value = complaint.CreatedAt
                     .ToString("yyyy/MM/dd");
             }
