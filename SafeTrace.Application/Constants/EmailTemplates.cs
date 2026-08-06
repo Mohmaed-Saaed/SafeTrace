@@ -280,6 +280,52 @@ namespace SafeTrace.Application.Constants
                 <p style='color: #75777D; font-size: 13px; line-height: 1.8; margin: 0;'>إذا لم تكن ترغب في إضافة كلمة مرور، يمكنك تجاهل هذه الخطوة والاستمرار في استخدام حساب جوجل لتسجيل الدخول بشكل طبيعي.</p>");
         }
 
+        private static string BuildSectionTitle(string title)
+        {
+            return $"<h2 style='color: #091426; font-size: 22px; font-weight: 700; margin: 0 0 16px 0;'>{WebUtility.HtmlEncode(title)}</h2>";
+        }
+
+        private static string BuildAlertCard(string message, string type = "info")
+        {
+            var (bgColor, borderColor, textColor, icon) = type.ToLowerInvariant() switch
+            {
+                "success" => ("#E6F6F4", "#00A292", "#006B60", "✅ "),
+                "error" => ("#FFEDEC", "#BA1A1A", "#BA1A1A", "❌ "),
+                "warning" => ("#FFFBEB", "#F59E0B", "#B45309", "⚠️ "),
+                _ => ("#F8F9FF", "#D3E4FE", "#0058BE", "💡 ") // info
+            };
+
+            return $@"
+                <div style='background-color: {bgColor}; border: 1px solid {borderColor}; padding: 20px 24px; border-radius: 16px; margin: 24px 0; color: {textColor}; font-size: 15px; font-weight: 700; text-align: center;'>
+                    {icon}{message}
+                </div>";
+        }
+
+        private static string BuildInfoTable(IEnumerable<(string Label, string Value)> details)
+        {
+            var encodedDetails = details.Select((detail, index) =>
+                $"<tr style='border-bottom: 1px solid #E2E8F0;{(index % 2 == 1 ? " background-color: #F8F9FF;" : " background-color: #FFFFFF;")}'>" +
+                $"<td style='padding: 14px 20px; color: #75777D; font-weight: 600; width: 40%;'>{WebUtility.HtmlEncode(detail.Label)}:</td>" +
+                $"<td style='padding: 14px 20px; color: #0B1C30; font-weight: 700;'>{WebUtility.HtmlEncode(detail.Value)}</td></tr>");
+
+            return $@"
+                <div style='background-color: #F8F9FF; border: 1px solid #C5C6CD; border-radius: 16px; overflow: hidden; margin: 24px 0;'>
+                    <table role='presentation' cellSpacing='0' cellPadding='0' border='0' width='100%' style='border-collapse: collapse; font-size: 15px;'>
+                        {string.Concat(encodedDetails)}
+                    </table>
+                </div>";
+        }
+
+        private static string BuildPrimaryButton(string text, string url)
+        {
+            return $@"
+                <div style='text-align: center; margin: 32px 0;'>
+                    <a href='{WebUtility.HtmlEncode(url)}' style='background: linear-gradient(135deg, {ButtonColor} 0%, {PrimaryColor} 100%); color: #ffffff; padding: 14px 32px; border-radius: 12px; text-decoration: none; font-weight: 700; font-size: 16px; display: inline-block; box-shadow: 0 4px 14px rgba(0, 88, 190, 0.3);'>
+                        {WebUtility.HtmlEncode(text)}
+                    </a>
+                </div>";
+        }
+
         public static string BuildUrgentCaseNotificationEmailTemplate(
             string caseName,
             string caseCode,
@@ -301,66 +347,101 @@ namespace SafeTrace.Application.Constants
                 ("كود الحالة", caseCode)
             };
 
-            return BuildCaseEmailTemplate(string.Empty, details, detailsUrl, includeBranding: false);
+            var header = $@"
+                <div style='text-align: center; margin-bottom: 20px;'>
+                    <span style='font-size: 48px; display: block; margin-bottom: 8px;'>🚨</span>
+                    <h2 style='color: #BA1A1A; font-size: 24px; font-weight: 800; margin: 0;'>تنبيه حالة عاجلة!</h2>
+                </div>
+                <p style='color: #0B1C30; font-size: 16px; line-height: 1.9; margin: 0 0 24px 0; text-align: center;'>يرجى الانتباه، تم الإبلاغ عن حالة عاجلة بالقرب منك. كل ثانية تصنع فارقاً.</p>";
+
+            var footer = "<p style='color: #75777D; font-size: 13px; line-height: 1.8; margin: 0; text-align: center;'>وصلك هذا التنبيه بناءً على إعدادات موقعك. يمكنك تعديل الإعدادات من المنصة.</p>";
+
+            return BuildCaseEmailTemplate(
+                heading: string.Empty,
+                details: details,
+                detailsUrl: detailsUrl,
+                alertMessage: "هذه الحالة تم تصنيفها كحالة عاجلة، يرجى المساعدة في حال توافر أي معلومات.",
+                alertType: "warning",
+                buttonText: "عرض تفاصيل الحالة والمساعدة",
+                customHeaderHtml: header,
+                customFooterHtml: footer);
         }
 
         public static string BuildCaseApprovedEmailTemplate(
             string userName,
             string caseCode,
             string caseType,
-            string detailsUrl) =>
-            BuildCaseEmailTemplate(
-                $"مرحباً، {userName}",
-                new[]
-                {
-                    ("نوع الحالة", caseType),
-                    ("كود الحالة", caseCode),
-                    ("التحديث", "تمت الموافقة على حالتك بنجاح."),
-                    ("ملاحظة", "يمكنك البحث عن الحالة باستخدام كود الحالة أو متابعة تفاصيلها من خلال المنصة.")
-                },
-                detailsUrl);
+            string detailsUrl)
+        {
+            var details = new[]
+            {
+                ("كود الحالة", caseCode),
+                ("نوع الحالة", caseType)
+            };
+
+            var header = $@"
+                <div style='text-align: center; margin-bottom: 20px;'>
+                    <span style='font-size: 48px; display: block; margin-bottom: 8px;'>🎉</span>
+                    <h2 style='color: #091426; font-size: 24px; font-weight: 800; margin: 0;'>مرحباً {WebUtility.HtmlEncode(userName)}، تمت الموافقة!</h2>
+                </div>
+                <p style='color: #0B1C30; font-size: 16px; line-height: 1.9; margin: 0 0 24px 0; text-align: center;'>يسعدنا إخبارك بأنه تم مراجعة الحالة وقبولها بنجاح وهي الآن متاحة للبحث والمشاركة.</p>";
+
+            return BuildCaseEmailTemplate(
+                heading: string.Empty,
+                details: details,
+                detailsUrl: detailsUrl,
+                alertMessage: "تمت الموافقة على حالتك بنجاح وتم نشرها على المنصة.",
+                alertType: "success",
+                buttonText: "عرض تفاصيل الحالة",
+                customHeaderHtml: header);
+        }
 
         public static string BuildCaseRejectedEmailTemplate(
             string userName,
             string caseCode,
             string rejectionReason,
-            string detailsUrl) =>
-            BuildCaseEmailTemplate(
-                $"مرحباً، {userName}",
-                new[]
-                {
-                    ("كود الحالة", caseCode),
-                    ("سبب الرفض", rejectionReason)
-                },
-                detailsUrl);
+            string detailsUrl)
+        {
+            var details = new[]
+            {
+                ("كود الحالة", caseCode),
+                ("سبب الرفض", rejectionReason)
+            };
+
+            var header = $@"
+                {BuildSectionTitle($"مرحباً، {userName}")}
+                <p style='color: #0B1C30; font-size: 16px; line-height: 1.9; margin: 0 0 24px 0;'>لقد قام فريقنا بمراجعة الحالة، ووجدنا بعض الملاحظات التي تمنعنا من نشرها. يرجى الاطلاع على التفاصيل أدناه.</p>";
+
+            return BuildCaseEmailTemplate(
+                heading: string.Empty,
+                details: details,
+                detailsUrl: detailsUrl,
+                alertMessage: "عذراً، لم نتمكن من الموافقة على الحالة المرفوعة في الوقت الحالي.",
+                alertType: "error",
+                buttonText: "فتح تفاصيل الحالة",
+                customHeaderHtml: header);
+        }
 
         private static string BuildCaseEmailTemplate(
             string heading,
             IEnumerable<(string Label, string Value)> details,
             string detailsUrl,
-            bool includeBranding = true)
+            string? alertMessage = null,
+            string alertType = "info",
+            string buttonText = "عرض تفاصيل الحالة",
+            string? customHeaderHtml = null,
+            string? customFooterHtml = null)
         {
-            var encodedDetails = details.Select((detail, index) =>
-                $"<tr style='border-bottom: 1px solid #E2E8F0;{(index % 2 == 1 ? " background-color: #F8F9FF;" : " background-color: #FFFFFF;")}'>" +
-                $"<td style='padding:14px 20px;color:#75777D;font-weight:600;width:35%;'>{WebUtility.HtmlEncode(detail.Label)}</td>" +
-                $"<td style='padding:14px 20px;font-weight:700;color:#0B1C30;'>{WebUtility.HtmlEncode(detail.Value)}</td></tr>");
-
             var body = $@"
-                {(!string.IsNullOrEmpty(heading) ? $"<h2 style='color: #091426; font-size: 22px; font-weight: 700; margin: 0 0 24px 0;'>{WebUtility.HtmlEncode(heading)}</h2>" : string.Empty)}
-                
-                <div style='background-color: #FFFFFF; border: 1px solid #C5C6CD; border-radius: 16px; overflow: hidden; margin: 24px 0;'>
-                    <table role='presentation' cellSpacing='0' cellPadding='0' border='0' width='100%' style='width:100%;border-collapse:collapse;font-size:15px;'>
-                        {string.Concat(encodedDetails)}
-                    </table>
-                </div>
+                {customHeaderHtml}
+                {(!string.IsNullOrEmpty(heading) ? BuildSectionTitle(heading) : string.Empty)}
+                {(!string.IsNullOrEmpty(alertMessage) ? BuildAlertCard(alertMessage, alertType) : string.Empty)}
+                {BuildInfoTable(details)}
+                {BuildPrimaryButton(buttonText, detailsUrl)}
+                {customFooterHtml}
+            ";
 
-                <div style='text-align:center;margin:32px 0;'>
-                    <a href='{WebUtility.HtmlEncode(detailsUrl)}' style='background: linear-gradient(135deg, {ButtonColor} 0%, {PrimaryColor} 100%); color:#FFFFFF; padding:14px 32px; border-radius:12px; text-decoration:none; font-size:16px; font-weight:700; display:inline-block; box-shadow: 0 4px 14px rgba(0, 88, 190, 0.3);'>
-                        عرض تفاصيل الحالة
-                    </a>
-                </div>";
-
-            return includeBranding ? WrapInBaseLayout(body) : body;
+            return WrapInBaseLayout(body);
         }
 
         public static string BuildComplaintResolvedTemplate(string fullName, string solutionMessage)

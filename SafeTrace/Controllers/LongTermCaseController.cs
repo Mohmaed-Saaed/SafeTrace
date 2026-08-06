@@ -111,7 +111,7 @@ namespace SafeTrace.API.Controllers
         {
             if (CurrentUserId == null) throw new UnauthorizedException("لم يتم التعرف على هوية المستخدم.");
 
-            await _service.UpdateAsync(id, CurrentUserId, dto);
+            await _service.UpdateAsync(id, dto);
             return NoContent();
         }
 
