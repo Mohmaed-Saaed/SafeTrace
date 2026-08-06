@@ -168,12 +168,10 @@ namespace SafeTrace.Application.Services.Cases
         /// <summary>
         /// Soft deletes a case while preserving its data for future recovery.
         /// </summary>
-        public virtual async Task<ApiResponse<string>> SoftDeleteAsync(long caseId, string userId, bool checkOwnership = true)
+        public virtual async Task<ApiResponse<string>> SoftDeleteAsync(long caseId, string userId)
         {
             var entity = await _caseHelper.GetValidCaseAsync<TEntity>(
                 caseId,
-                userId,
-                checkOwnership: checkOwnership,
                 includes: x => x.CaseFiles);
 
             if (entity.Status == CaseStatus.Found)
@@ -213,9 +211,9 @@ namespace SafeTrace.Application.Services.Cases
         /// <summary>
         /// Marks a case as found and stores the found person information.
         /// </summary>
-        public virtual async Task<ApiResponse<string>> MarkAsFoundAsync(long caseId, string userId, FoundPersonInfoRequestDto foundPersonInfo, bool checkOwnership = true)
+        public virtual async Task<ApiResponse<string>> MarkAsFoundAsync(long caseId, string userId, FoundPersonInfoRequestDto foundPersonInfo)
         {
-            var entity = await _caseHelper.GetValidCaseAsync<TEntity>(caseId, userId, checkOwnership);
+            var entity = await _caseHelper.GetValidCaseAsync<TEntity>(caseId);
 
             if (entity.Status == CaseStatus.Found)
                 throw new BadRequestException("تم تسجيل هذه الحالة كمُعثر عليها بالفعل.");
@@ -496,13 +494,11 @@ namespace SafeTrace.Application.Services.Cases
         {
             var entity = await _caseHelper.GetValidCaseAsync<TEntity>(
             id,
-            userId: userId,
-            checkOwnership: true,
-           allowDeleted: false,
-           tracked: false,
-          x => x.CaseFiles,
-          x => x.User,
-          x => x.AgeCategory);
+            allowDeleted: false,
+            tracked: false,
+            x => x.CaseFiles,
+            x => x.User,
+            x => x.AgeCategory);
      
             if (entity.Status == CaseStatus.Deleted)
                 throw new NotFoundException("الحالة غير موجودة.");

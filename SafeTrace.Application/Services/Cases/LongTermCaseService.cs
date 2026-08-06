@@ -144,12 +144,10 @@ namespace SafeTrace.Application.Services.Cases
                 });
         }
 
-        public async Task<ApiResponse<string>> UpdateAsync(long id, string userId, UpdateLongTermCaseDto dto)
+        public async Task<ApiResponse<string>> UpdateAsync(long id, UpdateLongTermCaseDto dto)
         {
             var entity = await _caseHelper.GetValidCaseAsync<LongTermMissingCase>(
                 id,
-                userId,
-                checkOwnership: true,
                 includes: [c => c.CaseFiles]);
 
             _caseHelper.ValidateCaseIsEditable(entity);
@@ -286,7 +284,7 @@ namespace SafeTrace.Application.Services.Cases
                         ex,
                         "Failed to update LongTerm case {CaseId} by user {UserId}",
                         id,
-                        userId);
+                        entity.UserId);
                 });
 
             _caseHelper.CleanupPhysicalFiles(filesToDelete);
@@ -297,7 +295,7 @@ namespace SafeTrace.Application.Services.Cases
             _logger.LogInformation(
                 "Updated case {CaseId} by user {UserId}",
                 id,
-                userId);
+                entity.UserId);
 
             return ApiResponse<string>.Ok(message: "تم تحديث حالة الفقد طويلة المدة بنجاح.");
         }   

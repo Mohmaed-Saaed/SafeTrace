@@ -45,8 +45,6 @@ namespace SafeTrace.Application.Services.Cases
 
         public async Task<TEntity> GetValidCaseAsync<TEntity>(
             long id,
-            string? userId = null,
-            bool checkOwnership = false,
             bool allowDeleted = false,
             bool tracked = true,
             params Expression<Func<TEntity, object>>[] includes)
@@ -60,11 +58,6 @@ namespace SafeTrace.Application.Services.Cases
             if (entity == null)
             {
                 throw new NotFoundException("الحالة غير موجودة.");
-            }
-
-            if (checkOwnership && !string.IsNullOrEmpty(userId) && entity.UserId != userId)
-            {
-                throw new UnauthorizedException("لا يمكن تنفيذ هذا الإجراء على هذه الحالة.");
             }
 
             return entity;

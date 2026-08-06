@@ -225,8 +225,6 @@ namespace SafeTrace.Application.Services.Cases
         {
             var entity = await _caseHelper.GetValidCaseAsync<UnknownCase>(
                 id,
-                userId,
-                checkOwnership: true,
                 includes: [x => x.CaseFiles]);
 
             _caseHelper.ValidateCaseIsEditable(entity);
