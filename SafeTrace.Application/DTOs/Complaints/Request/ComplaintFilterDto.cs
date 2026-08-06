@@ -1,7 +1,10 @@
+using SafeTrace.Application.Common.Validators.Attributes;
+
 namespace SafeTrace.Application.DTOs.Complaints.Request
 {
     public class ComplaintFilterDto
     {
+        [CaseCode]
         public string? CaseCode { get; set; }
         public string? Search { get; set; }
         public ComplaintStatus? Status { get; set; }
