@@ -302,10 +302,10 @@ namespace SafeTrace.Application.Services
                     c.Status == filter.Status.Value);
             }
 
-            if (filter.Type.HasValue) 
+            if (filter.CaseType.HasValue) 
             {
                 query = query.Where(c =>
-                c.CaseType == filter.Type.Value);
+                c.CaseType == filter.CaseType.Value);
             }
 
             if (filter.Gender.HasValue)

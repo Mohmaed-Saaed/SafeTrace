@@ -166,12 +166,9 @@ namespace SafeTrace.Application.Services.UserProfileServices
         public async Task<ApiResponse<bool>> UpdateNameAsync(string userId, UpdateNameDTO dto)
         {
             var user = await GetUser(userId);
-            //if (user == null)
-            //{
-            //    throw new NotFoundException("المستخدم غير موجود");
-            //}
-            //else
-            //{
+            dto.FirstName = dto.FirstName.Trim();
+            dto.LastName = dto.LastName.Trim();
+            
             _mapper.Map(dto, user);
             var result = await _userManager.UpdateAsync(user);
             return ApiResponse<bool>.Ok(true, "تم تحديث الاسم بنجاح");

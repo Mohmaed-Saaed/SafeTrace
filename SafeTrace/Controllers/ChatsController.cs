@@ -4,8 +4,10 @@ using Microsoft.AspNetCore.Mvc;
 using SafeTrace.Application.Constants;
 using SafeTrace.Application.DTOs.Chat;
 using SafeTrace.Application.Interfaces.IServices;
+using SafeTrace.Application.Services;
 using SafeTrace.Infrastructure.Authorization;
 using System.Security.Claims;
+using static SafeTrace.Application.Constants.Permissions;
 
 namespace SafeTrace.API.Controllers
 {
@@ -155,15 +157,37 @@ namespace SafeTrace.API.Controllers
         /// </remarks>
         /// <response code="200">Messages retrieved successfully.</response>
         /// <response code="404">Chat not found.</response>
+        [Authorize]        
+        
         [HttpGet("{chatId:long}/messages")]
-        [HasPermission(Permissions.Chat.GetMessages)]
         public async Task<IActionResult> GetMessages(
            [FromRoute] long chatId)
         {
             var userId = CurrentUserId;
-            var messages = await _chatService.GetPaginatedMessagesAsync(chatId, userId,IsAdmin);
+            var messages = await _chatService.GetChatMessagesAsync(chatId, userId);
             return Ok(messages);
 
+        }
+
+        /// <summary>
+        /// Retrieves all messages for a chat as an administrator.
+        /// </summary>
+        /// <param name="chatId">Chat identifier.</param>
+        /// <remarks>
+        /// Returns all messages in the specified chat, including messages that may be hidden from regular users.
+        /// Messages are returned ordered from oldest to newest.
+        /// Requires the <c>Chat.GetMessages</c> permission.
+        /// </remarks>
+        /// <response code="200">Messages retrieved successfully.</response>
+        /// <response code="404">Chat not found.</response>
+        /// <response code="403">The current user does not have permission to access chat messages.</response>
+        [HttpGet("admin/{chatId:long}/messages")]
+        [HasPermission(Permissions.Chat.GetMessages)]
+        public async Task<IActionResult> GetAdminMessages(long chatId)
+        {
+            var result = await _chatService.GetAdminChatMessagesAsync(chatId);
+
+            return Ok(result);
         }
 
         /// <summary>
@@ -241,7 +265,6 @@ namespace SafeTrace.API.Controllers
             return Ok(result);
         }
 
-        private bool IsAdmin => User.IsInRole("Admin");
 
     }
 }
