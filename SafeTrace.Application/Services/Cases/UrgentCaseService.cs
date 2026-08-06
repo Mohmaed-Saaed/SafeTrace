@@ -183,11 +183,9 @@ namespace SafeTrace.Application.Services.Cases
         {
             var entity = await _caseHelper.GetValidCaseAsync<UrgentCase>(
                 id,
-                userId,
-                checkOwnership: true,
                 includes: [x => x.CaseFiles]);
 
-            _caseHelper.ValidateCaseIsEditable(entity);
+            _caseHelper.ValidateCaseIsEditable(entity); 
 
             var existingFaceIds = entity.CaseFiles?
                 .Where(f => !string.IsNullOrWhiteSpace(f.FaceId))
