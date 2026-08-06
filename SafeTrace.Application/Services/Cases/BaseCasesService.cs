@@ -385,13 +385,21 @@ namespace SafeTrace.Application.Services.Cases
 
             if (!string.IsNullOrWhiteSpace(filter.FullName))
             {
-                var name = filter.FullName.Trim();
+                var terms = filter.FullName
+                    .Trim()
+                    .Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                    .Distinct(StringComparer.OrdinalIgnoreCase);
 
-                query = query.Where(x =>
-                    (x.FName ?? "").Contains(name) ||
-                    (x.SName ?? "").Contains(name) ||
-                    (x.TName ?? "").Contains(name) ||
-                    (x.LName ?? "").Contains(name));
+                foreach (var term in terms)
+                {
+                    var pattern = $"%{term}%";
+
+                    query = query.Where(x =>
+                        EF.Functions.Like(x.FName!, pattern) ||
+                        EF.Functions.Like(x.SName!, pattern) ||
+                        EF.Functions.Like(x.TName!, pattern) ||
+                        EF.Functions.Like(x.LName!, pattern));
+                }
             }
 
             if (!string.IsNullOrWhiteSpace(filter.CaseCode))
