@@ -339,7 +339,7 @@ namespace SafeTrace.Application.Services.Cases
         protected virtual IQueryable<TEntity> BuildGetAllQuery()
         {
             return _unitOfWork.Repository<TEntity>()
-                .Query(tracked: false, includes: x => x.CaseFiles)
+                .Query(tracked: false, includes: [x => x.CaseFiles, x => x.User])
                 .Where(x => x.Status == CaseStatus.Active);
         }
 

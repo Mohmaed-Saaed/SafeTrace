@@ -33,7 +33,10 @@ namespace SafeTrace.Application.Mapping
                     opt => opt.MapFrom(src => src.FoundedAt))
                   .ForMember(
                     dest => dest.Gender,
-                    opt => opt.MapFrom(src => src.Case.Gender));
+                    opt => opt.MapFrom(src => src.Case.Gender))
+                .ForMember(
+                    dest => dest.CaseType,
+                    opt => opt.MapFrom(src => src.Case.CaseType));
 
 
             CreateMap<FoundPersonInfo, PostDetailsResponseDTO>()
