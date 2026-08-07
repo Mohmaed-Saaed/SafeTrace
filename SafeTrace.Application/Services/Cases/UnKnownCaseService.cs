@@ -46,6 +46,7 @@ namespace SafeTrace.Application.Services.Cases
                     includes:
                     [
                         x => x.CaseFiles,
+                        x => x.User,
                         x => x.DuplicateGroups
                     ])
                 .Where(x =>

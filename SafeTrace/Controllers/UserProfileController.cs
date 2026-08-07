@@ -38,7 +38,7 @@ namespace SafeTrace.API.Controllers
         /// <param name="Id">معرف المستخدم.</param>
         /// <returns>بيانات الملف الشخصي للمستخدم.</returns>
         [HttpGet("GetVisitedUserInfo/{Id}")]
-        [Authorize]
+        [AllowAnonymous]
         public async Task<IActionResult> GetVisitedUserInfo([FromRoute] string Id)
         {
             var profile = await _user.GetVisitedUserAsync(Id);
