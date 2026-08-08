@@ -20,6 +20,5 @@ namespace SafeTrace.Application.DTOs.UrgentCase.Request
 
         [Range(-180.0, 180.0, ErrorMessage = "Longitude must be between -180 and 180.")]
         public double? Longitude { get; set; }
-        public IFormFile? Video { get; set; }
     }
 }
