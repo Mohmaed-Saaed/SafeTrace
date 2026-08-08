@@ -52,6 +52,8 @@ namespace SafeTrace.Application.DTOs.Cases.Request
         [MaxPhotoSize(5, ErrorMessage = "Each photo must not exceed 5 MB.")]
         public List<IFormFile>? AdditionalImages { get; set; }
 
+        [AllowedVideoTypes(ErrorMessage = "Only MP4, MOV, and WebM videos are allowed.")]
+        [MaxVideoSize(50, ErrorMessage = "Each video must not exceed 50 MB.")]
         public IFormFile? Video { get; set; }
     }
 }
