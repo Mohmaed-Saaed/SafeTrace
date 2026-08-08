@@ -1,6 +1,7 @@
-using System.ComponentModel.DataAnnotations;
+using Microsoft.AspNetCore.Http;
 using SafeTrace.Application.Common.Validators.Attributes;
 using SafeTrace.Application.DTOs.Cases.Request;
+using System.ComponentModel.DataAnnotations;
 
 namespace SafeTrace.Application.DTOs.UnKnownCase.Request
 {
@@ -18,5 +19,6 @@ namespace SafeTrace.Application.DTOs.UnKnownCase.Request
         [ArabicText(ErrorMessage = "Last name must contain Arabic letters and spaces only.")]
         [StringLength(60, MinimumLength = 2, ErrorMessage = "Last name must be between 2 and 60 characters.")]
         public string? LName { get; set; }
+        public IFormFile? Video { get; set; }
     }
 }

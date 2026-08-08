@@ -1,6 +1,7 @@
-using System.ComponentModel.DataAnnotations;
+using Microsoft.AspNetCore.Http;
 using SafeTrace.Application.Common.Validators.Attributes;
 using SafeTrace.Application.DTOs.Cases.Request;
+using System.ComponentModel.DataAnnotations;
 
 namespace SafeTrace.Application.DTOs.UrgentCase.Request
 {
@@ -19,5 +20,6 @@ namespace SafeTrace.Application.DTOs.UrgentCase.Request
 
         [Range(-180.0, 180.0, ErrorMessage = "Longitude must be between -180 and 180.")]
         public double? Longitude { get; set; }
+        public IFormFile? Video { get; set; }
     }
 }
