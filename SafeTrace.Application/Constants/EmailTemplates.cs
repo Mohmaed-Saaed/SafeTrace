@@ -82,7 +82,7 @@ namespace SafeTrace.Application.Constants
                         <a href='{WebsiteUrl}' target='_blank' style='color: #0058BE; text-decoration: none; font-weight: 700;'>{Footer}</a>
                     </p>
                     <p style='margin: 6px 0 0 0; font-size: 13px; color: #75777D;'>
-                        🌐 زيارة المنصة: <a href='{WebsiteUrl}' target='_blank' style='color: #0058BE; font-weight: 600; text-decoration: underline;' dir='ltr'>{WebsiteUrl}</a>
+                        <span>لزيارة موقع المنصة، </span><a href='{WebsiteUrl}' target='_blank' style='color: #75777D; text-decoration: underline;'>اضغط هنا</a>
                     </p>
                 </div>
             </div>
