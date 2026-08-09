@@ -1,10 +1,4 @@
 ﻿using Microsoft.AspNetCore.Http;
-using SafeTrace.Application.Validations;
-using SafeTrace.Domain.Enums;
-using System;
-using System.Collections.Generic;
-using System.ComponentModel.DataAnnotations;
-using System.Text;
 
 namespace SafeTrace.Application.DTOs.Message
 {
