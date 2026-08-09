@@ -35,30 +35,43 @@ namespace SafeTrace.Application.Services
             var aiSearchUsage = _unitOfWork.Repository<AiSearchUsage>()
                 .Query(tracked: false);
 
-            decimal totalSumDonations = await donationQuery.Where(x => x.PaymentStatus == PaymentStatus.Succeeded).SumAsync(x => x.Amount);
+            var donationStats = await donationQuery
+                .GroupBy(x => 1)
+                .Select(g => new
+                {
+                    TotalSum = g.Where(x => x.PaymentStatus == PaymentStatus.Succeeded).Sum(x => x.Amount),
+                    Failed = g.Count(x => x.PaymentStatus == PaymentStatus.Failed),
+                    Succeeded = g.Count(x => x.PaymentStatus == PaymentStatus.Succeeded),
+                    Pending = g.Count(x => x.PaymentStatus == PaymentStatus.Pending)
+                })
+                .FirstOrDefaultAsync();
 
-            int totalCountFailedDonations = await donationQuery.Where(x => x.PaymentStatus == PaymentStatus.Failed).CountAsync();
-
-            int totalCountSucceededDonations = await donationQuery.Where(x => x.PaymentStatus == PaymentStatus.Succeeded).CountAsync();
-
-            int totalCountPendingDonations = await donationQuery.Where(x => x.PaymentStatus == PaymentStatus.Pending).CountAsync();
-
-            int totalSolvedComplaints = await complaints.Where(x => x.ComplaintStatus == ComplaintStatus.Solved).CountAsync();
-
-            int totalUnSolvedComplaints = await complaints.Where(x => x.ComplaintStatus == ComplaintStatus.UnSolved).CountAsync();
+            var complaintStats = await complaints
+                .GroupBy(x => 1)
+                .Select(g => new
+                {
+                    Solved = g.Count(x => x.ComplaintStatus == ComplaintStatus.Solved),
+                    UnSolved = g.Count(x => x.ComplaintStatus == ComplaintStatus.UnSolved)
+                })
+                .FirstOrDefaultAsync();
 
             int totalDailyAISearch = await aiSearchUsage.CountAsync(x => x.CreatedAt.Date == DateTime.Now.Date);
 
+            var usersCount = await _userManager.GetUsersInRoleAsync("User");
 
-            var users = await _userManager.GetUsersInRoleAsync("User");
-
-            var totalCases = await casesQuery.CountAsync();
-            var totalFounded = await casesQuery.CountAsync(x => x.Status == CaseStatus.Found);
-            var totalActive = await casesQuery.CountAsync(x => x.Status == CaseStatus.Active);
-            var totalDeleted = await casesQuery.CountAsync(x => x.Status == CaseStatus.Deleted);
-            var totalPending = await casesQuery.CountAsync(x => x.Status == CaseStatus.Pending);
-            var totalExpired = await casesQuery.CountAsync(x => x.Status == CaseStatus.Expired);
-            var totalRejected = await casesQuery.CountAsync(x => x.Status == CaseStatus.Rejected);
+            var caseStats = await casesQuery
+                .GroupBy(x => 1)
+                .Select(g => new
+                {
+                    Total = g.Count(),
+                    Found = g.Count(x => x.Status == CaseStatus.Found),
+                    Active = g.Count(x => x.Status == CaseStatus.Active),
+                    Deleted = g.Count(x => x.Status == CaseStatus.Deleted),
+                    Pending = g.Count(x => x.Status == CaseStatus.Pending),
+                    Expired = g.Count(x => x.Status == CaseStatus.Expired),
+                    Rejected = g.Count(x => x.Status == CaseStatus.Rejected)
+                })
+                .FirstOrDefaultAsync();
 
             var caseTypes = await casesQuery
                 .GroupBy(x => x.CaseType)
@@ -78,21 +91,21 @@ namespace SafeTrace.Application.Services
             return ApiResponse<DashboardDto>.Ok(
                 new DashboardDto
                 {
-                    TotalUsers = users.Count,
-                    TotalCases = totalCases,
-                    TotalFoundedCases = totalFounded,
-                    TotalActiveCases = totalActive,
-                    TotalDeletedCases = totalDeleted,
-                    TotalPendingCases = totalPending,
-                    TotalExpiredCases = totalExpired,
-                    TotalRejectedCases = totalRejected,
-                    TotalSumDonations = totalSumDonations,
-                    TotalCountFailedDonations = totalCountFailedDonations,
-                    TotalCountSucceededDonations = totalCountSucceededDonations,
-                    TotalCountPendingDonations = totalCountPendingDonations,
+                    TotalUsers = usersCount.Count,
+                    TotalCases = caseStats?.Total ?? 0,
+                    TotalFoundedCases = caseStats?.Found ?? 0,
+                    TotalActiveCases = caseStats?.Active ?? 0,
+                    TotalDeletedCases = caseStats?.Deleted ?? 0,
+                    TotalPendingCases = caseStats?.Pending ?? 0,
+                    TotalExpiredCases = caseStats?.Expired ?? 0,
+                    TotalRejectedCases = caseStats?.Rejected ?? 0,
+                    TotalSumDonations = donationStats?.TotalSum ?? 0,
+                    TotalCountFailedDonations = donationStats?.Failed ?? 0,
+                    TotalCountSucceededDonations = donationStats?.Succeeded ?? 0,
+                    TotalCountPendingDonations = donationStats?.Pending ?? 0,
                     TotalDailyAISearch = totalDailyAISearch,
-                    TotalSolvedComplaints = totalSolvedComplaints,
-                    TotalUnSolvedComplaints = totalUnSolvedComplaints,
+                    TotalSolvedComplaints = complaintStats?.Solved ?? 0,
+                    TotalUnSolvedComplaints = complaintStats?.UnSolved ?? 0,
                     CaseTypes = caseTypes
                 });
         }
