@@ -1,5 +1,3 @@
-using System.ComponentModel.DataAnnotations;
-
 namespace SafeTrace.Application.Common.Validators.Attributes
 {
     [AttributeUsage(AttributeTargets.Property | AttributeTargets.Field, AllowMultiple = false)]

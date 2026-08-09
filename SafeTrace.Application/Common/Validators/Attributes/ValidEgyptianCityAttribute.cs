@@ -1,4 +1,3 @@
-using System.ComponentModel.DataAnnotations;
 using SafeTrace.Application.Constants;
 
 namespace SafeTrace.Application.Common.Validators.Attributes
