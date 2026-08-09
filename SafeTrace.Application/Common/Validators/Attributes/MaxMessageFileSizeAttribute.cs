@@ -1,8 +1,6 @@
 ﻿using Microsoft.AspNetCore.Http;
-using System.ComponentModel.DataAnnotations;
-using System.IO;
 
-namespace SafeTrace.Application.Validations
+namespace SafeTrace.Application.Common.Validators.Attributes
 {
     public class MaxMessageFileSizeAttribute : ValidationAttribute
     {

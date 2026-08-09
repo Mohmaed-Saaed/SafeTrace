@@ -21,19 +21,19 @@ namespace SafeTrace.Application.DTOs.Cases.Request
         [CaseCode]
         public string? CaseCode { get; set; }
 
+        [ValidEgyptianGovernorate(ErrorMessage = "Invalid Governorate.")]
         [StringLength(100, ErrorMessage = "Government filter cannot exceed 100 characters.")]
-        [ArabicText(ErrorMessage = "Government must contain Arabic letters and spaces only.")]
         public string? Government { get; set; }
 
+        [ValidEgyptianCity(nameof(Government), ErrorMessage = "Invalid City for the selected Governorate.")]
         [StringLength(100, ErrorMessage = "City filter cannot exceed 100 characters.")]
-        [ArabicText(ErrorMessage = "City must contain Arabic letters and spaces only.")]
         public string? City { get; set; }
  
         // Age filter
-        [Range(0, 120, ErrorMessage = "MinAge must be between 0 and 120.")]
+        [Range(1, 120, ErrorMessage = "MinAge must be between 1 and 120.")]
         public int? MinAge { get; set; }
 
-        [Range(0, 120, ErrorMessage = "MaxAge must be between 0 and 120.")]
+        [Range(1, 120, ErrorMessage = "MaxAge must be between 1 and 120.")]
         public int? MaxAge { get; set; }
  
         // Date filter

@@ -1,5 +1,3 @@
-using System.ComponentModel.DataAnnotations;
-
 namespace SafeTrace.Application.Common.Validators.Attributes
 {
     [AttributeUsage(AttributeTargets.Property | AttributeTargets.Field, AllowMultiple = false)]
@@ -7,7 +5,7 @@ namespace SafeTrace.Application.Common.Validators.Attributes
     {
         private readonly double _maxHoursAgo;
 
-        public UrgentEventDateAttribute(double maxHoursAgo = 6)
+        public UrgentEventDateAttribute(double maxHoursAgo = 24)
         {
             _maxHoursAgo = maxHoursAgo;
         }

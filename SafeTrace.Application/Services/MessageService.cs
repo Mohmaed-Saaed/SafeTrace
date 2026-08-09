@@ -1,15 +1,6 @@
-using Microsoft.AspNetCore.SignalR;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Logging;
 using SafeTrace.Application.DTOs.Message;
-using SafeTrace.Application.DTOs.Responses;
 using SafeTrace.Application.Exceptions;
-using SafeTrace.Application.Interfaces.IServices;
-using SafeTrace.Domain.Entities;
 using Chat = SafeTrace.Domain.Entities.Chat;
-using SafeTrace.Domain.Enums;
-using SafeTrace.Domain.Interfaces.IUnitOfWork;
-using static SafeTrace.Application.Constants.Permissions;
 using SafeTrace.Application.Interfaces.IServices.INotificationSewrvice;
 using SafeTrace.Application.DTOs.NotificationDTOS;
 using SafeTrace.Application.Constants;
