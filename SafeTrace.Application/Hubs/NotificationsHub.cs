@@ -5,6 +5,7 @@ using SafeTrace.Application.Interfaces.IServices.INotificationSewrvice;
 
 namespace SafeTrace.Application.Hubs
 {
+    [Authorize]
     public class NotificationsHub : Hub
     {
         private readonly INotificationServices _notificationService;
