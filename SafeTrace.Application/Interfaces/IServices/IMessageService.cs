@@ -1,8 +1,4 @@
 ﻿using SafeTrace.Application.DTOs.Message;
-using SafeTrace.Application.DTOs.Responses;
-using System;
-using System.Collections.Generic;
-using System.Text;
 
 namespace SafeTrace.Application.Interfaces.IServices
 {

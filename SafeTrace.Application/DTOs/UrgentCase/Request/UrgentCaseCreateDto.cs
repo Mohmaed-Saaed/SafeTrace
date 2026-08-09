@@ -1,5 +1,3 @@
-using System.ComponentModel.DataAnnotations;
-using SafeTrace.Application.Common.Validators.Attributes;
 using SafeTrace.Application.DTOs.Cases.Request;
 
 namespace SafeTrace.Application.DTOs.UrgentCase.Request
@@ -7,7 +5,7 @@ namespace SafeTrace.Application.DTOs.UrgentCase.Request
     public class UrgentCaseCreateDto : CaseCreateBaseDto
     {
         [Required(ErrorMessage = "Event date is required.")]
-        [UrgentEventDate(6)]
+        [UrgentEventDate(24)]
         [DataType(DataType.Date)]
         public DateTime? EventDate { get; set; }
 
