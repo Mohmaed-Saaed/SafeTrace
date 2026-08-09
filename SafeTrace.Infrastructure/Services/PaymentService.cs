@@ -407,10 +407,10 @@ namespace SafeTrace.Infrastructure.Services
                 .ToListAsync();
 
             var totalCount = statsQuery.Sum(x => x.Count);
-            var succeededAmount = statsQuery.FirstOrDefault(x => x.Status == PaymentStatus.Succeeded)?.Amount ?? 0;
+            var succeededAmount = statsQuery.Where(x => x.Status == PaymentStatus.Succeeded).Sum(x => x.Amount);
 
-            var succeededCount = statsQuery.FirstOrDefault(x => x.Status == PaymentStatus.Succeeded)?.Count ?? 0;
-            var pendingCount = statsQuery.FirstOrDefault(x => x.Status == PaymentStatus.Pending)?.Count ?? 0;
+            var succeededCount = statsQuery.Where(x => x.Status == PaymentStatus.Succeeded).Sum(x => x.Count);
+            var pendingCount = statsQuery.Where(x => x.Status == PaymentStatus.Pending).Sum(x => x.Count);
             var failedCount = statsQuery.Where(x => x.Status == PaymentStatus.Failed || x.Status == PaymentStatus.Cancelled).Sum(x => x.Count);
 
             var stats = new AdminDonationStatisticsDto
@@ -467,7 +467,7 @@ namespace SafeTrace.Infrastructure.Services
             {
                 TotalCount = donations.Count,
 
-                TotalAmount = donations.Sum(x => x.Amount),
+                TotalAmount = donations.Where(x => x.PaymentStatus == PaymentStatus.Succeeded).Sum(x => x.Amount),
 
                 SucceededCount = donations.Count(x =>
                     x.PaymentStatus == PaymentStatus.Succeeded),
@@ -476,7 +476,7 @@ namespace SafeTrace.Infrastructure.Services
                     x.PaymentStatus == PaymentStatus.Pending),
 
                 FailedCount = donations.Count(x =>
-                    x.PaymentStatus == PaymentStatus.Failed)
+                    x.PaymentStatus == PaymentStatus.Failed || x.PaymentStatus == PaymentStatus.Cancelled)
             };
 
 
@@ -487,33 +487,5 @@ namespace SafeTrace.Infrastructure.Services
 
         }
 
-        //public async Task<byte[]> GenerateExcelReportAsync(
-        //    DonationAdminQueryDto query)
-        //{
-        //    var donations = await GetAllForReportAsync(query);
-
-
-        //    var statistics = new AdminDonationStatisticsDto
-        //    {
-        //        TotalCount = donations.Count,
-
-        //        TotalAmount = donations.Sum(x => x.Amount),
-
-        //        SucceededCount = donations.Count(x =>
-        //            x.PaymentStatus == PaymentStatus.Succeeded),
-
-        //        PendingCount = donations.Count(x =>
-        //            x.PaymentStatus == PaymentStatus.Pending),
-
-        //        FailedCount = donations.Count(x =>
-        //            x.PaymentStatus == PaymentStatus.Failed)
-        //    };
-
-
-        //    return _excelGenerator.GenerateDonationsExcel(
-        //        donations,
-        //        statistics,
-        //        query);
-        //}
     }
 }

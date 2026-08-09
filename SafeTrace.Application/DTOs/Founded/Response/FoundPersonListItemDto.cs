@@ -8,6 +8,7 @@ namespace SafeTrace.Application.DTOs.Founded.Response
     {
         public long Id { get; set; }
         public long CaseId { get; set; }
+        public CaseType CaseType { get; set; }
         public Gender Gender { get; set; }
         public string Name { get; set; } = null!;
         public int Age { get; set; } 

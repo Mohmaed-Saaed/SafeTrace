@@ -22,5 +22,7 @@ namespace SafeTrace.Application.DTOs.Cases.Response
         public DateTime CreatedAt { get; set; }
 
         public string MainPhoto { get; set; } = null!;
+
+        public UserDto? User { get; set; }
     }
 }

@@ -1,4 +1,4 @@
-﻿using Amazon.Runtime.Internal.Transform;
+using Amazon.Runtime.Internal.Transform;
 using Microsoft.AspNetCore.Hosting;
 using QuestPDF.Fluent;
 using QuestPDF.Helpers;
@@ -77,6 +77,10 @@ namespace SafeTrace.Infrastructure.Services
                                                 ["البحث"] = string.IsNullOrWhiteSpace(filter.Search)
                                                     ? "لا يوجد"
                                                     : filter.Search,
+                                                
+                                                ["موضوع الشكوى"] = string.IsNullOrWhiteSpace(filter.ContactType)
+                                                    ? "الكل"
+                                                    : filter.ContactType,
 
                                                 ["الحالة"] = filter.Status.HasValue
                                                     ? GetStatusName(filter.Status.Value)
@@ -113,13 +117,15 @@ namespace SafeTrace.Infrastructure.Services
                             {
                                 columns.ConstantColumn(30); // #
                                 columns.RelativeColumn(2);   // البريد الإلكتروني
+                                columns.RelativeColumn(1.5f);// موضوع الشكوى
+                                columns.RelativeColumn(2);        // تفاصيل الشكوى
                                 columns.RelativeColumn(1);   // رقم الحالة
                                 columns.RelativeColumn(1);   // الحالة
                                 columns.RelativeColumn(1);   // تاريخ الإنشاء
                             });
 
                             ReportTemplate.TableHeader(table,
-                                "#", "البريد الإلكتروني", "رقم الحالة", "الحالة", "تاريخ الإنشاء");
+                                "#", "البريد الإلكتروني", "موضوع الشكوى", "تفاصيل الشكوى", "رقم الحالة", "الحالة", "تاريخ الإنشاء");
 
                             for (int i = 0; i < complaints.Count; i++)
                             {
@@ -132,6 +138,35 @@ namespace SafeTrace.Infrastructure.Services
                                     .Text(complaint.UserEmail)
                                     .FontSize(9);
 
+                                string contactType = "غير محدد";
+                                string complaintDetails = complaint.Message ?? "-";
+
+                                if (!string.IsNullOrWhiteSpace(complaint.Message) &&
+                                    complaint.Message.StartsWith("["))
+                                {
+                                    int endIndex = complaint.Message.IndexOf("]");
+
+                                    if (endIndex > 0)
+                                    {
+                                        contactType = complaint.Message.Substring(1, endIndex - 1);
+
+                                        complaintDetails = complaint.Message
+                                            .Substring(endIndex + 1)
+                                            .Trim();
+                                    }
+                                }
+                                else if (!string.IsNullOrWhiteSpace(complaint.CaseCode))
+                                {
+                                    contactType = "شكوى حالة";
+                                }
+
+                                table.Cell().Element(c => ReportTemplate.BodyCellStyle(c, i))
+                                    .Text(contactType)
+                                    .FontSize(9);
+                                table.Cell().Element(c => ReportTemplate.BodyCellStyle(c, i))
+                                .Text(complaintDetails)
+                                .FontSize(8);
+
                                 table.Cell().Element(c => ReportTemplate.BodyCellStyle(c, i))
                                     .Text(complaint.CaseCode ?? "-");
 
@@ -142,7 +177,7 @@ namespace SafeTrace.Infrastructure.Services
                                         : Colors.Red.Darken2);
 
                                 table.Cell().Element(c => ReportTemplate.BodyCellStyle(c, i))
-                                    .Text(complaint.CreatedAt.ToString("yyyy/MM/dd"));
+                                    .Text(complaint.CreatedAt.ToString("yyyy/MM/dd")).FontSize(9);
                             }
                         });
                     });
@@ -563,7 +598,7 @@ namespace SafeTrace.Infrastructure.Services
 
                                     table.Cell()
                                         .Element(c => ReportTemplate.BodyCellStyle(c, i))
-                                        .Text(GetCaseStatusName(item.Status));
+                                        .Text(GetCaseStatusName(item.Status)).FontSize(9);
 
 
 

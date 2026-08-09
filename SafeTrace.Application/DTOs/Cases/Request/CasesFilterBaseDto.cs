@@ -1,4 +1,5 @@
 using SafeTrace.Application.Common.Enums;
+using SafeTrace.Application.Common.Validators.Attributes;
 
 namespace SafeTrace.Application.DTOs.Cases.Request
 {
@@ -17,7 +18,7 @@ namespace SafeTrace.Application.DTOs.Cases.Request
         [ArabicText(ErrorMessage = "Full name must contain Arabic letters and spaces only.")]
         public string? FullName { get; set; } // Will search FName + SName + TName + LName
 
-        [StringLength(20, ErrorMessage = "Case code filter cannot exceed 20 characters.")]
+        [CaseCode]
         public string? CaseCode { get; set; }
 
         [StringLength(100, ErrorMessage = "Government filter cannot exceed 100 characters.")]

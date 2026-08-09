@@ -126,7 +126,7 @@ namespace SafeTrace.Infrastructure.Services
                 
                 if (await _userManager.IsLockedOutAsync(user))
                 {
-                    throw new ForbiddenException("تم حظر الحساب مؤقتاً لتجاوز الحد المسموح لمحاولات الدخول الخاطئة. يرجى المحاولة لاحقاً.");
+                    throw new UnauthorizedException("تم حظر الحساب مؤقتاً لتجاوز الحد المسموح لمحاولات الدخول الخاطئة. يرجى المحاولة لاحقاً.");
                 }
 
                 throw new UnauthorizedException("البريد الإلكتروني أو كلمة المرور غير صحيحة.");
@@ -583,12 +583,12 @@ namespace SafeTrace.Infrastructure.Services
                 if (user.LockoutEnd.Value == DateTimeOffset.MaxValue)
                 {
                     _logger.LogWarning("Action denied. Blocked user {Email} attempted an account mutation operation.", user.Email);
-                    throw new ForbiddenException("هذا الحساب محظور من قبل الإدارة.");
+                    throw new UnauthorizedException("هذا الحساب محظور من قبل الإدارة.");
                 }
                 else
                 {
                     _logger.LogWarning("Action denied. Temporarily locked out user {Email} attempted an account operation.", user.Email);
-                    throw new ForbiddenException("تم حظر الحساب مؤقتاً لتجاوز الحد المسموح لمحاولات تسجيل الدخول. يرجى المحاولة لاحقاً.");
+                    throw new UnauthorizedException("تم حظر الحساب مؤقتاً لتجاوز الحد المسموح لمحاولات تسجيل الدخول. يرجى المحاولة لاحقاً.");
                 }
             }
         }

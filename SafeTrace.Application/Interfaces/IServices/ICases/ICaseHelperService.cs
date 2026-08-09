@@ -9,8 +9,6 @@ namespace SafeTrace.Application.Interfaces.IServices.ICases
     {
         Task<TEntity> GetValidCaseAsync<TEntity>(
             long id,
-            string? userId = null,
-            bool checkOwnership = false,
             bool allowDeleted = false,
             bool tracked = true,
             params Expression<Func<TEntity, object>>[] includes)

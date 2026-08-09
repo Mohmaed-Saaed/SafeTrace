@@ -1,6 +1,7 @@
-using System.ComponentModel.DataAnnotations;
+using Microsoft.AspNetCore.Http;
 using SafeTrace.Application.Common.Validators.Attributes;
 using SafeTrace.Application.DTOs.Cases.Request;
+using System.ComponentModel.DataAnnotations;
 
 namespace SafeTrace.Application.DTOs.UrgentCase.Request
 {

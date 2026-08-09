@@ -66,17 +66,17 @@ namespace SafeTrace.Infrastructure.Persistence
                                              Permissions.UrgentCases.GetById, Permissions.UrgentCases.MarkAsFounded,
                                              Permissions.LongTermCases.GetById, Permissions.LongTermCases.Reject, Permissions.LongTermCases.Approve, Permissions.LongTermCases.MarkAsFounded, Permissions.LongTermCases.Create, Permissions.LongTermCases.Update, Permissions.LongTermCases.SoftDelete,
                                              Permissions.UnknownCases.GetById, Permissions.UnknownCases.Reject, Permissions.UnknownCases.Approve, Permissions.UnknownCases.MarkAsFounded, Permissions.UnknownCases.Create, Permissions.UnknownCases.Update, Permissions.UnknownCases.SoftDelete,
-                                             Permissions.Chat.GetById, Permissions.Chat.GetMessages, Permissions.Chat.DeleteMessageForEveryone,
+                                             Permissions.Chat.DeleteMessageForEveryone,
                                              Permissions.AiMatching.Search};
 
             string[] VerifiedUserPermissions = {Permissions.UrgentCases.MarkAsFounded,
                                                 Permissions.LongTermCases.MarkAsFounded, Permissions.LongTermCases.Create, Permissions.LongTermCases.Update, Permissions.LongTermCases.SoftDelete,
                                                 Permissions.UnknownCases.MarkAsFounded, Permissions.UnknownCases.Create, Permissions.UnknownCases.Update, Permissions.UnknownCases.SoftDelete,
-                                                Permissions.Chat.GetById, Permissions.Chat.GetMessages, Permissions.Chat.DeleteMessageForEveryone,
+                                                Permissions.Chat.DeleteMessageForEveryone,
                                                 Permissions.AiMatching.Search};
 
             string[] UserPermissions = {Permissions.UrgentCases.MarkAsFounded,
-                                        Permissions.Chat.GetById, Permissions.Chat.GetMessages, Permissions.Chat.DeleteMessageForEveryone,
+                                        Permissions.Chat.DeleteMessageForEveryone,
                                         Permissions.AiMatching.Search};
 
             await AssignPermissionsToRoleAsync("SuperAdmin", SuperAdminPermissions);

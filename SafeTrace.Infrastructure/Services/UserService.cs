@@ -94,7 +94,11 @@ namespace SafeTrace.Infrastructure.Services
 
             var totalCount = await query.CountAsync();
 
-            var userDtosQuery = query.OrderBy(u => u.FName).ThenBy(u => u.LName).Select(u => new GetUserDto
+            var userDtosQuery = query
+                .OrderByDescending(u => u.VerificationStatus == VerificationStatus.Pending)
+                .ThenBy(u => u.FName)
+                .ThenBy(u => u.LName)
+                .Select(u => new GetUserDto
             {
                 Id = u.Id,
                 FName = u.FName,
@@ -639,7 +643,8 @@ namespace SafeTrace.Infrastructure.Services
 
 
             var users = await query
-                .OrderBy(u => u.FName)
+                .OrderByDescending(u => u.VerificationStatus == VerificationStatus.Pending)
+                .ThenBy(u => u.FName)
                 .ThenBy(u => u.LName)
                 .Select(u => new GetUserDto
                 {

@@ -11,8 +11,11 @@ namespace SafeTrace.Application.DTOs.Chat
         public string CaseTitle { get; set; } = null!;
 
         public CaseType CaseType { get; set; }
+        public CaseStatus CaseStatus { get; set; }
 
         public string? CaseImage { get; set; }
+
+        public long? FoundCaseId { get; set; }
 
         public string SenderId { get; set; } = null!;
         public string? SenderName { get; set; }

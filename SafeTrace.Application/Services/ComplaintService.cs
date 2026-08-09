@@ -8,6 +8,7 @@ using SafeTrace.Application.DTOs.Responses;
 using SafeTrace.Application.Exceptions;
 using SafeTrace.Application.Interfaces.IServices.INotificationSewrvice;
 using SafeTrace.Domain.Enums;
+using SafeTrace.Domain.Entities;
 using System.Text;
 
 
@@ -47,6 +48,19 @@ namespace SafeTrace.Application.Services
             if (!string.IsNullOrEmpty(filter.CaseCode))
                 query = query.Where(c => c.CaseCode == filter.CaseCode);
 
+            if (!string.IsNullOrEmpty(filter.ContactType))
+            {
+                if (filter.ContactType == "شكوى حالة")
+                {
+                    query = query.Where(c => c.CaseCode != null);
+                }
+                else
+                {
+                    var prefix = $"[{filter.ContactType}]";
+                    query = query.Where(c => c.Message.StartsWith(prefix));
+                }
+            }
+
             if (!string.IsNullOrEmpty(filter.Search))
             {
                 var searchTerm = filter.Search.ToLower();
@@ -61,7 +75,9 @@ namespace SafeTrace.Application.Services
             var totalCount = await query.CountAsync();
 
             var items = await query
-                .OrderByDescending(c => c.CreatedAt)
+                .OrderBy(c => c.ComplaintStatus)
+                .ThenByDescending(c => c.CaseCode != null)
+                .ThenByDescending(c => c.CreatedAt)
                 .Skip((filter.PageNumber - 1) * filter.PageSize)
                 .Take(filter.PageSize)
                 .Select(c => new ComplaintResponseDto
@@ -111,6 +127,15 @@ namespace SafeTrace.Application.Services
         {
             if (string.IsNullOrWhiteSpace(dto.Message))
                 throw new BadRequestException("Message is required.");
+
+            if (!string.IsNullOrWhiteSpace(dto.CaseCode))
+            {
+                var caseExists = await _unitOfWork.Repository<Case>()
+                    .AnyAsync(c => c.CaseCode == dto.CaseCode);
+
+                if (!caseExists)
+                    throw new NotFoundException("لم يتم العثور على حالة بهذا الكود");
+            }
 
             var complaint = new Complaint
             {
@@ -210,28 +235,6 @@ namespace SafeTrace.Application.Services
 
         }
 
-        public async Task<byte[]> GenerateExcelReportAsync(
-        ComplaintFilterDto filter)
-        {
-            var complaints = await GetAllForReportAsync(filter);
-
-            var statistics = new ComplaintStatisticsDto
-            {
-                Total = complaints.Count,
-
-                Solved = complaints.Count(c =>
-                    c.ComplaintStatus == ComplaintStatus.Solved),
-
-                UnSolved = complaints.Count(c =>
-                    c.ComplaintStatus == ComplaintStatus.UnSolved)
-            };
-
-
-            return _excelGenerator.GenerateComplaintsExcel(
-                complaints,
-                statistics,
-                filter);
-        }
 
         public async Task<List<ComplaintResponseDto>> GetAllForReportAsync(
             ComplaintFilterDto filter)
@@ -241,6 +244,19 @@ namespace SafeTrace.Application.Services
 
             if (!string.IsNullOrEmpty(filter.CaseCode))
                 query = query.Where(c => c.CaseCode == filter.CaseCode);
+
+            if (!string.IsNullOrEmpty(filter.ContactType))
+            {
+                if (filter.ContactType == "شكوى حالة")
+                {
+                    query = query.Where(c => c.CaseCode != null);
+                }
+                else
+                {
+                    var prefix = $"[{filter.ContactType}]";
+                    query = query.Where(c => c.Message.StartsWith(prefix));
+                }
+            }
 
             if (!string.IsNullOrEmpty(filter.Search))
             {
@@ -259,7 +275,9 @@ namespace SafeTrace.Application.Services
                     c.ComplaintStatus == filter.Status.Value);
 
             return await query
-                .OrderByDescending(c => c.CreatedAt)
+                .OrderBy(c => c.ComplaintStatus)
+                .ThenByDescending(c => c.CaseCode != null)
+                .ThenByDescending(c => c.CreatedAt)
                 .Select(c => new ComplaintResponseDto
                 {
                     Id = c.Id,

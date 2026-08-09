@@ -18,7 +18,8 @@ namespace SafeTrace.Application.Mapping
                     src.CaseFiles
                         .OrderByDescending(p => p.IsPrimary)
                         .Select(p => p.ImagePath)
-                        .FirstOrDefault()));
+                        .FirstOrDefault()))
+                .ForMember(dest => dest.User, opt => opt.MapFrom(src => src.User));
 
             CreateMap<Case, CaseDetailBaseDto>()
                 .ForMember(d => d.Photos, o => o.MapFrom(s => s.CaseFiles.Where(f => f.Type == FileType.Image)))
