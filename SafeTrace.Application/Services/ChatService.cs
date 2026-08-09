@@ -347,7 +347,7 @@ namespace SafeTrace.Application.Services
         long chatId,
         string currentUserId)
         {
-            var chat = await GetChatAsync(chatId);
+            var chat = await GetUserChatAsync(chatId , currentUserId);
 
             EnsureParticipant(chat, currentUserId);
 
@@ -478,7 +478,11 @@ namespace SafeTrace.Application.Services
 
             var chat = await _unitOfWork.Repository<Chat>()
                 .GetOneAsync(
-                    c => c.Id == chatId,
+                     c => c.Id == chatId &&
+                     (
+                         (c.SenderId == currentUserId && !c.DeletedBySender) ||
+                         (c.ReceiverId == currentUserId && !c.DeletedByReceiver)
+                     ),
                     tracked: false,
                     c => c.Case,
                     chatId => chatId.Messages)
@@ -791,6 +795,24 @@ namespace SafeTrace.Application.Services
 
                 throw new ForbiddenException("ليس لديك صلاحية للوصول إلى هذه المحادثة.");
             }
+        }
+
+        private async Task<Chat> GetUserChatAsync(long chatId, string currentUserId)
+        {
+            return await _unitOfWork.Repository<Chat>()
+                .GetOneAsync(
+                    c => c.Id == chatId && 
+                        (
+                            (c.SenderId == currentUserId && !c.DeletedBySender) ||
+                            (c.ReceiverId == currentUserId && !c.DeletedByReceiver)
+                        ),
+                    tracked: false,
+                    c => c.Case,
+                    c => c.Case.CaseFiles,
+                    c => c.Case.FoundPersonInfo,
+                    c => c.Sender,
+                    c => c.Receiver)
+                ?? throw new NotFoundException($"لم يتم العثور على المحادثة {chatId}.");
         }
 
         private async Task<Chat> GetChatAsync(long chatId)
