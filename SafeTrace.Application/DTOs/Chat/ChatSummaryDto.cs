@@ -9,6 +9,7 @@ namespace SafeTrace.Application.DTOs.Chat
         public long ChatId { get; set; }
         public long CaseId { get; set; }
         public string CaseTitle { get; set; }
+        public CaseStatus CaseStatus { get; set; }
         public string? LastMessage { get; set; }
         public DateTime? LastMessageDate { get; set; }
         public int UnreadCount { get; set; }

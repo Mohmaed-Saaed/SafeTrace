@@ -169,13 +169,22 @@ namespace SafeTrace.Application.Services
             var result = await _unitOfWork.Repository<Chat>()
                 .Query(tracked: false)
                 .Where(c =>
-                (c.SenderId == currentUserId && !c.DeletedBySender) ||
+                ((c.SenderId == currentUserId && !c.DeletedBySender) ||
                 (c.ReceiverId == currentUserId && !c.DeletedByReceiver))
+                && (
+                c.Case.Status == CaseStatus.Active ||
+                c.Case.Status == CaseStatus.Found ||
+                c.Case.Status == CaseStatus.Expired ||
+                c.Case.Status == CaseStatus.Deleted
+                )
+            )
+
                 .Select(c => new ChatSummaryDto
                 {
                     ChatId = c.Id,
                     CaseId = c.CaseId,
                     CaseTitle = $"{c.Case.FName} {c.Case.SName} {c.Case.TName} {c.Case.LName}",
+                    CaseStatus = c.Case.Status,
 
                     OtherUserId = c.SenderId == currentUserId ? c.ReceiverId : c.SenderId,
 
@@ -792,6 +801,7 @@ namespace SafeTrace.Application.Services
                     tracked: false,
                     c => c.Case,
                     c => c.Case.CaseFiles,
+                    c => c.Case.FoundPersonInfo,
                     c => c.Sender,
                     c => c.Receiver)
                 ?? throw new NotFoundException($"لم يتم العثور على المحادثة {chatId}.");
@@ -809,7 +819,9 @@ namespace SafeTrace.Application.Services
                 CaseTitle = $"{chat.Case.FName} {chat.Case.SName} {chat.Case.TName} {chat.Case.LName}",
                 CaseImage = primaryImage,
                 CaseType = chat.Case.CaseType,
-                CreatedAt = DateTime.SpecifyKind(chat.CreatedAt, DateTimeKind.Utc)
+                CaseStatus = chat.Case.Status,
+                CreatedAt = DateTime.SpecifyKind(chat.CreatedAt, DateTimeKind.Utc),
+                FoundCaseId = chat.Case.FoundPersonInfo?.Id
             };
         }
 

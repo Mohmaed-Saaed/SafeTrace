@@ -487,33 +487,5 @@ namespace SafeTrace.Infrastructure.Services
 
         }
 
-        //public async Task<byte[]> GenerateExcelReportAsync(
-        //    DonationAdminQueryDto query)
-        //{
-        //    var donations = await GetAllForReportAsync(query);
-
-
-        //    var statistics = new AdminDonationStatisticsDto
-        //    {
-        //        TotalCount = donations.Count,
-
-        //        TotalAmount = donations.Where(x => x.PaymentStatus == PaymentStatus.Succeeded).Sum(x => x.Amount),
-
-        //        SucceededCount = donations.Count(x =>
-        //            x.PaymentStatus == PaymentStatus.Succeeded),
-
-        //        PendingCount = donations.Count(x =>
-        //            x.PaymentStatus == PaymentStatus.Pending),
-
-        //        FailedCount = donations.Count(x =>
-        //            x.PaymentStatus == PaymentStatus.Failed || x.PaymentStatus == PaymentStatus.Cancelled)
-        //    };
-
-
-        //    return _excelGenerator.GenerateDonationsExcel(
-        //        donations,
-        //        statistics,
-        //        query);
-        //}
     }
 }
