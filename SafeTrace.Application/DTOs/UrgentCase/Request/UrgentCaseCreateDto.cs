@@ -1,5 +1,3 @@
-using System.ComponentModel.DataAnnotations;
-using SafeTrace.Application.Common.Validators.Attributes;
 using SafeTrace.Application.DTOs.Cases.Request;
 
 namespace SafeTrace.Application.DTOs.UrgentCase.Request
