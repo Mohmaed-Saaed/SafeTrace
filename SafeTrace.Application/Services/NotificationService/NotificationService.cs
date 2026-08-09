@@ -42,13 +42,44 @@ namespace SafeTrace.Application.Services.NotificationServices
 
 
         }
+        //public async Task SendNotificationAsync(SendNotificationDTO dto)
+        //{
+        //    var notification = _mapper.Map<Notification>(dto);
+
+        //    notification.CreatedAt = DateTimeOffset.UtcNow;
+        //    notification.IsRead = false;
+
+        //    await _UNIT.Repository<Notification>().CreateAsync(notification);
+        //    await _UNIT.SaveAsync();
+
+        //    var unreadCount = await _UNIT.Repository<Notification>()
+        //        .Query(false)
+        //        .CountAsync(n => n.UserId == dto.UserId && !n.IsRead);
+
+        //    var responseDto = _mapper.Map<GetUserNotificationsDTO>(notification);
+
+        //    await _hubContext.Clients
+        //        .Group($"user_{dto.UserId}")
+        //        .SendAsync("ReceiveNotification", responseDto);
+
+        //    await _hubContext.Clients
+        //        .Group($"user_{dto.UserId}")
+        //        .SendAsync(
+        //            "UnreadCount",
+        //            ApiResponse<int>.Ok(unreadCount, "عدد الاشعارات غير المقرؤة."));
+        //}
 
 
         public async Task SendNotificationAsync(SendNotificationDTO dto)
         {
+
             _logger.LogInformation("Sending notification to UserId: {UserId} at {date}", dto.UserId, DateTime.Now);
+
+
+            _logger.LogInformation("Server Now: {Now:O}", DateTime.Now);
+            _logger.LogInformation("Server UTC: {Utc:O}", DateTime.UtcNow);
             var notification = _mapper.Map<Notification>(dto);
-            notification.CreatedAt = DateTime.Now;
+            notification.CreatedAt = DateTime.UtcNow;
             notification.IsRead = false;
 
             await _UNIT.Repository<Notification>().CreateAsync(notification);
@@ -60,39 +91,24 @@ namespace SafeTrace.Application.Services.NotificationServices
                .CountAsync(n => n.UserId == dto.UserId && !n.IsRead);
 
             var responseDto = _mapper.Map<GetUserNotificationsDTO>(notification);
-
-
             var payload = new
             {
                 Notification = responseDto,
                 UnreadCount = unreadCount
             };
-            _logger.LogWarning(
-    "Sending notification to group: user_{UserId}",
-    dto.UserId);
+            _logger.LogWarning("Sending notification to group: user_{UserId}", dto.UserId);
 
 
-            await _hubContext.Clients
-                .Group($"user_{dto.UserId}")
-                .SendAsync("ReceiveNotification", responseDto);
+            await _hubContext.Clients.Group($"user_{dto.UserId}").SendAsync("ReceiveNotification", responseDto);
 
 
-            _logger.LogInformation(
-"Sending ReceiveNotification to group user_{UserId}",
-dto.UserId
-);
+            _logger.LogInformation("Sending ReceiveNotification to group user_{UserId}", dto.UserId);
 
-            await _hubContext.Clients
-    .Group($"user_{dto.UserId}")
-    .SendAsync(
-        "UnreadCount",
-        ApiResponse<int>.Ok(unreadCount, "عدد الاشعارات غير المقرؤة.")
-    );
-
-
-
+            await _hubContext.Clients.Group($"user_{dto.UserId}").SendAsync("UnreadCount",
+        ApiResponse<int>.Ok(unreadCount, "عدد الاشعارات غير المقرؤة."));
             _logger.LogInformation("Notification sent to UserId: {UserId}. UnreadCount: {Count}", dto.UserId, unreadCount);
         }
+
 
 
         #region Send Notificaion To All Users
