@@ -7,12 +7,12 @@ namespace SafeTrace.Application.DTOs.Cases.Request
         public string Description { get; set; } = null!;
 
         [Required(ErrorMessage = "Government is required.")]
-        [ArabicText(ErrorMessage = "Government must contain Arabic letters and spaces only.")]
+        [ValidEgyptianGovernorate(ErrorMessage = "Invalid Governorate.")]
         [StringLength(100, MinimumLength = 2, ErrorMessage = "Government must be between 2 and 100 characters.")]
         public string Government { get; set; } = null!;
 
         [Required(ErrorMessage = "City is required.")]
-        [ArabicText(ErrorMessage = "City must contain Arabic letters and spaces only.")]
+        [ValidEgyptianCity(nameof(Government), ErrorMessage = "Invalid City for the selected Governorate.")]
         [StringLength(100, MinimumLength = 2, ErrorMessage = "City must be between 2 and 100 characters.")]
         public string City { get; set; } = null!;
 

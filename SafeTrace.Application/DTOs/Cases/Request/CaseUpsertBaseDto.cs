@@ -11,16 +11,16 @@ namespace SafeTrace.Application.DTOs.Cases.Request
         public Gender Gender { get; set; }
 
         [Required(ErrorMessage = "Age is required.")]
-        [Range(0, 120, ErrorMessage = "Age must be between 0 and 120.")]
+        [Range(1, 120, ErrorMessage = "Age must be between 1 and 120.")]
         public int Age { get; set; }
 
         [Required(ErrorMessage = "Government is required.")]
-        [ArabicText(ErrorMessage = "Government must contain Arabic letters and spaces only.")]
+        [ValidEgyptianGovernorate(ErrorMessage = "Invalid Governorate.")]
         [StringLength(100, MinimumLength = 2, ErrorMessage = "Government must be between 2 and 100 characters.")]
         public string Government { get; set; } = null!;
 
         [Required(ErrorMessage = "City is required.")]
-        [ArabicText(ErrorMessage = "City must contain Arabic letters and spaces only.")]
+        [ValidEgyptianCity(nameof(Government), ErrorMessage = "Invalid City for the selected Governorate.")]
         [StringLength(100, MinimumLength = 2, ErrorMessage = "City must be between 2 and 100 characters.")]
         public string City { get; set; } = null!;
 
