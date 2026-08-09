@@ -124,7 +124,7 @@ namespace SafeTrace.Application.Services.UserProfileServices
                 {
                     throw new BadRequestException("صورة البطاقة موجودة بالفعل .");
                 }
-                
+
                 var newIdImageFront =
                  await _Image.SaveFileAsync(dto.IdentificationImageFront, "Identification/Front");
                 var newIdImageBack =
@@ -168,11 +168,10 @@ namespace SafeTrace.Application.Services.UserProfileServices
             var user = await GetUser(userId);
             dto.FirstName = dto.FirstName.Trim();
             dto.LastName = dto.LastName.Trim();
-            
+
             _mapper.Map(dto, user);
             var result = await _userManager.UpdateAsync(user);
             return ApiResponse<bool>.Ok(true, "تم تحديث الاسم بنجاح");
-            //}
         }
 
 
@@ -193,7 +192,6 @@ namespace SafeTrace.Application.Services.UserProfileServices
                 if (!result.Succeeded)
                 {
                     string.Join(", ", result.Errors.Select(e => e.Description));
-                    //throw new BadRequestException("حدث خطأ اثناء محاولة اضافة صورة");
                     return ApiResponse<bool>.Ok(false, "حدث خطأ اثناء محاولة اضافة صورة");
                 }
             }
@@ -204,10 +202,6 @@ namespace SafeTrace.Application.Services.UserProfileServices
         public async Task<ApiResponse<bool>> RemoveProfileImageAsync(string userId)
         {
             var user = await GetUser(userId);
-
-            //if (user is null)
-            //    throw new NotFoundException("المستخدم غير موجود.");
-
             if (string.IsNullOrWhiteSpace(user.ProfileImage))
                 return ApiResponse<bool>.Ok(true, "لا توجد صورة شخصية لحذفها.");
 
@@ -226,11 +220,6 @@ namespace SafeTrace.Application.Services.UserProfileServices
         public async Task<ApiResponse<bool>> UpdatePhoneNumberAsync(string userId, ChangePhoneNumberDTO dto)
         {
             var user = await GetUser(userId);
-            //if (user == null)
-            //{
-            //    throw new NotFoundException("المستخدم غير موجود");
-            //}
-
             var newPhoneNumber = _mapper.Map(dto, user);
             var result = await _userManager.UpdateAsync(newPhoneNumber);
             if (!result.Succeeded)

@@ -235,28 +235,6 @@ namespace SafeTrace.Application.Services
 
         }
 
-        public async Task<byte[]> GenerateExcelReportAsync(
-        ComplaintFilterDto filter)
-        {
-            var complaints = await GetAllForReportAsync(filter);
-
-            var statistics = new ComplaintStatisticsDto
-            {
-                Total = complaints.Count,
-
-                Solved = complaints.Count(c =>
-                    c.ComplaintStatus == ComplaintStatus.Solved),
-
-                UnSolved = complaints.Count(c =>
-                    c.ComplaintStatus == ComplaintStatus.UnSolved)
-            };
-
-
-            return _excelGenerator.GenerateComplaintsExcel(
-                complaints,
-                statistics,
-                filter);
-        }
 
         public async Task<List<ComplaintResponseDto>> GetAllForReportAsync(
             ComplaintFilterDto filter)

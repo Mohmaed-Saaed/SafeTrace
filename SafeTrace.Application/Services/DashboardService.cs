@@ -272,38 +272,7 @@ namespace SafeTrace.Application.Services
                 filter);
         }
 
-    //    public async Task<byte[]> GenerateExcelReportAsync(
-    //CasesFilterBaseDto filter)
-    //    {
-    //        var cases = await GetAllForReportAsync(filter);
-
-
-    //        var statistics = new CasesStatisticsDto
-    //        {
-    //            Total = cases.Count,
-
-    //            Urgent = cases.Count(c =>
-    //                c.CaseType == CaseType.Urgent),
-
-    //            LongTerm = cases.Count(c =>
-    //                c.CaseType == CaseType.LongTerm),
-
-    //            Unknown = cases.Count(c =>
-    //                c.CaseType == CaseType.Unknown),
-
-    //            Active = cases.Count(c =>
-    //                c.Status == CaseStatus.Active),
-
-    //            Found = cases.Count(c =>
-    //                c.Status == CaseStatus.Found)
-    //        };
-
-
-    //        return _excelGenerator.GenerateCasesExcel(
-    //            cases,
-    //            statistics,
-    //            filter);
-    //    }
+    
         private IQueryable<Case> ApplyFilter(
             IQueryable<Case> query,
             CasesReportFilterDto filter)
