@@ -51,8 +51,7 @@ namespace SafeTrace.Application.Services.NotificationServices
             _logger.LogInformation("Server Now: {Now:O}", DateTime.Now);
             _logger.LogInformation("Server UTC: {Utc:O}", DateTime.UtcNow);
             var notification = _mapper.Map<Notification>(dto);
-            notification.CreatedAt = DateTime.SpecifyKind(notification.CreatedAt, DateTimeKind.Utc);
-            //notification.CreatedAt = DateTime.UtcNow;
+            notification.CreatedAt = DateTime.UtcNow;
             notification.IsRead = false;
 
             await _UNIT.Repository<Notification>().CreateAsync(notification);
