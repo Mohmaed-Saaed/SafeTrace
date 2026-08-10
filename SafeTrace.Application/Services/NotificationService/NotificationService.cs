@@ -18,8 +18,6 @@ namespace SafeTrace.Application.Services.NotificationServices
 
     public class NotificationService : INotificationServices
     {
-
-
         private readonly IUnitOfWork _UNIT;
         private readonly IHubContext<NotificationsHub> _hubContext;
         private readonly IMapper _mapper;
@@ -42,32 +40,6 @@ namespace SafeTrace.Application.Services.NotificationServices
 
 
         }
-        //public async Task SendNotificationAsync(SendNotificationDTO dto)
-        //{
-        //    var notification = _mapper.Map<Notification>(dto);
-
-        //    notification.CreatedAt = DateTimeOffset.UtcNow;
-        //    notification.IsRead = false;
-
-        //    await _UNIT.Repository<Notification>().CreateAsync(notification);
-        //    await _UNIT.SaveAsync();
-
-        //    var unreadCount = await _UNIT.Repository<Notification>()
-        //        .Query(false)
-        //        .CountAsync(n => n.UserId == dto.UserId && !n.IsRead);
-
-        //    var responseDto = _mapper.Map<GetUserNotificationsDTO>(notification);
-
-        //    await _hubContext.Clients
-        //        .Group($"user_{dto.UserId}")
-        //        .SendAsync("ReceiveNotification", responseDto);
-
-        //    await _hubContext.Clients
-        //        .Group($"user_{dto.UserId}")
-        //        .SendAsync(
-        //            "UnreadCount",
-        //            ApiResponse<int>.Ok(unreadCount, "عدد الاشعارات غير المقرؤة."));
-        //}
 
 
         public async Task SendNotificationAsync(SendNotificationDTO dto)
@@ -79,7 +51,8 @@ namespace SafeTrace.Application.Services.NotificationServices
             _logger.LogInformation("Server Now: {Now:O}", DateTime.Now);
             _logger.LogInformation("Server UTC: {Utc:O}", DateTime.UtcNow);
             var notification = _mapper.Map<Notification>(dto);
-            notification.CreatedAt = DateTime.UtcNow;
+            notification.CreatedAt = DateTime.SpecifyKind(notification.CreatedAt, DateTimeKind.Utc);
+            //notification.CreatedAt = DateTime.UtcNow;
             notification.IsRead = false;
 
             await _UNIT.Repository<Notification>().CreateAsync(notification);
@@ -228,28 +201,8 @@ namespace SafeTrace.Application.Services.NotificationServices
             _logger.LogInformation("Marked {Count} notifications as read for UserId: {UserId}", affected, userId);
         }
 
-        //public async Task<ApiResponse<IEnumerable<GetUserNotificationsDTO>>> GetUserNotificationsAsync(string userId, int page = 1, int pageSize = 10)
-        //{
-        //    _logger.LogInformation("Fetching notifications for UserId: {UserId}, Page: {Page}, PageSize: {PageSize}", userId, page, pageSize);
 
-        //    var notifications = await _UNIT.Repository<Notification>()
-        //        .Query(
-        //            tracked: false,
-        //            orderBy: n => n.CreatedAt,
-        //            orderByDirection: OrderBy.Descending)
-        //        .Where(n => n.UserId == userId)
-        //        .Skip((page - 1) * pageSize)
-        //        .Take(pageSize)
-        //        .ToListAsync();
-
-        //    var res = _mapper.Map<IEnumerable<GetUserNotificationsDTO>>(notifications);
-        //    return ApiResponse<IEnumerable<GetUserNotificationsDTO>>.Ok(res, "تم جلب الاشعارات بنجاح.");
-        //}
-
-        public async Task<ApiResponse<NotificationPageDto>> GetUserNotificationsAsync(
-    string userId,
-    int page = 1,
-    int pageSize = 10)
+        public async Task<ApiResponse<NotificationPageDto>> GetUserNotificationsAsync(string userId, int page = 1, int pageSize = 10)
         {
             _logger.LogInformation(
                 "Fetching notifications for UserId: {UserId}, Page: {Page}, PageSize: {PageSize}",
