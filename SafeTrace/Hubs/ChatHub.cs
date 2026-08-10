@@ -1,9 +1,11 @@
 ﻿using Microsoft.AspNetCore.SignalR;
 using SafeTrace.Application.Interfaces.IServices;
+using Microsoft.AspNetCore.Authorization;
 using System.Security.Claims;
 
 namespace SafeTrace.API.Hubs
 {
+    [Authorize]
     public class ChatHub : Hub
     {
         private readonly ILogger<ChatHub> _logger;
