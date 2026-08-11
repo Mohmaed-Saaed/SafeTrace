@@ -46,13 +46,12 @@ namespace SafeTrace.Infrastructure.Migrations
                     Id = table.Column<string>(type: "nvarchar(450)", nullable: false),
                     FName = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
                     LName = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
-                    IdentificationImage = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    IdentificationImageFront = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    IdentificationImageback = table.Column<string>(type: "nvarchar(max)", nullable: true),
                     ProfileImage = table.Column<string>(type: "nvarchar(max)", nullable: true),
                     VerificationStatus = table.Column<int>(type: "int", nullable: false, defaultValue: 0),
-                    HomeLocationLatitude = table.Column<double>(type: "float", nullable: true),
-                    HomeLocationLongitude = table.Column<double>(type: "float", nullable: true),
-                    CurrentLocationLatitude = table.Column<double>(type: "float", nullable: true),
-                    CurrentLocationLongitude = table.Column<double>(type: "float", nullable: true),
+                    CurrentLocation = table.Column<Point>(type: "geography", nullable: true),
+                    HomeLocation = table.Column<Point>(type: "geography", nullable: true),
                     UserName = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: true),
                     NormalizedUserName = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: true),
                     Email = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: true),
@@ -85,6 +84,26 @@ namespace SafeTrace.Infrastructure.Migrations
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_AspNetRoles", x => x.Id);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "AuditLogs",
+                columns: table => new
+                {
+                    Id = table.Column<long>(type: "bigint", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    UserId = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    Type = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    TableName = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    DateTime = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    OldValues = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    NewValues = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    AffectedColumns = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    PrimaryKey = table.Column<string>(type: "nvarchar(max)", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_AuditLogs", x => x.Id);
                 });
 
             migrationBuilder.CreateTable(
@@ -246,7 +265,7 @@ namespace SafeTrace.Infrastructure.Migrations
                     UserId = table.Column<string>(type: "nvarchar(450)", nullable: false),
                     CaseCode = table.Column<string>(type: "nvarchar(max)", nullable: true),
                     Message = table.Column<string>(type: "nvarchar(2000)", maxLength: 2000, nullable: false),
-                    SolutionMessage = table.Column<string>(type: "nvarchar(2000)", maxLength: 2000, nullable: false),
+                    SolutionMessage = table.Column<string>(type: "nvarchar(2000)", maxLength: 2000, nullable: true),
                     ComplaintStatus = table.Column<int>(type: "int", nullable: false),
                     CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false)
                 },
@@ -415,6 +434,7 @@ namespace SafeTrace.Infrastructure.Migrations
                     CaseId = table.Column<long>(type: "bigint", nullable: false),
                     ImagePath = table.Column<string>(type: "nvarchar(1000)", maxLength: 1000, nullable: false),
                     FaceId = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    Type = table.Column<int>(type: "int", nullable: false),
                     IsPrimary = table.Column<bool>(type: "bit", nullable: false),
                     CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false)
                 },
@@ -473,7 +493,7 @@ namespace SafeTrace.Infrastructure.Migrations
                         .Annotation("SqlServer:Identity", "1, 1"),
                     DuplicateGroupId = table.Column<long>(type: "bigint", nullable: false),
                     CaseId = table.Column<long>(type: "bigint", nullable: false),
-                    SimilarityScore = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
+                    SimilarityScore = table.Column<decimal>(type: "decimal(18,2)", nullable: true),
                     MatchedBy = table.Column<string>(type: "nvarchar(10)", maxLength: 10, nullable: false),
                     CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false)
                 },
@@ -765,6 +785,9 @@ namespace SafeTrace.Infrastructure.Migrations
 
             migrationBuilder.DropTable(
                 name: "AspNetUserTokens");
+
+            migrationBuilder.DropTable(
+                name: "AuditLogs");
 
             migrationBuilder.DropTable(
                 name: "CaseFiles");

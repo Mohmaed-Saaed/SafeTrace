@@ -1,13 +1,15 @@
-﻿using Microsoft.AspNetCore.Hosting;
+﻿using Amazon.S3;
+using Amazon.S3.Model;
+using Amazon.S3.Transfer;
 using Microsoft.AspNetCore.Http;
 using SafeTrace.Application.Exceptions;
-using SafeTrace.Application.Interfaces.IServices;
 
 namespace SafeTrace.Infrastructure.Services
 {
     public class FileStorageService : IFileStorageService
     {
-        private readonly IWebHostEnvironment _environment;
+        private readonly IAmazonS3 _s3Client;
+        private readonly string _bucketName;
 
         private static readonly string[] AllowedImageExtensions = { ".jpg", ".jpeg", ".png", ".webp" };
         private static readonly string[] AllowedImageContentTypes = { "image/jpeg", "image/png", "image/webp", "image/jpg" };
@@ -17,9 +19,10 @@ namespace SafeTrace.Infrastructure.Services
         private static readonly string[] AllowedVideoContentTypes = { "video/mp4", "video/quicktime", "video/webm" };
         private const long MaxVideoFileSize = 50 * 1024 * 1024; // 50 MB
 
-        public FileStorageService(IWebHostEnvironment environment)
+        public FileStorageService(IAmazonS3 s3Client, IConfiguration configuration)
         {
-            _environment = environment;
+            _s3Client = s3Client;
+            _bucketName = configuration["AWS:FilesBucketName"] ?? throw new ArgumentNullException("AWS:FilesBucketName is missing in configuration.");
         }
 
         public async Task<List<string>> SaveFilesAsync(IEnumerable<IFormFile> files, string folderName)
@@ -83,28 +86,33 @@ namespace SafeTrace.Infrastructure.Services
                 throw new BadRequestException("حجم الفيديو لا يمكن أن يتجاوز 50 ميجابايت.");
 
             string baseFolder = isVideo ? "Videos" : "Images";
-
-            string wwwRootPath = Path.Combine(_environment.ContentRootPath, "wwwroot");
-            string contentPath = Path.Combine(wwwRootPath, baseFolder, folderName);
-
-            if (!Directory.Exists(contentPath))
-                Directory.CreateDirectory(contentPath);
-
             string uniqueFileName = $"{Guid.NewGuid()}{extension}";
-            string fullPath = Path.Combine(contentPath, uniqueFileName);
+
+            string objectKey = $"{baseFolder}/{folderName}/{uniqueFileName}";
 
             try
             {
-                using var fileStream = new FileStream(fullPath, FileMode.Create);
-                await file.CopyToAsync(fileStream);
+                using var newMemoryStream = new MemoryStream();
+                await file.CopyToAsync(newMemoryStream);
+                newMemoryStream.Position = 0;
+
+                var uploadRequest = new TransferUtilityUploadRequest
+                {
+                    InputStream = newMemoryStream,
+                    Key = objectKey,
+                    BucketName = _bucketName,
+                    ContentType = file.ContentType
+                };
+
+                using var fileTransferUtility = new TransferUtility(_s3Client);
+                await fileTransferUtility.UploadAsync(uploadRequest);
             }
             catch (Exception)
             {
-                if (File.Exists(fullPath)) File.Delete(fullPath);
-                throw new BadRequestException("حدث خطأ أثناء حفظ الملف.");
+                throw new BadRequestException("حدث خطأ أثناء رفع الملف إلى خوادم التخزين.");
             }
 
-            return $"/{baseFolder}/{folderName}/{uniqueFileName}";
+            return objectKey;
         }
 
         public bool DeleteFile(string fileUrl)
@@ -112,18 +120,21 @@ namespace SafeTrace.Infrastructure.Services
             if (string.IsNullOrWhiteSpace(fileUrl))
                 return false;
 
-            string wwwRootPath = Path.Combine(_environment.ContentRootPath, "wwwroot");
-
-            string cleanedPath = fileUrl.TrimStart('/');
-            string fullPath = Path.Combine(wwwRootPath, cleanedPath);
-
-            if (File.Exists(fullPath))
+            try
             {
-                File.Delete(fullPath);
+                var deleteObjectRequest = new DeleteObjectRequest
+                {
+                    BucketName = _bucketName,
+                    Key = fileUrl
+                };
+
+                _s3Client.DeleteObjectAsync(deleteObjectRequest).GetAwaiter().GetResult();
                 return true;
             }
-
-            return false;
+            catch (Exception)
+            {
+                return false;
+            }
         }
     }
 }

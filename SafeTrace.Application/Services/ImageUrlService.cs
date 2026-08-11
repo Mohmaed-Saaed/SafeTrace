@@ -1,4 +1,5 @@
 ﻿using Microsoft.AspNetCore.Http;
+using SafeTrace.Application.Constants;
 using SafeTrace.Application.Interfaces.IServices.common;
 
 namespace SafeTrace.Application.Services
@@ -17,9 +18,7 @@ namespace SafeTrace.Application.Services
             if (string.IsNullOrWhiteSpace(path))
                 return null;
 
-            var request = _http.HttpContext!.Request;
-
-            return $"{request.Scheme}://{request.Host}{path}";
+            return $"{SystemConstants.filesBaseUrl}/{path}";
         }
     }
 }
