@@ -58,6 +58,7 @@ namespace SafeTrace.Application.Hubs
             await base.OnDisconnectedAsync(exception);
         }
 
+
         //public async Task GetMyNotifications()
         //{
         //    var userId = Context.UserIdentifier;
@@ -85,75 +86,78 @@ namespace SafeTrace.Application.Hubs
         //        "ReceiveNotifications",
         //        notifications);
         //}
-        public async Task GetMyNotifications(int page = 1, int pageSize = 10)
-        {
-            try
-            {
-                var userId = Context.UserIdentifier;
+        //public async Task GetMyNotifications(int page = 1, int pageSize = 10)
+        //{
+        //    try
+        //    {
+        //        var userId = Context.UserIdentifier;
 
-                if (string.IsNullOrEmpty(userId))
-                    throw new Exception("UserIdentifier is null");
+        //        if (string.IsNullOrEmpty(userId))
+        //            throw new Exception("UserIdentifier is null");
 
-                var notifications =
-                    await _notificationService.GetUserNotificationsAsync(userId, page, pageSize);
+        //        var notifications =
+        //            await _notificationService.GetUserNotificationsAsync(userId, page, pageSize);
 
-                await Clients.Caller.SendAsync("ReceiveNotifications", notifications);
+        //        await Clients.Caller.SendAsync("ReceiveNotifications", notifications);
 
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine(ex.ToString());
-                throw;
-            }
-        }
-        public async Task MarkAsRead(long notificationId)
-        {
-            var userId = Context.UserIdentifier;
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        Console.WriteLine(ex.ToString());
+        //        throw;
+        //    }
+        //}
+        //public async Task MarkAsRead(long notificationId)
+        //{
+        //    var userId = Context.UserIdentifier;
 
-            if (string.IsNullOrEmpty(userId))
-                return;
+        //    if (string.IsNullOrEmpty(userId))
+        //        return;
 
-            await _notificationService.MarkAsReadAsync(notificationId);
+        //    await _notificationService.MarkAsReadAsync(notificationId);
 
-            var unreadCount = await _notificationService.GetUnreadCountAsync(userId);
+        //    var unreadCount = await _notificationService.GetUnreadCountAsync(userId);
 
-            await Clients.Caller.SendAsync(
-                "UnreadCount",
-                unreadCount);
-        }
-
-
-        public async Task MarkAllAsRead()
-        {
-            var userId = Context.UserIdentifier;
-
-            if (string.IsNullOrEmpty(userId))
-                return;
-
-            await _notificationService.MarkAllAsReadAsync(userId);
-
-            await Clients.Caller.SendAsync(
-                "UnreadCount",
-                0);
-        }
+        //    await Clients.Caller.SendAsync(
+        //        "UnreadCount",
+        //        unreadCount);
+        //}
 
 
-        public async Task RemoveNotification(long notificationId)
-        {
-            var userId = Context.UserIdentifier;
+        //public async Task MarkAllAsRead()
+        //{
+        //    var userId = Context.UserIdentifier;
 
-            if (string.IsNullOrEmpty(userId))
-                return;
+        //    if (string.IsNullOrEmpty(userId))
+        //        return;
 
-            await _notificationService.RemoveNotificationAsync(notificationId);
+        //    await _notificationService.MarkAllAsReadAsync(userId);
 
-            var unreadCount = await _notificationService.GetUnreadCountAsync(userId);
+        //    await Clients.Caller.SendAsync(
+        //        "UnreadCount",
+        //        0);
+        //}
 
 
-            await Clients.Caller.SendAsync(
-                "UnreadCount",
-                unreadCount);
-        }
+        //public async Task RemoveNotification(long notificationId)
+        //{
+        //    var userId = Context.UserIdentifier;
+
+        //    if (string.IsNullOrEmpty(userId))
+        //        return;
+
+        //    await _notificationService.RemoveNotificationAsync(notificationId);
+
+        //    var unreadCount = await _notificationService.GetUnreadCountAsync(userId);
+
+
+        //    await Clients.Caller.SendAsync(
+        //        "UnreadCount",
+        //        unreadCount);
+        //}
+
+
     }
+
 
 }

@@ -95,6 +95,7 @@ namespace SafeTrace.Infrastructure.DependencyInjection
 
             services.AddDefaultAWSOptions(awsOptions);
             services.AddAWSService<Amazon.Rekognition.IAmazonRekognition>();
+            services.AddAWSService<Amazon.S3.IAmazonS3>();
 
             return services;
         }
