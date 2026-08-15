@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using SafeTrace.Application.Constants;
 using SafeTrace.Application.DTOs.Cases.Request;
 using SafeTrace.Application.DTOs.UnKnownCase.Request;
@@ -50,6 +51,7 @@ namespace SafeTrace.API.Controllers
         [HttpPost("CreateCase")]
         [Consumes("multipart/form-data")]
         [HasPermission(Permissions.UnknownCases.Create)]
+        [EnableRateLimiting(RateLimitPolicies.CreateCaseLimit)]
         public async Task<IActionResult> CreateUnknown(
             [FromForm] CreateUnknownDto dto,
             [FromQuery] bool forceCreate = false)

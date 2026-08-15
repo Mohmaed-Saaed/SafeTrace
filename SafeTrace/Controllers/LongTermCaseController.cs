@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using SafeTrace.Application.Constants;
 using SafeTrace.Application.DTOs.Cases.Request;
 using SafeTrace.Application.DTOs.LongTermCase.Request;
@@ -85,6 +86,7 @@ namespace SafeTrace.API.Controllers
         [HttpPost("CreateCase")]
         [Consumes("multipart/form-data")]
         [HasPermission(Permissions.LongTermCases.Create)]
+        [EnableRateLimiting(RateLimitPolicies.CreateCaseLimit)]
         [ProducesResponseType(typeof(ApiResponse<string>), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]

@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using SafeTrace.Application.Constants;
 using SafeTrace.Application.DTOs.Chat;
 using SafeTrace.Application.Interfaces.IServices;
@@ -59,6 +60,7 @@ namespace SafeTrace.API.Controllers
         /// <response code="404">The specified case was not found.</response>
         [HttpPost("create")]
         [Authorize]
+        [EnableRateLimiting(RateLimitPolicies.ChatLimit)]
         public async Task<IActionResult> CreateChat([FromBody] StartChatRequest request)
         {
             var userId = CurrentUserId;
