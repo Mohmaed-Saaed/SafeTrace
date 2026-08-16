@@ -187,11 +187,6 @@ Add the following shape to User Secrets. The placeholder values are intentionalâ
 ```json
 {
   "ConnectionStrings": { "DefaultConnection": "<SQL Server connection string>" },
-  "SendGrid": {
-    "ApiKey": "<SendGrid API key>",
-    "FromEmail": "<verified sender email>",
-    "FromName": "<sender display name>"
-  },
   "Jwt": {
     "SecretKey": "<long random signing key>",
     "Issuer": "<issuer>",
