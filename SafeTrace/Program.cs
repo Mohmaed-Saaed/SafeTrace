@@ -70,7 +70,9 @@ namespace SafeTrace.API
                     {
                         options.PayloadSerializerOptions.Converters.Add(
                             new JsonStringEnumConverter());
-                    }); builder.Services.AddScoped<IChatNotifier, SignalRChatNotifier>();
+                    });
+            builder.Services.AddScoped<IChatNotifier, SignalRChatNotifier>();
+            builder.Services.AddSingleton<IChatPresenceService, ChatPresenceService>();
 
             builder.Services.AddCors(options =>
             {
