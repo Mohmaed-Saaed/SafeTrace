@@ -81,7 +81,7 @@ namespace SafeTrace.Application.Services
 
             var baseCase = await _unitOfWork.Repository<Case>()
                 .GetOneAsync(c => c.Id == caseId, tracked: false)
-                ?? throw new NotFoundException($"{caseId} لم يتم العثور على الحالة المطلوبة.");
+                ?? throw new NotFoundException($"لم يتم العثور على الحالة المطلوبة.");
 
             var caseOwnerId = baseCase.UserId;
 
@@ -486,7 +486,7 @@ namespace SafeTrace.Application.Services
                     tracked: false,
                     c => c.Case,
                     chatId => chatId.Messages)
-               ?? throw new NotFoundException($"{chatId}لم يتم العثور على المحادثة.");
+               ?? throw new NotFoundException($"لم يتم العثور على المحادثة.");
 
             EnsureParticipant(chat, currentUserId);
 
@@ -533,7 +533,7 @@ namespace SafeTrace.Application.Services
                     c => c.Id == chatId,
                     tracked: false
                    )
-               ?? throw new NotFoundException($"{chatId}لم يتم العثور على المحادثة.");
+               ?? throw new NotFoundException($"لم يتم العثور على المحادثة.");
 
             var messages = await _unitOfWork.Repository<Message>()
                 .Query(false)
@@ -560,7 +560,7 @@ namespace SafeTrace.Application.Services
                 true,
                 c=> c.Sender,
                 chatId => chatId.Receiver)
-                ?? throw new NotFoundException($"{chatId} لم يتم العثور على المحادثة.");
+                ?? throw new NotFoundException($"لم يتم العثور على المحادثة.");
 
             EnsureParticipant(chat, userId);
 
@@ -605,7 +605,7 @@ namespace SafeTrace.Application.Services
                 includes: c => c.Messages
                 )
                 ?? throw new NotFoundException(
-            $"{chatId} لم يتم العثور على المحادثة.");
+            $"لم يتم العثور على المحادثة.");
 
             _unitOfWork.Repository<Chat>().Remove( chat );
             
@@ -709,7 +709,9 @@ namespace SafeTrace.Application.Services
                 MessagesCount = c.Messages.Count,
                 UnreadMessagesCount = c.Messages.Count(m => !m.IsRead),
 
-                CreatedAt = c.CreatedAt,
+                CreatedAt = DateTime.SpecifyKind(
+                    c.CreatedAt,
+                    DateTimeKind.Utc),
 
                 LastMessage = c.Messages
                 .OrderByDescending(m => m.SendAt)
@@ -812,7 +814,7 @@ namespace SafeTrace.Application.Services
                     c => c.Case.FoundPersonInfo,
                     c => c.Sender,
                     c => c.Receiver)
-                ?? throw new NotFoundException($"لم يتم العثور على المحادثة {chatId}.");
+                ?? throw new NotFoundException($"لم يتم العثور على المحادثة.");
         }
 
         private async Task<Chat> GetChatAsync(long chatId)
@@ -826,7 +828,7 @@ namespace SafeTrace.Application.Services
                     c => c.Case.FoundPersonInfo,
                     c => c.Sender,
                     c => c.Receiver)
-                ?? throw new NotFoundException($"لم يتم العثور على المحادثة {chatId}.");
+                ?? throw new NotFoundException($"لم يتم العثور على المحادثة.");
         }
 
         private ChatDetailsDto BuildBaseDto(Chat chat)
