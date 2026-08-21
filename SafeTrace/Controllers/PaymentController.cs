@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using SafeTrace.Application.Constants;
 using SafeTrace.Application.DTOs.Payment.Request;
 using SafeTrace.Application.Interfaces.IServices;
@@ -22,6 +23,7 @@ namespace SafeTrace.API.Controllers
         /// </summary>
         [HttpPost("create-donation")]
         [AllowAnonymous]
+        [EnableRateLimiting(RateLimitPolicies.PaymentLimit)]
         public async Task<IActionResult> CreateDonationPaymobIntent([FromBody] CreateDonationRequestDto request)
         {
           var response = await  _paymentService.CreateDonationPaymobAsync(request, CurrentUserIdOrNull);

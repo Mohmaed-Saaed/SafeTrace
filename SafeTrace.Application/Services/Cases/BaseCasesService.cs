@@ -499,7 +499,10 @@ namespace SafeTrace.Application.Services.Cases
             x => x.CaseFiles,
             x => x.User,
             x => x.AgeCategory);
-     
+
+            if (!string.Equals(entity.UserId, userId, StringComparison.Ordinal))
+                throw new ForbiddenException("You cannot access another user's case.");
+
             if (entity.Status == CaseStatus.Deleted)
                 throw new NotFoundException("الحالة غير موجودة.");
 

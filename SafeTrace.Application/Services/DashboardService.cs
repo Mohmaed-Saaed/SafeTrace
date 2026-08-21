@@ -144,16 +144,14 @@ namespace SafeTrace.Application.Services
                 auditQuery = auditQuery.Where(a => a.Type == query.SearchType);
             }
 
-            var queryResult = auditQuery.Join(
-                _userManager.Users,
-                a => a.UserId,
-                u => u.Id,
-                (a, u) => new { Audit = a, User = u }
-            );
+            var queryResult = from a in auditQuery
+                              join u in _userManager.Users on a.UserId equals u.Id into au
+                              from u in au.DefaultIfEmpty()
+                              select new { Audit = a, User = u };
 
             if (!string.IsNullOrEmpty(query.SearchEmail))
             {
-                queryResult = queryResult.Where(x => x.User.Email.Contains(query.SearchEmail));
+                queryResult = queryResult.Where(x => x.User != null && x.User.Email.Contains(query.SearchEmail));
             }
 
             int totalCount = await queryResult.CountAsync();
@@ -165,7 +163,7 @@ namespace SafeTrace.Application.Services
                 .Select(x => new AuditLogDto
                 {
                     Id = x.Audit.Id,
-                    UserEmail = x.User.Email,
+                    UserEmail = x.User != null ? x.User.Email : null,
                     Type = x.Audit.Type,
                     TableName = x.Audit.TableName,
                     DateTime = x.Audit.DateTime,

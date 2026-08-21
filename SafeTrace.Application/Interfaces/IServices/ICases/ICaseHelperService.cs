@@ -27,9 +27,26 @@ namespace SafeTrace.Application.Interfaces.IServices.ICases
             IEnumerable<IFormFile>? additionalImages,
             IFormFile? video,
             string folderName,
-            long caseId = 0);   
+            long caseId = 0,
+            bool requireFaceIndexing = false);
 
-        void SetPrimaryImage(ICollection<CaseFile> files, long primaryPhotoId);
+        Task<List<CaseFile>> CreateAdditionalCaseFilesAsync(
+            IEnumerable<IFormFile> images,
+            string folderName,
+            long caseId = 0,
+            bool requireFaceIndexing = false);
+
+        void ValidateUpdateMediaState(
+            IEnumerable<CaseFile> existingFiles,
+            IFormFile? newPrimaryImage,
+            IEnumerable<IFormFile>? newAdditionalImages,
+            IEnumerable<long>? deletedPhotoIds);
+
+        void ValidateFinalUpdateIdentityAnchor(
+            IEnumerable<CaseFile> existingFiles,
+            IEnumerable<CaseFile> stagedNewFiles,
+            IEnumerable<long>? deletedPhotoIds,
+            bool replacesPrimary);
 
         void CleanupPhysicalFiles(IEnumerable<string> filePaths);
 

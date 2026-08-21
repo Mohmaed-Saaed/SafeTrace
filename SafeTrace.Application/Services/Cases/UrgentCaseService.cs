@@ -6,6 +6,7 @@ using SafeTrace.Application.DTOs.NotificationDTOS;
 using SafeTrace.Application.DTOs.UrgentCase.Request;
 using SafeTrace.Application.DTOs.UrgentCase.Response;
 using Microsoft.Extensions.DependencyInjection;
+using SafeTrace.Application.Exceptions;
 using SafeTrace.Application.Interfaces.IServices.ICases;
 using SafeTrace.Application.Interfaces.IServices.INotificationSewrvice;
 
@@ -181,203 +182,122 @@ namespace SafeTrace.Application.Services.Cases
         /// <summary>
         /// Updates an existing urgent case with new photos and location.
         /// </summary>
-        //public async Task<ApiResponse<string>> UpdateAsync(long id, string userId, UrgentCaseUpdateDto updateDto)
-        //{
-        //    var entity = await _caseHelper.GetValidCaseAsync<UrgentCase>(
-        //        id,
-        //        includes: [x => x.CaseFiles]);
-
-        //    _caseHelper.ValidateCaseIsEditable(entity); 
-
-        //    var existingFaceIds = entity.CaseFiles?
-        //        .Where(f => !string.IsNullOrWhiteSpace(f.FaceId))
-        //        .Select(f => f.FaceId!)
-        //        .ToList();
-
-        //    await _caseHelper.ValidateUploadedImagesIdentityAsync(updateDto.PrimaryImage, updateDto.NewPhotos, existingFaceIds);
-
-        //    var uploadedPhotos = new List<CaseFile>();
-        //    var filesToDelete = new List<string>();
-
-        //    // ── FIX: this list didn't exist before. Without it, deleted/replaced
-        //    // photos were removed from S3/disk but their FaceId NEVER got removed
-        //    // from the AI matching (vector) database — the exact issue you were
-        //    // originally worried about.
-        //    var faceIdsToDelete = new List<string>();
-        //    bool locationShifted = false;
-
-        //    await ExecuteInTransactionAsync(
-        //        action: async () =>
-        //        {
-        //            // Moved BEFORE NewPhotos so that, if the old primary photo is also
-        //            // being replaced via PrimaryImage below, we can correctly detect
-        //            // it was already deleted here and avoid double-deleting it.
-        //            if (updateDto.DeletedPhotoIds?.Count > 0)
-        //            {
-        //                var toRemove = entity.CaseFiles
-        //                    .Where(p => updateDto.DeletedPhotoIds.Contains(p.Id))
-        //                    .ToList();
-
-        //                filesToDelete.AddRange(toRemove.Select(p => p.ImagePath));
-
-        //                // ── FIX: face ids were never captured for deletion before.
-        //                faceIdsToDelete.AddRange(
-        //                    toRemove
-        //                        .Where(p => !string.IsNullOrWhiteSpace(p.FaceId))
-        //                        .Select(p => p.FaceId!));
-
-        //                foreach (var photo in toRemove)
-        //                    entity.CaseFiles.Remove(photo);
-        //            }
-
-        //            if (updateDto.NewPhotos?.Count > 0)
-        //            {
-        //                var primaryImage = updateDto.NewPhotos[0];
-        //                var additionalImages = updateDto.NewPhotos.Skip(1);
-
-        //                var newPhotos = await _caseHelper.CreateCaseFilesAsync(
-        //                    primaryImage, additionalImages, null, FolderName, entity.Id);
-
-        //                uploadedPhotos.AddRange(newPhotos);
-
-        //                foreach (var photo in newPhotos)
-        //                    entity.CaseFiles.Add(photo);
-        //            }
-
-        //            // ── FIX: PrimaryImage (crop-and-replace primary photo from the edit
-        //            // form) was never handled — the frontend sends it, but nothing ever
-        //            // consumed it. Takes precedence over PrimaryPhotoId, matching the
-        //            // frontend behavior (it clears primaryPhotoId whenever a new
-        //            // cropped/replacement primary photo is confirmed).
-        //            if (updateDto.PrimaryImage is not null)
-        //            {
-        //                var oldPrimary = entity.CaseFiles.FirstOrDefault(p => p.IsPrimary);
-
-        //                var newPrimaryPhotos = await _caseHelper.CreateCaseFilesAsync(
-        //                    updateDto.PrimaryImage,
-        //                    null,
-        //                    null,
-        //                    FolderName,
-        //                    entity.Id);
-
-        //                uploadedPhotos.AddRange(newPrimaryPhotos);
-        //                var newPrimary = newPrimaryPhotos.First();
-
-        //                if (oldPrimary is not null)
-        //                {
-        //                    filesToDelete.Add(oldPrimary.ImagePath);
-
-        //                    if (!string.IsNullOrWhiteSpace(oldPrimary.FaceId))
-        //                        faceIdsToDelete.Add(oldPrimary.FaceId);
-
-        //                    entity.CaseFiles.Remove(oldPrimary);
-        //                }
-
-        //                foreach (var f in entity.CaseFiles)
-        //                    f.IsPrimary = false;
-
-        //                newPrimary.IsPrimary = true;
-        //                entity.CaseFiles.Add(newPrimary);
-        //            }
-        //            // ── FIX: PrimaryPhotoId (marking an existing photo as primary,
-        //            // e.g. clicking "اجعلها أساسية") was never handled either.
-        //            else if (updateDto.PrimaryPhotoId.HasValue)
-        //            {
-        //                _caseHelper.SetPrimaryImage(entity.CaseFiles, updateDto.PrimaryPhotoId.Value);
-        //            }
-
-        //            _mapper.Map(updateDto, entity);
-        //            entity.UpdatedAt = DateTime.UtcNow;
-        //            entity.AgeCategoryId = await _caseHelper.ResolveAgeCategoryIdAsync(entity.Age);
-
-        //            if (updateDto.Latitude.HasValue && updateDto.Longitude.HasValue)
-        //            {
-        //                var newLat = updateDto.Latitude.Value;
-        //                var newLon = updateDto.Longitude.Value;
-
-        //                if (entity.Location != null)
-        //                {
-        //                    var oldLat = entity.Location.Y;
-        //                    var oldLon = entity.Location.X;
-
-        //                    var distanceMeters = CalculateDistanceMeters(oldLat, oldLon, newLat, newLon);
-        //                    if (distanceMeters >= LocationShiftNotificationThresholdMeters)
-        //                    {
-        //                        locationShifted = true;
-        //                    }
-        //                }
-
-        //                entity.Location = new Point(newLon, newLat) { SRID = 4326 };
-        //            }
-
-        //            _unitOfWork.Repository<UrgentCase>().Update(entity);
-
-        //            return true;
-        //        },
-        //        onFailureAsync: async ex =>
-        //        {
-        //            _caseHelper.CleanupPhysicalFiles(uploadedPhotos.Select(p => p.ImagePath));
-
-        //            // ── FIX: on failure, newly-indexed faces (from NewPhotos or
-        //            // PrimaryImage) were never cleaned up from the vector db either.
-        //            await _caseHelper.DeleteFacesAsync(
-        //                uploadedPhotos
-        //                    .Where(x => !string.IsNullOrWhiteSpace(x.FaceId))
-        //                    .Select(x => x.FaceId!),
-        //                entity.Id);
-
-        //            _logger.LogError(ex, "Failed to update urgent case {CaseId} for user {UserId}", id, userId);
-        //        });
-
-        //    if (locationShifted && entity.Status == CaseStatus.Active)
-        //    {
-        //        await NotifyNearbyUsersAsync(entity);
-        //    }
-
-        //    _logger.LogInformation("Urgent case {CaseId} updated by user {UserId}.", entity.Id, userId);
-
-        //    _caseHelper.CleanupPhysicalFiles(filesToDelete);
-
-        //    // ── FIX: this whole block was missing — deleted/replaced photos' faces
-        //    // never got removed from the AI matching database.
-        //    if (faceIdsToDelete.Count > 0)
-        //        await _caseHelper.DeleteFacesAsync(faceIdsToDelete, entity.Id);
-
-        //    return ApiResponse<string>.Ok(message: "تم تحديث الحالة العاجلة بنجاح.");
-        //}
-        public async Task<ApiResponse<string>> UpdateAsync(long id, string userId, UrgentCaseUpdateDto updateDto)
+        public async Task<ApiResponse<string>> UpdateAsync(
+            long id,
+            string userId,
+            UrgentCaseUpdateDto updateDto)
         {
             var entity = await _caseHelper.GetValidCaseAsync<UrgentCase>(
                       id,
                       includes: [x => x.CaseFiles]);
 
+            if (!string.Equals(entity.UserId, userId, StringComparison.Ordinal))
+            {
+                throw new ForbiddenException("You cannot update another user's case.");
+            }
 
             _caseHelper.ValidateCaseIsEditable(entity);
 
-            // -------------------------------------------------
-            // Existing FaceIds
-            // -------------------------------------------------
-            var existingFaceIds = entity.CaseFiles?
-                .Where(f => !string.IsNullOrWhiteSpace(f.FaceId))
+            if (updateDto.AdditionalImages is { Count: > 0 })
+            {
+                throw new BadRequestException(
+                    "AdditionalImages is create-only. Use NewPhotos when updating a case.");
+            }
+
+            if (updateDto.IsExistingVideoDeleted && updateDto.Video is not null)
+            {
+                throw new BadRequestException(
+                    "Cannot upload a replacement video while deleting the existing video.");
+            }
+
+            _caseHelper.ValidateUpdateMediaState(
+                entity.CaseFiles,
+                updateDto.PrimaryImage,
+                updateDto.NewPhotos,
+                updateDto.DeletedPhotoIds);
+
+            var existingFaceIds = entity.CaseFiles
+                .Where(f =>
+                    f.Type == FileType.Image &&
+                    !string.IsNullOrWhiteSpace(f.FaceId))
                 .Select(f => f.FaceId!)
+                .Distinct()
                 .ToList();
 
-            // -------------------------------------------------
-            // Validate uploaded images only
-            // Video is NOT part of face validation.
-            // -------------------------------------------------
+            // Same-person verification only; update never performs duplicate detection.
             await _caseHelper.ValidateUploadedImagesIdentityAsync(
                 updateDto.PrimaryImage,
                 updateDto.NewPhotos,
                 existingFaceIds);
 
             var uploadedPhotos = new List<CaseFile>();
-
             var filesToDelete = new List<string>();
-
             var faceIdsToDelete = new List<string>();
+            var newAdditionalPhotos = new List<CaseFile>();
+            CaseFile? newPrimary = null;
+            CaseFile? newVideo = null;
+            var ageCategoryId = await _caseHelper.ResolveAgeCategoryIdAsync(
+                updateDto.Age);
+            var locationShifted = false;
 
-            bool locationShifted = false;
+            try
+            {
+                if (updateDto.PrimaryImage is not null)
+                {
+                    var primaryFiles = await _caseHelper.CreateCaseFilesAsync(
+                        updateDto.PrimaryImage,
+                        null,
+                        null,
+                        FolderName,
+                        entity.Id,
+                        requireFaceIndexing: true);
+                    newPrimary = primaryFiles.Single();
+                    uploadedPhotos.Add(newPrimary);
+                }
+
+                if (updateDto.NewPhotos is { Count: > 0 })
+                {
+                    newAdditionalPhotos = await _caseHelper.CreateAdditionalCaseFilesAsync(
+                        updateDto.NewPhotos,
+                        FolderName,
+                        entity.Id,
+                        requireFaceIndexing: true);
+                    uploadedPhotos.AddRange(newAdditionalPhotos);
+                }
+
+                if (!updateDto.IsExistingVideoDeleted && updateDto.Video is not null)
+                {
+                    var videoPath = await _fileStorageService.SaveFileAsync(
+                        updateDto.Video,
+                        FolderName);
+                    newVideo = new CaseFile
+                    {
+                        ImagePath = videoPath,
+                        CaseId = entity.Id,
+                        IsPrimary = false,
+                        Type = FileType.Video,
+                        CreatedAt = DateTime.UtcNow
+                    };
+                    uploadedPhotos.Add(newVideo);
+                }
+
+                _caseHelper.ValidateFinalUpdateIdentityAnchor(
+                    entity.CaseFiles,
+                    uploadedPhotos,
+                    updateDto.DeletedPhotoIds,
+                    newPrimary is not null);
+            }
+            catch
+            {
+                _caseHelper.CleanupPhysicalFiles(
+                    uploadedPhotos.Select(x => x.ImagePath));
+                await _caseHelper.DeleteFacesAsync(
+                    uploadedPhotos
+                        .Where(x => !string.IsNullOrWhiteSpace(x.FaceId))
+                        .Select(x => x.FaceId!),
+                    entity.Id);
+                throw;
+            }
 
 
             await ExecuteInTransactionAsync(
@@ -390,6 +310,7 @@ namespace SafeTrace.Application.Services.Cases
                     {
                         var toRemove = entity.CaseFiles
                             .Where(p =>
+                                p.Type == FileType.Image &&
                                 updateDto.DeletedPhotoIds.Contains(p.Id))
                             .ToList();
 
@@ -412,72 +333,34 @@ namespace SafeTrace.Application.Services.Cases
                     // =================================================
                     // Add new photos
                     // =================================================
-                    if (updateDto.NewPhotos?.Count > 0)
+                    foreach (var photo in newAdditionalPhotos)
                     {
-                        var primaryImage = updateDto.NewPhotos[0];
-
-                        var additionalImages =
-                            updateDto.NewPhotos.Skip(1);
-
-                        var newPhotos =
-                            await _caseHelper.CreateCaseFilesAsync(
-                                primaryImage,
-                                additionalImages,
-                                null,
-                                FolderName,
-                                entity.Id);
-
-                        uploadedPhotos.AddRange(newPhotos);
-
-                        foreach (var photo in newPhotos)
-                        {
-                            entity.CaseFiles.Add(photo);
-                        }
+                        entity.CaseFiles.Add(photo);
                     }
 
 
                     // =================================================
-                    // Add / Replace Video
+                    // Delete / Replace Video
                     // =================================================
-                    if (updateDto.Video is not null)
+                    var oldVideo = entity.CaseFiles
+                        .FirstOrDefault(f => f.Type == FileType.Video);
+
+                    if (updateDto.IsExistingVideoDeleted)
                     {
-                        // Find existing video
-                        var oldVideo = entity.CaseFiles
-                            .FirstOrDefault(
-                                f => f.Type == FileType.Video);
-
-                        // Save the new video first
-                        var videoPath =
-                            await _fileStorageService.SaveFileAsync(
-                                updateDto.Video,
-                                FolderName);
-
-                        var newVideo = new CaseFile
-                        {
-                            ImagePath = videoPath,
-                            CaseId = entity.Id,
-                            IsPrimary = false,
-                            Type = FileType.Video
-                        };
-
-                        // Keep track of the new file.
-                        // If transaction fails, it will be deleted.
-                        uploadedPhotos.Add(newVideo);
-
-
-                        // If there is an old video,
-                        // remove it from the entity and schedule
-                        // its physical file for deletion.
                         if (oldVideo is not null)
                         {
-                            filesToDelete.Add(
-                                oldVideo.ImagePath);
-
+                            filesToDelete.Add(oldVideo.ImagePath);
+                            entity.CaseFiles.Remove(oldVideo);
+                        }
+                    }
+                    else if (newVideo is not null)
+                    {
+                        if (oldVideo is not null)
+                        {
+                            filesToDelete.Add(oldVideo.ImagePath);
                             entity.CaseFiles.Remove(oldVideo);
                         }
 
-
-                        // Add the new video
                         entity.CaseFiles.Add(newVideo);
                     }
 
@@ -485,31 +368,13 @@ namespace SafeTrace.Application.Services.Cases
                     // =================================================
                     // Replace Primary Image
                     // =================================================
-                    if (updateDto.PrimaryImage is not null)
+                    if (newPrimary is not null)
                     {
-                        var oldPrimary = entity.CaseFiles
-                            .FirstOrDefault(
-                                p =>
-                                    p.IsPrimary &&
-                                    p.Type != FileType.Video);
+                        var oldPrimaries = entity.CaseFiles
+                            .Where(p => p.IsPrimary && p.Type == FileType.Image)
+                            .ToList();
 
-                        var newPrimaryPhotos =
-                            await _caseHelper.CreateCaseFilesAsync(
-                                updateDto.PrimaryImage,
-                                null,
-                                null,
-                                FolderName,
-                                entity.Id);
-
-                        uploadedPhotos.AddRange(
-                            newPrimaryPhotos);
-
-                        var newPrimary =
-                            newPrimaryPhotos.First();
-
-
-                        // Remove old primary
-                        if (oldPrimary is not null)
+                        foreach (var oldPrimary in oldPrimaries)
                         {
                             filesToDelete.Add(
                                 oldPrimary.ImagePath);
@@ -521,32 +386,11 @@ namespace SafeTrace.Application.Services.Cases
                                     oldPrimary.FaceId);
                             }
 
-                            entity.CaseFiles.Remove(
-                                oldPrimary);
+                            entity.CaseFiles.Remove(oldPrimary);
                         }
 
-
-                        // Make all images non-primary
-                        foreach (var file in entity.CaseFiles)
-                        {
-                            if (file.Type != FileType.Video)
-                            {
-                                file.IsPrimary = false;
-                            }
-                        }
-
-
-                        // Make new image primary
                         newPrimary.IsPrimary = true;
-
-                        entity.CaseFiles.Add(
-                            newPrimary);
-                    }
-                    else if (updateDto.PrimaryPhotoId.HasValue)
-                    {
-                        _caseHelper.SetPrimaryImage(
-                            entity.CaseFiles,
-                            updateDto.PrimaryPhotoId.Value);
+                        entity.CaseFiles.Add(newPrimary);
                     }
 
 
@@ -560,9 +404,7 @@ namespace SafeTrace.Application.Services.Cases
                     entity.UpdatedAt =
                         DateTime.UtcNow;
 
-                    entity.AgeCategoryId =
-                        await _caseHelper.ResolveAgeCategoryIdAsync(
-                            entity.Age);
+                    entity.AgeCategoryId = ageCategoryId;
 
 
                     // =================================================

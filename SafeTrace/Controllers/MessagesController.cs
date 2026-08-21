@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using SafeTrace.Application.Constants;
 using SafeTrace.Application.DTOs.Message;
 using SafeTrace.Application.Interfaces.IServices;
@@ -31,6 +32,7 @@ namespace SafeTrace.API.Controllers
         [HttpPost("send")]
         [Consumes("multipart/form-data")]
         [Authorize]
+        [EnableRateLimiting(RateLimitPolicies.ChatLimit)]
         public async Task<IActionResult> SendMessage([FromForm] SendMessageRequest request)
         {
             var senderId = CurrentUserId;

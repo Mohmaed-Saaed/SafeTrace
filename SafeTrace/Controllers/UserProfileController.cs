@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using SafeTrace.Application.Constants;
 using SafeTrace.Application.DTOs.Responses;
 using SafeTrace.Application.DTOs.User_Profiel_DTOS;
@@ -53,6 +54,7 @@ namespace SafeTrace.API.Controllers
         /// <returns></returns>
         [HttpPut("UpdateName")]
         [Authorize]
+        [EnableRateLimiting(RateLimitPolicies.ProfileUpdateLimit)]
         public async Task<IActionResult> UpdateName([FromForm] UpdateNameDTO dTO)
         {
             var result = await _user.UpdateNameAsync(CurrentUserId, dTO);
@@ -66,6 +68,7 @@ namespace SafeTrace.API.Controllers
         /// <returns></returns>
         [HttpPut("UpdateProfileImage")]
         [Authorize]
+        [EnableRateLimiting(RateLimitPolicies.ProfileUpdateLimit)]
         public async Task<IActionResult> UpdateProfileImage([FromForm] UpdateProfileImageDTO dTO)
         {
             var result = await _user.UpdateProfilImageesync(CurrentUserId, dTO);
@@ -78,6 +81,7 @@ namespace SafeTrace.API.Controllers
         /// <returns></returns>
         [HttpDelete("ProfileImage")]
         [Authorize]
+        [EnableRateLimiting(RateLimitPolicies.ProfileUpdateLimit)]
         public async Task<IActionResult> RemoveProfileImage()
         {
 
@@ -91,6 +95,7 @@ namespace SafeTrace.API.Controllers
         /// <returns></returns>
         [HttpPut("AddIdImage")]
         [Authorize]
+        [EnableRateLimiting(RateLimitPolicies.ProfileUpdateLimit)]
         public async Task<IActionResult> AddIdImage([FromForm] AddIdImageDTO dTO)
         {
             var result = await _user.AddIdImageAsync(CurrentUserId, dTO);
@@ -103,6 +108,7 @@ namespace SafeTrace.API.Controllers
         /// <returns></returns>
         [HttpPut("UpdateHomeLocation")]
         [Authorize]
+        [EnableRateLimiting(RateLimitPolicies.ProfileUpdateLimit)]
         public async Task<IActionResult> UpdateHomeLocation([FromForm] UpdateHomeLocationDTO dTO)
         {
             var result = await _user.UpdateHomeLocationAsync(CurrentUserId, dTO);
@@ -114,6 +120,7 @@ namespace SafeTrace.API.Controllers
         /// <returns></returns>
         [HttpPut("UpdateCurrentLocation")]
         [Authorize]
+        [EnableRateLimiting(RateLimitPolicies.ProfileUpdateLimit)]
         public async Task<IActionResult> UpdateCurrentLoc(UpdateCurrentLocationDTO dto)
         {
             var result = await _user.UpdateCurrentLocation(CurrentUserId, dto);
@@ -127,6 +134,7 @@ namespace SafeTrace.API.Controllers
 
         [HttpPut("UpdatePhoneNumber")]
         [Authorize]
+        [EnableRateLimiting(RateLimitPolicies.ProfileUpdateLimit)]
         public async Task<IActionResult> UpdatePhoneNumber([FromForm] ChangePhoneNumberDTO dto)
         {
             var result = await _user.UpdatePhoneNumberAsync(CurrentUserId, dto);
