@@ -98,14 +98,14 @@ namespace SafeTrace.API.Controllers
         }
 
         /// <summary>
-        /// تعديل حالة — المستخدم يعدل حالته، الأدمن يعدل أي حالة.
+        /// تعديل حالة يملكها المستخدم الحالي.
         /// </summary>
         /// <param name="id">Case ID.</param>
         /// <param name="dto">البيانات المُحدَّثة.</param>
         [HttpPut("UpdateCase/{id:long}")]
         [Consumes("multipart/form-data")]
         [HasPermission(Permissions.LongTermCases.Update)]
-        [ProducesResponseType(StatusCodes.Status204NoContent)]
+        [ProducesResponseType(typeof(ApiResponse<string>), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -113,8 +113,7 @@ namespace SafeTrace.API.Controllers
         {
             if (CurrentUserId == null) throw new UnauthorizedException("لم يتم التعرف على هوية المستخدم.");
 
-            await _service.UpdateAsync(id, dto);
-            return NoContent();
+            return Ok(await _service.UpdateAsync(id, CurrentUserId, dto));
         }
 
         /// <summary>Approves a pending case, changing its status to Active.</summary>

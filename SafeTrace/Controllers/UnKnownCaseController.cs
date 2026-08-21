@@ -70,7 +70,10 @@ namespace SafeTrace.API.Controllers
             if (string.IsNullOrEmpty(CurrentUserId))
                 throw new UnauthorizedException("User identity could not be verified from token.");
 
-            return Ok(await _unKnownServiceCase.UpdateUnknownCaseAsync(id, CurrentUserId, dto));
+            return Ok(await _unKnownServiceCase.UpdateUnknownCaseAsync(
+                id,
+                CurrentUserId,
+                dto));
         }
 
         [HttpPut("Approve/{id:long}")]
