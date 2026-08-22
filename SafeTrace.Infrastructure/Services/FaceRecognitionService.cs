@@ -147,7 +147,7 @@ namespace SafeTrace.Infrastructure.Services
 
                 if (detectResponse.FaceDetails.Count > 1)
                 {
-                    throw new BadRequestException("عذراً، الصورة تحتوي على أكثر من شخص. يرجى رفع صورة تحتوي على شخص واحد فقط للبحث.");
+                    throw new BadRequestException("عذراً، الصورة تحتوي على أكثر من شخص. يرجى رفع صورة تحتوي على شخص واحد فقط.");
                 }
             }
             catch (Exception ex) when (!(ex is BadRequestException))
