@@ -7,5 +7,9 @@ namespace SafeTrace.Application.Constants
         public const string AiLimit = "AiLimit";
         public const string OtpRequestLimit = "OtpRequestLimit";
         public const string OtpSubmitLimit = "OtpSubmitLimit";
+        public const string ProfileUpdateLimit = "ProfileUpdateLimit";
+        public const string ChatLimit = "ChatLimit";
+        public const string PaymentLimit = "PaymentLimit";
+        public const string CreateCaseLimit = "CreateCaseLimit";
     }
 }

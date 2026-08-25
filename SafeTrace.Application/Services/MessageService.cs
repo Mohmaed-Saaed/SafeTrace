@@ -1,15 +1,6 @@
-using Microsoft.AspNetCore.SignalR;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Logging;
 using SafeTrace.Application.DTOs.Message;
-using SafeTrace.Application.DTOs.Responses;
 using SafeTrace.Application.Exceptions;
-using SafeTrace.Application.Interfaces.IServices;
-using SafeTrace.Domain.Entities;
 using Chat = SafeTrace.Domain.Entities.Chat;
-using SafeTrace.Domain.Enums;
-using SafeTrace.Domain.Interfaces.IUnitOfWork;
-using static SafeTrace.Application.Constants.Permissions;
 using SafeTrace.Application.Interfaces.IServices.INotificationSewrvice;
 using SafeTrace.Application.DTOs.NotificationDTOS;
 using SafeTrace.Application.Constants;
@@ -27,11 +18,12 @@ namespace SafeTrace.Application.Services
         private readonly IFileStorageService _fileStorageService;
         private readonly INotificationServices _notificationServices;
         private readonly IEmailService _emailService;
+        private readonly IChatPresenceService _chatPresenceService;
 
         public MessageService(IUnitOfWork unitOfWork, IMapper mapper,
             IChatNotifier chatNotifier, ILogger<MessageService> logger,
             IFileStorageService fileStorageService, INotificationServices notificationServices,
-            IEmailService emailService)
+            IEmailService emailService, IChatPresenceService chatPresenceService)
         {
             _unitOfWork = unitOfWork;
             _mapper = mapper;
@@ -40,6 +32,7 @@ namespace SafeTrace.Application.Services
             _fileStorageService = fileStorageService;
             _notificationServices = notificationServices;
             _emailService = emailService;
+            _chatPresenceService = chatPresenceService;
         }
 
 
@@ -78,8 +71,20 @@ namespace SafeTrace.Application.Services
 
                 throw new ForbiddenException("ليس لديك صلاحية لإرسال رسائل في هذه المحادثة.");
             }
-            var receiverId = chat.SenderId == senderId ? chat.ReceiverId : chat.SenderId;
-            
+            var receiverId = chat.SenderId == senderId 
+                ? chat.ReceiverId : chat.SenderId;
+
+            var receiverIsInChat =
+                _chatPresenceService.IsUserInChat(
+                    receiverId,
+                    request.ChatId);
+
+            var shouldSendEmail =
+                !receiverIsInChat &&
+                _chatPresenceService.ShouldSendEmail(
+                    receiverId,
+                    request.ChatId);
+
             var chatUpdated = false;
             if (chat.SenderId == receiverId && chat.DeletedBySender)
             {
@@ -186,21 +191,37 @@ namespace SafeTrace.Application.Services
                 NotificationDirectLink = $"/chat/chat/{request.ChatId}"
 
             });
-            var receiver = chat.SenderId == senderId
-                ? chat.Receiver
-                : chat.Sender;
-            var receiverEmail = receiver.Email;
+            // Email
+            if (shouldSendEmail)
+            {
+                var receiver = chat.SenderId == senderId
+                    ? chat.Receiver
+                    : chat.Sender;
 
-            var emailBody = EmailTemplates.BuildArabicNewMessageEmailTemplate(
-                receiverName: receiver.FName,
-                senderName: senderName,
-                messagePreview: string.IsNullOrWhiteSpace(request.Content)
-                ? "📎 ملف مرفق"
-                : request.Content,
-                chatLink: $"https://leqaaweb.runasp.net/chat/chat/{request.ChatId}");
+                var receiverEmail = receiver.Email;
 
-            BackgroundJob.Enqueue<IEmailService>(x => x.SendEmailAsync(receiverEmail!, "رسالة جديدة من لقاء", emailBody));
+                var emailBody =
+                    EmailTemplates.BuildArabicNewMessageEmailTemplate(
+                        receiverName: receiver.FName,
+                        senderName: senderName,
+                        messagePreview:
+                            string.IsNullOrWhiteSpace(request.Content)
+                                ? "📎 ملف مرفق"
+                                : request.Content,
+                        chatLink:
+                            $"https://leqaaweb.runasp.net/chat/chat/{request.ChatId}");
 
+                BackgroundJob.Enqueue<IEmailService>(
+                    x => x.SendEmailAsync(
+                        receiverEmail!,
+                        "رسالة جديدة من لقاء",
+                        emailBody));
+
+                // Mark email as sent
+                _chatPresenceService.MarkEmailAsSent(
+                    receiverId,
+                    request.ChatId);
+            }
             return ApiResponse<MessageDto>.Ok(
             messageDto, "تم إرسال الرسالة بنجاح.");
 

@@ -1,6 +1,4 @@
-﻿using System.ComponentModel.DataAnnotations;
-using System.IO;
-using Microsoft.AspNetCore.Http;
+﻿using Microsoft.AspNetCore.Http;
 
 namespace SafeTrace.Application.Common.Validators.Attributes
 {

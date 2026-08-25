@@ -1,5 +1,6 @@
 using SafeTrace.Application.Constants;
 using SafeTrace.Application.Interfaces;
+//using SafeTrace.Domain.Enums;
 
 namespace SafeTrace.Infrastructure.Persistence
 {
@@ -32,10 +33,13 @@ namespace SafeTrace.Infrastructure.Persistence
 
             var adminEmail = SystemConstants.RootAdminEmail;
             var user = await _userManager.FindByEmailAsync(adminEmail);
+            //await _userManager.RemoveFromRoleAsync(user, "User");
             if (user != null && !await _userManager.IsInRoleAsync(user, "SuperAdmin"))
             {
                 await _userManager.AddToRoleAsync(user, "SuperAdmin");
             }
+            //user.VerificationStatus = VerificationStatus.Verified;
+            //await _userManager.UpdateAsync(user);
 
             string[] SuperAdminPermissions = {Permissions.Dashboard.GetStatistics, Permissions.Dashboard.GetCasesStatistics, Permissions.Dashboard.GetAuditLogs, Permissions.Dashboard.GenerateCasesPdfReport,
                                               Permissions.Users.Reject, Permissions.Users.Approve, Permissions.Users.GetPermissions, Permissions.Users.AssignPermissions, Permissions.Users.GetAll, Permissions.Users.GetById, Permissions.Users.ToggleBlock, Permissions.Users.RegisterByAdmin, Permissions.Users.ChangeRole, Permissions.Users.GetUsersStatistics, Permissions.Users.GenerateUsersPdfReport,

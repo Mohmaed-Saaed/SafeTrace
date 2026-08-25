@@ -111,30 +111,104 @@ namespace SafeTrace.Application.Services.Cases
             { CaseCodePrefix.UNK, "UnknownCaseSequence" }
         };
 
-        public async Task<List<CaseFile>> CreateCaseFilesAsync(IFormFile primaryImage, IEnumerable<IFormFile>? additionalImages, IFormFile? video, string folderName, long caseId = 0)
+        public async Task<List<CaseFile>> CreateCaseFilesAsync(
+            IFormFile primaryImage,
+            IEnumerable<IFormFile>? additionalImages,
+            IFormFile? video,
+            string folderName,
+            long caseId = 0,
+            bool requireFaceIndexing = false)
         {
-            var files = new List<CaseFile>
-            {
-                await CreateCaseFileAsync(primaryImage, folderName, caseId, true)
-            };
+            var files = new List<CaseFile>();
 
-            if (additionalImages != null)
+            try
             {
-                foreach (var image in additionalImages)
+                files.Add(await CreateCaseFileAsync(
+                    primaryImage,
+                    folderName,
+                    caseId,
+                    true,
+                    requireFaceIndexing));
+
+                if (additionalImages != null)
                 {
-                    files.Add(await CreateCaseFileAsync(image, folderName, caseId, false));
+                    foreach (var image in additionalImages)
+                    {
+                        files.Add(await CreateCaseFileAsync(
+                            image,
+                            folderName,
+                            caseId,
+                            false,
+                            requireFaceIndexing));
+                    }
                 }
-            }
 
-            if (video != null)
+                if (video != null)
+                {
+                    files.Add(await CreateCaseFileAsync(
+                        video,
+                        folderName,
+                        caseId,
+                        false,
+                        false));
+                }
+
+                return files;
+            }
+            catch when (requireFaceIndexing)
             {
-                files.Add(await CreateCaseFileAsync(video, folderName, caseId, false));
+                CleanupPhysicalFiles(files.Select(x => x.ImagePath));
+                await DeleteFacesAsync(
+                    files.Where(x => !string.IsNullOrWhiteSpace(x.FaceId))
+                        .Select(x => x.FaceId!),
+                    caseId);
+                throw;
             }
-
-            return files;
         }
 
-        private async Task<CaseFile> CreateCaseFileAsync(IFormFile file, string folderName, long caseId, bool isPrimary)
+        public async Task<List<CaseFile>> CreateAdditionalCaseFilesAsync(
+            IEnumerable<IFormFile> images,
+            string folderName,
+            long caseId = 0,
+            bool requireFaceIndexing = false)
+        {
+            var files = new List<CaseFile>();
+
+            try
+            {
+                foreach (var image in images)
+                {
+                    var file = await CreateCaseFileAsync(
+                        image,
+                        folderName,
+                        caseId,
+                        false,
+                        requireFaceIndexing);
+
+                    file.IsPrimary = false;
+
+                    files.Add(file);
+                }
+
+                return files;
+            }
+            catch when (requireFaceIndexing)
+            {
+                CleanupPhysicalFiles(files.Select(x => x.ImagePath));
+                await DeleteFacesAsync(
+                    files.Where(x => !string.IsNullOrWhiteSpace(x.FaceId))
+                        .Select(x => x.FaceId!),
+                    caseId);
+                throw;
+            }
+        }
+
+        private async Task<CaseFile> CreateCaseFileAsync(
+            IFormFile file,
+            string folderName,
+            long caseId,
+            bool isPrimary,
+            bool requireFaceIndexing = false)
         {
             var path = await _fileStorageService.SaveFileAsync(file, folderName);
 
@@ -152,8 +226,24 @@ namespace SafeTrace.Application.Services.Cases
                 }
                 catch (Exception ex)
                 {
+                    if (requireFaceIndexing)
+                    {
+                        CleanupPhysicalFiles([path]);
+                        _logger.LogError(
+                            ex,
+                            "Failed to index a required face for update file {FileName}.",
+                            file.FileName);
+                        throw;
+                    }
+
                     _logger.LogWarning(ex, "Failed to index face for file {FileName}.", file.FileName);
                 }
+            }
+
+            if (requireFaceIndexing && string.IsNullOrWhiteSpace(faceId))
+            {
+                CleanupPhysicalFiles([path]);
+                throw new BadRequestException("Cannot index uploaded image face.");
             }
 
             return new CaseFile
@@ -167,21 +257,123 @@ namespace SafeTrace.Application.Services.Cases
             };
         }
 
-        public void SetPrimaryImage(ICollection<CaseFile> files, long primaryPhotoId)
+        public void ValidateUpdateMediaState(
+            IEnumerable<CaseFile> existingFiles,
+            IFormFile? newPrimaryImage,
+            IEnumerable<IFormFile>? newAdditionalImages,
+            IEnumerable<long>? deletedPhotoIds)
         {
-            var images = files
-                .Where(f => !VideoExtensions.Contains(Path.GetExtension(f.ImagePath)))
+            var allFiles = existingFiles.ToList();
+            var currentImages = allFiles
+                .Where(x => x.Type == FileType.Image)
+                .ToList();
+            var additionalUploads = newAdditionalImages?.ToList() ?? [];
+            var deletionIds = deletedPhotoIds?.ToList() ?? [];
+
+            if (deletionIds.Count != deletionIds.Distinct().Count())
+            {
+                throw new BadRequestException("Deleted photo IDs must be distinct.");
+            }
+
+            foreach (var deletedId in deletionIds)
+            {
+                var file = allFiles.FirstOrDefault(x => x.Id == deletedId);
+
+                if (file is null)
+                {
+                    throw new BadRequestException(
+                        "Deleted photo ID does not belong to this case.");
+                }
+
+                if (file.Type != FileType.Image)
+                {
+                    throw new BadRequestException(
+                        "DeletedPhotoIds can only reference image files.");
+                }
+            }
+
+            var deletedIdSet = deletionIds.ToHashSet();
+            int finalPrimaryCount;
+            int finalAdditionalCount;
+
+            if (newPrimaryImage is not null)
+            {
+                // A dedicated primary upload replaces every existing primary. Existing
+                // additional images stay additional; none is promoted as a fallback.
+                finalPrimaryCount = 1;
+                finalAdditionalCount = currentImages.Count(x =>
+                    !x.IsPrimary && !deletedIdSet.Contains(x.Id)) +
+                    additionalUploads.Count;
+            }
+            else
+            {
+                var retainedImages = currentImages
+                    .Where(x => !deletedIdSet.Contains(x.Id))
+                    .ToList();
+
+                finalPrimaryCount = retainedImages.Count(x => x.IsPrimary);
+                finalAdditionalCount = retainedImages.Count(x => !x.IsPrimary) +
+                    additionalUploads.Count;
+            }
+
+            if (finalPrimaryCount == 0)
+            {
+                throw new BadRequestException("Primary image is required.");
+            }
+
+            if (finalPrimaryCount > 1)
+            {
+                throw new BadRequestException("Only one primary image is allowed.");
+            }
+
+            if (finalAdditionalCount > 4)
+            {
+                throw new BadRequestException(
+                    "A case can have a maximum of four additional images.");
+            }
+
+            var hadReliableAnchor = currentImages.Any(
+                x => !string.IsNullOrWhiteSpace(x.FaceId));
+            var retainsReliableAnchor = currentImages.Any(x =>
+                !deletedIdSet.Contains(x.Id) &&
+                !(newPrimaryImage is not null && x.IsPrimary) &&
+                !string.IsNullOrWhiteSpace(x.FaceId));
+            var willIndexNewAnchor = newPrimaryImage is not null ||
+                additionalUploads.Count > 0;
+
+            if (hadReliableAnchor && !retainsReliableAnchor && !willIndexNewAnchor)
+            {
+                throw new BadRequestException(
+                    "Cannot remove the case's last verifiable identity image.");
+            }
+        }
+
+        public void ValidateFinalUpdateIdentityAnchor(
+            IEnumerable<CaseFile> existingFiles,
+            IEnumerable<CaseFile> stagedNewFiles,
+            IEnumerable<long>? deletedPhotoIds,
+            bool replacesPrimary)
+        {
+            var existingImages = existingFiles
+                .Where(x => x.Type == FileType.Image)
                 .ToList();
 
-            if (!images.Any())
-                throw new BadRequestException("الحالة لا تحتوي على صور.");
+            if (!existingImages.Any(x => !string.IsNullOrWhiteSpace(x.FaceId)))
+                return;
 
-            if (!images.Any(i => i.Id == primaryPhotoId))
-                throw new BadRequestException("الصورة الأساسية المحددة غير موجودة.");
+            var deletedIdSet = deletedPhotoIds?.ToHashSet() ?? [];
+            var retainsAnchor = existingImages.Any(x =>
+                !deletedIdSet.Contains(x.Id) &&
+                !(replacesPrimary && x.IsPrimary) &&
+                !string.IsNullOrWhiteSpace(x.FaceId));
+            var hasIndexedNewAnchor = stagedNewFiles.Any(x =>
+                x.Type == FileType.Image &&
+                !string.IsNullOrWhiteSpace(x.FaceId));
 
-            foreach (var image in images)
+            if (!retainsAnchor && !hasIndexedNewAnchor)
             {
-                image.IsPrimary = image.Id == primaryPhotoId;
+                throw new BadRequestException(
+                    "Cannot remove the case's last verifiable identity image.");
             }
         }
 
@@ -209,13 +401,37 @@ namespace SafeTrace.Application.Services.Cases
 
         public async Task DeleteFacesAsync(IEnumerable<string>? faceIds, long caseId)
         {
+            var ids = faceIds?
+                .Where(x => !string.IsNullOrWhiteSpace(x))
+                .Distinct(StringComparer.Ordinal)
+                .ToList() ?? [];
+
+            if (ids.Count == 0)
+                return;
+
             try
             {
-                await _faceRecognitionService.DeleteFacesAsync(faceIds?.ToList() ?? []);
+                await _faceRecognitionService.DeleteFacesAsync(ids);
             }
             catch (Exception ex)
             {
                 _logger.LogWarning(ex, "Failed to delete faces for case {CaseId}", caseId);
+
+                // Cleanup happens after commit (or as compensation for failed staging),
+                // so a transient AI outage must not leave stale face IDs forever.
+                // Hangfire's automatic retries handle the external cleanup separately.
+                try
+                {
+                    BackgroundJob.Enqueue<IFaceRecognitionService>(
+                        service => service.DeleteFacesAsync(ids));
+                }
+                catch (Exception enqueueException)
+                {
+                    _logger.LogError(
+                        enqueueException,
+                        "Failed to enqueue face cleanup retry for case {CaseId}",
+                        caseId);
+                }
             }
         }
 
@@ -430,61 +646,50 @@ namespace SafeTrace.Application.Services.Cases
         }
 
         public async Task ValidateUploadedImagesIdentityAsync(
-            IFormFile? primaryImage, 
-            IEnumerable<IFormFile>? additionalImages, 
+            IFormFile? primaryImage,
+            IEnumerable<IFormFile>? additionalImages,
             IEnumerable<string>? existingFaceIds = null)
         {
-            var isUpdate = existingFaceIds != null && existingFaceIds.Any();
-            var hasAdditional = additionalImages != null && additionalImages.Any();
+            var images = new List<IFormFile>();
 
-            if (!isUpdate)
+            if (primaryImage != null)
+                images.Add(primaryImage);
+
+            if (additionalImages != null)
+                images.AddRange(additionalImages);
+
+            if (images.Count == 0)
+                return;
+
+            // A null anchor collection is the existing create-flow contract. Update
+            // callers explicitly pass the case's anchors (including an empty list),
+            // which lets update fail closed without introducing duplicate detection.
+            if (existingFaceIds is null)
+                return;
+
+            var reliableFaceIds = existingFaceIds
+                .Where(x => !string.IsNullOrWhiteSpace(x))
+                .ToHashSet(StringComparer.Ordinal);
+
+            if (reliableFaceIds.Count == 0)
             {
-                if (primaryImage != null && hasAdditional)
-                {
-                    foreach (var additional in additionalImages!)
-                    {
-                        var comparison = await _faceRecognitionService.CompareFacesAsync(primaryImage, additional);
-                        if (!comparison.Success || !comparison.IsSamePerson)
-                        {
-                            throw new BadRequestException("جميع الصور المرفقة يجب أن تكون لنفس الشخص.");
-                        }
-                    }
-                }
+                throw new BadRequestException(
+                    "Cannot verify uploaded image identity.");
             }
-            else
+
+            foreach (var image in images)
             {
-                if (primaryImage != null)
+                var matches = await _faceRecognitionService.SearchByImageAsync(image);
+
+                var isSamePerson = matches.Any(m =>
+                    reliableFaceIds.Contains(m.FaceId) &&
+                    PassesVerification(m.Similarity ?? 0));
+
+
+                if (!isSamePerson)
                 {
-                    var matches = await _faceRecognitionService.SearchByImageAsync(primaryImage);
-                    var isSamePerson = matches.Any(m => existingFaceIds!.Contains(m.FaceId) && PassesVerification(m.Similarity ?? 0));
-                    if (!isSamePerson)
-                    {
-                        throw new BadRequestException("الصورة الجديدة لا تبدو لنفس الشخص الموجود في هذا البلاغ.\n\nإذا كان هذا شخصًا آخر، يرجى إنشاء بلاغ جديد بدلاً من تعديل البلاغ الحالي.");
-                    }
-                    
-                    if (hasAdditional)
-                    {
-                        foreach (var additional in additionalImages!)
-                        {
-                            var comparison = await _faceRecognitionService.CompareFacesAsync(primaryImage, additional);
-                            if (!comparison.Success || !comparison.IsSamePerson)
-                            {
-                                throw new BadRequestException("جميع الصور داخل البلاغ يجب أن تكون لنفس الشخص.");
-                            }
-                        }
-                    }
-                }
-                else if (hasAdditional)
-                {
-                    foreach (var additional in additionalImages!)
-                    {
-                        var matches = await _faceRecognitionService.SearchByImageAsync(additional);
-                        var isSamePerson = matches.Any(m => existingFaceIds!.Contains(m.FaceId) && PassesVerification(m.Similarity ?? 0));
-                        if (!isSamePerson)
-                        {
-                            throw new BadRequestException("جميع الصور داخل البلاغ يجب أن تكون لنفس الشخص.");
-                        }
-                    }
+                    throw new BadRequestException(
+                        "الصورة الجديدة لا تبدو لنفس الشخص الموجود في هذا البلاغ.");
                 }
             }
         }

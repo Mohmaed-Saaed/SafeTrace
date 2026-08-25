@@ -81,7 +81,7 @@ namespace SafeTrace.Application.Services
 
             var baseCase = await _unitOfWork.Repository<Case>()
                 .GetOneAsync(c => c.Id == caseId, tracked: false)
-                ?? throw new NotFoundException($"{caseId} لم يتم العثور على الحالة المطلوبة.");
+                ?? throw new NotFoundException($"لم يتم العثور على الحالة المطلوبة.");
 
             var caseOwnerId = baseCase.UserId;
 
@@ -169,13 +169,22 @@ namespace SafeTrace.Application.Services
             var result = await _unitOfWork.Repository<Chat>()
                 .Query(tracked: false)
                 .Where(c =>
-                (c.SenderId == currentUserId && !c.DeletedBySender) ||
+                ((c.SenderId == currentUserId && !c.DeletedBySender) ||
                 (c.ReceiverId == currentUserId && !c.DeletedByReceiver))
+                && (
+                c.Case.Status == CaseStatus.Active ||
+                c.Case.Status == CaseStatus.Found ||
+                c.Case.Status == CaseStatus.Expired ||
+                c.Case.Status == CaseStatus.Deleted
+                )
+            )
+
                 .Select(c => new ChatSummaryDto
                 {
                     ChatId = c.Id,
                     CaseId = c.CaseId,
                     CaseTitle = $"{c.Case.FName} {c.Case.SName} {c.Case.TName} {c.Case.LName}",
+                    CaseStatus = c.Case.Status,
 
                     OtherUserId = c.SenderId == currentUserId ? c.ReceiverId : c.SenderId,
 
@@ -338,7 +347,7 @@ namespace SafeTrace.Application.Services
         long chatId,
         string currentUserId)
         {
-            var chat = await GetChatAsync(chatId);
+            var chat = await GetUserChatAsync(chatId , currentUserId);
 
             EnsureParticipant(chat, currentUserId);
 
@@ -469,11 +478,15 @@ namespace SafeTrace.Application.Services
 
             var chat = await _unitOfWork.Repository<Chat>()
                 .GetOneAsync(
-                    c => c.Id == chatId,
+                     c => c.Id == chatId &&
+                     (
+                         (c.SenderId == currentUserId && !c.DeletedBySender) ||
+                         (c.ReceiverId == currentUserId && !c.DeletedByReceiver)
+                     ),
                     tracked: false,
                     c => c.Case,
                     chatId => chatId.Messages)
-               ?? throw new NotFoundException($"{chatId}لم يتم العثور على المحادثة.");
+               ?? throw new NotFoundException($"لم يتم العثور على المحادثة.");
 
             EnsureParticipant(chat, currentUserId);
 
@@ -520,7 +533,7 @@ namespace SafeTrace.Application.Services
                     c => c.Id == chatId,
                     tracked: false
                    )
-               ?? throw new NotFoundException($"{chatId}لم يتم العثور على المحادثة.");
+               ?? throw new NotFoundException($"لم يتم العثور على المحادثة.");
 
             var messages = await _unitOfWork.Repository<Message>()
                 .Query(false)
@@ -547,7 +560,7 @@ namespace SafeTrace.Application.Services
                 true,
                 c=> c.Sender,
                 chatId => chatId.Receiver)
-                ?? throw new NotFoundException($"{chatId} لم يتم العثور على المحادثة.");
+                ?? throw new NotFoundException($"لم يتم العثور على المحادثة.");
 
             EnsureParticipant(chat, userId);
 
@@ -592,7 +605,7 @@ namespace SafeTrace.Application.Services
                 includes: c => c.Messages
                 )
                 ?? throw new NotFoundException(
-            $"{chatId} لم يتم العثور على المحادثة.");
+            $"لم يتم العثور على المحادثة.");
 
             _unitOfWork.Repository<Chat>().Remove( chat );
             
@@ -696,7 +709,9 @@ namespace SafeTrace.Application.Services
                 MessagesCount = c.Messages.Count,
                 UnreadMessagesCount = c.Messages.Count(m => !m.IsRead),
 
-                CreatedAt = c.CreatedAt,
+                CreatedAt = DateTime.SpecifyKind(
+                    c.CreatedAt,
+                    DateTimeKind.Utc),
 
                 LastMessage = c.Messages
                 .OrderByDescending(m => m.SendAt)
@@ -784,6 +799,24 @@ namespace SafeTrace.Application.Services
             }
         }
 
+        private async Task<Chat> GetUserChatAsync(long chatId, string currentUserId)
+        {
+            return await _unitOfWork.Repository<Chat>()
+                .GetOneAsync(
+                    c => c.Id == chatId && 
+                        (
+                            (c.SenderId == currentUserId && !c.DeletedBySender) ||
+                            (c.ReceiverId == currentUserId && !c.DeletedByReceiver)
+                        ),
+                    tracked: false,
+                    c => c.Case,
+                    c => c.Case.CaseFiles,
+                    c => c.Case.FoundPersonInfo,
+                    c => c.Sender,
+                    c => c.Receiver)
+                ?? throw new NotFoundException($"لم يتم العثور على المحادثة.");
+        }
+
         private async Task<Chat> GetChatAsync(long chatId)
         {
             return await _unitOfWork.Repository<Chat>()
@@ -792,9 +825,10 @@ namespace SafeTrace.Application.Services
                     tracked: false,
                     c => c.Case,
                     c => c.Case.CaseFiles,
+                    c => c.Case.FoundPersonInfo,
                     c => c.Sender,
                     c => c.Receiver)
-                ?? throw new NotFoundException($"لم يتم العثور على المحادثة {chatId}.");
+                ?? throw new NotFoundException($"لم يتم العثور على المحادثة.");
         }
 
         private ChatDetailsDto BuildBaseDto(Chat chat)
@@ -809,7 +843,9 @@ namespace SafeTrace.Application.Services
                 CaseTitle = $"{chat.Case.FName} {chat.Case.SName} {chat.Case.TName} {chat.Case.LName}",
                 CaseImage = primaryImage,
                 CaseType = chat.Case.CaseType,
-                CreatedAt = DateTime.SpecifyKind(chat.CreatedAt, DateTimeKind.Utc)
+                CaseStatus = chat.Case.Status,
+                CreatedAt = DateTime.SpecifyKind(chat.CreatedAt, DateTimeKind.Utc),
+                FoundCaseId = chat.Case.FoundPersonInfo?.Id
             };
         }
 

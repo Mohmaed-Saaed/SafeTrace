@@ -63,11 +63,11 @@ namespace SafeTrace.Infrastructure.Services
                     CollectionId = collectionId
                 };
                 await _rekognitionClient.DeleteCollectionAsync(deleteRequest);
-                _logger.LogInformation("تم مسح الكوليكشن القديمة بنجاح.");
+                _logger.LogInformation("AWS Collection {CollectionId} deleted successfully.", collectionId);
             }
             catch (ResourceNotFoundException)
             {
-                _logger.LogWarning("الكوليكشن مش موجودة ليتم مسحها، سيتم إنشاؤها الآن.");
+                _logger.LogWarning("AWS Collection {CollectionId} not found, will be created.", collectionId);
             }
 
             var createRequest = new CreateCollectionRequest
@@ -75,7 +75,7 @@ namespace SafeTrace.Infrastructure.Services
                 CollectionId = collectionId
             };
             await _rekognitionClient.CreateCollectionAsync(createRequest);
-            _logger.LogInformation("تم إنشاء كوليكشن جديدة وفاضية بنجاح.");
+            _logger.LogInformation("AWS Collection {CollectionId} created successfully.", collectionId);
         }
 
         public async Task<string> IndexFaceAsync(IFormFile image)
@@ -147,7 +147,7 @@ namespace SafeTrace.Infrastructure.Services
 
                 if (detectResponse.FaceDetails.Count > 1)
                 {
-                    throw new BadRequestException("عذراً، الصورة تحتوي على أكثر من شخص. يرجى رفع صورة تحتوي على شخص واحد فقط للبحث.");
+                    throw new BadRequestException("عذراً، الصورة تحتوي على أكثر من شخص. يرجى رفع صورة تحتوي على شخص واحد فقط.");
                 }
             }
             catch (Exception ex) when (!(ex is BadRequestException))

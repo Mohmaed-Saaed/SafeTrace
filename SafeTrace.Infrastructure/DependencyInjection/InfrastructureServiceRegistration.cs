@@ -95,6 +95,7 @@ namespace SafeTrace.Infrastructure.DependencyInjection
 
             services.AddDefaultAWSOptions(awsOptions);
             services.AddAWSService<Amazon.Rekognition.IAmazonRekognition>();
+            services.AddAWSService<Amazon.S3.IAmazonS3>();
 
             return services;
         }
@@ -224,7 +225,7 @@ namespace SafeTrace.Infrastructure.DependencyInjection
                         factory: partition => new System.Threading.RateLimiting.FixedWindowRateLimiterOptions
                         {
                             AutoReplenishment = true,
-                            PermitLimit = 1000,
+                            PermitLimit = 100,
                             QueueLimit = 0,
                             Window = TimeSpan.FromMinutes(1)
                         }));
@@ -246,7 +247,7 @@ namespace SafeTrace.Infrastructure.DependencyInjection
                         factory: partition => new System.Threading.RateLimiting.FixedWindowRateLimiterOptions
                         {
                             AutoReplenishment = true,
-                            PermitLimit = 5,
+                            PermitLimit = 30,
                             QueueLimit = 0,
                             Window = TimeSpan.FromMinutes(1)
                         }));
@@ -282,6 +283,51 @@ namespace SafeTrace.Infrastructure.DependencyInjection
                             PermitLimit = 3,
                             QueueLimit = 0,
                             Window = TimeSpan.FromMinutes(60)
+                        }));
+
+                options.AddPolicy(RateLimitPolicies.ProfileUpdateLimit, httpContext =>
+                    System.Threading.RateLimiting.RateLimitPartition.GetFixedWindowLimiter(
+                        partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? httpContext.Request.Headers.Host.ToString(),
+                        factory: partition => new System.Threading.RateLimiting.FixedWindowRateLimiterOptions
+                        {
+                            AutoReplenishment = true,
+                            PermitLimit = 15,
+                            QueueLimit = 0,
+                            Window = TimeSpan.FromMinutes(15)
+                        }));
+
+                options.AddPolicy(RateLimitPolicies.ChatLimit, httpContext =>
+                    System.Threading.RateLimiting.RateLimitPartition.GetFixedWindowLimiter(
+                        partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? httpContext.Request.Headers.Host.ToString(),
+                        factory: partition => new System.Threading.RateLimiting.FixedWindowRateLimiterOptions
+                        {
+                            AutoReplenishment = true,
+                            PermitLimit = 60,
+                            QueueLimit = 0,
+                            Window = TimeSpan.FromMinutes(1)
+                        }));
+
+                options.AddPolicy(RateLimitPolicies.PaymentLimit, httpContext =>
+                    System.Threading.RateLimiting.RateLimitPartition.GetFixedWindowLimiter(
+                        partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? httpContext.Request.Headers.Host.ToString(),
+                        factory: partition => new System.Threading.RateLimiting.FixedWindowRateLimiterOptions
+                        {
+                            AutoReplenishment = true,
+                            PermitLimit = 10,
+                            QueueLimit = 0,
+                            Window = TimeSpan.FromMinutes(15)
+                        }));
+
+                options.AddPolicy(RateLimitPolicies.CreateCaseLimit, httpContext =>
+                    System.Threading.RateLimiting.RateLimitPartition.GetFixedWindowLimiter(
+                        partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? httpContext.Request.Headers.Host.ToString(),
+                        factory: partition => new System.Threading.RateLimiting.FixedWindowRateLimiterOptions
+                        {
+                            AutoReplenishment = true,
+                            PermitLimit = 5,
+                            QueueLimit = 0,
+                            // Window = TimeSpan.FromHours(1) // return to this when testing is done
+                            Window = TimeSpan.FromMinutes(1) // in testing
                         }));
             });
 

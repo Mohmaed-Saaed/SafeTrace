@@ -81,7 +81,8 @@ namespace SafeTrace.Application.Services
                     [
                         p => p.Case,
                         p => p.Case.CaseFiles,
-                        p => p.Case.DuplicateGroups
+                        p => p.Case.DuplicateGroups,
+                        p => p.Case.User
                     ])
                     .Where(p => p.FaceId != null &&
                                 matchedFaceIds.Contains(p.FaceId) &&

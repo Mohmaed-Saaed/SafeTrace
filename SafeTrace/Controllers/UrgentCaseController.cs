@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using SafeTrace.Application.Constants;
 using SafeTrace.Application.DTOs.Cases.Request;
 using SafeTrace.Application.DTOs.UrgentCase.Request;
@@ -48,6 +49,7 @@ namespace SafeTrace.API.Controllers
         [HttpPost("CreateCase")]
         [Consumes("multipart/form-data")]
         [Authorize]
+        [EnableRateLimiting(RateLimitPolicies.CreateCaseLimit)]
         public async Task<IActionResult> Create([FromForm] UrgentCaseCreateDto dto, [FromQuery] bool forceCreate = false)
         {
             if (string.IsNullOrEmpty(CurrentUserId))
@@ -63,7 +65,10 @@ namespace SafeTrace.API.Controllers
             if (string.IsNullOrEmpty(CurrentUserId))
                 throw new UnauthorizedException("User identity could not be verified from token.");
 
-            return Ok(await _urgentCaseService.UpdateAsync(id, CurrentUserId, dto));
+            return Ok(await _urgentCaseService.UpdateAsync(
+                id,
+                CurrentUserId,
+                dto));
         }
 
         [HttpDelete("Delete/{id:long}")]

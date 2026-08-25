@@ -126,7 +126,7 @@ namespace SafeTrace.Infrastructure.Services
                 
                 if (await _userManager.IsLockedOutAsync(user))
                 {
-                    throw new ForbiddenException("تم حظر الحساب مؤقتاً لتجاوز الحد المسموح لمحاولات الدخول الخاطئة. يرجى المحاولة لاحقاً.");
+                    throw new UnauthorizedException("تم حظر الحساب مؤقتاً لتجاوز الحد المسموح لمحاولات الدخول الخاطئة. يرجى المحاولة لاحقاً.");
                 }
 
                 throw new UnauthorizedException("البريد الإلكتروني أو كلمة المرور غير صحيحة.");
@@ -344,92 +344,84 @@ namespace SafeTrace.Infrastructure.Services
             if (string.IsNullOrEmpty(refreshTokenFromCookie))
                 throw new UnauthorizedException("انتهت صلاحية الجلسة، يرجى تسجيل الدخول من جديد.");
 
+            var storedRefreshToken = await _unitOfWork.Repository<RefreshToken>()
+                .GetOneAsync(t => t.Token == refreshTokenFromCookie);
+
+            if (storedRefreshToken == null) throw new UnauthorizedException("انتهت صلاحية الجلسة، يرجى تسجيل الدخول من جديد.");
+
+            var userId = storedRefreshToken.UserId;
+            var user = await _userManager.FindByIdAsync(userId!);
+            if (user == null) throw new NotFoundException("هذا الحساب غير موجود.");
+
+            CheckIfUserIsBlocked(user);
+
+            var roles = await _userManager.GetRolesAsync(user);
+            var role = roles.FirstOrDefault() ?? UserRole.User.ToString();
+            var permissions = await GetUserPermissionsAsync(user, roles);
+
+            var newAccessToken = _tokenService.GenerateAccessToken(user, role);
+            var newRefreshToken = _tokenService.GenerateRefreshToken();
+            newRefreshToken.UserId = user.Id;
+
+            await _unitOfWork.BeginTransactionAsync();
             try
             {
-                await _unitOfWork.BeginTransactionAsync();
-                try
+                if (storedRefreshToken.IsActive)
                 {
-                    var storedRefreshToken = await _unitOfWork.Repository<RefreshToken>()
-                        .GetOneAsync(t => t.Token == refreshTokenFromCookie);
-
-                    if (storedRefreshToken == null) throw new UnauthorizedException("انتهت صلاحية الجلسة، يرجى تسجيل الدخول من جديد.");
-
-                    var userId = storedRefreshToken.UserId;
-                    var newRefreshToken = _tokenService.GenerateRefreshToken();
-
-                    if (storedRefreshToken.IsActive)
+                    var affectedRows = await _unitOfWork.Repository<RefreshToken>().Query()
+                        .Where(rt => rt.Token == refreshTokenFromCookie && rt.RevokedAt == null)
+                        .ExecuteUpdateAsync(rt => rt.SetProperty(x => x.RevokedAt, DateTime.UtcNow)
+                                                    .SetProperty(x => x.ReplacedByToken, newRefreshToken.Token));
+                    
+                    if (affectedRows == 0)
                     {
-                        var affectedRows = await _unitOfWork.Repository<RefreshToken>().Query()
-                            .Where(rt => rt.Token == refreshTokenFromCookie && rt.RevokedAt == null)
-                            .ExecuteUpdateAsync(rt => rt.SetProperty(x => x.RevokedAt, DateTime.UtcNow)
-                                                        .SetProperty(x => x.ReplacedByToken, newRefreshToken.Token));
-                        
-                        if (affectedRows == 0)
-                        {
-                            storedRefreshToken = await _unitOfWork.Repository<RefreshToken>()
-                                .GetOneAsync(t => t.Token == refreshTokenFromCookie);
-                        }
+                        storedRefreshToken = await _unitOfWork.Repository<RefreshToken>()
+                            .GetOneAsync(t => t.Token == refreshTokenFromCookie);
                     }
-
-                    if (!storedRefreshToken!.IsActive)
-                    {
-                        bool isWithinGracePeriod = storedRefreshToken.RevokedAt != null && 
-                            storedRefreshToken.ReplacedByToken != null &&
-                            (DateTime.UtcNow - storedRefreshToken.RevokedAt.Value).TotalSeconds <= 60;
-
-                        if (!isWithinGracePeriod)
-                        {
-                            if (storedRefreshToken.ReplacedByToken != null)
-                            {
-                                await RevokeAllActiveSessionsAsync(userId!);
-                                await _unitOfWork.CommitTransactionAsync();
-                                _logger.LogWarning("Token reuse detected for user {UserId}. Revoking all active sessions.", userId);
-                                throw new UnauthorizedException("تم اكتشاف نشاط مريب في الجلسة، تم تسجيل الخروج من جميع الأجهزة كإجراء أمني.");
-                            }
-
-                            throw new UnauthorizedException("انتهت صلاحية الجلسة، يرجى تسجيل الدخول من جديد.");
-                        }
-                    }
-
-                    var user = await _userManager.FindByIdAsync(userId!);
-                    if (user == null) throw new NotFoundException("هذا الحساب غير موجود.");
-
-                    CheckIfUserIsBlocked(user);
-
-                    newRefreshToken.UserId = user.Id;
-                    await _unitOfWork.Repository<RefreshToken>().CreateAsync(newRefreshToken);
-
-                    await _unitOfWork.SaveAsync();
-                    await _unitOfWork.CommitTransactionAsync();
-
-                    var roles = await _userManager.GetRolesAsync(user);
-                    var role = roles.FirstOrDefault() ?? UserRole.User.ToString();
-                    var newAccessToken = _tokenService.GenerateAccessToken(user, role);
-
-                    SetRefreshTokenCookie(newRefreshToken.Token, newRefreshToken.ExpiresAt);
-
-                    var permissions = await GetUserPermissionsAsync(user);
-
-                    return ApiResponse<AuthResponseDto>.Ok(new AuthResponseDto
-                    {
-                        AccessToken = newAccessToken,
-                        RefreshTokenExpiration = newRefreshToken.ExpiresAt,
-                        Email = user.Email!,
-                        FullName = $"{user.FName} {user.LName}",
-                        ProfileImage = user.ProfileImage,
-                        VerificationStatus = user.VerificationStatus,
-                        Permissions = permissions
-                    }, "تم تجديد الجلسة بنجاح.");
                 }
-                catch
+
+                if (!storedRefreshToken!.IsActive)
                 {
-                    await _unitOfWork.RollbackTransactionAsync();
-                    throw;
+                    bool isWithinGracePeriod = storedRefreshToken.RevokedAt != null && 
+                        storedRefreshToken.ReplacedByToken != null &&
+                        (DateTime.UtcNow - storedRefreshToken.RevokedAt.Value).TotalSeconds <= 60;
+
+                    if (!isWithinGracePeriod)
+                    {
+                        if (storedRefreshToken.ReplacedByToken != null)
+                        {
+                            await RevokeAllActiveSessionsAsync(userId!);
+                            await _unitOfWork.CommitTransactionAsync();
+                            _logger.LogWarning("Token reuse detected for user {UserId}. Revoking all active sessions.", userId);
+                            throw new UnauthorizedException("تم اكتشاف نشاط مريب في الجلسة، تم تسجيل الخروج من جميع الأجهزة كإجراء أمني.");
+                        }
+
+                        throw new UnauthorizedException("انتهت صلاحية الجلسة، يرجى تسجيل الدخول من جديد.");
+                    }
                 }
+
+                await _unitOfWork.Repository<RefreshToken>().CreateAsync(newRefreshToken);
+                await _unitOfWork.SaveAsync();
+                await _unitOfWork.CommitTransactionAsync();
             }
-            finally
+            catch
             {
+                await _unitOfWork.RollbackTransactionAsync();
+                throw;
             }
+
+            SetRefreshTokenCookie(newRefreshToken.Token, newRefreshToken.ExpiresAt);
+
+            return ApiResponse<AuthResponseDto>.Ok(new AuthResponseDto
+            {
+                AccessToken = newAccessToken,
+                RefreshTokenExpiration = newRefreshToken.ExpiresAt,
+                Email = user.Email!,
+                FullName = $"{user.FName} {user.LName}",
+                ProfileImage = user.ProfileImage,
+                VerificationStatus = user.VerificationStatus,
+                Permissions = permissions
+            }, "تم تجديد الجلسة بنجاح.");
         }
 
         public async Task<ApiResponse<string>> RevokeTokenAsync()
@@ -463,7 +455,7 @@ namespace SafeTrace.Infrastructure.Services
 
             SetRefreshTokenCookie(refreshToken.Token, refreshToken.ExpiresAt);
 
-            var permissions = await GetUserPermissionsAsync(user);
+            var permissions = await GetUserPermissionsAsync(user, roles);
 
             return new AuthResponseDto
             {
@@ -477,7 +469,7 @@ namespace SafeTrace.Infrastructure.Services
             };
         }
 
-        private async Task<List<string>> GetUserPermissionsAsync(ApplicationUser user)
+        private async Task<List<string>> GetUserPermissionsAsync(ApplicationUser user, IList<string> roles)
         {
             var permissions = new HashSet<string>();
 
@@ -487,7 +479,6 @@ namespace SafeTrace.Infrastructure.Services
                 permissions.Add(claim.Value);
             }
 
-            var roles = await _userManager.GetRolesAsync(user);
             var roleName = roles.FirstOrDefault();
             
             if (!string.IsNullOrEmpty(roleName))
@@ -583,12 +574,12 @@ namespace SafeTrace.Infrastructure.Services
                 if (user.LockoutEnd.Value == DateTimeOffset.MaxValue)
                 {
                     _logger.LogWarning("Action denied. Blocked user {Email} attempted an account mutation operation.", user.Email);
-                    throw new ForbiddenException("هذا الحساب محظور من قبل الإدارة.");
+                    throw new UnauthorizedException("هذا الحساب محظور من قبل الإدارة.");
                 }
                 else
                 {
                     _logger.LogWarning("Action denied. Temporarily locked out user {Email} attempted an account operation.", user.Email);
-                    throw new ForbiddenException("تم حظر الحساب مؤقتاً لتجاوز الحد المسموح لمحاولات تسجيل الدخول. يرجى المحاولة لاحقاً.");
+                    throw new UnauthorizedException("تم حظر الحساب مؤقتاً لتجاوز الحد المسموح لمحاولات تسجيل الدخول. يرجى المحاولة لاحقاً.");
                 }
             }
         }

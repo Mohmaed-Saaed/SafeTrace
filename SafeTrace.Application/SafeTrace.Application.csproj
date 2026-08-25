@@ -25,4 +25,8 @@
     <ProjectReference Include="..\SafeTrace.Domain\SafeTrace.Domain.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="Services\Cases\NewFolder\" />
+  </ItemGroup>
+
 </Project>

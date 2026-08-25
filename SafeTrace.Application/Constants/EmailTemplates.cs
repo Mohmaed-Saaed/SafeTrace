@@ -13,11 +13,12 @@ namespace SafeTrace.Application.Constants
         public const string ButtonColor = "#0058BE";
         public const string CompanyName = "منصة لقاء";
         public const string Footer = "فريق عمل منصة لقاء";
-        public const string WebsiteUrl = SystemConstants.BaseUrl;
-        public const string LogoUrl = SystemConstants.BaseUrl + "/Images/logo.jpg";
+        public const string WebsiteUrl = SystemConstants.frontBaseUrl;
+        public const string LogoUrl = SystemConstants.filesBaseUrl + "/logo.jpg";
+        public const string forgotPasswordLink = WebsiteUrl + "/auth/forgot-password";
 
         public static string GetCaseDetailsUrl(CaseType caseType, long caseId) =>
-            $"{SystemConstants.BaseUrl}{GetCaseDetailsRoute(caseType)}{caseId}";
+            $"{SystemConstants.frontBaseUrl}{GetCaseDetailsRoute(caseType)}{caseId}";
 
         public static string GetCaseDetailsRoute(CaseType caseType) => caseType switch
         {
@@ -154,7 +155,7 @@ namespace SafeTrace.Application.Constants
                 </div>
                 
                 <div style='text-align: center; margin: 32px 0;'>
-                    <a href='{SystemConstants.BaseUrl}/auth/forgot-password' class='email-btn' style='background: linear-gradient(135deg, #0058BE 0%, #091426 100%); color: #ffffff; padding: 14px 32px; border-radius: 12px; text-decoration: none; font-weight: 700; font-size: 16px; display: inline-block; box-shadow: 0 4px 14px rgba(0, 88, 190, 0.3); max-width: 100%; box-sizing: border-box; word-break: break-word;'>
+                    <a href={forgotPasswordLink} class='email-btn' style='background: linear-gradient(135deg, #0058BE 0%, #091426 100%); color: #ffffff; padding: 14px 32px; border-radius: 12px; text-decoration: none; font-weight: 700; font-size: 16px; display: inline-block; box-shadow: 0 4px 14px rgba(0, 88, 190, 0.3); max-width: 100%; box-sizing: border-box; word-break: break-word;'>
                         تعيين كلمة المرور
                     </a>
                 </div>
@@ -315,7 +316,7 @@ namespace SafeTrace.Application.Constants
                 </div>
 
                 <div style='text-align: center; margin: 32px 0;'>
-                    <a href='{SystemConstants.BaseUrl}/auth/forgot-password' class='email-btn' style='background: linear-gradient(135deg, #0058BE 0%, #091426 100%); color: #ffffff; padding: 14px 32px; border-radius: 12px; text-decoration: none; font-weight: 700; font-size: 16px; display: inline-block; box-shadow: 0 4px 14px rgba(0, 88, 190, 0.3); max-width: 100%; box-sizing: border-box; word-break: break-word;'>
+                    <a href={forgotPasswordLink} class='email-btn' style='background: linear-gradient(135deg, #0058BE 0%, #091426 100%); color: #ffffff; padding: 14px 32px; border-radius: 12px; text-decoration: none; font-weight: 700; font-size: 16px; display: inline-block; box-shadow: 0 4px 14px rgba(0, 88, 190, 0.3); max-width: 100%; box-sizing: border-box; word-break: break-word;'>
                         تعيين كلمة مرور
                     </a>
                 </div>
