@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using NetTopologySuite.Geometries;
 using SafeTrace.Infrastructure.DataAccess;
@@ -12,9 +13,11 @@ using SafeTrace.Infrastructure.DataAccess;
 namespace SafeTrace.Infrastructure.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260826063335_AddFacebookPages")]
+    partial class AddFacebookPages
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -709,162 +712,6 @@ namespace SafeTrace.Infrastructure.Migrations
                     b.ToTable("DuplicateGroupCases", (string)null);
                 });
 
-            modelBuilder.Entity("SafeTrace.Domain.Entities.FacebookImportedPost", b =>
-                {
-                    b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
-
-                    b.Property<int?>("Age")
-                        .HasColumnType("int");
-
-                    b.Property<DateTime?>("AnalyzedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("City")
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
-
-                    b.Property<string>("Classification")
-                        .HasMaxLength(30)
-                        .HasColumnType("nvarchar(30)");
-
-                    b.Property<string>("CommunicationPhone")
-                        .HasMaxLength(30)
-                        .HasColumnType("nvarchar(30)");
-
-                    b.Property<double?>("Confidence")
-                        .HasColumnType("float");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("Description")
-                        .HasMaxLength(2000)
-                        .HasColumnType("nvarchar(2000)");
-
-                    b.Property<DateOnly?>("EventDate")
-                        .HasColumnType("date");
-
-                    b.Property<string>("FName")
-                        .HasMaxLength(60)
-                        .HasColumnType("nvarchar(60)");
-
-                    b.Property<long>("FacebookPageId")
-                        .HasColumnType("bigint");
-
-                    b.Property<string>("FacebookPostId")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
-
-                    b.Property<string>("Gender")
-                        .HasMaxLength(10)
-                        .HasColumnType("nvarchar(10)");
-
-                    b.Property<string>("Government")
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
-
-                    b.Property<string>("LName")
-                        .HasMaxLength(60)
-                        .HasColumnType("nvarchar(60)");
-
-                    b.Property<double?>("Latitude")
-                        .HasColumnType("float");
-
-                    b.Property<string>("LocationAccuracy")
-                        .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)");
-
-                    b.Property<double?>("Longitude")
-                        .HasColumnType("float");
-
-                    b.Property<string>("PostText")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("PostUrl")
-                        .HasMaxLength(2048)
-                        .HasColumnType("nvarchar(2048)");
-
-                    b.Property<DateTimeOffset?>("PublishedAt")
-                        .HasColumnType("datetimeoffset");
-
-                    b.Property<string>("Relation")
-                        .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)");
-
-                    b.Property<string>("ReviewNotes")
-                        .HasMaxLength(2000)
-                        .HasColumnType("nvarchar(2000)");
-
-                    b.Property<string>("SName")
-                        .HasMaxLength(60)
-                        .HasColumnType("nvarchar(60)");
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasMaxLength(30)
-                        .HasColumnType("nvarchar(30)");
-
-                    b.Property<string>("Street")
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
-
-                    b.Property<string>("TName")
-                        .HasMaxLength(60)
-                        .HasColumnType("nvarchar(60)");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("FacebookPageId", "FacebookPostId")
-                        .IsUnique();
-
-                    b.HasIndex("Status", "Id");
-
-                    b.ToTable("FacebookImportedPosts", null, t =>
-                        {
-                            t.HasCheckConstraint("CK_FacebookImportedPosts_Age", "[Age] IS NULL OR ([Age] >= 0 AND [Age] <= 120)");
-
-                            t.HasCheckConstraint("CK_FacebookImportedPosts_Confidence", "[Confidence] IS NULL OR ([Confidence] >= 0 AND [Confidence] <= 1)");
-                        });
-                });
-
-            modelBuilder.Entity("SafeTrace.Domain.Entities.FacebookImportedPostFile", b =>
-                {
-                    b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<long>("FacebookImportedPostId")
-                        .HasColumnType("bigint");
-
-                    b.Property<string>("FacebookMediaId")
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
-
-                    b.Property<string>("FileUrl")
-                        .IsRequired()
-                        .HasMaxLength(2048)
-                        .HasColumnType("nvarchar(2048)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("FacebookImportedPostId");
-
-                    b.ToTable("FacebookImportedPostFiles", (string)null);
-                });
-
             modelBuilder.Entity("SafeTrace.Domain.Entities.FacebookPage", b =>
                 {
                     b.Property<long>("Id")
@@ -1369,28 +1216,6 @@ namespace SafeTrace.Infrastructure.Migrations
                     b.Navigation("DuplicateGroup");
                 });
 
-            modelBuilder.Entity("SafeTrace.Domain.Entities.FacebookImportedPost", b =>
-                {
-                    b.HasOne("SafeTrace.Domain.Entities.FacebookPage", "FacebookPage")
-                        .WithMany("ImportedPosts")
-                        .HasForeignKey("FacebookPageId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("FacebookPage");
-                });
-
-            modelBuilder.Entity("SafeTrace.Domain.Entities.FacebookImportedPostFile", b =>
-                {
-                    b.HasOne("SafeTrace.Domain.Entities.FacebookImportedPost", "FacebookImportedPost")
-                        .WithMany("Files")
-                        .HasForeignKey("FacebookImportedPostId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("FacebookImportedPost");
-                });
-
             modelBuilder.Entity("SafeTrace.Domain.Entities.FacebookPage", b =>
                 {
                     b.HasOne("SafeTrace.Domain.Entities.ApplicationUser", "User")
@@ -1524,16 +1349,6 @@ namespace SafeTrace.Infrastructure.Migrations
             modelBuilder.Entity("SafeTrace.Domain.Entities.DuplicateGroup", b =>
                 {
                     b.Navigation("DuplicateCases");
-                });
-
-            modelBuilder.Entity("SafeTrace.Domain.Entities.FacebookImportedPost", b =>
-                {
-                    b.Navigation("Files");
-                });
-
-            modelBuilder.Entity("SafeTrace.Domain.Entities.FacebookPage", b =>
-                {
-                    b.Navigation("ImportedPosts");
                 });
 #pragma warning restore 612, 618
         }

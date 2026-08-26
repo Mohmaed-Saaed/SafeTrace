@@ -5,11 +5,11 @@ using Google.GenAI;
 using Google.GenAI.Types;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using SafeTrace.Application.Common.Enums;
 using SafeTrace.Application.DTOs.AiCaseAnalyzer.Request;
 using SafeTrace.Application.DTOs.AiCaseAnalyzer.Response;
 using SafeTrace.Application.Exceptions;
 using SafeTrace.Application.Interfaces.IServices;
+using SafeTrace.Domain.Enums;
 using SafeTrace.Infrastructure.Options;
 
 namespace SafeTrace.Infrastructure.Services
@@ -166,6 +166,43 @@ namespace SafeTrace.Infrastructure.Services
 
           إذا لم يوجد دليل نصي واضح:
           Gender = null
+
+          ## Relation
+
+          استخرج Relation فقط عندما يوضح النص صلة ناشر المنشور بالشخص محل الحالة بشكل صريح.
+
+          القيم المسموحة حرفيًا هي فقط:
+          - Father
+          - Mother
+          - Brother
+          - Sister
+          - Son
+          - Daughter
+          - Husband
+          - Wife
+          - Grandfather
+          - Grandmother
+          - Uncle
+          - Aunt
+          - Cousin
+          - Nephew
+          - Niece
+          - Friend
+          - Other
+
+          أمثلة:
+          - "ابني" → Son
+          - "ابنتي" → Daughter
+          - "أخويا" → Brother
+          - "أختي" → Sister
+          - "والدي" → Father
+          - "والدتي" → Mother
+
+          إذا لم تكن الصلة واضحة صراحة:
+          Relation = null
+
+          لا تستخدم Other كتخمين عند الغموض. استخدمها فقط إذا كانت هناك صلة صريحة
+          لا تمثلها قيمة أكثر تحديدًا من القيم السابقة.
 
           ## Phone
 
@@ -773,6 +810,35 @@ namespace SafeTrace.Infrastructure.Services
                     "description": {
                       "type": ["string", "null"]
                     },
+                    "relation": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "enum": [
+                            "Father",
+                            "Mother",
+                            "Brother",
+                            "Sister",
+                            "Son",
+                            "Daughter",
+                            "Husband",
+                            "Wife",
+                            "Grandfather",
+                            "Grandmother",
+                            "Uncle",
+                            "Aunt",
+                            "Cousin",
+                            "Nephew",
+                            "Niece",
+                            "Friend",
+                            "Other"
+                          ]
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
                     "warnings": {
                       "type": "array",
                       "items": {
@@ -787,6 +853,7 @@ namespace SafeTrace.Infrastructure.Services
                     "missingInfo",
                     "contact",
                     "description",
+                    "relation",
                     "warnings"
                   ]
                 }

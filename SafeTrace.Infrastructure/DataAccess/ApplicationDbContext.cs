@@ -22,6 +22,9 @@ namespace SafeTrace.Infrastructure.DataAccess
         public DbSet<RefreshToken> RefreshTokens { get; set; }
         public DbSet<Donation> Donations { get; set; }
         public DbSet<AuditLog> AuditLogs { get; set; }
+        public DbSet<FacebookPage> FacebookPages { get; set; }
+        public DbSet<FacebookImportedPost> FacebookImportedPosts { get; set; }
+        public DbSet<FacebookImportedPostFile> FacebookImportedPostFiles { get; set; }
 
         public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) : base(options)
         {

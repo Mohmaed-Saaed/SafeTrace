@@ -15,6 +15,7 @@ using SafeTrace.Application.Services;
 using SafeTrace.Infrastructure.Authorization;
 using SafeTrace.Infrastructure.Options;
 using SafeTrace.Infrastructure.Persistence;
+using Microsoft.Extensions.Options;
 
 namespace SafeTrace.Infrastructure.DependencyInjection
 {
@@ -31,6 +32,8 @@ namespace SafeTrace.Infrastructure.DependencyInjection
             services.Configure<JwtOptions>(configuration.GetSection("Jwt"));
             services.Configure<MailSettingsOptions>(configuration.GetSection("MailSettings"));
             services.Configure<GeminiOptions>(configuration.GetSection(GeminiOptions.SectionName));
+            services.Configure<FacebookGraphOptions>(configuration.GetSection(FacebookGraphOptions.SectionName));
+            services.Configure<GeocodingOptions>(configuration.GetSection(GeocodingOptions.SectionName));
 
             services.AddSingleton<IAuthorizationPolicyProvider, PermissionPolicyProvider>();
             services.AddScoped<IAuthorizationHandler, PermissionHandler>();
@@ -80,8 +83,31 @@ namespace SafeTrace.Infrastructure.DependencyInjection
             services.AddScoped<IExcelGeneratorService, ExcelGeneratorService>();
             services.AddScoped<IComplaintService, ComplaintService>();
             services.AddScoped<IAiCaseAnalyzerService, AiCaseAnalyzerService>();
+            services.AddHttpClient<IFacebookGraphService, FacebookGraphService>((provider, client) =>
+            {
+                var options = provider.GetRequiredService<IOptions<FacebookGraphOptions>>().Value;
+                client.BaseAddress = CreateAbsoluteBaseUri(options.BaseUrl, FacebookGraphOptions.SectionName);
+            }).RemoveAllLoggers();
+
+            services.AddHttpClient<IGeocodingService, GoogleGeocodingService>((provider, client) =>
+            {
+                var options = provider.GetRequiredService<IOptions<GeocodingOptions>>().Value;
+                client.BaseAddress = CreateAbsoluteBaseUri(options.BaseUrl, GeocodingOptions.SectionName);
+            }).RemoveAllLoggers();
             
             return services;
+        }
+
+        private static Uri CreateAbsoluteBaseUri(string baseUrl, string sectionName)
+        {
+            if (!Uri.TryCreate(baseUrl, UriKind.Absolute, out var baseUri) ||
+                !string.Equals(baseUri.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase))
+            {
+                throw new InvalidOperationException(
+                    $"The {sectionName} base URL must be a valid HTTPS URL.");
+            }
+
+            return new Uri(baseUri.AbsoluteUri.TrimEnd('/') + '/');
         }
 
         private static IServiceCollection AddAppAws(this IServiceCollection services, IConfiguration configuration)

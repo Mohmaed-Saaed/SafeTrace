@@ -4,6 +4,7 @@ using SafeTrace.Application.Interfaces.IServices.common;
 using SafeTrace.Application.Interfaces.IServices.ICases;
 using SafeTrace.Application.Interfaces.IServices.INotificationSewrvice;
 using SafeTrace.Application.Interfaces.IServices.IUserProfile;
+using SafeTrace.Application.Jobs;
 using SafeTrace.Application.Services;
 using SafeTrace.Application.Services.Cases;
 using SafeTrace.Application.Services.NotificationServices;
@@ -28,6 +29,10 @@ namespace SafeTrace.Application.DependencyInjection
             services.AddScoped<IMessageService, MessageService>();
             services.AddScoped<IAIMatchingService, AIMatchingService>();
             services.AddScoped<IComplaintService, ComplaintService>();
+            services.AddScoped<IFacebookPageService, FacebookPageService>();
+            services.AddScoped<IFacebookPostImportService, FacebookPostImportService>();
+            services.AddScoped<FacebookPostSyncJob>();
+            services.AddScoped<FacebookPostAnalysisJob>();
             services.AddAutoMapper(cfg => { }, typeof(ApplicationServiceRegistration).Assembly);
 
             return services;

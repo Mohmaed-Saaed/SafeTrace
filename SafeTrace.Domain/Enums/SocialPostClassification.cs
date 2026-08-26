@@ -1,4 +1,4 @@
-namespace SafeTrace.Application.Common.Enums
+namespace SafeTrace.Domain.Enums
 {
     public enum SocialPostClassification
     {

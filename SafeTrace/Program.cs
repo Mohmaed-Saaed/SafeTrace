@@ -14,6 +14,7 @@
     using SafeTrace.Application.Hubs;
     using SafeTrace.Application.Interfaces.IServices;
     using SafeTrace.Application.Interfaces.IServices.ICases;
+    using SafeTrace.Application.Jobs;
     using SafeTrace.Application.Services.Cases;
     using SafeTrace.Infrastructure.DependencyInjection;
     using Serilog;
@@ -335,6 +336,14 @@ namespace SafeTrace.API
                 RecurringJob.AddOrUpdate<IAuthCleanupService>("CleanupExpiredOtps", service => service.CleanupExpiredOtpsAsync(), Cron.Daily);
                 RecurringJob.AddOrUpdate<IAuthCleanupService>("CleanupOldRefreshTokens", service => service.CleanupOldRefreshTokensAsync(), Cron.Daily);
                 RecurringJob.AddOrUpdate<ICaseCleanupService>("CleanupExpiredUrgentCases", service => service.CleanupExpiredUrgentCasesAsync(), Cron.Hourly);
+                RecurringJob.AddOrUpdate<FacebookPostSyncJob>(
+                    "FacebookPostSync",
+                    job => job.ExecuteAsync(CancellationToken.None),
+                    Cron.MinuteInterval(5));
+                RecurringJob.AddOrUpdate<FacebookPostAnalysisJob>(
+                    "FacebookPostAnalysis",
+                    job => job.ExecuteAsync(CancellationToken.None),
+                    Cron.MinuteInterval(5));
 
 
                 app.UseHttpsRedirection();

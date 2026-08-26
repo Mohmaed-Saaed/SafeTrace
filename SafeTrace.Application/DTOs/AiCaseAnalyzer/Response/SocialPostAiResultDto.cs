@@ -1,5 +1,3 @@
-using SafeTrace.Application.Common.Enums;
-
 namespace SafeTrace.Application.DTOs.AiCaseAnalyzer.Response
 {
     public sealed class SocialPostAiResultDto
@@ -15,6 +13,8 @@ namespace SafeTrace.Application.DTOs.AiCaseAnalyzer.Response
         public ContactDto Contact { get; set; } = new();
 
         public string? Description { get; set; }
+
+        public RelationType? Relation { get; set; }
 
         public List<string> Warnings { get; set; } = [];
 
