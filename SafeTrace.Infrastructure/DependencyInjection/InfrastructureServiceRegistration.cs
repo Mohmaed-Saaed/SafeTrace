@@ -30,6 +30,7 @@ namespace SafeTrace.Infrastructure.DependencyInjection
             
             services.Configure<JwtOptions>(configuration.GetSection("Jwt"));
             services.Configure<MailSettingsOptions>(configuration.GetSection("MailSettings"));
+            services.Configure<GeminiOptions>(configuration.GetSection(GeminiOptions.SectionName));
 
             services.AddSingleton<IAuthorizationPolicyProvider, PermissionPolicyProvider>();
             services.AddScoped<IAuthorizationHandler, PermissionHandler>();
@@ -78,7 +79,8 @@ namespace SafeTrace.Infrastructure.DependencyInjection
             services.AddScoped<IPdfGeneratorService, PdfGeneratorService>();
             services.AddScoped<IExcelGeneratorService, ExcelGeneratorService>();
             services.AddScoped<IComplaintService, ComplaintService>();
-
+            services.AddScoped<IAiCaseAnalyzerService, AiCaseAnalyzerService>();
+            
             return services;
         }
 
