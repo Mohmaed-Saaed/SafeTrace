@@ -1,6 +1,6 @@
-namespace SafeTrace.Application.Models.Geocoding
+namespace SafeTrace.Application.DTOs.Geocoding.Response
 {
-    public sealed class GeocodingResult
+    public sealed class GeocodingResultDto
     {
         public double Latitude { get; init; }
         public double Longitude { get; init; }

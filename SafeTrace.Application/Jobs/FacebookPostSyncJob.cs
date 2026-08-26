@@ -71,8 +71,7 @@ namespace SafeTrace.Application.Jobs
 
                     var posts = await facebookGraphService.GetNewPostsAsync(
                         page,
-                        page.LastSyncedAt,
-                        cancellationToken);
+                        page.LastSyncedAt);
 
                     var importedCount = await importService.ImportAsync(
                         page,

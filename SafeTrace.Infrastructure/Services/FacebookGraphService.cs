@@ -2,9 +2,10 @@ using System.Net;
 using System.Net.Http.Headers;
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using SafeTrace.Application.DTOs.FacebookPages.Response;
+using SafeTrace.Application.DTOs.FacebookPosts.Response;
 using SafeTrace.Application.Exceptions;
-using SafeTrace.Application.Models.Facebook;
-using SafeTrace.Infrastructure.Models.FacebookGraph;
+using SafeTrace.Infrastructure.DTOs.FacebookGraph.Response;
 using SafeTrace.Infrastructure.Options;
 using Microsoft.Extensions.Options;
 
@@ -29,29 +30,26 @@ namespace SafeTrace.Infrastructure.Services
             _options = options.Value;
         }
 
-        public Task<FacebookPageConnectionResult> ConnectPageAsync(string facebookPageId)
+        public Task<FacebookPageConnectionResultDto> ConnectPageAsync(string facebookPageId)
         {
-            // TODO: Complete Meta OAuth and validate that the authorized account can access facebookPageId.
-            throw CreateNotConfiguredException();
+            return ConnectPageCoreAsync(facebookPageId);
         }
 
-        public Task<FacebookPageConnectionResult> ReconnectPageAsync(string facebookPageId)
+        public Task<FacebookPageConnectionResultDto> ReconnectPageAsync(string facebookPageId)
         {
-            // TODO: Refresh/re-authorize through Meta OAuth without accepting an access token from the API request.
-            throw CreateNotConfiguredException();
+            return ConnectPageCoreAsync(facebookPageId);
         }
 
         public async Task<IReadOnlyList<FacebookPostDto>> GetNewPostsAsync(
             FacebookPage page,
-            DateTimeOffset? since,
-            CancellationToken cancellationToken = default)
+            DateTimeOffset? since)
         {
             ArgumentNullException.ThrowIfNull(page);
 
             if (string.IsNullOrWhiteSpace(page.PageAccessToken))
             {
                 throw new FacebookAuthenticationException(
-                    "The Facebook page does not have a valid connection token.");
+                    "لا يوجد رمز وصول صالح لصفحة Facebook. أعد ربط الصفحة.");
             }
 
             var apiVersion = ValidateAndNormalizeApiVersion();
@@ -63,8 +61,6 @@ namespace SafeTrace.Infrastructure.Services
 
             while (true)
             {
-                cancellationToken.ThrowIfCancellationRequested();
-
                 var requestLimit = since.HasValue
                     ? pageSize
                     : Math.Min(pageSize, initialSyncLimit - posts.Count);
@@ -85,10 +81,9 @@ namespace SafeTrace.Infrastructure.Services
 
                 using var response = await _httpClient.SendAsync(
                     request,
-                    HttpCompletionOption.ResponseHeadersRead,
-                    cancellationToken);
+                    HttpCompletionOption.ResponseHeadersRead);
 
-                var responseContent = await response.Content.ReadAsStringAsync(cancellationToken);
+                var responseContent = await response.Content.ReadAsStringAsync();
 
                 if (response.StatusCode is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden)
                     ThrowGraphException(response.StatusCode, error: null);
@@ -116,10 +111,55 @@ namespace SafeTrace.Infrastructure.Services
                 : posts.Take(initialSyncLimit).ToList();
         }
 
-        private static BadRequestException CreateNotConfiguredException()
+        private async Task<FacebookPageConnectionResultDto> ConnectPageCoreAsync(
+            string facebookPageId)
         {
-            return new BadRequestException(
-                "Facebook integration is not configured. Configure Meta OAuth before connecting Facebook pages.");
+            var normalizedPageId = NormalizeFacebookPageId(facebookPageId);
+
+            if (string.IsNullOrWhiteSpace(_options.SystemUserAccessToken))
+            {
+                throw new BadRequestException(
+                    "لم يتم إعداد رمز وصول حساب النظام الخاص بـ Meta. أضف FacebookGraph:SystemUserAccessToken في الأسرار قبل ربط الصفحة.");
+            }
+
+            var apiVersion = ValidateAndNormalizeApiVersion();
+            var requestUrl =
+                $"{apiVersion}/{Uri.EscapeDataString(normalizedPageId)}?fields=id%2Caccess_token";
+
+            using var request = new HttpRequestMessage(HttpMethod.Get, requestUrl);
+            request.Headers.Authorization = new AuthenticationHeaderValue(
+                "Bearer",
+                _options.SystemUserAccessToken);
+
+            using var response = await _httpClient.SendAsync(
+                request,
+                HttpCompletionOption.ResponseHeadersRead);
+            var responseContent = await response.Content.ReadAsStringAsync();
+
+            if (response.StatusCode is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden)
+                ThrowGraphException(response.StatusCode, error: null);
+
+            var graphResponse = DeserializeConnectionResponse(responseContent);
+
+            if (!response.IsSuccessStatusCode || graphResponse.Error is not null)
+                ThrowGraphException(response.StatusCode, graphResponse.Error);
+
+            if (!string.Equals(
+                    graphResponse.Id,
+                    normalizedPageId,
+                    StringComparison.Ordinal) ||
+                string.IsNullOrWhiteSpace(graphResponse.PageAccessToken))
+            {
+                throw new BadRequestException(
+                    "تعذر الحصول على صلاحية الوصول لصفحة Facebook المحددة. تأكد أن حساب النظام لديه صلاحيات الصفحة المطلوبة في Meta Business Manager.");
+            }
+
+            return new FacebookPageConnectionResultDto
+            {
+                FacebookPageId = graphResponse.Id!,
+                PageAccessToken = graphResponse.PageAccessToken!,
+                TokenExpiresAt = null
+            };
         }
 
         private string ValidateAndNormalizeApiVersion()
@@ -129,7 +169,7 @@ namespace SafeTrace.Infrastructure.Services
             if (!Regex.IsMatch(apiVersion, @"^v\d+\.\d+$", RegexOptions.CultureInvariant))
             {
                 throw new InvalidOperationException(
-                    "Facebook Graph API version is not configured correctly.");
+                    "إصدار Facebook Graph API غير مُعد بشكل صحيح.");
             }
 
             return apiVersion;
@@ -169,7 +209,25 @@ namespace SafeTrace.Infrastructure.Services
             catch (JsonException ex)
             {
                 throw new HttpRequestException(
-                    "Facebook Graph API returned an invalid response.",
+                    "أعاد Facebook Graph API استجابة غير صالحة.",
+                    ex);
+            }
+        }
+
+        private static FacebookGraphPageConnectionResponse DeserializeConnectionResponse(
+            string responseContent)
+        {
+            try
+            {
+                return JsonSerializer.Deserialize<FacebookGraphPageConnectionResponse>(
+                           responseContent,
+                           SerializerOptions)
+                       ?? new FacebookGraphPageConnectionResponse();
+            }
+            catch (JsonException ex)
+            {
+                throw new HttpRequestException(
+                    "أعاد Facebook Graph API استجابة غير صالحة.",
                     ex);
             }
         }
@@ -186,11 +244,28 @@ namespace SafeTrace.Infrastructure.Services
             if (isAuthenticationFailure)
             {
                 throw new FacebookAuthenticationException(
-                    "Facebook authorization is invalid, expired, or no longer has the required permissions.");
+                    "تفويض Facebook غير صالح أو انتهت صلاحيته أو لم يعد يملك الصلاحيات المطلوبة.");
             }
 
             throw new HttpRequestException(
-                $"Facebook Graph API request failed with status code {(int)statusCode}.");
+                $"فشل طلب Facebook Graph API برمز الحالة {(int)statusCode}.");
+        }
+
+        private static string NormalizeFacebookPageId(string facebookPageId)
+        {
+            if (string.IsNullOrWhiteSpace(facebookPageId))
+            {
+                throw new BadRequestException("معرّف صفحة Facebook مطلوب.");
+            }
+
+            var normalizedPageId = facebookPageId.Trim();
+
+            if (normalizedPageId.Length > 100)
+            {
+                throw new BadRequestException("معرّف صفحة Facebook غير صالح.");
+            }
+
+            return normalizedPageId;
         }
 
         private static FacebookPostDto MapPost(FacebookGraphPost post)

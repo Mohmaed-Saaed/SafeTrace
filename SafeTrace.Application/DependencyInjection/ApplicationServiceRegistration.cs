@@ -31,6 +31,9 @@ namespace SafeTrace.Application.DependencyInjection
             services.AddScoped<IComplaintService, ComplaintService>();
             services.AddScoped<IFacebookPageService, FacebookPageService>();
             services.AddScoped<IFacebookPostImportService, FacebookPostImportService>();
+            services.AddScoped<IFacebookPostRequirementChecker, FacebookPostRequirementChecker>();
+            services.AddScoped<ICaseDuplicateDetectionService, CaseDuplicateDetectionService>();
+            services.AddScoped<IFacebookImportedPostAdminService, FacebookImportedPostAdminService>();
             services.AddScoped<FacebookPostSyncJob>();
             services.AddScoped<FacebookPostAnalysisJob>();
             services.AddAutoMapper(cfg => { }, typeof(ApplicationServiceRegistration).Assembly);

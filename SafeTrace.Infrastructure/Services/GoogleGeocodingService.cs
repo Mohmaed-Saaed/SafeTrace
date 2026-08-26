@@ -1,8 +1,8 @@
 using System.Text.Json;
 using Microsoft.Extensions.Options;
-using SafeTrace.Application.Models.Geocoding;
+using SafeTrace.Application.DTOs.Geocoding.Response;
 using SafeTrace.Domain.Enums;
-using SafeTrace.Infrastructure.Models.Geocoding;
+using SafeTrace.Infrastructure.DTOs.Geocoding.Response;
 using SafeTrace.Infrastructure.Options;
 
 namespace SafeTrace.Infrastructure.Services
@@ -23,7 +23,7 @@ namespace SafeTrace.Infrastructure.Services
             _options = options.Value;
         }
 
-        public async Task<GeocodingResult?> GeocodeAsync(
+        public async Task<GeocodingResultDto?> GeocodeAsync(
             string? government,
             string? city,
             string? street,
@@ -98,7 +98,7 @@ namespace SafeTrace.Infrastructure.Services
                 if (egyptResult is null)
                     return null;
 
-                return new GeocodingResult
+                return new GeocodingResultDto
                 {
                     Latitude = egyptResult.Geometry.Location!.Latitude!.Value,
                     Longitude = egyptResult.Geometry.Location.Longitude!.Value,

@@ -15,7 +15,6 @@ namespace SafeTrace.Domain.Entities
         public DateTimeOffset? LastSyncedAt { get; set; }
         public DateTime CreatedAt { get; set; }
         public DateTime? UpdatedAt { get; set; }
-        public ICollection<FacebookImportedPost> ImportedPosts { get; set; }
-            = new List<FacebookImportedPost>();
+        public ICollection<FacebookImportedPost> ImportedPosts { get; set; } = [];
     }
 }

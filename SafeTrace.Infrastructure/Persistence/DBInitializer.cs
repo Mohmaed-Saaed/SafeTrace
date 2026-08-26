@@ -52,6 +52,7 @@ namespace SafeTrace.Infrastructure.Persistence
                                               Permissions.UnknownCases.GetById, Permissions.UnknownCases.HardDelete, Permissions.UnknownCases.Reject, Permissions.UnknownCases.Approve, Permissions.UnknownCases.MarkAsFounded, Permissions.UnknownCases.Create, Permissions.UnknownCases.Update, Permissions.UnknownCases.SoftDelete,
                                               Permissions.Chat.GetAll, Permissions.Chat.GetById, Permissions.Chat.GetMessages, Permissions.Chat.HardDelete, Permissions.Chat.DeleteMessageForEveryone, Permissions.Chat.GetChatStatistics,
                                               Permissions.FacebookPages.Create, Permissions.FacebookPages.Update, Permissions.FacebookPages.GetAll, Permissions.FacebookPages.GetById, Permissions.FacebookPages.Connect, Permissions.FacebookPages.Reconnect, Permissions.FacebookPages.Disconnect,
+                                              Permissions.FacebookPosts.GetAll, Permissions.FacebookPosts.GetById, Permissions.FacebookPosts.Update, Permissions.FacebookPosts.Reject, Permissions.FacebookPosts.Publish,
                                               Permissions.AiMatching.Search};
 
             string[] AdminPermissions = {Permissions.Dashboard.GetStatistics, Permissions.Dashboard.GetCasesStatistics, Permissions.Dashboard.GenerateCasesPdfReport,
@@ -63,6 +64,7 @@ namespace SafeTrace.Infrastructure.Persistence
                                          Permissions.UnknownCases.GetById, Permissions.UnknownCases.HardDelete, Permissions.UnknownCases.Reject, Permissions.UnknownCases.Approve, Permissions.UnknownCases.MarkAsFounded, Permissions.UnknownCases.Create, Permissions.UnknownCases.Update, Permissions.UnknownCases.SoftDelete,
                                          Permissions.Chat.GetAll, Permissions.Chat.GetById, Permissions.Chat.GetMessages, Permissions.Chat.HardDelete, Permissions.Chat.DeleteMessageForEveryone, Permissions.Chat.GetChatStatistics,
                                          Permissions.FacebookPages.Create, Permissions.FacebookPages.Update, Permissions.FacebookPages.GetAll, Permissions.FacebookPages.GetById, Permissions.FacebookPages.Connect, Permissions.FacebookPages.Reconnect, Permissions.FacebookPages.Disconnect,
+                                         Permissions.FacebookPosts.GetAll, Permissions.FacebookPosts.GetById, Permissions.FacebookPosts.Update, Permissions.FacebookPosts.Reject, Permissions.FacebookPosts.Publish,
                                          Permissions.AiMatching.Search};
 
             string[] ModeratorPermissions = {Permissions.Dashboard.GetCasesStatistics, Permissions.Dashboard.GenerateCasesPdfReport,

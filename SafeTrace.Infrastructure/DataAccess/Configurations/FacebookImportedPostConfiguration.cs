@@ -16,6 +16,10 @@ namespace SafeTrace.Infrastructure.DataAccess.Configurations
                 table.HasCheckConstraint(
                     "CK_FacebookImportedPosts_Age",
                     "[Age] IS NULL OR ([Age] >= 0 AND [Age] <= 120)");
+
+                table.HasCheckConstraint(
+                    "CK_FacebookImportedPosts_CaseReferences",
+                    "[CaseId] IS NULL OR [DuplicateCaseId] IS NULL");
             });
 
             builder.HasKey(post => post.Id);
@@ -67,6 +71,9 @@ namespace SafeTrace.Infrastructure.DataAccess.Configurations
             builder.Property(post => post.CreatedAt)
                 .IsRequired();
 
+            builder.Property(post => post.RowVersion)
+                .IsRowVersion();
+
             builder.HasIndex(post => new
                 {
                     post.FacebookPageId,
@@ -80,6 +87,12 @@ namespace SafeTrace.Infrastructure.DataAccess.Configurations
                 post.Id
             });
 
+            builder.HasIndex(post => post.CaseId)
+                .IsUnique()
+                .HasFilter("[CaseId] IS NOT NULL");
+
+            builder.HasIndex(post => post.DuplicateCaseId);
+
             builder.HasOne(post => post.FacebookPage)
                 .WithMany(page => page.ImportedPosts)
                 .HasForeignKey(post => post.FacebookPageId)
@@ -88,6 +101,16 @@ namespace SafeTrace.Infrastructure.DataAccess.Configurations
             builder.HasMany(post => post.Files)
                 .WithOne(file => file.FacebookImportedPost)
                 .HasForeignKey(file => file.FacebookImportedPostId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            builder.HasOne(post => post.Case)
+                .WithMany()
+                .HasForeignKey(post => post.CaseId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            builder.HasOne(post => post.DuplicateCase)
+                .WithMany()
+                .HasForeignKey(post => post.DuplicateCaseId)
                 .OnDelete(DeleteBehavior.Restrict);
         }
     }

@@ -1,16 +1,14 @@
-namespace SafeTrace.Domain.Entities
+namespace SafeTrace.Application.DTOs.FacebookImportedPosts.Response
 {
-    public class FacebookImportedPost
+    public sealed class FacebookImportedPostDetailDto
     {
         public long Id { get; set; }
-
         public long FacebookPageId { get; set; }
-        public FacebookPage FacebookPage { get; set; } = null!;
+        public string FacebookPageName { get; set; } = null!;
         public string FacebookPostId { get; set; } = null!;
         public string? PostText { get; set; }
         public string? PostUrl { get; set; }
         public DateTimeOffset? PublishedAt { get; set; }
-
         public SocialPostClassification? Classification { get; set; }
         public double? Confidence { get; set; }
         public string? FName { get; set; }
@@ -26,25 +24,17 @@ namespace SafeTrace.Domain.Entities
         public string? CommunicationPhone { get; set; }
         public string? Description { get; set; }
         public RelationType? Relation { get; set; }
-
         public double? Latitude { get; set; }
         public double? Longitude { get; set; }
         public LocationAccuracy? LocationAccuracy { get; set; }
-
+        public IReadOnlyList<FacebookImportedPostFileDto> Files { get; set; } = [];
         public FacebookImportedPostStatus Status { get; set; }
         public string? ReviewNotes { get; set; }
-
+        public IReadOnlyList<string> MissingRequirements { get; set; } = [];
         public long? CaseId { get; set; }
-        public Case? Case { get; set; }
         public long? DuplicateCaseId { get; set; }
-        public Case? DuplicateCase { get; set; }
-
         public DateTime CreatedAt { get; set; }
         public DateTime? AnalyzedAt { get; set; }
         public DateTime? UpdatedAt { get; set; }
-        public byte[] RowVersion { get; set; } = null!;
-
-        public ICollection<FacebookImportedPostFile> Files { get; set; }
-            = new List<FacebookImportedPostFile>();
     }
 }

@@ -1,6 +1,6 @@
 using System.Text.Json.Serialization;
 
-namespace SafeTrace.Infrastructure.Models.FacebookGraph
+namespace SafeTrace.Infrastructure.DTOs.FacebookGraph.Response
 {
     internal sealed class FacebookGraphPostsResponse
     {
@@ -9,6 +9,18 @@ namespace SafeTrace.Infrastructure.Models.FacebookGraph
 
         [JsonPropertyName("paging")]
         public FacebookGraphPaging? Paging { get; set; }
+
+        [JsonPropertyName("error")]
+        public FacebookGraphError? Error { get; set; }
+    }
+
+    internal sealed class FacebookGraphPageConnectionResponse
+    {
+        [JsonPropertyName("id")]
+        public string? Id { get; set; }
+
+        [JsonPropertyName("access_token")]
+        public string? PageAccessToken { get; set; }
 
         [JsonPropertyName("error")]
         public FacebookGraphError? Error { get; set; }

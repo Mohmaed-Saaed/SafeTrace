@@ -94,6 +94,16 @@ namespace SafeTrace.Infrastructure.DependencyInjection
                 var options = provider.GetRequiredService<IOptions<GeocodingOptions>>().Value;
                 client.BaseAddress = CreateAbsoluteBaseUri(options.BaseUrl, GeocodingOptions.SectionName);
             }).RemoveAllLoggers();
+
+            services.AddHttpClient<IExternalImageDownloadService, ExternalImageDownloadService>(client =>
+            {
+                client.Timeout = TimeSpan.FromSeconds(30);
+            })
+            .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
+            {
+                AllowAutoRedirect = false
+            })
+            .RemoveAllLoggers();
             
             return services;
         }

@@ -7,6 +7,8 @@ namespace SafeTrace.Domain.Enums
         NeedsReview,
         Incomplete,
         ReadyForPublish,
+        Duplicate,
+        Published,
         Rejected
     }
 }

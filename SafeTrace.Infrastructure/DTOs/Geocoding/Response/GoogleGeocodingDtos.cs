@@ -1,6 +1,6 @@
 using System.Text.Json.Serialization;
 
-namespace SafeTrace.Infrastructure.Models.Geocoding
+namespace SafeTrace.Infrastructure.DTOs.Geocoding.Response
 {
     internal sealed class GoogleGeocodingResponse
     {

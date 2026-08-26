@@ -1,7 +1,6 @@
 using SafeTrace.Application.DTOs.FacebookPages.Request;
 using SafeTrace.Application.DTOs.FacebookPages.Response;
 using SafeTrace.Application.Exceptions;
-using SafeTrace.Application.Models.Facebook;
 
 namespace SafeTrace.Application.Services
 {
@@ -9,136 +8,137 @@ namespace SafeTrace.Application.Services
     {
         private readonly IUnitOfWork _unitOfWork;
         private readonly IFacebookGraphService _facebookGraphService;
+        private readonly IMapper _mapper;
 
         public FacebookPageService(
             IUnitOfWork unitOfWork,
-            IFacebookGraphService facebookGraphService)
+            IFacebookGraphService facebookGraphService,
+            IMapper mapper)
         {
             _unitOfWork = unitOfWork;
             _facebookGraphService = facebookGraphService;
+            _mapper = mapper;
         }
 
         public async Task<FacebookPageResponseDto> CreateAsync(CreateFacebookPageDto dto)
         {
             var facebookPageId = dto.FacebookPageId.Trim();
-            var userId = dto.UserId.Trim();
 
-            if (await _unitOfWork.Repository<FacebookPage>()
-                .AnyAsync(page => page.FacebookPageId == facebookPageId))
+            var pageExists = await _unitOfWork.Repository<FacebookPage>().AnyAsync(page => page.FacebookPageId == facebookPageId);
+
+            if (pageExists)
             {
-                throw new ConflictException("A Facebook page with this FacebookPageId already exists.");
+                throw new ConflictException("صفحة Facebook بهذا المعرّف مسجلة بالفعل.");
             }
 
-            await EnsureUserExistsAsync(userId);
+            var user = await GetUserByEmailAsync(dto.UserEmail);
 
-            var page = new FacebookPage
-            {
-                FacebookPageId = facebookPageId,
-                PageName = dto.PageName.Trim(),
-                PageUrl = NormalizeOptional(dto.PageUrl),
-                UserId = userId,
-                PageAccessToken = null,
-                TokenExpiresAt = null,
-                IntegrationStatus = FacebookIntegrationStatus.Disconnected,
-                IsActive = false,
-                LastSyncedAt = null,
-                CreatedAt = DateTime.UtcNow
-            };
+            var page = _mapper.Map<FacebookPage>(dto);
+
+            page.UserId = user.Id;
+            page.User = user;
+            page.IntegrationStatus =FacebookIntegrationStatus.Disconnected;
+            page.IsActive = false;
+            page.CreatedAt = DateTime.UtcNow;
 
             await _unitOfWork.Repository<FacebookPage>().CreateAsync(page);
+
             await _unitOfWork.SaveAsync();
 
-            return MapToResponse(page);
+            return _mapper.Map<FacebookPageResponseDto>(page);
         }
 
         public async Task<FacebookPageResponseDto> UpdateAsync(long id, UpdateFacebookPageDto dto)
         {
-            var page = await GetEntityAsync(id);
-            var userId = dto.UserId.Trim();
+            var page = await GetEntityWithUserAsync(id);
 
-            if (!string.Equals(page.UserId, userId, StringComparison.Ordinal))
-                await EnsureUserExistsAsync(userId);
+            var user = await GetUserByEmailAsync(dto.UserEmail);
 
-            page.PageName = dto.PageName.Trim();
-            page.PageUrl = NormalizeOptional(dto.PageUrl);
-            page.UserId = userId;
+            _mapper.Map(dto, page);
+
+            page.UserId = user.Id;
+            page.User = user;
             page.UpdatedAt = DateTime.UtcNow;
 
             await _unitOfWork.SaveAsync();
 
-            return MapToResponse(page);
+            return _mapper.Map<FacebookPageResponseDto>(page);
         }
 
         public async Task<List<FacebookPageResponseDto>> GetAllAsync()
         {
-            return await _unitOfWork.Repository<FacebookPage>()
+            var pages = await _unitOfWork
+                .Repository<FacebookPage>()
                 .Query(tracked: false)
+                .Include(page => page.User)
                 .OrderByDescending(page => page.CreatedAt)
-                .Select(page => new FacebookPageResponseDto
-                {
-                    Id = page.Id,
-                    FacebookPageId = page.FacebookPageId,
-                    PageName = page.PageName,
-                    PageUrl = page.PageUrl,
-                    UserId = page.UserId,
-                    IntegrationStatus = page.IntegrationStatus,
-                    IsActive = page.IsActive,
-                    TokenExpiresAt = page.TokenExpiresAt,
-                    LastSyncedAt = page.LastSyncedAt,
-                    CreatedAt = page.CreatedAt,
-                    UpdatedAt = page.UpdatedAt
-                })
                 .ToListAsync();
+
+            return _mapper.Map<List<FacebookPageResponseDto>>(pages);
         }
 
         public async Task<FacebookPageResponseDto> GetByIdAsync(long id)
         {
-            var page = await _unitOfWork.Repository<FacebookPage>()
-                .GetOneAsync(item => item.Id == id, tracked: false);
+            var page = await _unitOfWork
+                .Repository<FacebookPage>()
+                .Query(tracked: false)
+                .Include(page => page.User)
+                .FirstOrDefaultAsync(page =>
+                    page.Id == id);
 
             if (page is null)
-                throw new NotFoundException($"Facebook page with id {id} was not found.");
+            {
+                throw new NotFoundException($"لم يتم العثور على صفحة Facebook بالمعرّف {id}.");
+            }
 
-            return MapToResponse(page);
+            return _mapper.Map<FacebookPageResponseDto>(page);
         }
 
         public async Task<FacebookPageResponseDto> ConnectAsync(long id)
         {
-            var page = await GetEntityAsync(id);
+            var page = await GetEntityWithUserAsync(id);
 
             if (page.IntegrationStatus == FacebookIntegrationStatus.Connected)
-                throw new BadRequestException("This Facebook page is already connected.");
+            {
+                throw new BadRequestException("صفحة Facebook متصلة بالفعل.");
+            }
 
             var connection = await _facebookGraphService.ConnectPageAsync(page.FacebookPageId);
+
             ApplySuccessfulConnection(page, connection);
 
             await _unitOfWork.SaveAsync();
 
-            return MapToResponse(page);
+            return _mapper.Map<FacebookPageResponseDto>(page);
         }
 
         public async Task<FacebookPageResponseDto> ReconnectAsync(long id)
         {
-            var page = await GetEntityAsync(id);
+            var page = await GetEntityWithUserAsync(id);
 
             if (page.IntegrationStatus != FacebookIntegrationStatus.NeedsReconnect &&
                 page.IntegrationStatus != FacebookIntegrationStatus.Disconnected)
             {
-                throw new BadRequestException(
-                    "Only disconnected Facebook pages or pages that need reconnection can be reconnected.");
+                throw new BadRequestException("يمكن إعادة ربط صفحات Facebook غير المتصلة أو التي تحتاج إلى إعادة اتصال فقط.");
             }
 
             var connection = await _facebookGraphService.ReconnectPageAsync(page.FacebookPageId);
+
             ApplySuccessfulConnection(page, connection);
 
             await _unitOfWork.SaveAsync();
 
-            return MapToResponse(page);
+            return _mapper.Map<FacebookPageResponseDto>(page);
         }
 
         public async Task<FacebookPageResponseDto> DisconnectAsync(long id)
         {
-            var page = await GetEntityAsync(id);
+            var page = await GetEntityWithUserAsync(id);
+
+            if (page.IntegrationStatus == FacebookIntegrationStatus.Disconnected)
+            {
+                throw new BadRequestException("صفحة Facebook غير متصلة بالفعل.");
+            }
 
             page.IntegrationStatus = FacebookIntegrationStatus.Disconnected;
             page.IsActive = false;
@@ -148,29 +148,45 @@ namespace SafeTrace.Application.Services
 
             await _unitOfWork.SaveAsync();
 
-            return MapToResponse(page);
+            return _mapper.Map<FacebookPageResponseDto>(page);
         }
 
-        private async Task<FacebookPage> GetEntityAsync(long id)
+        private async Task<FacebookPage> GetEntityWithUserAsync(long id)
         {
-            var page = await _unitOfWork.Repository<FacebookPage>().GetByIdAsync(id);
+            var page = await _unitOfWork
+                .Repository<FacebookPage>()
+                .Query()
+                .Include(page => page.User)
+                .FirstOrDefaultAsync(page => page.Id == id);
 
             return page
-                ?? throw new NotFoundException($"Facebook page with id {id} was not found.");
+                ?? throw new NotFoundException(
+                    $"Facebook page with id {id} was not found.");
         }
 
-        private async Task EnsureUserExistsAsync(string userId)
+        private async Task<ApplicationUser> GetUserByEmailAsync(string email)
         {
-            var userExists = await _unitOfWork.Repository<ApplicationUser>()
-                .AnyAsync(user => user.Id == userId);
+            if (string.IsNullOrWhiteSpace(email))
+            {
+                throw new BadRequestException("البريد الإلكتروني للمستخدم مطلوب.");
+            }
 
-            if (!userExists)
-                throw new NotFoundException($"User with id {userId} was not found.");
+            var normalizedEmail = email.Trim().ToUpperInvariant();
+
+            var user = await _unitOfWork
+                .Repository<ApplicationUser>()
+                .Query(tracked: false)
+                .FirstOrDefaultAsync(user => user.NormalizedEmail == normalizedEmail);
+
+            if (user is null)
+            {
+                throw new NotFoundException($"لا يوجد مستخدم مسجل بالبريد الإلكتروني: {email.Trim()}");
+            }
+
+            return user;
         }
 
-        private static void ApplySuccessfulConnection(
-            FacebookPage page,
-            FacebookPageConnectionResult connection)
+        private static void ApplySuccessfulConnection(FacebookPage page, FacebookPageConnectionResultDto connection)
         {
             if (!string.Equals(
                     page.FacebookPageId,
@@ -178,8 +194,7 @@ namespace SafeTrace.Application.Services
                     StringComparison.Ordinal) ||
                 string.IsNullOrWhiteSpace(connection.PageAccessToken))
             {
-                throw new BadRequestException(
-                    "Facebook Graph API did not validate access to the configured Facebook page.");
+                throw new BadRequestException("تعذر التحقق من صلاحية الوصول إلى صفحة Facebook المحددة.");
             }
 
             page.PageAccessToken = connection.PageAccessToken;
@@ -187,29 +202,6 @@ namespace SafeTrace.Application.Services
             page.IntegrationStatus = FacebookIntegrationStatus.Connected;
             page.IsActive = true;
             page.UpdatedAt = DateTime.UtcNow;
-        }
-
-        private static string? NormalizeOptional(string? value)
-        {
-            return string.IsNullOrWhiteSpace(value) ? null : value.Trim();
-        }
-
-        private static FacebookPageResponseDto MapToResponse(FacebookPage page)
-        {
-            return new FacebookPageResponseDto
-            {
-                Id = page.Id,
-                FacebookPageId = page.FacebookPageId,
-                PageName = page.PageName,
-                PageUrl = page.PageUrl,
-                UserId = page.UserId,
-                IntegrationStatus = page.IntegrationStatus,
-                IsActive = page.IsActive,
-                TokenExpiresAt = page.TokenExpiresAt,
-                LastSyncedAt = page.LastSyncedAt,
-                CreatedAt = page.CreatedAt,
-                UpdatedAt = page.UpdatedAt
-            };
         }
     }
 }

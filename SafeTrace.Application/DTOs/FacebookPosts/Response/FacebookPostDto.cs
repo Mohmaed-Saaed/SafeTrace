@@ -1,4 +1,4 @@
-namespace SafeTrace.Application.Models.Facebook
+namespace SafeTrace.Application.DTOs.FacebookPosts.Response
 {
     public sealed class FacebookPostDto
     {

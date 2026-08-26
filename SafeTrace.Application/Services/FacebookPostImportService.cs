@@ -1,4 +1,4 @@
-using SafeTrace.Application.Models.Facebook;
+using SafeTrace.Application.DTOs.FacebookPosts.Response;
 
 namespace SafeTrace.Application.Services
 {

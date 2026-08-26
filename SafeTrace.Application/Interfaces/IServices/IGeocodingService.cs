@@ -1,10 +1,10 @@
-using SafeTrace.Application.Models.Geocoding;
+using SafeTrace.Application.DTOs.Geocoding.Response;
 
 namespace SafeTrace.Application.Interfaces.IServices
 {
     public interface IGeocodingService
     {
-        Task<GeocodingResult?> GeocodeAsync(
+        Task<GeocodingResultDto?> GeocodeAsync(
             string? government,
             string? city,
             string? street,
