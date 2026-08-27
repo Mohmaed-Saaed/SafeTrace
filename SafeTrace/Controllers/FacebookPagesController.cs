@@ -65,14 +65,6 @@ namespace SafeTrace.API.Controllers
             return Ok(ApiResponse<FacebookPageResponseDto>.Ok(result));
         }
 
-        [HttpPost("{id:long}/reconnect")]
-        [HasPermission(Permissions.FacebookPages.Reconnect)]
-        public async Task<IActionResult> Reconnect(long id)
-        {
-            var result = await _facebookPageService.ReconnectAsync(id);
-            return Ok(ApiResponse<FacebookPageResponseDto>.Ok(result));
-        }
-
         [HttpPost("{id:long}/disconnect")]
         [HasPermission(Permissions.FacebookPages.Disconnect)]
         public async Task<IActionResult> Disconnect(long id)

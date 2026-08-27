@@ -4,18 +4,19 @@ using SafeTrace.Application.DTOs.FacebookImportedPosts.Request;
 using SafeTrace.Application.DTOs.FacebookImportedPosts.Response;
 using SafeTrace.Application.DTOs.Responses;
 using SafeTrace.Application.Interfaces.IServices;
+using SafeTrace.Domain.Enums;
 using SafeTrace.Infrastructure.Authorization;
 
 namespace SafeTrace.API.Controllers
 {
     [ApiController]
-    [Route("api/admin/facebook-posts")]
-    public sealed class AdminFacebookPostsController : ControllerBase
+    [Route("api/facebook-posts")]
+    public class FacebookPostsController : ControllerBase
     {
-        private readonly IFacebookImportedPostAdminService _facebookPostService;
+        private readonly IFacebookImportedPostService _facebookPostService;
 
-        public AdminFacebookPostsController(
-            IFacebookImportedPostAdminService facebookPostService)
+        public FacebookPostsController(
+            IFacebookImportedPostService facebookPostService)
         {
             _facebookPostService = facebookPostService;
         }
@@ -64,9 +65,13 @@ namespace SafeTrace.API.Controllers
         public async Task<IActionResult> Publish(long id)
         {
             var result = await _facebookPostService.PublishAsync(id);
+            var message = result.Status == FacebookImportedPostStatus.Duplicate
+                ? (result.Message ?? "This case already exists in the system.")
+                : "Facebook imported post published successfully.";
+
             return Ok(ApiResponse<PublishFacebookImportedPostResponseDto>.Ok(
                 result,
-                "Facebook imported post published successfully."));
+                message));
         }
     }
 }
