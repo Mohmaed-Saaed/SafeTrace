@@ -31,9 +31,9 @@ namespace SafeTrace.Infrastructure.DependencyInjection
             
             services.Configure<JwtOptions>(configuration.GetSection("Jwt"));
             services.Configure<MailSettingsOptions>(configuration.GetSection("MailSettings"));
-            services.Configure<GeminiOptions>(configuration.GetSection(GeminiOptions.SectionName));
             services.Configure<FacebookGraphOptions>(configuration.GetSection(FacebookGraphOptions.SectionName));
             services.Configure<GeocodingOptions>(configuration.GetSection(GeocodingOptions.SectionName));
+            services.Configure<BedrockOptions>(configuration.GetSection(BedrockOptions.SectionName));
 
             services.AddSingleton<IAuthorizationPolicyProvider, PermissionPolicyProvider>();
             services.AddScoped<IAuthorizationHandler, PermissionHandler>();
@@ -134,6 +134,18 @@ namespace SafeTrace.Infrastructure.DependencyInjection
             services.AddDefaultAWSOptions(awsOptions);
             services.AddAWSService<Amazon.Rekognition.IAmazonRekognition>();
             services.AddAWSService<Amazon.S3.IAmazonS3>();
+
+            var bedrockRegion = configuration["AWS:Bedrock:Region"];
+            if (!string.IsNullOrEmpty(bedrockRegion))
+            {
+                var bedrockOptions = configuration.GetAWSOptions("AWS");
+                bedrockOptions.Region = Amazon.RegionEndpoint.GetBySystemName(bedrockRegion);
+                services.AddAWSService<Amazon.BedrockRuntime.IAmazonBedrockRuntime>(bedrockOptions);
+            }
+            else
+            {
+                services.AddAWSService<Amazon.BedrockRuntime.IAmazonBedrockRuntime>();
+            }
 
             return services;
         }

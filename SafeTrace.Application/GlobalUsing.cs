@@ -1,5 +1,7 @@
-﻿global using AutoMapper;
+global using AutoMapper;
 global using SafeTrace.Application.Interfaces.IServices;
+global using SafeTrace.Application.Interfaces.IServices.IFacebookIntegration;
+global using SafeTrace.Application.Interfaces.IServices.IFacebookIntegration.IJobs;
 global using SafeTrace.Application.DTOs.Responses;
 global using SafeTrace.Domain.Enums;
 global using SafeTrace.Domain.Entities;

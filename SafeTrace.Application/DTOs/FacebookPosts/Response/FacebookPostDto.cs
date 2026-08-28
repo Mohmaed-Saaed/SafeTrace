@@ -9,10 +9,4 @@ namespace SafeTrace.Application.DTOs.FacebookPosts.Response
         public IReadOnlyList<FacebookPostMediaDto> Media { get; init; }
             = Array.Empty<FacebookPostMediaDto>();
     }
-
-    public sealed class FacebookPostMediaDto
-    {
-        public string? FacebookMediaId { get; init; }
-        public string FileUrl { get; init; } = null!;
-    }
 }

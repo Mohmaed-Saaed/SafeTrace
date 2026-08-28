@@ -1,7 +1,7 @@
 using SafeTrace.Application.DTOs.FacebookPages.Request;
 using SafeTrace.Application.DTOs.FacebookPages.Response;
 
-namespace SafeTrace.Application.Interfaces.IServices
+namespace SafeTrace.Application.Interfaces.IServices.IFacebookIntegration
 {
     public interface IFacebookPageService
     {
@@ -10,7 +10,6 @@ namespace SafeTrace.Application.Interfaces.IServices
         Task<List<FacebookPageResponseDto>> GetAllAsync();
         Task<FacebookPageResponseDto> GetByIdAsync(long id);
         Task<FacebookPageResponseDto> ConnectAsync(long id);
-        Task<FacebookPageResponseDto> ReconnectAsync(long id);
         Task<FacebookPageResponseDto> DisconnectAsync(long id);
     }
 }

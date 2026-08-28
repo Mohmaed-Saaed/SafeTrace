@@ -7,7 +7,6 @@ namespace SafeTrace.Application.Interfaces.IServices
         Task<GeocodingResultDto?> GeocodeAsync(
             string? government,
             string? city,
-            string? street,
-            CancellationToken cancellationToken = default);
+            string? street);
     }
 }

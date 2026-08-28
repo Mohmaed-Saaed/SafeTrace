@@ -50,9 +50,6 @@ namespace SafeTrace.Application.DTOs.FacebookImportedPosts.Request
         [EnumDataType(typeof(RelationType), ErrorMessage = "Invalid relation type.")]
         public RelationType? Relation { get; set; }
 
-        [StringLength(2000)]
-        public string? ReviewNotes { get; set; }
-
         [Range(-90d, 90d)]
         public double? Latitude { get; set; }
 

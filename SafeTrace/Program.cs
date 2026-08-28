@@ -99,9 +99,6 @@ namespace SafeTrace.API
             builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
             builder.Services.AddProblemDetails();
 
-            // Background Services
-            builder.Services.AddScoped<ICaseCleanupService, CaseCleanupService>();
-
             builder.Services.AddHangfire(config => config
                 .SetDataCompatibilityLevel(CompatibilityLevel.Version_180)
                 .UseSimpleAssemblyNameTypeSerializer()
@@ -336,15 +333,8 @@ namespace SafeTrace.API
                 RecurringJob.AddOrUpdate<IAuthCleanupService>("CleanupExpiredOtps", service => service.CleanupExpiredOtpsAsync(), Cron.Daily);
                 RecurringJob.AddOrUpdate<IAuthCleanupService>("CleanupOldRefreshTokens", service => service.CleanupOldRefreshTokensAsync(), Cron.Daily);
                 RecurringJob.AddOrUpdate<ICaseCleanupService>("CleanupExpiredUrgentCases", service => service.CleanupExpiredUrgentCasesAsync(), Cron.Hourly);
-                RecurringJob.AddOrUpdate<IFacebookPostSyncJob>(
-                    "FacebookPostSync",
-                    job => job.ExecuteAsync(CancellationToken.None),
-                    Cron.MinuteInterval(5));
-                RecurringJob.AddOrUpdate<IFacebookPostAnalysisJob>(
-                    "FacebookPostAnalysis",
-                    job => job.ExecuteAsync(CancellationToken.None),
-                    Cron.MinuteInterval(5));
-
+                RecurringJob.AddOrUpdate<IFacebookPostSyncJob>("FacebookPostSync", job => job.ExecuteAsync(), Cron.MinuteInterval(30));
+                RecurringJob.AddOrUpdate<IFacebookPostAnalysisJob>("FacebookPostAnalysis", job => job.ExecuteAsync(), Cron.MinuteInterval(15));
 
                 app.UseHttpsRedirection();
                 app.UseStaticFiles();

@@ -26,13 +26,10 @@ namespace SafeTrace.Application.DTOs.FacebookImportedPosts.Response
         public RelationType? Relation { get; set; }
         public double? Latitude { get; set; }
         public double? Longitude { get; set; }
-        public LocationAccuracy? LocationAccuracy { get; set; }
         public IReadOnlyList<FacebookImportedPostFileDto> Files { get; set; } = [];
         public FacebookImportedPostStatus Status { get; set; }
-        public string? ReviewNotes { get; set; }
         public IReadOnlyList<string> MissingRequirements { get; set; } = [];
         public long? CaseId { get; set; }
-        public long? DuplicateCaseId { get; set; }
         public DateTime CreatedAt { get; set; }
         public DateTime? AnalyzedAt { get; set; }
         public DateTime? UpdatedAt { get; set; }

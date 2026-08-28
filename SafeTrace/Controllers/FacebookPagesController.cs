@@ -20,7 +20,7 @@ namespace SafeTrace.API.Controllers
         }
 
         [HttpPost]
-        [HasPermission(Permissions.FacebookPages.Create)]
+        // [HasPermission(Permissions.FacebookPages.Create)]
         public async Task<IActionResult> Create([FromBody] CreateFacebookPageDto dto)
         {
             var result = await _facebookPageService.CreateAsync(dto);
@@ -34,7 +34,7 @@ namespace SafeTrace.API.Controllers
         }
 
         [HttpPut("{id:long}")]
-        [HasPermission(Permissions.FacebookPages.Update)]
+        // [HasPermission(Permissions.FacebookPages.Update)]
         public async Task<IActionResult> Update(long id, [FromBody] UpdateFacebookPageDto dto)
         {
             var result = await _facebookPageService.UpdateAsync(id, dto);
@@ -42,7 +42,7 @@ namespace SafeTrace.API.Controllers
         }
 
         [HttpGet]
-        [HasPermission(Permissions.FacebookPages.GetAll)]
+        // [HasPermission(Permissions.FacebookPages.GetAll)]
         public async Task<IActionResult> GetAll()
         {
             var result = await _facebookPageService.GetAllAsync();
@@ -50,7 +50,7 @@ namespace SafeTrace.API.Controllers
         }
 
         [HttpGet("{id:long}")]
-        [HasPermission(Permissions.FacebookPages.GetById)]
+        // [HasPermission(Permissions.FacebookPages.GetById)]
         public async Task<IActionResult> GetById(long id)
         {
             var result = await _facebookPageService.GetByIdAsync(id);
@@ -58,7 +58,7 @@ namespace SafeTrace.API.Controllers
         }
 
         [HttpPost("{id:long}/connect")]
-        [HasPermission(Permissions.FacebookPages.Connect)]
+        // [HasPermission(Permissions.FacebookPages.Connect)]
         public async Task<IActionResult> Connect(long id)
         {
             var result = await _facebookPageService.ConnectAsync(id);
@@ -66,7 +66,7 @@ namespace SafeTrace.API.Controllers
         }
 
         [HttpPost("{id:long}/disconnect")]
-        [HasPermission(Permissions.FacebookPages.Disconnect)]
+        // [HasPermission(Permissions.FacebookPages.Disconnect)]
         public async Task<IActionResult> Disconnect(long id)
         {
             var result = await _facebookPageService.DisconnectAsync(id);

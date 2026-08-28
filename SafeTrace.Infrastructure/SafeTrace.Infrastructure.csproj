@@ -25,13 +25,13 @@
 	<ItemGroup>
 		<PackageReference Include="Audit.EntityFramework.Identity.Core" Version="32.2.0" />
 		<PackageReference Include="AutoMapper" Version="16.1.1" />
+		<PackageReference Include="AWSSDK.BedrockRuntime" Version="4.0.101.4" />
 		<PackageReference Include="AWSSDK.Extensions.NETCore.Setup" Version="4.0.100.7" />
 		<PackageReference Include="AWSSDK.Rekognition" Version="4.0.4.8" />
 		<PackageReference Include="AWSSDK.S3" Version="4.0.102" />
 		<PackageReference Include="ClosedXML" Version="0.105.0" />
 		<PackageReference Include="ElmahCore" Version="2.1.2" />
 		<PackageReference Include="ElmahCore.Sql" Version="2.1.2" />
-		<PackageReference Include="Google.GenAI" Version="1.20.0" />
 		<PackageReference Include="Hangfire.Core" Version="1.8.24" />
 		<PackageReference Include="MailKit" Version="4.17.0" />
 		<PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.9" />

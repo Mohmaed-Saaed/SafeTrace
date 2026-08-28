@@ -108,7 +108,6 @@ namespace SafeTrace.Application.Constants
             public const string GetAll = "FacebookPages.GetAll";
             public const string GetById = "FacebookPages.GetById";
             public const string Connect = "FacebookPages.Connect";
-            public const string Reconnect = "FacebookPages.Reconnect";
             public const string Disconnect = "FacebookPages.Disconnect";
         }
 

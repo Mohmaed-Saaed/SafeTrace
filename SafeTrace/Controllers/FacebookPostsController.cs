@@ -22,16 +22,15 @@ namespace SafeTrace.API.Controllers
         }
 
         [HttpGet]
-        [HasPermission(Permissions.FacebookPosts.GetAll)]
-        public async Task<IActionResult> GetAll(
-            [FromQuery] FacebookPostFilterDto filter)
+        // [HasPermission(Permissions.FacebookPosts.GetAll)]
+        public async Task<IActionResult> GetAll([FromQuery] FacebookPostFilterDto filter)
         {
             var result = await _facebookPostService.GetAllAsync(filter);
             return Ok(ApiResponse<List<FacebookImportedPostListDto>>.Ok(result));
         }
 
         [HttpGet("{id:long}")]
-        [HasPermission(Permissions.FacebookPosts.GetById)]
+        // [HasPermission(Permissions.FacebookPosts.GetById)]
         public async Task<IActionResult> GetById(long id)
         {
             var result = await _facebookPostService.GetByIdAsync(id);
@@ -39,7 +38,7 @@ namespace SafeTrace.API.Controllers
         }
 
         [HttpPut("{id:long}")]
-        [HasPermission(Permissions.FacebookPosts.Update)]
+        // [HasPermission(Permissions.FacebookPosts.Update)]
         public async Task<IActionResult> Update(
             long id,
             [FromBody] UpdateFacebookImportedPostDto dto)
@@ -49,22 +48,22 @@ namespace SafeTrace.API.Controllers
         }
 
         [HttpPost("{id:long}/reject")]
-        [HasPermission(Permissions.FacebookPosts.Reject)]
-        public async Task<IActionResult> Reject(
-            long id,
-            [FromBody] RejectFacebookImportedPostDto dto)
+        // [HasPermission(Permissions.FacebookPosts.Reject)]
+        public async Task<IActionResult> Reject(long id)
         {
-            var result = await _facebookPostService.RejectAsync(id, dto);
+            var result = await _facebookPostService.RejectAsync(id);
             return Ok(ApiResponse<FacebookImportedPostDetailDto>.Ok(
                 result,
                 "Facebook imported post rejected successfully."));
         }
 
         [HttpPost("{id:long}/publish")]
-        [HasPermission(Permissions.FacebookPosts.Publish)]
-        public async Task<IActionResult> Publish(long id)
+        // [HasPermission(Permissions.FacebookPosts.Publish)]
+        public async Task<IActionResult> Publish(
+            long id,
+            [FromBody] PublishFacebookImportedPostRequestDto? dto = null)
         {
-            var result = await _facebookPostService.PublishAsync(id);
+            var result = await _facebookPostService.PublishAsync(id, dto);
             var message = result.Status == FacebookImportedPostStatus.Duplicate
                 ? (result.Message ?? "This case already exists in the system.")
                 : "Facebook imported post published successfully.";

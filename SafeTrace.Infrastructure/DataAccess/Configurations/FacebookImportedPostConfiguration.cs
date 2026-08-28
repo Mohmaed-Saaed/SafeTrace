@@ -16,10 +16,6 @@ namespace SafeTrace.Infrastructure.DataAccess.Configurations
                 table.HasCheckConstraint(
                     "CK_FacebookImportedPosts_Age",
                     "[Age] IS NULL OR ([Age] >= 0 AND [Age] <= 120)");
-
-                table.HasCheckConstraint(
-                    "CK_FacebookImportedPosts_CaseReferences",
-                    "[CaseId] IS NULL OR [DuplicateCaseId] IS NULL");
             });
 
             builder.HasKey(post => post.Id);
@@ -48,10 +44,6 @@ namespace SafeTrace.Infrastructure.DataAccess.Configurations
                 .HasConversion<string>()
                 .HasMaxLength(20);
 
-            builder.Property(post => post.LocationAccuracy)
-                .HasConversion<string>()
-                .HasMaxLength(20);
-
             builder.Property(post => post.Status)
                 .HasConversion<string>()
                 .HasMaxLength(30)
@@ -66,7 +58,6 @@ namespace SafeTrace.Infrastructure.DataAccess.Configurations
             builder.Property(post => post.Street).HasMaxLength(200);
             builder.Property(post => post.CommunicationPhone).HasMaxLength(30);
             builder.Property(post => post.Description).HasMaxLength(2000);
-            builder.Property(post => post.ReviewNotes).HasMaxLength(2000);
 
             builder.Property(post => post.CreatedAt)
                 .IsRequired();
@@ -91,8 +82,6 @@ namespace SafeTrace.Infrastructure.DataAccess.Configurations
                 .IsUnique()
                 .HasFilter("[CaseId] IS NOT NULL");
 
-            builder.HasIndex(post => post.DuplicateCaseId);
-
             builder.HasOne(post => post.FacebookPage)
                 .WithMany(page => page.ImportedPosts)
                 .HasForeignKey(post => post.FacebookPageId)
@@ -106,11 +95,6 @@ namespace SafeTrace.Infrastructure.DataAccess.Configurations
             builder.HasOne(post => post.Case)
                 .WithMany()
                 .HasForeignKey(post => post.CaseId)
-                .OnDelete(DeleteBehavior.Restrict);
-
-            builder.HasOne(post => post.DuplicateCase)
-                .WithMany()
-                .HasForeignKey(post => post.DuplicateCaseId)
                 .OnDelete(DeleteBehavior.Restrict);
         }
     }

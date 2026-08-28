@@ -1,14 +1,15 @@
 using SafeTrace.Application.DTOs.FacebookPages.Response;
 using SafeTrace.Application.DTOs.FacebookPosts.Response;
 
-namespace SafeTrace.Application.Interfaces.IServices
+namespace SafeTrace.Application.Interfaces.IServices.IFacebookIntegration
 {
     public interface IFacebookGraphService
     {
-        Task<FacebookPageConnectionResultDto> ConnectPageAsync(string facebookPageId);
-        Task<FacebookPageConnectionResultDto> ReconnectPageAsync(string facebookPageId);
+        Task<FacebookPageConnectionResultDto> ConnectPageAsync(string facebookPageId, string pageAccessToken);
+
         Task<IReadOnlyList<FacebookPostDto>> GetNewPostsAsync(
-            FacebookPage page,
+            string facebookPageId,
+            string pageAccessToken,
             DateTimeOffset? since);
     }
 }

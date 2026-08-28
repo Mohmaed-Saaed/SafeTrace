@@ -11,16 +11,9 @@ namespace SafeTrace.Infrastructure.DataAccess.Configurations
 
             builder.HasKey(file => file.Id);
 
-            builder.Property(file => file.FacebookMediaId)
-                .IsRequired(false)
-                .HasMaxLength(100);
-
             builder.Property(file => file.FileUrl)
                 .IsRequired()
                 .HasMaxLength(2048);
-
-            builder.Property(file => file.CreatedAt)
-                .IsRequired();
 
             builder.HasIndex(file => file.FacebookImportedPostId);
         }

@@ -1,8 +1,13 @@
+using System;
+using System.IO;
+using System.Linq;
+using System.Net.Http;
 using System.Text.Json;
+using System.Threading.Tasks;
 using Microsoft.Extensions.Options;
 using SafeTrace.Application.DTOs.Geocoding.Response;
+using SafeTrace.Application.Interfaces.IServices;
 using SafeTrace.Domain.Enums;
-using SafeTrace.Infrastructure.DTOs.Geocoding.Response;
 using SafeTrace.Infrastructure.Options;
 
 namespace SafeTrace.Infrastructure.Services
@@ -10,7 +15,6 @@ namespace SafeTrace.Infrastructure.Services
     public class GoogleGeocodingService : IGeocodingService
     {
         private const string EgyptCountryCode = "EG";
-        private static readonly JsonSerializerOptions SerializerOptions = new(JsonSerializerDefaults.Web);
 
         private readonly HttpClient _httpClient;
         private readonly GeocodingOptions _options;
@@ -26,13 +30,12 @@ namespace SafeTrace.Infrastructure.Services
         public async Task<GeocodingResultDto?> GeocodeAsync(
             string? government,
             string? city,
-            string? street,
-            CancellationToken cancellationToken = default)
+            string? street)
         {
             if (string.IsNullOrWhiteSpace(_options.ApiKey))
             {
                 throw new InvalidOperationException(
-                    "Google Geocoding API key is not configured.");
+                    "مفتاح Google Geocoding API غير مهيأ.");
             }
 
             var query = BuildEgyptQuery(government, city, street);
@@ -50,16 +53,12 @@ namespace SafeTrace.Infrastructure.Services
 
             try
             {
-                response = await _httpClient.GetAsync(requestUrl, cancellationToken);
-            }
-            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-            {
-                throw;
+                response = await _httpClient.GetAsync(requestUrl);
             }
             catch (Exception)
             {
                 throw new HttpRequestException(
-                    "Google Geocoding request could not be completed.");
+                    "تعذر إكمال طلب تحديد الموقع الجغرافي من Google.");
             }
 
             using (response)
@@ -67,46 +66,62 @@ namespace SafeTrace.Infrastructure.Services
                 if (!response.IsSuccessStatusCode)
                 {
                     throw new HttpRequestException(
-                        $"Google Geocoding request failed with status code {(int)response.StatusCode}.");
+                        $"فشل طلب تحديد الموقع الجغرافي من Google برمز الحالة {(int)response.StatusCode}.");
                 }
 
                 await using var responseStream =
-                    await response.Content.ReadAsStreamAsync(cancellationToken);
+                    await response.Content.ReadAsStreamAsync();
 
-                var payload = await JsonSerializer.DeserializeAsync<GoogleGeocodingResponse>(
-                    responseStream,
-                    SerializerOptions,
-                    cancellationToken);
+                using var doc = await JsonDocument.ParseAsync(responseStream);
+                var root = doc.RootElement;
 
-                if (payload is null ||
-                    string.Equals(payload.Status, "ZERO_RESULTS", StringComparison.OrdinalIgnoreCase))
+                var status = root.TryGetProperty("status", out var statusProp) ? statusProp.GetString() : null;
+
+                if (string.Equals(status, "ZERO_RESULTS", StringComparison.OrdinalIgnoreCase))
                 {
                     return null;
                 }
 
-                if (!string.Equals(payload.Status, "OK", StringComparison.OrdinalIgnoreCase))
+                if (!string.Equals(status, "OK", StringComparison.OrdinalIgnoreCase))
                 {
                     throw new HttpRequestException(
-                        "Google Geocoding returned an unsuccessful response.");
+                        "أرجع Google Geocoding استجابة غير ناجحة.");
                 }
 
-                var egyptResult = payload.Results.FirstOrDefault(result =>
-                    IsEgyptResult(result) &&
-                    result.Geometry.Location?.Latitude is not null &&
-                    result.Geometry.Location.Longitude is not null);
-
-                if (egyptResult is null)
-                    return null;
-
-                return new GeocodingResultDto
+                if (!root.TryGetProperty("results", out var results) || results.ValueKind != JsonValueKind.Array)
                 {
-                    Latitude = egyptResult.Geometry.Location!.Latitude!.Value,
-                    Longitude = egyptResult.Geometry.Location.Longitude!.Value,
-                    LocationAccuracy = query.Value.Accuracy,
-                    Government = GetAddressComponent(
-                        egyptResult,
-                        "administrative_area_level_1")?.LongName
-                };
+                    return null;
+                }
+
+                foreach (var result in results.EnumerateArray())
+                {
+                    if (!IsEgyptResult(result))
+                        continue;
+
+                    if (!result.TryGetProperty("geometry", out var geometry) ||
+                        !geometry.TryGetProperty("location", out var location))
+                    {
+                        continue;
+                    }
+
+                    if (!location.TryGetProperty("lat", out var latProp) || !latProp.TryGetDouble(out var lat) ||
+                        !location.TryGetProperty("lng", out var lngProp) || !lngProp.TryGetDouble(out var lng))
+                    {
+                        continue;
+                    }
+
+                    var gov = GetAddressComponent(result, "administrative_area_level_1");
+
+                    return new GeocodingResultDto
+                    {
+                        Latitude = lat,
+                        Longitude = lng,
+                        LocationAccuracy = query.Value.Accuracy,
+                        Government = gov
+                    };
+                }
+
+                return null;
             }
         }
 
@@ -136,22 +151,56 @@ namespace SafeTrace.Infrastructure.Services
             return null;
         }
 
-        private static bool IsEgyptResult(GoogleGeocodingResult result)
+        private static bool IsEgyptResult(JsonElement result)
         {
-            var country = GetAddressComponent(result, "country");
+            if (!result.TryGetProperty("address_components", out var components) ||
+                components.ValueKind != JsonValueKind.Array)
+            {
+                return false;
+            }
 
-            return string.Equals(
-                country?.ShortName,
-                EgyptCountryCode,
-                StringComparison.OrdinalIgnoreCase);
+            foreach (var component in components.EnumerateArray())
+            {
+                if (ComponentHasType(component, "country"))
+                {
+                    var shortName = component.TryGetProperty("short_name", out var sn) ? sn.GetString() : null;
+                    return string.Equals(shortName, EgyptCountryCode, StringComparison.OrdinalIgnoreCase);
+                }
+            }
+
+            return false;
         }
 
-        private static GoogleAddressComponent? GetAddressComponent(
-            GoogleGeocodingResult result,
-            string type)
+        private static string? GetAddressComponent(JsonElement result, string type)
         {
-            return result.AddressComponents.FirstOrDefault(component =>
-                component.Types.Contains(type, StringComparer.OrdinalIgnoreCase));
+            if (!result.TryGetProperty("address_components", out var components) ||
+                components.ValueKind != JsonValueKind.Array)
+            {
+                return null;
+            }
+
+            foreach (var component in components.EnumerateArray())
+            {
+                if (ComponentHasType(component, type))
+                {
+                    return component.TryGetProperty("long_name", out var ln) ? ln.GetString() : null;
+                }
+            }
+
+            return null;
+        }
+
+        private static bool ComponentHasType(JsonElement component, string type)
+        {
+            if (component.TryGetProperty("types", out var types) && types.ValueKind == JsonValueKind.Array)
+            {
+                foreach (var t in types.EnumerateArray())
+                {
+                    if (string.Equals(t.GetString(), type, StringComparison.OrdinalIgnoreCase))
+                        return true;
+                }
+            }
+            return false;
         }
 
         private static string? NormalizeOptional(string? value)

@@ -1,13 +1,18 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Net;
+using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using System.Threading.Tasks;
+using Microsoft.Extensions.Options;
 using SafeTrace.Application.DTOs.FacebookPages.Response;
 using SafeTrace.Application.DTOs.FacebookPosts.Response;
 using SafeTrace.Application.Exceptions;
-using SafeTrace.Infrastructure.DTOs.FacebookGraph.Response;
+using SafeTrace.Application.Interfaces.IServices;
 using SafeTrace.Infrastructure.Options;
-using Microsoft.Extensions.Options;
 
 namespace SafeTrace.Infrastructure.Services
 {
@@ -16,8 +21,6 @@ namespace SafeTrace.Infrastructure.Services
         private const string PostFields =
             "id,message,permalink_url,created_time," +
             "attachments{media_type,media,target,subattachments{media_type,media,target}}";
-
-        private static readonly JsonSerializerOptions SerializerOptions = new(JsonSerializerDefaults.Web);
 
         private readonly HttpClient _httpClient;
         private readonly FacebookGraphOptions _options;
@@ -30,23 +33,59 @@ namespace SafeTrace.Infrastructure.Services
             _options = options.Value;
         }
 
-        public Task<FacebookPageConnectionResultDto> ConnectPageAsync(string facebookPageId)
+        public async Task<FacebookPageConnectionResultDto> ConnectPageAsync(string facebookPageId, string pageAccessToken)
         {
-            return ConnectPageCoreAsync(facebookPageId);
-        }
+            var normalizedPageId = NormalizeFacebookPageId(facebookPageId);
 
-        public Task<FacebookPageConnectionResultDto> ReconnectPageAsync(string facebookPageId)
-        {
-            return ConnectPageCoreAsync(facebookPageId);
+            if (string.IsNullOrWhiteSpace(pageAccessToken))
+            {
+                throw new FacebookAuthenticationException(
+                    "لا يوجد رمز وصول صالح لصفحة Facebook.");
+            }
+
+            var apiVersion = ValidateAndNormalizeApiVersion();
+            var requestUrl = BuildPageRequestUrl(apiVersion, normalizedPageId);
+
+            using var request = new HttpRequestMessage(HttpMethod.Get, requestUrl);
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", pageAccessToken);
+
+            using var response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead);
+            var responseContent = await response.Content.ReadAsStringAsync();
+
+            using var doc = ParseJson(responseContent);
+            var root = doc.RootElement;
+
+            if (response.StatusCode is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden ||
+                !response.IsSuccessStatusCode ||
+                root.TryGetProperty("error", out _))
+            {
+                ThrowGraphException(response.StatusCode, root);
+            }
+
+            var id = root.TryGetProperty("id", out var idProp) ? idProp.GetString() : null;
+
+            if (!string.Equals(id, normalizedPageId, StringComparison.Ordinal))
+            {
+                throw new BadRequestException(
+                    "تعذر التحقق من صفحة Facebook المحددة. تأكد من صحة معرّف الصفحة ورمز الوصول.");
+            }
+
+            return new FacebookPageConnectionResultDto
+            {
+                FacebookPageId = id!,
+                PageAccessToken = pageAccessToken,
+                TokenExpiresAt = null
+            };
         }
 
         public async Task<IReadOnlyList<FacebookPostDto>> GetNewPostsAsync(
-            FacebookPage page,
+            string facebookPageId,
+            string pageAccessToken,
             DateTimeOffset? since)
         {
-            ArgumentNullException.ThrowIfNull(page);
+            var normalizedPageId = NormalizeFacebookPageId(facebookPageId);
 
-            if (string.IsNullOrWhiteSpace(page.PageAccessToken))
+            if (string.IsNullOrWhiteSpace(pageAccessToken))
             {
                 throw new FacebookAuthenticationException(
                     "لا يوجد رمز وصول صالح لصفحة Facebook. أعد ربط الصفحة.");
@@ -70,14 +109,14 @@ namespace SafeTrace.Infrastructure.Services
 
                 var requestUrl = BuildPostsRequestUrl(
                     apiVersion,
-                    page.FacebookPageId,
+                    normalizedPageId,
                     requestLimit,
                     since,
                     after);
 
                 using var request = new HttpRequestMessage(HttpMethod.Get, requestUrl);
                 request.Headers.Authorization =
-                    new AuthenticationHeaderValue("Bearer", page.PageAccessToken);
+                    new AuthenticationHeaderValue("Bearer", pageAccessToken);
 
                 using var response = await _httpClient.SendAsync(
                     request,
@@ -85,22 +124,37 @@ namespace SafeTrace.Infrastructure.Services
 
                 var responseContent = await response.Content.ReadAsStringAsync();
 
-                if (response.StatusCode is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden)
-                    ThrowGraphException(response.StatusCode, error: null);
+                using var doc = ParseJson(responseContent);
+                var root = doc.RootElement;
 
-                var graphResponse = DeserializeResponse(responseContent);
-
-                if (!response.IsSuccessStatusCode || graphResponse.Error is not null)
+                if (response.StatusCode is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden ||
+                    !response.IsSuccessStatusCode ||
+                    root.TryGetProperty("error", out _))
                 {
-                    ThrowGraphException(response.StatusCode, graphResponse.Error);
+                    ThrowGraphException(response.StatusCode, root);
                 }
 
-                posts.AddRange(graphResponse.Data.Select(MapPost));
+                if (root.TryGetProperty("data", out var dataArray) && dataArray.ValueKind == JsonValueKind.Array)
+                {
+                    foreach (var postElement in dataArray.EnumerateArray())
+                    {
+                        posts.Add(MapPost(postElement));
+                    }
+                }
 
                 if (!since.HasValue && posts.Count >= initialSyncLimit)
                     break;
 
-                after = graphResponse.Paging?.Cursors?.After;
+                if (root.TryGetProperty("paging", out var paging) &&
+                    paging.TryGetProperty("cursors", out var cursors) &&
+                    cursors.TryGetProperty("after", out var afterProp))
+                {
+                    after = afterProp.GetString();
+                }
+                else
+                {
+                    after = null;
+                }
 
                 if (string.IsNullOrWhiteSpace(after) || !seenCursors.Add(after))
                     break;
@@ -109,57 +163,6 @@ namespace SafeTrace.Infrastructure.Services
             return since.HasValue
                 ? posts
                 : posts.Take(initialSyncLimit).ToList();
-        }
-
-        private async Task<FacebookPageConnectionResultDto> ConnectPageCoreAsync(
-            string facebookPageId)
-        {
-            var normalizedPageId = NormalizeFacebookPageId(facebookPageId);
-
-            if (string.IsNullOrWhiteSpace(_options.SystemUserAccessToken))
-            {
-                throw new BadRequestException(
-                    "لم يتم إعداد رمز وصول حساب النظام الخاص بـ Meta. أضف FacebookGraph:SystemUserAccessToken في الأسرار قبل ربط الصفحة.");
-            }
-
-            var apiVersion = ValidateAndNormalizeApiVersion();
-            var requestUrl =
-                $"{apiVersion}/{Uri.EscapeDataString(normalizedPageId)}?fields=id%2Caccess_token";
-
-            using var request = new HttpRequestMessage(HttpMethod.Get, requestUrl);
-            request.Headers.Authorization = new AuthenticationHeaderValue(
-                "Bearer",
-                _options.SystemUserAccessToken);
-
-            using var response = await _httpClient.SendAsync(
-                request,
-                HttpCompletionOption.ResponseHeadersRead);
-            var responseContent = await response.Content.ReadAsStringAsync();
-
-            if (response.StatusCode is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden)
-                ThrowGraphException(response.StatusCode, error: null);
-
-            var graphResponse = DeserializeConnectionResponse(responseContent);
-
-            if (!response.IsSuccessStatusCode || graphResponse.Error is not null)
-                ThrowGraphException(response.StatusCode, graphResponse.Error);
-
-            if (!string.Equals(
-                    graphResponse.Id,
-                    normalizedPageId,
-                    StringComparison.Ordinal) ||
-                string.IsNullOrWhiteSpace(graphResponse.PageAccessToken))
-            {
-                throw new BadRequestException(
-                    "تعذر الحصول على صلاحية الوصول لصفحة Facebook المحددة. تأكد أن حساب النظام لديه صلاحيات الصفحة المطلوبة في Meta Business Manager.");
-            }
-
-            return new FacebookPageConnectionResultDto
-            {
-                FacebookPageId = graphResponse.Id!,
-                PageAccessToken = graphResponse.PageAccessToken!,
-                TokenExpiresAt = null
-            };
         }
 
         private string ValidateAndNormalizeApiVersion()
@@ -173,6 +176,11 @@ namespace SafeTrace.Infrastructure.Services
             }
 
             return apiVersion;
+        }
+
+        private static string BuildPageRequestUrl(string apiVersion, string facebookPageId)
+        {
+            return $"{apiVersion}/{Uri.EscapeDataString(facebookPageId)}?fields=id%2Cname";
         }
 
         private static string BuildPostsRequestUrl(
@@ -197,14 +205,11 @@ namespace SafeTrace.Infrastructure.Services
             return $"{apiVersion}/{Uri.EscapeDataString(facebookPageId)}/posts?{string.Join('&', query)}";
         }
 
-        private static FacebookGraphPostsResponse DeserializeResponse(string responseContent)
+        private static JsonDocument ParseJson(string responseContent)
         {
             try
             {
-                return JsonSerializer.Deserialize<FacebookGraphPostsResponse>(
-                           responseContent,
-                           SerializerOptions)
-                       ?? new FacebookGraphPostsResponse();
+                return JsonDocument.Parse(responseContent);
             }
             catch (JsonException ex)
             {
@@ -214,32 +219,23 @@ namespace SafeTrace.Infrastructure.Services
             }
         }
 
-        private static FacebookGraphPageConnectionResponse DeserializeConnectionResponse(
-            string responseContent)
+        private static void ThrowGraphException(HttpStatusCode statusCode, JsonElement root)
         {
-            try
-            {
-                return JsonSerializer.Deserialize<FacebookGraphPageConnectionResponse>(
-                           responseContent,
-                           SerializerOptions)
-                       ?? new FacebookGraphPageConnectionResponse();
-            }
-            catch (JsonException ex)
-            {
-                throw new HttpRequestException(
-                    "أعاد Facebook Graph API استجابة غير صالحة.",
-                    ex);
-            }
-        }
+            int? code = null;
+            string? type = null;
 
-        private static void ThrowGraphException(
-            HttpStatusCode statusCode,
-            FacebookGraphError? error)
-        {
+            if (root.TryGetProperty("error", out var error))
+            {
+                if (error.TryGetProperty("code", out var codeProp) && codeProp.TryGetInt32(out var c))
+                    code = c;
+                if (error.TryGetProperty("type", out var typeProp))
+                    type = typeProp.GetString();
+            }
+
             var isAuthenticationFailure =
                 statusCode is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden ||
-                error?.Code is 10 or 102 or 190 or 200 ||
-                string.Equals(error?.Type, "OAuthException", StringComparison.OrdinalIgnoreCase);
+                code is 10 or 102 or 190 or 200 ||
+                string.Equals(type, "OAuthException", StringComparison.OrdinalIgnoreCase);
 
             if (isAuthenticationFailure)
             {
@@ -268,40 +264,87 @@ namespace SafeTrace.Infrastructure.Services
             return normalizedPageId;
         }
 
-        private static FacebookPostDto MapPost(FacebookGraphPost post)
+        private static FacebookPostDto MapPost(JsonElement post)
         {
-            var media = (post.Attachments?.Data ?? [])
-                .SelectMany(FlattenAttachments)
-                .Select(attachment => new FacebookPostMediaDto
-                {
-                    FacebookMediaId = attachment.Target?.Id ?? attachment.Id,
-                    FileUrl = attachment.Media?.Image?.Source
-                              ?? attachment.Media?.Source
-                              ?? string.Empty
-                })
+            var postId = post.TryGetProperty("id", out var idProp) ? idProp.GetString() ?? string.Empty : string.Empty;
+            var message = post.TryGetProperty("message", out var msgProp) ? msgProp.GetString() : null;
+            var permalinkUrl = post.TryGetProperty("permalink_url", out var urlProp) ? urlProp.GetString() : null;
+
+            DateTimeOffset? createdTime = null;
+            if (post.TryGetProperty("created_time", out var timeProp) &&
+                timeProp.TryGetDateTimeOffset(out var parsedTime))
+            {
+                createdTime = parsedTime;
+            }
+
+            var mediaList = new List<FacebookPostMediaDto>();
+
+            if (post.TryGetProperty("attachments", out var attachments) &&
+                attachments.TryGetProperty("data", out var attachData) &&
+                attachData.ValueKind == JsonValueKind.Array)
+            {
+                ExtractMedia(attachData, mediaList);
+            }
+
+            var distinctMedia = mediaList
                 .Where(item => !string.IsNullOrWhiteSpace(item.FileUrl))
                 .DistinctBy(item => item.FileUrl, StringComparer.Ordinal)
                 .ToList();
 
             return new FacebookPostDto
             {
-                FacebookPostId = post.Id,
-                PostText = post.Message,
-                PostUrl = post.PermalinkUrl,
-                PublishedAt = post.CreatedTime,
-                Media = media
+                FacebookPostId = postId,
+                PostText = message,
+                PostUrl = permalinkUrl,
+                PublishedAt = createdTime,
+                Media = distinctMedia
             };
         }
 
-        private static IEnumerable<FacebookGraphAttachment> FlattenAttachments(
-            FacebookGraphAttachment attachment)
+        private static void ExtractMedia(JsonElement attachmentsArray, List<FacebookPostMediaDto> mediaList)
         {
-            yield return attachment;
-
-            foreach (var child in attachment.Subattachments?.Data ?? [])
+            foreach (var attachment in attachmentsArray.EnumerateArray())
             {
-                foreach (var descendant in FlattenAttachments(child))
-                    yield return descendant;
+                string? mediaId = null;
+                if (attachment.TryGetProperty("target", out var target) &&
+                    target.TryGetProperty("id", out var targetId))
+                {
+                    mediaId = targetId.GetString();
+                }
+                else if (attachment.TryGetProperty("id", out var attachId))
+                {
+                    mediaId = attachId.GetString();
+                }
+
+                string? fileUrl = null;
+                if (attachment.TryGetProperty("media", out var media))
+                {
+                    if (media.TryGetProperty("image", out var image) &&
+                        image.TryGetProperty("src", out var src))
+                    {
+                        fileUrl = src.GetString();
+                    }
+                    else if (media.TryGetProperty("source", out var source))
+                    {
+                        fileUrl = source.GetString();
+                    }
+                }
+
+                if (!string.IsNullOrWhiteSpace(fileUrl))
+                {
+                    mediaList.Add(new FacebookPostMediaDto
+                    {
+                        FacebookMediaId = mediaId,
+                        FileUrl = fileUrl
+                    });
+                }
+
+                if (attachment.TryGetProperty("subattachments", out var subattachments) &&
+                    subattachments.TryGetProperty("data", out var subData) &&
+                    subData.ValueKind == JsonValueKind.Array)
+                {
+                    ExtractMedia(subData, mediaList);
+                }
             }
         }
     }

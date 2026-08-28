@@ -2,7 +2,7 @@ using SafeTrace.Application.DTOs.FacebookPages.Request;
 using SafeTrace.Application.DTOs.FacebookPages.Response;
 using SafeTrace.Application.Exceptions;
 
-namespace SafeTrace.Application.Services
+namespace SafeTrace.Application.Services.FacebookIntegration
 {
     public class FacebookPageService : IFacebookPageService
     {
@@ -103,26 +103,12 @@ namespace SafeTrace.Application.Services
                 throw new BadRequestException("صفحة Facebook متصلة بالفعل.");
             }
 
-            var connection = await _facebookGraphService.ConnectPageAsync(page.FacebookPageId);
-
-            ApplySuccessfulConnection(page, connection);
-
-            await _unitOfWork.SaveAsync();
-
-            return _mapper.Map<FacebookPageResponseDto>(page);
-        }
-
-        public async Task<FacebookPageResponseDto> ReconnectAsync(long id)
-        {
-            var page = await GetEntityWithUserAsync(id);
-
-            if (page.IntegrationStatus != FacebookIntegrationStatus.NeedsReconnect &&
-                page.IntegrationStatus != FacebookIntegrationStatus.Disconnected)
+            if (string.IsNullOrWhiteSpace(page.PageAccessToken))
             {
-                throw new BadRequestException("يمكن إعادة ربط صفحات Facebook غير المتصلة أو التي تحتاج إلى إعادة اتصال فقط.");
+                throw new BadRequestException("لا يوجد رمز وصول محفوظ لهذه الصفحة. أضف رمز وصول صالح قبل ربط الصفحة.");
             }
 
-            var connection = await _facebookGraphService.ReconnectPageAsync(page.FacebookPageId);
+            var connection = await _facebookGraphService.ConnectPageAsync(page.FacebookPageId, page.PageAccessToken);
 
             ApplySuccessfulConnection(page, connection);
 

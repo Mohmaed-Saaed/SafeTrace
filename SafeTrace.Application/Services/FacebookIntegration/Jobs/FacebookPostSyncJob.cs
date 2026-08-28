@@ -1,25 +1,30 @@
 using Hangfire;
 using Microsoft.Extensions.DependencyInjection;
+using SafeTrace.Application.DTOs.FacebookPosts.Response;
 using SafeTrace.Application.Exceptions;
+using SafeTrace.Application.Interfaces.IServices.IFacebookIntegration.IJobs;
 
-namespace SafeTrace.Application.Jobs
+namespace SafeTrace.Application.Services.FacebookIntegration.Jobs
 {
-    public class FacebookPostSyncJob
+    public class FacebookPostSyncJob : IFacebookPostSyncJob
     {
         private readonly IServiceScopeFactory _scopeFactory;
+        private readonly IMapper _mapper;
         private readonly ILogger<FacebookPostSyncJob> _logger;
 
         public FacebookPostSyncJob(
             IServiceScopeFactory scopeFactory,
+            IMapper mapper,
             ILogger<FacebookPostSyncJob> logger)
         {
             _scopeFactory = scopeFactory;
+            _mapper = mapper;
             _logger = logger;
         }
 
         [AutomaticRetry(Attempts = 2, OnAttemptsExceeded = AttemptsExceededAction.Fail)]
         [DisableConcurrentExecution(timeoutInSeconds: 10 * 60)]
-        public async Task ExecuteAsync(CancellationToken cancellationToken = default)
+        public async Task ExecuteAsync()
         {
             _logger.LogInformation("Starting Facebook post sync.");
 
@@ -27,30 +32,22 @@ namespace SafeTrace.Application.Jobs
 
             await using (var queryScope = _scopeFactory.CreateAsyncScope())
             {
-                var queryUnitOfWork =
-                    queryScope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+                var queryUnitOfWork = queryScope.ServiceProvider.GetRequiredService<IUnitOfWork>();
 
                 pageIds = await queryUnitOfWork.Repository<FacebookPage>()
                     .Query(tracked: false)
-                    .Where(page =>
-                        page.IntegrationStatus == FacebookIntegrationStatus.Connected &&
-                        page.IsActive)
+                    .Where(page => page.IntegrationStatus == FacebookIntegrationStatus.Connected && page.IsActive)
                     .OrderBy(page => page.Id)
                     .Select(page => page.Id)
-                    .ToListAsync(cancellationToken);
+                    .ToListAsync();
             }
 
             foreach (var pageId in pageIds)
             {
-                cancellationToken.ThrowIfCancellationRequested();
-
                 await using var pageScope = _scopeFactory.CreateAsyncScope();
-                var unitOfWork =
-                    pageScope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-                var facebookGraphService =
-                    pageScope.ServiceProvider.GetRequiredService<IFacebookGraphService>();
-                var importService =
-                    pageScope.ServiceProvider.GetRequiredService<IFacebookPostImportService>();
+                var unitOfWork = pageScope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+                var facebookGraphService = pageScope.ServiceProvider.GetRequiredService<IFacebookGraphService>();
+
                 var page = await unitOfWork.Repository<FacebookPage>().GetByIdAsync(pageId);
 
                 if (page is null ||
@@ -68,15 +65,18 @@ namespace SafeTrace.Application.Jobs
                         "Syncing Facebook page. PageId={PageId}, FacebookPageId={FacebookPageId}",
                         page.Id,
                         page.FacebookPageId);
+                    
 
                     var posts = await facebookGraphService.GetNewPostsAsync(
-                        page,
+                        page.FacebookPageId,
+                        page.PageAccessToken!,
                         page.LastSyncedAt);
 
-                    var importedCount = await importService.ImportAsync(
+
+                    var importedCount = await ImportPostsAsync(
                         page,
                         posts,
-                        cancellationToken);
+                        unitOfWork);
 
                     // Checkpoint at the start of a fully successful sync. Posts published
                     // during the request are safely fetched again and deduplicated next run.
@@ -113,10 +113,6 @@ namespace SafeTrace.Application.Jobs
                             page.FacebookPageId);
                     }
                 }
-                catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-                {
-                    throw;
-                }
                 catch (Exception ex)
                 {
                     _logger.LogError(
@@ -128,6 +124,49 @@ namespace SafeTrace.Application.Jobs
             }
 
             _logger.LogInformation("Facebook post sync finished.");
+        }
+
+        private async Task<int> ImportPostsAsync(
+            FacebookPage page,
+            IReadOnlyList<FacebookPostDto> posts,
+            IUnitOfWork unitOfWork)
+        {
+            ArgumentNullException.ThrowIfNull(page);
+            ArgumentNullException.ThrowIfNull(posts);
+
+            var importedCount = 0;
+            var batchPostIds = new HashSet<string>(StringComparer.Ordinal);
+
+            foreach (var graphPost in posts)
+            {
+                if (string.IsNullOrWhiteSpace(graphPost.FacebookPostId) ||
+                    !batchPostIds.Add(graphPost.FacebookPostId))
+                {
+                    continue;
+                }
+
+                var alreadyImported = await unitOfWork.Repository<FacebookImportedPost>()
+                    .AnyAsync(importedPost =>
+                        importedPost.FacebookPageId == page.Id &&
+                        importedPost.FacebookPostId == graphPost.FacebookPostId);
+
+                if (alreadyImported)
+                    continue;
+
+                var now = DateTime.UtcNow;
+                var importedPost = _mapper.Map<FacebookImportedPost>(graphPost);
+                importedPost.FacebookPageId = page.Id;
+                importedPost.CreatedAt = now;
+
+                await unitOfWork.Repository<FacebookImportedPost>().CreateAsync(importedPost);
+
+                importedCount++;
+            }
+
+            if (importedCount > 0)
+                await unitOfWork.SaveAsync();
+
+            return importedCount;
         }
     }
 }

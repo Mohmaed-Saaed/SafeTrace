@@ -1,16 +1,19 @@
 using Microsoft.AspNetCore.Http;
 using NetTopologySuite.Geometries;
 using SafeTrace.Application.Common.Enums;
+using SafeTrace.Application.DTOs.AiMatching.Response;
 using SafeTrace.Application.DTOs.FacebookImportedPosts.Request;
 using SafeTrace.Application.DTOs.FacebookImportedPosts.Response;
-using SafeTrace.Application.Exceptions;
-using SafeTrace.Application.Interfaces.IServices.ICases;
 using SafeTrace.Application.DTOs.Files.Request;
+using SafeTrace.Application.Exceptions;
+using SafeTrace.Application.Interfaces.IServices;
+using SafeTrace.Application.Interfaces.IServices.ICases;
+using SafeTrace.Application.Interfaces.IServices.IFacebookIntegration;
 
-namespace SafeTrace.Application.Services
+namespace SafeTrace.Application.Services.FacebookIntegration
 {
-    public sealed class FacebookImportedPostAdminService
-        : IFacebookImportedPostAdminService
+    public sealed class FacebookImportedPostService
+        : IFacebookImportedPostService
     {
         private const int PostTextPreviewLength = 180;
         private const int MaxCaseImages = 5;
@@ -18,23 +21,20 @@ namespace SafeTrace.Application.Services
         private const int UrgentExpirationHours = 48;
 
         private readonly IUnitOfWork _unitOfWork;
-        private readonly IFacebookPostRequirementChecker _requirementChecker;
-        private readonly ICaseDuplicateDetectionService _duplicateDetectionService;
+        private readonly IFaceRecognitionService _faceRecognitionService;
         private readonly ICaseHelperService _caseHelper;
         private readonly IExternalImageDownloadService _imageDownloadService;
-        private readonly ILogger<FacebookImportedPostAdminService> _logger;
+        private readonly ILogger<FacebookImportedPostService> _logger;
 
-        public FacebookImportedPostAdminService(
+        public FacebookImportedPostService(
             IUnitOfWork unitOfWork,
-            IFacebookPostRequirementChecker requirementChecker,
-            ICaseDuplicateDetectionService duplicateDetectionService,
+            IFaceRecognitionService faceRecognitionService,
             ICaseHelperService caseHelper,
             IExternalImageDownloadService imageDownloadService,
-            ILogger<FacebookImportedPostAdminService> logger)
+            ILogger<FacebookImportedPostService> logger)
         {
             _unitOfWork = unitOfWork;
-            _requirementChecker = requirementChecker;
-            _duplicateDetectionService = duplicateDetectionService;
+            _faceRecognitionService = faceRecognitionService;
             _caseHelper = caseHelper;
             _imageDownloadService = imageDownloadService;
             _logger = logger;
@@ -119,12 +119,8 @@ namespace SafeTrace.Application.Services
             post.CommunicationPhone = NormalizeOptional(dto.CommunicationPhone);
             post.Description = NormalizeOptional(dto.Description);
             post.Relation = dto.Relation;
-            post.ReviewNotes = NormalizeOptional(dto.ReviewNotes);
             post.Latitude = dto.Latitude;
             post.Longitude = dto.Longitude;
-
-            if (coordinatesChanged)
-                post.LocationAccuracy = null;
 
             ApplyReviewStatus(post);
             post.UpdatedAt = DateTime.UtcNow;
@@ -133,18 +129,12 @@ namespace SafeTrace.Application.Services
             return MapDetail(post);
         }
 
-        public async Task<FacebookImportedPostDetailDto> RejectAsync(
-            long id,
-            RejectFacebookImportedPostDto dto)
+        public async Task<FacebookImportedPostDetailDto> RejectAsync(long id)
         {
-            ArgumentNullException.ThrowIfNull(dto);
-
             var post = await GetPostAsync(id, tracked: true);
             EnsureReviewIsMutable(post);
 
             post.Status = FacebookImportedPostStatus.Rejected;
-            post.ReviewNotes = NormalizeOptional(dto.ReviewNotes)
-                               ?? post.ReviewNotes;
             post.UpdatedAt = DateTime.UtcNow;
 
             await SaveReviewChangesAsync();
@@ -152,12 +142,13 @@ namespace SafeTrace.Application.Services
         }
 
         public async Task<PublishFacebookImportedPostResponseDto> PublishAsync(
-            long id)
+            long id,
+            PublishFacebookImportedPostRequestDto? dto = null)
         {
             var post = await GetPostAsync(id, tracked: true);
             ValidatePublishState(post);
 
-            var requirements = _requirementChecker.Evaluate(post);
+            var requirements = ValidateRequirements(post);
             if (!requirements.IsComplete)
             {
                 ApplyReviewStatus(post);
@@ -168,22 +159,67 @@ namespace SafeTrace.Application.Services
                     $"The imported post is not ready for publishing. Missing requirements: {string.Join(", ", requirements.MissingRequirements)}.");
             }
 
-            var duplicate = await _duplicateDetectionService.FindDuplicateAsync(post);
-            if (duplicate.IsDuplicate && duplicate.ExistingCaseId.HasValue)
+            if (dto is null || dto.PrimaryFileId <= 0)
             {
-                post.Status = FacebookImportedPostStatus.Duplicate;
-                post.DuplicateCaseId = duplicate.ExistingCaseId.Value;
-                post.UpdatedAt = DateTime.UtcNow;
-                await SaveReviewChangesAsync();
-
-                throw new ConflictException(
-                    $"A potential duplicate case already exists. CaseId={duplicate.ExistingCaseId}, CaseCode={duplicate.ExistingCaseCode}, CaseType={duplicate.ExistingCaseType}. {duplicate.Reason}");
+                throw new BadRequestException("يجب تحديد الصورة الرئيسية للنشر (PrimaryFileId).");
             }
 
-            var downloadedImages = await DownloadUsableImagesAsync(post.Files);
+            var primaryFile = post.Files.FirstOrDefault(f => f.Id == dto.PrimaryFileId);
+            if (primaryFile is null || primaryFile.FacebookImportedPostId != post.Id)
+            {
+                throw new BadRequestException("الصورة الرئيسية المحددة غير صالحة أو لا تنتمي إلى هذا المنشور.");
+            }
+
+            if (string.IsNullOrWhiteSpace(primaryFile.FileUrl) || !IsValidHttpsUrl(primaryFile.FileUrl))
+            {
+                throw new BadRequestException("رابط الصورة الرئيسية المحدد غير صالح.");
+            }
+
+            using var downloadedPrimaryImage = await _imageDownloadService.DownloadAsync(primaryFile.FileUrl);
+
+            var (existingCase, matchConfidence) = await FindDuplicateCaseAsync(downloadedPrimaryImage.File);
+            if (existingCase is not null)
+            {
+                return new PublishFacebookImportedPostResponseDto
+                {
+                    FacebookImportedPostId = post.Id,
+                    Status = FacebookImportedPostStatus.Duplicate,
+                    ExistingCaseId = existingCase.Id,
+                    ExistingCaseCode = existingCase.CaseCode,
+                    ExistingCaseType = existingCase.CaseType,
+                    MatchConfidence = matchConfidence,
+                    Message = $"AI face match detected with existing Case {existingCase.CaseCode} ({matchConfidence:F1}% confidence)."
+                };
+            }
+
+            var additionalFiles = post.Files
+                .Where(file => file.Id != primaryFile.Id &&
+                               !string.IsNullOrWhiteSpace(file.FileUrl) &&
+                               IsValidHttpsUrl(file.FileUrl))
+                .DistinctBy(file => file.FileUrl, StringComparer.Ordinal)
+                .Take(MaxCaseImages - 1)
+                .ToList();
+
+            var additionalDownloadedImages = new List<DownloadedImageDto>();
 
             try
             {
+                foreach (var file in additionalFiles)
+                {
+                    try
+                    {
+                        var downloaded = await _imageDownloadService.DownloadAsync(file.FileUrl);
+                        additionalDownloadedImages.Add(downloaded);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(
+                            ex,
+                            "Failed to download additional Facebook image attachment {FileId}.",
+                            file.Id);
+                    }
+                }
+
                 var entity = await CreateCaseEntityAsync(post);
                 var createdFiles = new List<CaseFile>();
 
@@ -193,13 +229,13 @@ namespace SafeTrace.Application.Services
                 {
                     createdFiles.AddRange(
                         await _caseHelper.CreateCaseFilesAsync(
-                            downloadedImages[0].File,
+                            downloadedPrimaryImage.File,
                             additionalImages: null,
                             video: null,
                             folderName: GetCaseFolder(entity.CaseType),
                             caseId: entity.Id));
 
-                    foreach (var additionalImage in downloadedImages.Skip(1))
+                    foreach (var additionalImage in additionalDownloadedImages)
                     {
                         createdFiles.AddRange(
                             await _caseHelper.CreateAdditionalCaseFilesAsync(
@@ -214,7 +250,6 @@ namespace SafeTrace.Application.Services
                     await _unitOfWork.Repository<Case>().CreateAsync(entity);
 
                     post.Case = entity;
-                    post.DuplicateCaseId = null;
                     post.Status = FacebookImportedPostStatus.Published;
                     post.UpdatedAt = DateTime.UtcNow;
 
@@ -244,9 +279,131 @@ namespace SafeTrace.Application.Services
             }
             finally
             {
-                foreach (var image in downloadedImages)
+                foreach (var image in additionalDownloadedImages)
                     image.Dispose();
             }
+        }
+
+        private async Task<(Case? Case, double? Confidence)> FindDuplicateCaseAsync(IFormFile primaryImage)
+        {
+            List<FaceMatchResult> matches;
+            try
+            {
+                matches = await _faceRecognitionService.SearchByImageAsync(primaryImage);
+            }
+            catch (BadRequestException ex)
+            {
+                _logger.LogInformation(
+                    "Face recognition search skipped for primary image ({Message}).",
+                    ex.Message);
+                return (null, null);
+            }
+
+            if (matches is null or { Count: 0 })
+                return (null, null);
+
+            var distinctFaceIds = matches
+                .Where(m => !string.IsNullOrWhiteSpace(m.FaceId) && m.Similarity.HasValue)
+                .Select(m => m.FaceId!)
+                .Distinct()
+                .ToList();
+
+            if (distinctFaceIds.Count == 0)
+                return (null, null);
+
+            var matchedCaseFiles = await _unitOfWork.Repository<CaseFile>()
+                .Query(tracked: false, includes: [cf => cf.Case])
+                .Where(cf => cf.FaceId != null &&
+                             distinctFaceIds.Contains(cf.FaceId) &&
+                             cf.Case.Status != CaseStatus.Deleted &&
+                             cf.Case.Status != CaseStatus.Rejected)
+                .ToListAsync();
+
+            if (matchedCaseFiles.Count == 0)
+                return (null, null);
+
+            var bestMatch = matches
+                .Where(m => matchedCaseFiles.Any(cf => cf.FaceId == m.FaceId))
+                .OrderByDescending(m => m.Similarity ?? 0f)
+                .FirstOrDefault();
+
+            if (bestMatch is null)
+                return (null, null);
+
+            var matchedCase = matchedCaseFiles.First(cf => cf.FaceId == bestMatch.FaceId).Case;
+            var confidence = bestMatch.Similarity.HasValue
+                ? Math.Round((double)bestMatch.Similarity.Value, 2)
+                : (double?)null;
+
+            return (matchedCase, confidence);
+        }
+
+        private static FacebookPostRequirementResultDto ValidateRequirements(FacebookImportedPost post)
+        {
+            ArgumentNullException.ThrowIfNull(post);
+
+            if (!post.Classification.HasValue)
+                return new FacebookPostRequirementResultDto(false, ["Classification"]);
+
+            if (post.Classification == SocialPostClassification.Found)
+            {
+                return new FacebookPostRequirementResultDto(
+                    false,
+                    ["Found cases require matching with an existing case."]);
+            }
+
+            if (post.Classification == SocialPostClassification.NotRelevant)
+            {
+                return new FacebookPostRequirementResultDto(
+                    false,
+                    ["Not relevant posts cannot be published as cases."]);
+            }
+
+            var missing = new List<string>();
+
+            if (!post.Gender.HasValue)
+                missing.Add("Gender");
+
+            if (string.IsNullOrWhiteSpace(post.Government))
+                missing.Add("Government");
+
+            if (string.IsNullOrWhiteSpace(post.City))
+                missing.Add("City");
+
+            if (!post.Age.HasValue || post.Age is < 1 or > 120)
+                missing.Add("Age");
+
+            if (!post.EventDate.HasValue)
+                missing.Add("EventDate");
+
+            if (!post.Relation.HasValue || !Enum.IsDefined(post.Relation.Value))
+                missing.Add("Relation");
+
+            if (post.FacebookPage is null ||
+                string.IsNullOrWhiteSpace(post.FacebookPage.UserId))
+            {
+                missing.Add("UserId");
+            }
+
+            if (!post.Files.Any(file => IsValidHttpsUrl(file.FileUrl)))
+                missing.Add("Image");
+
+            if (post.Classification == SocialPostClassification.Urgent)
+            {
+                if (!post.Latitude.HasValue || post.Latitude is < -90 or > 90)
+                    missing.Add("Latitude");
+
+                if (!post.Longitude.HasValue || post.Longitude is < -180 or > 180)
+                    missing.Add("Longitude");
+            }
+
+            return new FacebookPostRequirementResultDto(missing.Count == 0, missing);
+        }
+
+        private static bool IsValidHttpsUrl(string? fileUrl)
+        {
+            return Uri.TryCreate(fileUrl, UriKind.Absolute, out var uri) &&
+                   string.Equals(uri.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase);
         }
 
         private async Task<FacebookImportedPost> GetPostAsync(
@@ -273,7 +430,7 @@ namespace SafeTrace.Application.Services
                 return;
             }
 
-            var requirements = _requirementChecker.Evaluate(post);
+            var requirements = ValidateRequirements(post);
             post.Status = requirements.IsComplete
                 ? FacebookImportedPostStatus.ReadyForPublish
                 : FacebookImportedPostStatus.Incomplete;
@@ -303,7 +460,7 @@ namespace SafeTrace.Application.Services
             if (post.Status == FacebookImportedPostStatus.Duplicate)
             {
                 throw new ConflictException(
-                    $"The imported post is already marked as a duplicate of CaseId={post.DuplicateCaseId}.");
+                    "The imported post is marked as duplicate.");
             }
 
             if (post.Status == FacebookImportedPostStatus.Rejected)
@@ -329,43 +486,6 @@ namespace SafeTrace.Application.Services
                 throw new BadRequestException(
                     $"The imported post must be in '{FacebookImportedPostStatus.ReadyForPublish}' status before publishing. Current status: '{post.Status}'.");
             }
-        }
-
-        private async Task<List<DownloadedImageDto>> DownloadUsableImagesAsync(
-            IEnumerable<FacebookImportedPostFile> sourceFiles)
-        {
-            var downloadedImages = new List<DownloadedImageDto>();
-
-            foreach (var sourceFile in sourceFiles
-                         .Where(file => !string.IsNullOrWhiteSpace(file.FileUrl))
-                         .DistinctBy(file => file.FileUrl, StringComparer.Ordinal))
-            {
-                if (downloadedImages.Count == MaxCaseImages)
-                    break;
-
-                try
-                {
-                    downloadedImages.Add(
-                        await _imageDownloadService.DownloadAsync(sourceFile.FileUrl));
-                }
-                catch (Exception ex) when (ex is BadRequestException or
-                                           HttpRequestException or
-                                           TaskCanceledException)
-                {
-                    _logger.LogWarning(
-                        "A Facebook attachment could not be prepared for publishing. ImportedPostFileId={ImportedPostFileId}, ErrorType={ErrorType}",
-                        sourceFile.Id,
-                        ex.GetType().Name);
-                }
-            }
-
-            if (downloadedImages.Count == 0)
-            {
-                throw new BadRequestException(
-                    "At least one downloadable supported image is required for publishing.");
-            }
-
-            return downloadedImages;
         }
 
         private async Task<Case> CreateCaseEntityAsync(FacebookImportedPost post)
@@ -413,54 +533,70 @@ namespace SafeTrace.Application.Services
                 _ => throw new ArgumentOutOfRangeException(nameof(caseType))
             };
 
-            entity.Gender = post.Gender!.Value;
-            entity.Government = post.Government!.Trim();
-            entity.City = post.City!.Trim();
-            entity.Street = post.Street?.Trim() ?? string.Empty;
-            entity.FName = NormalizeOptional(post.FName);
-            entity.SName = NormalizeOptional(post.SName);
-            entity.TName = NormalizeOptional(post.TName);
-            entity.LName = NormalizeOptional(post.LName);
-            entity.Age = post.Age!.Value;
-            entity.UserId = post.FacebookPage.UserId;
-            entity.CommunicationPhone = NormalizeOptional(post.CommunicationPhone);
-            entity.Status = caseType == CaseType.Urgent
-                ? CaseStatus.Active
-                : CaseStatus.Pending;
-            entity.Relation = post.Relation!.Value;
-            entity.CreatedAt = now;
-            entity.EventDate = eventDate;
-            entity.Description = NormalizeOptional(post.Description);
-            entity.CaseType = caseType;
-            entity.AgeCategoryId =
-                await _caseHelper.ResolveAgeCategoryIdAsync(entity.Age);
             entity.CaseCode = await _caseHelper.GenerateCaseCodeAsync(prefix);
+            entity.CaseType = caseType;
+            entity.Status = CaseStatus.Active;
+            entity.PreviousStatus = CaseStatus.Pending;
+            entity.FName = post.FName!;
+            entity.SName = post.SName ?? string.Empty;
+            entity.TName = post.TName ?? string.Empty;
+            entity.LName = post.LName ?? string.Empty;
+            entity.Gender = post.Gender!.Value;
+            entity.Age = post.Age!.Value;
+            entity.AgeCategoryId = await _caseHelper.ResolveAgeCategoryIdAsync(entity.Age);
+            entity.Government = post.Government!;
+            entity.City = post.City!;
+            entity.Street = post.Street ?? string.Empty;
+            entity.EventDate = eventDate;
+            entity.CommunicationPhone = post.CommunicationPhone ?? string.Empty;
+            entity.Description = post.Description ?? string.Empty;
+            entity.UserId = post.FacebookPage.UserId;
+            entity.CreatedAt = now;
+            entity.UpdatedAt = now;
 
             return entity;
         }
 
         private async Task RollbackAndCleanupAsync(
-            IReadOnlyCollection<CaseFile> createdFiles,
+            IEnumerable<CaseFile> createdFiles,
             long caseId)
         {
-            await _unitOfWork.RollbackTransactionAsync();
-            _caseHelper.CleanupPhysicalFiles(
-                createdFiles.Select(file => file.ImagePath));
-
             try
             {
-                await _caseHelper.DeleteFacesAsync(
-                    createdFiles
-                        .Where(file => !string.IsNullOrWhiteSpace(file.FaceId))
-                        .Select(file => file.FaceId!),
-                    caseId);
+                await _unitOfWork.RollbackTransactionAsync();
             }
-            catch (Exception ex)
+            catch (Exception rollbackException)
             {
                 _logger.LogError(
-                    "Failed to clean indexed faces after a Facebook publish rollback. CaseId={CaseId}, ErrorType={ErrorType}",
-                    caseId,
-                    ex.GetType().Name);
+                    rollbackException,
+                    "Failed to rollback transaction after case creation failure.");
+            }
+
+            var caseFiles = createdFiles.ToList();
+            if (caseFiles.Count == 0)
+                return;
+
+            _caseHelper.CleanupPhysicalFiles(
+                caseFiles.Select(file => file.ImagePath));
+
+            var indexedFaceIds = caseFiles
+                .Where(file => !string.IsNullOrWhiteSpace(file.FaceId))
+                .Select(file => file.FaceId!)
+                .ToList();
+
+            if (indexedFaceIds.Count > 0)
+            {
+                try
+                {
+                    await _caseHelper.DeleteFacesAsync(indexedFaceIds, caseId);
+                }
+                catch (Exception faceDeleteException)
+                {
+                    _logger.LogError(
+                        faceDeleteException,
+                        "Failed to cleanup indexed faces after publication rollback. CaseId={CaseId}",
+                        caseId);
+                }
             }
         }
 
@@ -473,46 +609,60 @@ namespace SafeTrace.Application.Services
             catch (DbUpdateConcurrencyException)
             {
                 throw new ConflictException(
-                    "The imported post was changed by another request. Reload it and try again.");
+                    "The imported post was modified by another request. Please reload and retry.");
             }
         }
 
-        private FacebookImportedPostListDto MapListItem(FacebookImportedPost post)
+        private static string GetCaseFolder(CaseType caseType) => caseType switch
         {
+            CaseType.Urgent => "UrgentCase",
+            CaseType.LongTerm => "LongTermCase",
+            CaseType.Unknown => "UnknownCase",
+            _ => "Case"
+        };
+
+        private static FacebookImportedPostListDto MapListItem(FacebookImportedPost post)
+        {
+            var preview = string.IsNullOrWhiteSpace(post.PostText)
+                ? null
+                : post.PostText.Length <= PostTextPreviewLength
+                    ? post.PostText
+                    : $"{post.PostText[..PostTextPreviewLength]}...";
+
             return new FacebookImportedPostListDto
             {
                 Id = post.Id,
                 FacebookPageId = post.FacebookPageId,
-                FacebookPageName = post.FacebookPage.PageName,
+                FacebookPageName = post.FacebookPage?.PageName ?? string.Empty,
                 FacebookPostId = post.FacebookPostId,
                 PostUrl = post.PostUrl,
-                PostTextPreview = CreatePreview(post.PostText),
                 PublishedAt = post.PublishedAt,
+                Status = post.Status,
                 Classification = post.Classification,
                 Confidence = post.Confidence,
+                PostTextPreview = preview,
                 FName = post.FName,
                 SName = post.SName,
                 Age = post.Age,
                 Gender = post.Gender,
-                Status = post.Status,
-                AnalyzedAt = post.AnalyzedAt,
                 CreatedAt = post.CreatedAt,
-                MissingRequirements =
-                    _requirementChecker.Evaluate(post).MissingRequirements
+                AnalyzedAt = post.AnalyzedAt,
+                MissingRequirements = ValidateRequirements(post).MissingRequirements
             };
         }
 
-        private FacebookImportedPostDetailDto MapDetail(FacebookImportedPost post)
+        private static FacebookImportedPostDetailDto MapDetail(FacebookImportedPost post)
         {
             return new FacebookImportedPostDetailDto
             {
                 Id = post.Id,
                 FacebookPageId = post.FacebookPageId,
-                FacebookPageName = post.FacebookPage.PageName,
+                FacebookPageName = post.FacebookPage?.PageName ?? string.Empty,
                 FacebookPostId = post.FacebookPostId,
                 PostText = post.PostText,
                 PostUrl = post.PostUrl,
                 PublishedAt = post.PublishedAt,
+                Status = post.Status,
                 Classification = post.Classification,
                 Confidence = post.Confidence,
                 FName = post.FName,
@@ -530,59 +680,21 @@ namespace SafeTrace.Application.Services
                 Relation = post.Relation,
                 Latitude = post.Latitude,
                 Longitude = post.Longitude,
-                LocationAccuracy = post.LocationAccuracy,
-                Files = post.Files
-                    .OrderBy(file => file.Id)
-                    .Select(file => new FacebookImportedPostFileDto
-                    {
-                        Id = file.Id,
-                        FacebookMediaId = file.FacebookMediaId,
-                        FileUrl = file.FileUrl
-                    })
-                    .ToList(),
-                Status = post.Status,
-                ReviewNotes = post.ReviewNotes,
-                MissingRequirements =
-                    _requirementChecker.Evaluate(post).MissingRequirements,
                 CaseId = post.CaseId,
-                DuplicateCaseId = post.DuplicateCaseId,
                 CreatedAt = post.CreatedAt,
                 AnalyzedAt = post.AnalyzedAt,
-                UpdatedAt = post.UpdatedAt
+                UpdatedAt = post.UpdatedAt,
+                Files = post.Files.Select(file => new FacebookImportedPostFileDto
+                {
+                    Id = file.Id,
+                    FileUrl = file.FileUrl,
+                }).ToList()
             };
-        }
-
-        private static string? CreatePreview(string? postText)
-        {
-            if (string.IsNullOrWhiteSpace(postText))
-                return null;
-
-            var normalized = string.Join(
-                ' ',
-                postText.Split(
-                    (char[]?)null,
-                    StringSplitOptions.RemoveEmptyEntries |
-                    StringSplitOptions.TrimEntries));
-
-            return normalized.Length <= PostTextPreviewLength
-                ? normalized
-                : $"{normalized[..PostTextPreviewLength]}…";
         }
 
         private static string? NormalizeOptional(string? value)
         {
             return string.IsNullOrWhiteSpace(value) ? null : value.Trim();
-        }
-
-        private static string GetCaseFolder(CaseType caseType)
-        {
-            return caseType switch
-            {
-                CaseType.Urgent => "UrgentCases",
-                CaseType.LongTerm => "LongTermCase",
-                CaseType.Unknown => "UnknownCase",
-                _ => throw new ArgumentOutOfRangeException(nameof(caseType))
-            };
         }
     }
 }

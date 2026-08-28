@@ -1,4 +1,8 @@
-namespace SafeTrace.Application.DTOs.AiCaseAnalyzer.Response
+using System;
+using System.Collections.Generic;
+using SafeTrace.Domain.Enums;
+
+namespace SafeTrace.Application.DTOs.FacebookPosts.Response
 {
     public sealed class SocialPostAiResultDto
     {
