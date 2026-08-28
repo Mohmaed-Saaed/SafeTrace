@@ -26,7 +26,7 @@ namespace SafeTrace.API.Controllers
         public async Task<IActionResult> GetAll([FromQuery] FacebookPostFilterDto filter)
         {
             var result = await _facebookPostService.GetAllAsync(filter);
-            return Ok(ApiResponse<List<FacebookImportedPostListDto>>.Ok(result));
+            return Ok(result);
         }
 
         [HttpGet("{id:long}")]
@@ -34,7 +34,7 @@ namespace SafeTrace.API.Controllers
         public async Task<IActionResult> GetById(long id)
         {
             var result = await _facebookPostService.GetByIdAsync(id);
-            return Ok(ApiResponse<FacebookImportedPostDetailDto>.Ok(result));
+            return Ok(result);
         }
 
         [HttpPut("{id:long}")]
@@ -44,7 +44,7 @@ namespace SafeTrace.API.Controllers
             [FromBody] UpdateFacebookImportedPostDto dto)
         {
             var result = await _facebookPostService.UpdateAsync(id, dto);
-            return Ok(ApiResponse<FacebookImportedPostDetailDto>.Ok(result));
+            return Ok(result);
         }
 
         [HttpPost("{id:long}/reject")]
@@ -52,9 +52,7 @@ namespace SafeTrace.API.Controllers
         public async Task<IActionResult> Reject(long id)
         {
             var result = await _facebookPostService.RejectAsync(id);
-            return Ok(ApiResponse<FacebookImportedPostDetailDto>.Ok(
-                result,
-                "Facebook imported post rejected successfully."));
+            return Ok(result);
         }
 
         [HttpPost("{id:long}/publish")]
@@ -64,13 +62,7 @@ namespace SafeTrace.API.Controllers
             [FromBody] PublishFacebookImportedPostRequestDto? dto = null)
         {
             var result = await _facebookPostService.PublishAsync(id, dto);
-            var message = result.Status == FacebookImportedPostStatus.Duplicate
-                ? (result.Message ?? "This case already exists in the system.")
-                : "Facebook imported post published successfully.";
-
-            return Ok(ApiResponse<PublishFacebookImportedPostResponseDto>.Ok(
-                result,
-                message));
+            return Ok(result);
         }
     }
 }

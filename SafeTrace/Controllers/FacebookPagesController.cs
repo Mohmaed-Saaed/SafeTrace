@@ -1,9 +1,11 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SafeTrace.Application.Constants;
 using SafeTrace.Application.DTOs.FacebookPages.Request;
 using SafeTrace.Application.DTOs.FacebookPages.Response;
 using SafeTrace.Application.DTOs.Responses;
-using SafeTrace.Application.Interfaces.IServices;
+using SafeTrace.Application.Interfaces.IServices.IFacebookIntegration;
+using SafeTrace.Domain.Enums;
 using SafeTrace.Infrastructure.Authorization;
 
 namespace SafeTrace.API.Controllers
@@ -19,50 +21,20 @@ namespace SafeTrace.API.Controllers
             _facebookPageService = facebookPageService;
         }
 
-        [HttpPost]
+        [HttpPost("integrate")]
         // [HasPermission(Permissions.FacebookPages.Create)]
-        public async Task<IActionResult> Create([FromBody] CreateFacebookPageDto dto)
+        public async Task<IActionResult> Integrate([FromBody] IntegrateFacebookPageDto dto)
         {
-            var result = await _facebookPageService.CreateAsync(dto);
-
-            return CreatedAtAction(
-                nameof(GetById),
-                new { id = result.Id },
-                ApiResponse<FacebookPageResponseDto>.Ok(
-                    result,
-                    "Facebook page created successfully."));
-        }
-
-        [HttpPut("{id:long}")]
-        // [HasPermission(Permissions.FacebookPages.Update)]
-        public async Task<IActionResult> Update(long id, [FromBody] UpdateFacebookPageDto dto)
-        {
-            var result = await _facebookPageService.UpdateAsync(id, dto);
-            return Ok(ApiResponse<FacebookPageResponseDto>.Ok(result));
+            var result = await _facebookPageService.IntegrateAsync(dto);
+            return Ok(result);
         }
 
         [HttpGet]
         // [HasPermission(Permissions.FacebookPages.GetAll)]
-        public async Task<IActionResult> GetAll()
+        public async Task<IActionResult> GetAll([FromQuery] FacebookPageFilterDto? filter = null)
         {
-            var result = await _facebookPageService.GetAllAsync();
-            return Ok(ApiResponse<List<FacebookPageResponseDto>>.Ok(result));
-        }
-
-        [HttpGet("{id:long}")]
-        // [HasPermission(Permissions.FacebookPages.GetById)]
-        public async Task<IActionResult> GetById(long id)
-        {
-            var result = await _facebookPageService.GetByIdAsync(id);
-            return Ok(ApiResponse<FacebookPageResponseDto>.Ok(result));
-        }
-
-        [HttpPost("{id:long}/connect")]
-        // [HasPermission(Permissions.FacebookPages.Connect)]
-        public async Task<IActionResult> Connect(long id)
-        {
-            var result = await _facebookPageService.ConnectAsync(id);
-            return Ok(ApiResponse<FacebookPageResponseDto>.Ok(result));
+            var result = await _facebookPageService.GetAllAsync(filter);
+            return Ok(result);
         }
 
         [HttpPost("{id:long}/disconnect")]
@@ -70,7 +42,23 @@ namespace SafeTrace.API.Controllers
         public async Task<IActionResult> Disconnect(long id)
         {
             var result = await _facebookPageService.DisconnectAsync(id);
-            return Ok(ApiResponse<FacebookPageResponseDto>.Ok(result));
+            return Ok(result);
+        }
+
+        [HttpPost("{id:long}/reconnect")]
+        // [HasPermission(Permissions.FacebookPages.Connect)]
+        public async Task<IActionResult> Reconnect(long id, [FromBody] ReconnectFacebookPageDto dto)
+        {
+            var result = await _facebookPageService.ReconnectAsync(id, dto);
+            return Ok(result);
+        }
+
+        [HttpDelete("{id:long}")]
+        // [HasPermission(Permissions.FacebookPages.Disconnect)]
+        public async Task<IActionResult> Delete(long id)
+        {
+            var result = await _facebookPageService.DeleteAsync(id);
+            return Ok(result);
         }
     }
 }

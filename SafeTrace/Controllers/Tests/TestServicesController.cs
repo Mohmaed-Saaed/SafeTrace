@@ -36,17 +36,16 @@ namespace SafeTrace.API.Controllers.Tests
                 "AI case analysis completed successfully."));
         }
 
-        [HttpPost("facebook-graph/connect")]
-        public async Task<IActionResult> TestFacebookGraphConnect(
-            [FromBody] FacebookGraphConnectTestRequest request)
+        [HttpPost("facebook-graph/profile")]
+        public async Task<IActionResult> TestFacebookGraphProfile(
+            [FromBody] FacebookGraphProfileTestRequest request)
         {
-            var result = await _facebookGraphService.ConnectPageAsync(
-                request.FacebookPageId,
+            var result = await _facebookGraphService.GetPageProfileAsync(
                 request.PageAccessToken);
 
-            return Ok(ApiResponse<FacebookPageConnectionResultDto>.Ok(
+            return Ok(ApiResponse<FacebookPageProfileDto>.Ok(
                 result,
-                "Facebook page connection completed successfully."));
+                "Facebook page profile fetched successfully."));
         }
 
         [HttpPost("facebook-graph/posts")]
@@ -85,9 +84,8 @@ namespace SafeTrace.API.Controllers.Tests
         public string Text { get; set; } = string.Empty;
     }
 
-    public class FacebookGraphConnectTestRequest
+    public class FacebookGraphProfileTestRequest
     {
-        public string FacebookPageId { get; set; } = string.Empty;
         public string PageAccessToken { get; set; } = string.Empty;
     }
 
