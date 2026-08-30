@@ -5,6 +5,7 @@ using SafeTrace.Application.DTOs.AiMatching.Response;
 using SafeTrace.Application.DTOs.FacebookImportedPosts.Request;
 using SafeTrace.Application.DTOs.FacebookImportedPosts.Response;
 using SafeTrace.Application.DTOs.Files.Request;
+using SafeTrace.Application.DTOs.Responses;
 using SafeTrace.Application.Exceptions;
 using SafeTrace.Application.Interfaces.IServices;
 using SafeTrace.Application.Interfaces.IServices.ICases;
@@ -40,7 +41,7 @@ namespace SafeTrace.Application.Services.FacebookIntegration
             _logger = logger;
         }
 
-        public async Task<List<FacebookImportedPostListDto>> GetAllAsync(
+        public async Task<ApiResponse<List<FacebookImportedPostListDto>>> GetAllAsync(
             FacebookPostFilterDto filter)
         {
             ArgumentNullException.ThrowIfNull(filter);
@@ -70,16 +71,17 @@ namespace SafeTrace.Application.Services.FacebookIntegration
                 .ThenByDescending(post => post.Id)
                 .ToListAsync();
 
-            return posts.Select(MapListItem).ToList();
+            var result = posts.Select(MapListItem).ToList();
+            return ApiResponse<List<FacebookImportedPostListDto>>.Ok(result, "تم جلب المنشورات المستوردة بنجاح.");
         }
 
-        public async Task<FacebookImportedPostDetailDto> GetByIdAsync(long id)
+        public async Task<ApiResponse<FacebookImportedPostDetailDto>> GetByIdAsync(long id)
         {
             var post = await GetPostAsync(id, tracked: false);
-            return MapDetail(post);
+            return ApiResponse<FacebookImportedPostDetailDto>.Ok(MapDetail(post), "تم جلب تفاصيل المنشور المستورد بنجاح.");
         }
 
-        public async Task<FacebookImportedPostDetailDto> UpdateAsync(
+        public async Task<ApiResponse<FacebookImportedPostDetailDto>> UpdateAsync(
             long id,
             UpdateFacebookImportedPostDto dto)
         {
@@ -126,10 +128,10 @@ namespace SafeTrace.Application.Services.FacebookIntegration
             post.UpdatedAt = DateTime.UtcNow;
 
             await SaveReviewChangesAsync();
-            return MapDetail(post);
+            return ApiResponse<FacebookImportedPostDetailDto>.Ok(MapDetail(post), "تم تحديث بيانات المنشور المستورد بنجاح.");
         }
 
-        public async Task<FacebookImportedPostDetailDto> RejectAsync(long id)
+        public async Task<ApiResponse<FacebookImportedPostDetailDto>> RejectAsync(long id)
         {
             var post = await GetPostAsync(id, tracked: true);
             EnsureReviewIsMutable(post);
@@ -138,10 +140,10 @@ namespace SafeTrace.Application.Services.FacebookIntegration
             post.UpdatedAt = DateTime.UtcNow;
 
             await SaveReviewChangesAsync();
-            return MapDetail(post);
+            return ApiResponse<FacebookImportedPostDetailDto>.Ok(MapDetail(post), "تم رفض المنشور المستورد بنجاح.");
         }
 
-        public async Task<PublishFacebookImportedPostResponseDto> PublishAsync(
+        public async Task<ApiResponse<PublishFacebookImportedPostResponseDto>> PublishAsync(
             long id,
             PublishFacebookImportedPostRequestDto? dto = null)
         {
@@ -180,7 +182,7 @@ namespace SafeTrace.Application.Services.FacebookIntegration
             var (existingCase, matchConfidence) = await FindDuplicateCaseAsync(downloadedPrimaryImage.File);
             if (existingCase is not null)
             {
-                return new PublishFacebookImportedPostResponseDto
+                var duplicateResult = new PublishFacebookImportedPostResponseDto
                 {
                     FacebookImportedPostId = post.Id,
                     Status = FacebookImportedPostStatus.Duplicate,
@@ -188,8 +190,9 @@ namespace SafeTrace.Application.Services.FacebookIntegration
                     ExistingCaseCode = existingCase.CaseCode,
                     ExistingCaseType = existingCase.CaseType,
                     MatchConfidence = matchConfidence,
-                    Message = $"AI face match detected with existing Case {existingCase.CaseCode} ({matchConfidence:F1}% confidence)."
+                    Message = $"تم رصد تطابق في الوجه عبر الذكاء الاصطناعي مع الحالة الحالية رقم {existingCase.CaseCode} (نسبة التطابق: {matchConfidence:F1}%)."
                 };
+                return ApiResponse<PublishFacebookImportedPostResponseDto>.Ok(duplicateResult, duplicateResult.Message);
             }
 
             var additionalFiles = post.Files
@@ -268,7 +271,7 @@ namespace SafeTrace.Application.Services.FacebookIntegration
                     throw;
                 }
 
-                return new PublishFacebookImportedPostResponseDto
+                var publishedResult = new PublishFacebookImportedPostResponseDto
                 {
                     FacebookImportedPostId = post.Id,
                     CaseId = entity.Id,
@@ -276,6 +279,8 @@ namespace SafeTrace.Application.Services.FacebookIntegration
                     CaseType = entity.CaseType,
                     Status = post.Status
                 };
+
+                return ApiResponse<PublishFacebookImportedPostResponseDto>.Ok(publishedResult, "تم نشر المنشور المستورد كحالة جديدة بنجاح.");
             }
             finally
             {

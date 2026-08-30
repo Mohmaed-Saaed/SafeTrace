@@ -1,15 +1,15 @@
 using SafeTrace.Application.DTOs.FacebookPages.Request;
 using SafeTrace.Application.DTOs.FacebookPages.Response;
+using SafeTrace.Application.DTOs.Responses;
 
 namespace SafeTrace.Application.Interfaces.IServices.IFacebookIntegration
 {
     public interface IFacebookPageService
     {
-        Task<FacebookPageResponseDto> CreateAsync(CreateFacebookPageDto dto);
-        Task<FacebookPageResponseDto> UpdateAsync(long id, UpdateFacebookPageDto dto);
-        Task<List<FacebookPageResponseDto>> GetAllAsync();
-        Task<FacebookPageResponseDto> GetByIdAsync(long id);
-        Task<FacebookPageResponseDto> ConnectAsync(long id);
-        Task<FacebookPageResponseDto> DisconnectAsync(long id);
+        Task<ApiResponse<FacebookPageResponseDto>> IntegrateAsync(IntegrateFacebookPageDto dto);
+        Task<ApiResponse<List<FacebookPageResponseDto>>> GetAllAsync(FacebookPageFilterDto? filter = null);
+        Task<ApiResponse<string>> DisconnectAsync(long id);
+        Task<ApiResponse<FacebookPageResponseDto>> ReconnectAsync(long id, ReconnectFacebookPageDto dto);
+        Task<ApiResponse<string>> DeleteAsync(long id);
     }
 }

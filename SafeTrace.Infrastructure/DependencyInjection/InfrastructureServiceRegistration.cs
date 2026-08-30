@@ -4,6 +4,7 @@ using ElmahCore.Sql;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
@@ -26,6 +27,7 @@ namespace SafeTrace.Infrastructure.DependencyInjection
             services.AddMemoryCache();
             
             services.AddAppDbContext(configuration);
+            services.AddAppDataProtection(configuration);
             services.AddAppServices();
             services.AddAppAws(configuration);
             
@@ -59,6 +61,23 @@ namespace SafeTrace.Infrastructure.DependencyInjection
             services.AddDbContext<ApplicationDbContext>(options =>
                 options.UseSqlServer(configuration.GetConnectionString("DefaultConnection"), x => x.UseNetTopologySuite()));
             
+            return services;
+        }
+
+        private static IServiceCollection AddAppDataProtection(this IServiceCollection services, IConfiguration configuration)
+        {
+            var dataProtectionBuilder = services.AddDataProtection()
+                .SetApplicationName("SafeTrace");
+
+            var keysPath = configuration["DataProtection:KeysPath"];
+            if (string.IsNullOrWhiteSpace(keysPath))
+            {
+                keysPath = Path.Combine(AppContext.BaseDirectory, "DataProtection-Keys");
+            }
+
+            Directory.CreateDirectory(keysPath);
+            dataProtectionBuilder.PersistKeysToFileSystem(new DirectoryInfo(keysPath));
+
             return services;
         }
 

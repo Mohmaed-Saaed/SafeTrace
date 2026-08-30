@@ -33,49 +33,80 @@ namespace SafeTrace.Infrastructure.Services
             _options = options.Value;
         }
 
-        public async Task<FacebookPageConnectionResultDto> ConnectPageAsync(string facebookPageId, string pageAccessToken)
+        public async Task<FacebookPageProfileDto> GetPageProfileAsync(string pageAccessToken)
         {
-            var normalizedPageId = NormalizeFacebookPageId(facebookPageId);
-
             if (string.IsNullOrWhiteSpace(pageAccessToken))
             {
-                throw new FacebookAuthenticationException(
-                    "لا يوجد رمز وصول صالح لصفحة Facebook.");
+                throw new BadRequestException("رمز وصول صفحة Facebook مطلوب.");
             }
 
             var apiVersion = ValidateAndNormalizeApiVersion();
-            var requestUrl = BuildPageRequestUrl(apiVersion, normalizedPageId);
+            var requestUrl = $"{apiVersion}/me?fields=id,name,link";
 
-            using var request = new HttpRequestMessage(HttpMethod.Get, requestUrl);
-            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", pageAccessToken);
+            using var doc = await SendGetRequestAsync(
+                requestUrl,
+                pageAccessToken);
 
-            using var response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead);
-            var responseContent = await response.Content.ReadAsStringAsync();
-
-            using var doc = ParseJson(responseContent);
             var root = doc.RootElement;
 
-            if (response.StatusCode is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden ||
-                !response.IsSuccessStatusCode ||
-                root.TryGetProperty("error", out _))
-            {
-                ThrowGraphException(response.StatusCode, root);
-            }
-
             var id = root.TryGetProperty("id", out var idProp) ? idProp.GetString() : null;
+            var name = root.TryGetProperty("name", out var nameProp) ? nameProp.GetString() : null;
+            var link = root.TryGetProperty("link", out var linkProp) ? linkProp.GetString() : null;
 
-            if (!string.Equals(id, normalizedPageId, StringComparison.Ordinal))
+            if (string.IsNullOrWhiteSpace(id) || string.IsNullOrWhiteSpace(name))
             {
-                throw new BadRequestException(
-                    "تعذر التحقق من صفحة Facebook المحددة. تأكد من صحة معرّف الصفحة ورمز الوصول.");
+                throw new BadRequestException("تعذر استخراج بيانات صفحة Facebook باستخدام رمز الوصول المقدم.");
             }
 
-            return new FacebookPageConnectionResultDto
+            if (string.IsNullOrWhiteSpace(link))
             {
-                FacebookPageId = id!,
-                PageAccessToken = pageAccessToken,
-                TokenExpiresAt = null
+                link = $"https://www.facebook.com/{id}";
+            }
+
+            return new FacebookPageProfileDto
+            {
+                PageId = id,
+                PageName = name,
+                PageUrl = link
             };
+        }
+
+        public async Task<DateTimeOffset?> DebugTokenAsync(string pageAccessToken)
+        {
+            if (string.IsNullOrWhiteSpace(pageAccessToken))
+            {
+                throw new BadRequestException("رمز وصول صفحة Facebook مطلوب.");
+            }
+
+            var apiVersion = ValidateAndNormalizeApiVersion();
+            var token = pageAccessToken.Trim();
+            var requestUrl = $"{apiVersion}/debug_token?input_token={Uri.EscapeDataString(token)}";
+
+            using var doc = await SendGetRequestAsync(
+                requestUrl,
+                token);
+
+            var root = doc.RootElement;
+
+            if (!root.TryGetProperty("data", out var dataElement))
+            {
+                throw new BadRequestException("تعذر قراءة بيانات التحقق من رمز الوصول من Facebook.");
+            }
+
+            var isValid = dataElement.TryGetProperty("is_valid", out var isValidProp) && isValidProp.GetBoolean();
+            if (!isValid)
+            {
+                throw new BadRequestException("رمز الوصول إلى Facebook غير صالح أو منتهي الصلاحية.");
+            }
+
+            if (dataElement.TryGetProperty("expires_at", out var expiresAtProp) &&
+                expiresAtProp.TryGetInt64(out var expiresAt) &&
+                expiresAt > 0)
+            {
+                return DateTimeOffset.FromUnixTimeSeconds(expiresAt);
+            }
+
+            return null;
         }
 
         public async Task<IReadOnlyList<FacebookPostDto>> GetNewPostsAsync(
@@ -87,7 +118,7 @@ namespace SafeTrace.Infrastructure.Services
 
             if (string.IsNullOrWhiteSpace(pageAccessToken))
             {
-                throw new FacebookAuthenticationException(
+                throw new BadRequestException(
                     "لا يوجد رمز وصول صالح لصفحة Facebook. أعد ربط الصفحة.");
             }
 
@@ -114,25 +145,11 @@ namespace SafeTrace.Infrastructure.Services
                     since,
                     after);
 
-                using var request = new HttpRequestMessage(HttpMethod.Get, requestUrl);
-                request.Headers.Authorization =
-                    new AuthenticationHeaderValue("Bearer", pageAccessToken);
+                using var doc = await SendGetRequestAsync(
+                    requestUrl,
+                    pageAccessToken);
 
-                using var response = await _httpClient.SendAsync(
-                    request,
-                    HttpCompletionOption.ResponseHeadersRead);
-
-                var responseContent = await response.Content.ReadAsStringAsync();
-
-                using var doc = ParseJson(responseContent);
                 var root = doc.RootElement;
-
-                if (response.StatusCode is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden ||
-                    !response.IsSuccessStatusCode ||
-                    root.TryGetProperty("error", out _))
-                {
-                    ThrowGraphException(response.StatusCode, root);
-                }
 
                 if (root.TryGetProperty("data", out var dataArray) && dataArray.ValueKind == JsonValueKind.Array)
                 {
@@ -178,11 +195,6 @@ namespace SafeTrace.Infrastructure.Services
             return apiVersion;
         }
 
-        private static string BuildPageRequestUrl(string apiVersion, string facebookPageId)
-        {
-            return $"{apiVersion}/{Uri.EscapeDataString(facebookPageId)}?fields=id%2Cname";
-        }
-
         private static string BuildPostsRequestUrl(
             string apiVersion,
             string facebookPageId,
@@ -203,6 +215,33 @@ namespace SafeTrace.Infrastructure.Services
                 query.Add($"after={Uri.EscapeDataString(after)}");
 
             return $"{apiVersion}/{Uri.EscapeDataString(facebookPageId)}/posts?{string.Join('&', query)}";
+        }
+
+        private async Task<JsonDocument> SendGetRequestAsync(
+            string requestUrl,
+            string accessToken)
+        {
+            using var request = new HttpRequestMessage(HttpMethod.Get, requestUrl);
+            request.Headers.Authorization =
+                new AuthenticationHeaderValue("Bearer", accessToken.Trim());
+
+            using var response = await _httpClient.SendAsync(
+                request,
+                HttpCompletionOption.ResponseHeadersRead);
+
+            var responseContent = await response.Content.ReadAsStringAsync();
+
+            var doc = ParseJson(responseContent);
+            var root = doc.RootElement;
+
+            if (response.StatusCode is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden ||
+                !response.IsSuccessStatusCode ||
+                root.TryGetProperty("error", out _))
+            {
+                ThrowGraphException(response.StatusCode, root);
+            }
+
+            return doc;
         }
 
         private static JsonDocument ParseJson(string responseContent)
@@ -239,8 +278,8 @@ namespace SafeTrace.Infrastructure.Services
 
             if (isAuthenticationFailure)
             {
-                throw new FacebookAuthenticationException(
-                    "تفويض Facebook غير صالح أو انتهت صلاحيته أو لم يعد يملك الصلاحيات المطلوبة.");
+                throw new BadRequestException(
+                    "رمز الوصول إلى Facebook غير صالح أو منتهي الصلاحية.");
             }
 
             throw new HttpRequestException(

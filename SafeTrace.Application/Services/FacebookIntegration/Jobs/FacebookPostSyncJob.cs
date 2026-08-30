@@ -1,5 +1,6 @@
 using Hangfire;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.AspNetCore.DataProtection;
 using SafeTrace.Application.DTOs.FacebookPosts.Response;
 using SafeTrace.Application.Exceptions;
 using SafeTrace.Application.Interfaces.IServices.IFacebookIntegration.IJobs;
@@ -8,6 +9,7 @@ namespace SafeTrace.Application.Services.FacebookIntegration.Jobs
 {
     public class FacebookPostSyncJob : IFacebookPostSyncJob
     {
+        private const string FacebookTokenPurpose = "SafeTrace.FacebookPageAccessToken";
         private readonly IServiceScopeFactory _scopeFactory;
         private readonly IMapper _mapper;
         private readonly ILogger<FacebookPostSyncJob> _logger;
@@ -47,12 +49,15 @@ namespace SafeTrace.Application.Services.FacebookIntegration.Jobs
                 await using var pageScope = _scopeFactory.CreateAsyncScope();
                 var unitOfWork = pageScope.ServiceProvider.GetRequiredService<IUnitOfWork>();
                 var facebookGraphService = pageScope.ServiceProvider.GetRequiredService<IFacebookGraphService>();
+                var dataProtectionProvider = pageScope.ServiceProvider.GetRequiredService<IDataProtectionProvider>();
+                var protector = dataProtectionProvider.CreateProtector(FacebookTokenPurpose);
 
                 var page = await unitOfWork.Repository<FacebookPage>().GetByIdAsync(pageId);
 
                 if (page is null ||
                     page.IntegrationStatus != FacebookIntegrationStatus.Connected ||
-                    !page.IsActive)
+                    !page.IsActive ||
+                    string.IsNullOrWhiteSpace(page.PageAccessToken))
                 {
                     continue;
                 }
@@ -65,11 +70,30 @@ namespace SafeTrace.Application.Services.FacebookIntegration.Jobs
                         "Syncing Facebook page. PageId={PageId}, FacebookPageId={FacebookPageId}",
                         page.Id,
                         page.FacebookPageId);
-                    
+
+                    string rawToken;
+                    try
+                    {
+                        rawToken = protector.Unprotect(page.PageAccessToken);
+                    }
+                    catch (Exception unprotectEx)
+                    {
+                        _logger.LogError(
+                            unprotectEx,
+                            "Failed to unprotect Facebook page access token. PageId={PageId}, FacebookPageId={FacebookPageId}. The page now requires reconnect.",
+                            page.Id,
+                            page.FacebookPageId);
+
+                        page.IntegrationStatus = FacebookIntegrationStatus.NeedsReconnect;
+                        page.IsActive = false;
+                        page.UpdatedAt = DateTime.UtcNow;
+                        await unitOfWork.SaveAsync();
+                        continue;
+                    }
 
                     var posts = await facebookGraphService.GetNewPostsAsync(
                         page.FacebookPageId,
-                        page.PageAccessToken!,
+                        rawToken,
                         page.LastSyncedAt);
 
 
@@ -90,7 +114,7 @@ namespace SafeTrace.Application.Services.FacebookIntegration.Jobs
                         page.FacebookPageId,
                         importedCount);
                 }
-                catch (FacebookAuthenticationException)
+                catch (BadRequestException)
                 {
                     try
                     {

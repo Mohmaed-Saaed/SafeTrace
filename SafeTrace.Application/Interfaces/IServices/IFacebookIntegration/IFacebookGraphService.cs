@@ -5,7 +5,9 @@ namespace SafeTrace.Application.Interfaces.IServices.IFacebookIntegration
 {
     public interface IFacebookGraphService
     {
-        Task<FacebookPageConnectionResultDto> ConnectPageAsync(string facebookPageId, string pageAccessToken);
+        Task<FacebookPageProfileDto> GetPageProfileAsync(string pageAccessToken);
+
+        Task<DateTimeOffset?> DebugTokenAsync(string pageAccessToken);
 
         Task<IReadOnlyList<FacebookPostDto>> GetNewPostsAsync(
             string facebookPageId,

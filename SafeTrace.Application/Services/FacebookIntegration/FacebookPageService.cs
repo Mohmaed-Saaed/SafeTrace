@@ -1,123 +1,108 @@
+using Microsoft.AspNetCore.DataProtection;
 using SafeTrace.Application.DTOs.FacebookPages.Request;
 using SafeTrace.Application.DTOs.FacebookPages.Response;
+using SafeTrace.Application.DTOs.Responses;
 using SafeTrace.Application.Exceptions;
 
 namespace SafeTrace.Application.Services.FacebookIntegration
 {
     public class FacebookPageService : IFacebookPageService
     {
+        private const string FacebookTokenPurpose = "SafeTrace.FacebookPageAccessToken";
+
         private readonly IUnitOfWork _unitOfWork;
         private readonly IFacebookGraphService _facebookGraphService;
+        private readonly IDataProtector _dataProtector;
         private readonly IMapper _mapper;
 
         public FacebookPageService(
             IUnitOfWork unitOfWork,
             IFacebookGraphService facebookGraphService,
+            IDataProtectionProvider dataProtectionProvider,
             IMapper mapper)
         {
             _unitOfWork = unitOfWork;
             _facebookGraphService = facebookGraphService;
+            _dataProtector = dataProtectionProvider.CreateProtector(FacebookTokenPurpose);
             _mapper = mapper;
         }
 
-        public async Task<FacebookPageResponseDto> CreateAsync(CreateFacebookPageDto dto)
+        public async Task<ApiResponse<FacebookPageResponseDto>> IntegrateAsync(IntegrateFacebookPageDto dto)
         {
-            var facebookPageId = dto.FacebookPageId.Trim();
+            if (string.IsNullOrWhiteSpace(dto.AccessToken))
+            {
+                throw new BadRequestException("رمز وصول صفحة Facebook مطلوب.");
+            }
 
-            var pageExists = await _unitOfWork.Repository<FacebookPage>().AnyAsync(page => page.FacebookPageId == facebookPageId);
+            var user = await GetUserByEmailAsync(dto.UserEmail);
+
+            var pageProfile = await _facebookGraphService.GetPageProfileAsync(dto.AccessToken);
+
+            var pageExists = await _unitOfWork.Repository<FacebookPage>()
+                .AnyAsync(page => page.FacebookPageId == pageProfile.PageId);
 
             if (pageExists)
             {
                 throw new ConflictException("صفحة Facebook بهذا المعرّف مسجلة بالفعل.");
             }
 
-            var user = await GetUserByEmailAsync(dto.UserEmail);
+            var tokenExpiresAt = await _facebookGraphService.DebugTokenAsync(dto.AccessToken);
 
-            var page = _mapper.Map<FacebookPage>(dto);
+            var encryptedToken = _dataProtector.Protect(dto.AccessToken.Trim());
 
-            page.UserId = user.Id;
-            page.User = user;
-            page.IntegrationStatus =FacebookIntegrationStatus.Disconnected;
-            page.IsActive = false;
-            page.CreatedAt = DateTime.UtcNow;
+            var page = new FacebookPage
+            {
+                FacebookPageId = pageProfile.PageId,
+                PageName = pageProfile.PageName,
+                PageUrl = pageProfile.PageUrl,
+                PageAccessToken = encryptedToken,
+                TokenExpiresAt = tokenExpiresAt,
+                UserId = user.Id,
+                IntegrationStatus = FacebookIntegrationStatus.Connected,
+                IsActive = true,
+                CreatedAt = DateTime.UtcNow
+            };
 
             await _unitOfWork.Repository<FacebookPage>().CreateAsync(page);
-
             await _unitOfWork.SaveAsync();
 
-            return _mapper.Map<FacebookPageResponseDto>(page);
+            var result = _mapper.Map<FacebookPageResponseDto>(page);
+            return ApiResponse<FacebookPageResponseDto>.Ok(result, "تم ربط صفحة Facebook بنجاح.");
         }
 
-        public async Task<FacebookPageResponseDto> UpdateAsync(long id, UpdateFacebookPageDto dto)
+        public async Task<ApiResponse<List<FacebookPageResponseDto>>> GetAllAsync(FacebookPageFilterDto? filter = null)
         {
-            var page = await GetEntityWithUserAsync(id);
-
-            var user = await GetUserByEmailAsync(dto.UserEmail);
-
-            _mapper.Map(dto, page);
-
-            page.UserId = user.Id;
-            page.User = user;
-            page.UpdatedAt = DateTime.UtcNow;
-
-            await _unitOfWork.SaveAsync();
-
-            return _mapper.Map<FacebookPageResponseDto>(page);
-        }
-
-        public async Task<List<FacebookPageResponseDto>> GetAllAsync()
-        {
-            var pages = await _unitOfWork
+            var query = _unitOfWork
                 .Repository<FacebookPage>()
                 .Query(tracked: false)
                 .Include(page => page.User)
+                .AsQueryable();
+
+            if (filter != null)
+            {
+                if (!string.IsNullOrWhiteSpace(filter.Search))
+                {
+                    var searchTerm = filter.Search.Trim();
+                    query = query.Where(page =>
+                        page.PageName.Contains(searchTerm) ||
+                        (page.User != null && page.User.Email != null && page.User.Email.Contains(searchTerm)));
+                }
+
+                if (filter.IntegrationStatus.HasValue)
+                {
+                    query = query.Where(page => page.IntegrationStatus == filter.IntegrationStatus.Value);
+                }
+            }
+
+            var pages = await query
                 .OrderByDescending(page => page.CreatedAt)
                 .ToListAsync();
 
-            return _mapper.Map<List<FacebookPageResponseDto>>(pages);
+            var result = _mapper.Map<List<FacebookPageResponseDto>>(pages);
+            return ApiResponse<List<FacebookPageResponseDto>>.Ok(result, "تم جلب صفحات Facebook بنجاح.");
         }
 
-        public async Task<FacebookPageResponseDto> GetByIdAsync(long id)
-        {
-            var page = await _unitOfWork
-                .Repository<FacebookPage>()
-                .Query(tracked: false)
-                .Include(page => page.User)
-                .FirstOrDefaultAsync(page =>
-                    page.Id == id);
-
-            if (page is null)
-            {
-                throw new NotFoundException($"لم يتم العثور على صفحة Facebook بالمعرّف {id}.");
-            }
-
-            return _mapper.Map<FacebookPageResponseDto>(page);
-        }
-
-        public async Task<FacebookPageResponseDto> ConnectAsync(long id)
-        {
-            var page = await GetEntityWithUserAsync(id);
-
-            if (page.IntegrationStatus == FacebookIntegrationStatus.Connected)
-            {
-                throw new BadRequestException("صفحة Facebook متصلة بالفعل.");
-            }
-
-            if (string.IsNullOrWhiteSpace(page.PageAccessToken))
-            {
-                throw new BadRequestException("لا يوجد رمز وصول محفوظ لهذه الصفحة. أضف رمز وصول صالح قبل ربط الصفحة.");
-            }
-
-            var connection = await _facebookGraphService.ConnectPageAsync(page.FacebookPageId, page.PageAccessToken);
-
-            ApplySuccessfulConnection(page, connection);
-
-            await _unitOfWork.SaveAsync();
-
-            return _mapper.Map<FacebookPageResponseDto>(page);
-        }
-
-        public async Task<FacebookPageResponseDto> DisconnectAsync(long id)
+        public async Task<ApiResponse<string>> DisconnectAsync(long id)
         {
             var page = await GetEntityWithUserAsync(id);
 
@@ -134,7 +119,66 @@ namespace SafeTrace.Application.Services.FacebookIntegration
 
             await _unitOfWork.SaveAsync();
 
-            return _mapper.Map<FacebookPageResponseDto>(page);
+            return ApiResponse<string>.Ok(message: "تم إلغاء ربط صفحة Facebook بنجاح.");
+        }
+
+        public async Task<ApiResponse<FacebookPageResponseDto>> ReconnectAsync(long id, ReconnectFacebookPageDto dto)
+        {
+            if (string.IsNullOrWhiteSpace(dto.AccessToken))
+            {
+                throw new BadRequestException("رمز الوصول إلى Facebook مطلوب.");
+            }
+
+            var page = await GetEntityWithUserAsync(id);
+
+            var pageProfile = await _facebookGraphService.GetPageProfileAsync(dto.AccessToken);
+
+            if (!string.Equals(page.FacebookPageId, pageProfile.PageId, StringComparison.Ordinal))
+            {
+                throw new BadRequestException("رمز الوصول المقدم لا ينتمي إلى صفحة Facebook المحددة.");
+            }
+
+            var tokenExpiresAt = await _facebookGraphService.DebugTokenAsync(dto.AccessToken);
+
+            page.PageName = pageProfile.PageName;
+            if (!string.IsNullOrWhiteSpace(pageProfile.PageUrl))
+            {
+                page.PageUrl = pageProfile.PageUrl;
+            }
+
+            page.PageAccessToken = _dataProtector.Protect(dto.AccessToken.Trim());
+            page.TokenExpiresAt = tokenExpiresAt;
+            page.IntegrationStatus = FacebookIntegrationStatus.Connected;
+            page.IsActive = true;
+            page.UpdatedAt = DateTime.UtcNow;
+
+            await _unitOfWork.SaveAsync();
+
+            var result = _mapper.Map<FacebookPageResponseDto>(page);
+            return ApiResponse<FacebookPageResponseDto>.Ok(result, "تمت إعادة ربط صفحة Facebook بنجاح.");
+        }
+
+        public async Task<ApiResponse<string>> DeleteAsync(long id)
+        {
+            var page = await _unitOfWork.Repository<FacebookPage>().GetByIdAsync(id);
+
+            if (page is null)
+            {
+                throw new NotFoundException($"لم يتم العثور على صفحة Facebook بالمعرّف {id}.");
+            }
+
+            var hasImportedPosts = await _unitOfWork.Repository<FacebookImportedPost>()
+                .AnyAsync(post => post.FacebookPageId == id);
+
+            if (hasImportedPosts)
+            {
+                throw new ConflictException("لا يمكن حذف صفحة Facebook لوجود منشورات مستوردة مرتبطة بها.");
+            }
+
+            _unitOfWork.Repository<FacebookPage>().Remove(page);
+            await _unitOfWork.SaveAsync();
+
+            return ApiResponse<string>.Ok(null, "تم حذف صفحة Facebook بنجاح.");
         }
 
         private async Task<FacebookPage> GetEntityWithUserAsync(long id)
@@ -147,7 +191,7 @@ namespace SafeTrace.Application.Services.FacebookIntegration
 
             return page
                 ?? throw new NotFoundException(
-                    $"Facebook page with id {id} was not found.");
+                    $"لم يتم العثور على صفحة Facebook بالمعرّف {id}.");
         }
 
         private async Task<ApplicationUser> GetUserByEmailAsync(string email)
@@ -170,24 +214,6 @@ namespace SafeTrace.Application.Services.FacebookIntegration
             }
 
             return user;
-        }
-
-        private static void ApplySuccessfulConnection(FacebookPage page, FacebookPageConnectionResultDto connection)
-        {
-            if (!string.Equals(
-                    page.FacebookPageId,
-                    connection.FacebookPageId,
-                    StringComparison.Ordinal) ||
-                string.IsNullOrWhiteSpace(connection.PageAccessToken))
-            {
-                throw new BadRequestException("تعذر التحقق من صلاحية الوصول إلى صفحة Facebook المحددة.");
-            }
-
-            page.PageAccessToken = connection.PageAccessToken;
-            page.TokenExpiresAt = connection.TokenExpiresAt;
-            page.IntegrationStatus = FacebookIntegrationStatus.Connected;
-            page.IsActive = true;
-            page.UpdatedAt = DateTime.UtcNow;
         }
     }
 }
