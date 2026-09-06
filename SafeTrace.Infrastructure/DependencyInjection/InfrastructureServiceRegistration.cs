@@ -4,6 +4,7 @@ using ElmahCore.Sql;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
@@ -15,6 +16,7 @@ using SafeTrace.Application.Services;
 using SafeTrace.Infrastructure.Authorization;
 using SafeTrace.Infrastructure.Options;
 using SafeTrace.Infrastructure.Persistence;
+using Microsoft.Extensions.Options;
 
 namespace SafeTrace.Infrastructure.DependencyInjection
 {
@@ -25,11 +27,15 @@ namespace SafeTrace.Infrastructure.DependencyInjection
             services.AddMemoryCache();
             
             services.AddAppDbContext(configuration);
+            services.AddAppDataProtection(configuration);
             services.AddAppServices();
             services.AddAppAws(configuration);
             
             services.Configure<JwtOptions>(configuration.GetSection("Jwt"));
             services.Configure<MailSettingsOptions>(configuration.GetSection("MailSettings"));
+            services.Configure<FacebookGraphOptions>(configuration.GetSection(FacebookGraphOptions.SectionName));
+            services.Configure<GeocodingOptions>(configuration.GetSection(GeocodingOptions.SectionName));
+            services.Configure<BedrockOptions>(configuration.GetSection(BedrockOptions.SectionName));
 
             services.AddSingleton<IAuthorizationPolicyProvider, PermissionPolicyProvider>();
             services.AddScoped<IAuthorizationHandler, PermissionHandler>();
@@ -58,6 +64,23 @@ namespace SafeTrace.Infrastructure.DependencyInjection
             return services;
         }
 
+        private static IServiceCollection AddAppDataProtection(this IServiceCollection services, IConfiguration configuration)
+        {
+            var dataProtectionBuilder = services.AddDataProtection()
+                .SetApplicationName("SafeTrace");
+
+            var keysPath = configuration["DataProtection:KeysPath"];
+            if (string.IsNullOrWhiteSpace(keysPath))
+            {
+                keysPath = Path.Combine(AppContext.BaseDirectory, "DataProtection-Keys");
+            }
+
+            Directory.CreateDirectory(keysPath);
+            dataProtectionBuilder.PersistKeysToFileSystem(new DirectoryInfo(keysPath));
+
+            return services;
+        }
+
         private static IServiceCollection AddAppServices(this IServiceCollection services)
         {
             services.AddScoped<IDBInitializer, DBInitializer>();
@@ -78,8 +101,42 @@ namespace SafeTrace.Infrastructure.DependencyInjection
             services.AddScoped<IPdfGeneratorService, PdfGeneratorService>();
             services.AddScoped<IExcelGeneratorService, ExcelGeneratorService>();
             services.AddScoped<IComplaintService, ComplaintService>();
+            services.AddScoped<IAiCaseAnalyzerService, AiCaseAnalyzerService>();
+            services.AddHttpClient<IFacebookGraphService, FacebookGraphService>((provider, client) =>
+            {
+                var options = provider.GetRequiredService<IOptions<FacebookGraphOptions>>().Value;
+                client.BaseAddress = CreateAbsoluteBaseUri(options.BaseUrl, FacebookGraphOptions.SectionName);
+            }).RemoveAllLoggers();
 
+            services.AddHttpClient<IGeocodingService, GoogleGeocodingService>((provider, client) =>
+            {
+                var options = provider.GetRequiredService<IOptions<GeocodingOptions>>().Value;
+                client.BaseAddress = CreateAbsoluteBaseUri(options.BaseUrl, GeocodingOptions.SectionName);
+            }).RemoveAllLoggers();
+
+            services.AddHttpClient<IExternalImageDownloadService, ExternalImageDownloadService>(client =>
+            {
+                client.Timeout = TimeSpan.FromSeconds(30);
+            })
+            .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
+            {
+                AllowAutoRedirect = false
+            })
+            .RemoveAllLoggers();
+            
             return services;
+        }
+
+        private static Uri CreateAbsoluteBaseUri(string baseUrl, string sectionName)
+        {
+            if (!Uri.TryCreate(baseUrl, UriKind.Absolute, out var baseUri) ||
+                !string.Equals(baseUri.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase))
+            {
+                throw new InvalidOperationException(
+                    $"The {sectionName} base URL must be a valid HTTPS URL.");
+            }
+
+            return new Uri(baseUri.AbsoluteUri.TrimEnd('/') + '/');
         }
 
         private static IServiceCollection AddAppAws(this IServiceCollection services, IConfiguration configuration)
@@ -96,6 +153,18 @@ namespace SafeTrace.Infrastructure.DependencyInjection
             services.AddDefaultAWSOptions(awsOptions);
             services.AddAWSService<Amazon.Rekognition.IAmazonRekognition>();
             services.AddAWSService<Amazon.S3.IAmazonS3>();
+
+            var bedrockRegion = configuration["AWS:Bedrock:Region"];
+            if (!string.IsNullOrEmpty(bedrockRegion))
+            {
+                var bedrockOptions = configuration.GetAWSOptions("AWS");
+                bedrockOptions.Region = Amazon.RegionEndpoint.GetBySystemName(bedrockRegion);
+                services.AddAWSService<Amazon.BedrockRuntime.IAmazonBedrockRuntime>(bedrockOptions);
+            }
+            else
+            {
+                services.AddAWSService<Amazon.BedrockRuntime.IAmazonBedrockRuntime>();
+            }
 
             return services;
         }

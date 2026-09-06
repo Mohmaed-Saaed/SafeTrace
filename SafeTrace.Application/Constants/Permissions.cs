@@ -101,6 +101,25 @@ namespace SafeTrace.Application.Constants
             public const string GetChatStatistics = "Chat.GetChatStatistics";
         }
 
+        public static class FacebookPages
+        {
+            public const string Create = "FacebookPages.Create";
+            public const string Update = "FacebookPages.Update";
+            public const string GetAll = "FacebookPages.GetAll";
+            public const string GetById = "FacebookPages.GetById";
+            public const string Connect = "FacebookPages.Connect";
+            public const string Disconnect = "FacebookPages.Disconnect";
+        }
+
+        public static class FacebookPosts
+        {
+            public const string GetAll = "FacebookPosts.GetAll";
+            public const string GetById = "FacebookPosts.GetById";
+            public const string Update = "FacebookPosts.Update";
+            public const string Reject = "FacebookPosts.Reject";
+            public const string Publish = "FacebookPosts.Publish";
+        }
+
         private static readonly Lazy<List<string>> _allPermissions = new Lazy<List<string>>(() =>
         {
             var allPermissions = new List<string>();

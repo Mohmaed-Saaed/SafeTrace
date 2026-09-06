@@ -25,6 +25,7 @@
 	<ItemGroup>
 		<PackageReference Include="Audit.EntityFramework.Identity.Core" Version="32.2.0" />
 		<PackageReference Include="AutoMapper" Version="16.1.1" />
+		<PackageReference Include="AWSSDK.BedrockRuntime" Version="4.0.101.4" />
 		<PackageReference Include="AWSSDK.Extensions.NETCore.Setup" Version="4.0.100.7" />
 		<PackageReference Include="AWSSDK.Rekognition" Version="4.0.4.8" />
 		<PackageReference Include="AWSSDK.S3" Version="4.0.102" />
