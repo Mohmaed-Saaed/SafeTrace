@@ -13,7 +13,7 @@ using SafeTrace.Infrastructure.DataAccess;
 namespace SafeTrace.Infrastructure.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20260811203216_Initial")]
+    [Migration("20260906145258_Initial")]
     partial class Initial
     {
         /// <inheritdoc />
