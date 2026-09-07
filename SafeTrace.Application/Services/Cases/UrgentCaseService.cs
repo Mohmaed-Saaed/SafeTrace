@@ -16,9 +16,9 @@ namespace SafeTrace.Application.Services.Cases
     {
         private readonly IServiceScopeFactory _scopeFactory;
         private const string FolderName = "UrgentCases";
-        private const int RateLimitDays = 2;
+        private const int RateLimitDays = 14;
         private const int ExpirationHours = 48;
-        private const double NotifyRadiusM = 500_000; // 500 km
+        private const double NotifyRadiusM = 50_00; // 50 km
         private const double LocationShiftNotificationThresholdMeters = 5000; // 5 km
         private readonly IFileStorageService _fileStorageService;
         private const string detailsUrl = EmailTemplates.UrgentCaseDetailsRoute;
@@ -128,7 +128,7 @@ namespace SafeTrace.Application.Services.Cases
             entity.CaseCode = await _caseHelper.GenerateCaseCodeAsync(CaseCodePrefix.URG);
             entity.AgeCategoryId = await _caseHelper.ResolveAgeCategoryIdAsync(entity.Age);
 
-            entity.LimitReachDate = now.AddMinutes(RateLimitDays);
+            entity.LimitReachDate = now.AddDays(RateLimitDays);
             entity.EndDate = now.AddHours(ExpirationHours);
             entity.Location = new Point(dto.Longitude, dto.Latitude){ SRID = 4326 };
 

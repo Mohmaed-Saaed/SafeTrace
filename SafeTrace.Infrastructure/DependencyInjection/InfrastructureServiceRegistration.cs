@@ -395,8 +395,7 @@ namespace SafeTrace.Infrastructure.DependencyInjection
                             AutoReplenishment = true,
                             PermitLimit = 5,
                             QueueLimit = 0,
-                            // Window = TimeSpan.FromHours(1) // return to this when testing is done
-                            Window = TimeSpan.FromMinutes(1) // in testing
+                            Window = TimeSpan.FromHours(1)
                         }));
             });
 

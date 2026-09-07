@@ -23,7 +23,6 @@ namespace SafeTrace.Application.Services.Cases
         private readonly ILogger<CaseHelperService> _logger;
 
         private const float MinimumSimilarity = 80f;
-        private const int MaxAgeDifference = 5;
 
         public CaseHelperService(
             IUnitOfWork unitOfWork,
