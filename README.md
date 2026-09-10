@@ -20,6 +20,7 @@ The Angular SPA is maintained in a **separate repository**. This API is independ
 - [Security and operations](#security-and-operations)
 - [Local setup](#local-setup)
 - [Configuration](#configuration)
+- [Future work](#future-work)
 
 ## Business capabilities
 
@@ -215,6 +216,13 @@ Add the following shape to User Secrets. The placeholder values are intentionalâ
 `MailSettings` is the mail configuration used by the current MailKit email service. `SendGrid` is retained in the local secret shape for deployment/integration use; it is not consumed by the current API code. Keep `appsettings.Development.json` for non-sensitive local settings such as logging.
 
 Never commit real database strings, JWT/AWS/SMTP/payment secrets, or Hangfire/Elmah credentials. If any secret is shared in a chat, ticket, screenshot, or commit, rotate it immediately and update the relevant User Secret or deployment secret.
+
+## Future work
+
+| Feature | Priority | Notes |
+| --- | --- | --- |
+| Governmental integration | High | Connect with local police missing-persons databases for automatic cross-checking. |
+| Progressive Web App (PWA) | Medium | Installable mobile access with push notifications. |
 
 ## Team
 
