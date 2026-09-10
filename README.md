@@ -224,9 +224,18 @@ Never commit real database strings, JWT/AWS/SMTP/payment secrets, or Hangfire/El
 | Governmental integration | High | Connect with local police missing-persons databases for automatic cross-checking. |
 | Progressive Web App (PWA) | Medium | Installable mobile access with push notifications. |
 
-## Team
+## 👥 Team Members
 
-إسراء طه · يوسف عبدالله · بسمة علاء · يوسف فاروق · محمد جمال · محمد سعيد · تقى محمود · أماني هشام
+| Name                 | GitHub                                                           |
+| -------------------- | ---------------------------------------------------------------- |
+| Esraa Taha           | [@Gargera](https://github.com/Gargera)                           |
+| Yousef               | [@yousef721](https://github.com/yousef721)                       |
+| Basma Allaa          | [@basmaallaa](https://github.com/basmaallaa)                     |
+| Mohamed Gamal Elemam | [@Mohamed-Gamal-Elemam](https://github.com/Mohamed-Gamal-Elemam) |
+| Amany Hisham         | [@amanyhisham](https://github.com/amanyhisham)                   |
+| Youssef              | [@ysfrk10](https://github.com/ysfrk10)                           |
+| Toqa Mahmoud         | [@ToqaMahmoud787](https://github.com/ToqaMahmoud787)             |
+| Mohamed Saeed        | [@Mohmaed-Saaed](https://github.com/Mohmaed-Saaed)               |
 
 ---
 
