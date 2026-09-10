@@ -1,7 +1,4 @@
 ﻿using SafeTrace.Domain.Enums;
-using System;
-using System.Collections.Generic;
-using System.Text;
 
 namespace SafeTrace.Domain.Entities
 {
@@ -16,6 +13,8 @@ namespace SafeTrace.Domain.Entities
         public NotificationType Type { get; set; }
 
         public string UserId { get; set; } = null!;
+
+        public string? NotificationDirectLink { get; set; }
 
         public string Content { get; set; } = null!;
 

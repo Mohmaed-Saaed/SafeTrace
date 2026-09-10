@@ -1,16 +1,12 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace SafeTrace.Domain.Enums
+﻿namespace SafeTrace.Domain.Enums
 {
     public enum CaseStatus
     {
-        Pending,
-        Active,
-        Closed,
-        Found
+        Pending, // Waiting for approval
+        Active, // Case is active and being worked on
+        Deleted, // Case is Deleted by the user as long as case is not found
+        Found, // Case is found and closed by the user
+        Rejected, // Case is rejected by the admin
+        Expired // Case is expired for urgent cases that are not found within 48 hours
     }
 }

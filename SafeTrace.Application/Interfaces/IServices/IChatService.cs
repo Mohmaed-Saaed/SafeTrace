@@ -1,0 +1,28 @@
+using SafeTrace.Application.DTOs.Chat;
+using SafeTrace.Application.DTOs.Message;
+using SafeTrace.Application.DTOs.Responses;
+using System;
+using System.Collections.Generic;
+using System.Text;
+
+namespace SafeTrace.Application.Interfaces.IServices
+{
+    public interface IChatService
+    {
+        Task<ApiResponse<StartChatContextDto>> GetStartChatContextAsync(long caseId, string currentUserId);
+        Task<ApiResponse<ChatDetailsDto>> StartOrGetChatAsync(long caseId, string currentUserId);
+        Task<ApiResponse<IEnumerable<ChatSummaryDto>>> GetUserChatsAsync (string currentUserId);
+        Task<ApiResponse<ChatDetailsDto>> GetUserChatDetailsAsync(long chatId, string currentUserId);
+
+        Task<ApiResponse<ChatDetailsDto>> GetDashChatDetailsAsync(long chatId);
+
+        Task<ApiResponse<List<MessageDto>>> GetChatMessagesAsync(long chatId, string currentUserId);
+        Task<ApiResponse<List<MessageDto>>> GetAdminChatMessagesAsync(long chatId);
+        Task<ApiResponse<ChatDetailsDto>> DeleteChatAsync(long chatId, string userId);
+        Task<ApiResponse<ChatDetailsDto>> DeleteChatByAdminAsync(long chatId);
+
+        Task<ApiResponse<PaginationResponseDto<AdminChatsDto>>> GetAllChatsAsync(int page , int pageSize, ChatFilterDto filter);
+
+        Task<ApiResponse<AdminChatStatisticsDto>> GetChatStatisticsAsync();
+    }
+}

@@ -1,8 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-
-namespace SafeTrace.Domain.Entities
+﻿namespace SafeTrace.Domain.Entities
 {
     public class FoundPersonInfo
     {
@@ -18,12 +14,12 @@ namespace SafeTrace.Domain.Entities
 
         public long CaseId { get; set; }
 
-        public DateTime FoundedAt { get; set; }
+        public DateOnly FoundedAt { get; set; }
 
         public string FoundedUserId { get; set; } = null!;
 
         public ApplicationUser FoundedUser { get; set; } = null!;
 
-        public BaseCase Case { get; set; } = null!;
+        public Case Case { get; set; } = null!;
     }
 }
